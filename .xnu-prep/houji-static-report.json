@@ -1,0 +1,74 @@
+{
+  "status": "offline-static-checks",
+  "device": "Xiaomi 14",
+  "codename": "houji",
+  "soc": "SM8650",
+  "shmbridge_protocol_guid": "9C1EB71F-DD6C-4ED5-9F6A-5CC0CA789F16",
+  "shmbridge_file_guid": "41EBB6A6-2C19-4C02-841D-848CE004A282",
+  "ufs_file_guid": "0D35CD8E-97EA-4F9A-96AF-0F0D89F76567",
+  "checks": [
+    {
+      "name": "board.name",
+      "passed": true,
+      "detail": "'houji'"
+    },
+    {
+      "name": "board.soc",
+      "passed": true,
+      "detail": "'SM8650'"
+    },
+    {
+      "name": "board.identity",
+      "passed": true,
+      "detail": "Xiaomi 14 houji XNU first entry (no system volume)"
+    },
+    {
+      "name": "adt.script.identity",
+      "passed": true,
+      "detail": "source identity markers"
+    },
+    {
+      "name": "adt.model",
+      "passed": true,
+      "detail": "model property"
+    },
+    {
+      "name": "adt.product",
+      "passed": true,
+      "detail": "product properties"
+    },
+    {
+      "name": "mu.houji.dsc",
+      "passed": true,
+      "detail": "/home/yun/桌面/仓库/Mu-Silicium/Platforms/Xiaomi/houjiPkg/houji.dsc"
+    },
+    {
+      "name": "mu.houji.fdf",
+      "passed": true,
+      "detail": "/home/yun/桌面/仓库/Mu-Silicium/Platforms/Xiaomi/houjiPkg/houji.fdf"
+    },
+    {
+      "name": "mu.fv.shmbridge",
+      "passed": true,
+      "detail": "FVMAIN entry"
+    },
+    {
+      "name": "mu.fv.ufs",
+      "passed": true,
+      "detail": "FVMAIN entry"
+    },
+    {
+      "name": "mu.shmbridge.depex",
+      "passed": true,
+      "detail": "ShmBridge INF Depex"
+    },
+    {
+      "name": "mu.shmbridge.entrypoint",
+      "passed": true,
+      "detail": "driver contains install-failure diagnostic"
+    }
+  ],
+  "adt_sha256": "8fea727ff7fe669e53f373bfb2121938016b3e3754b9f4262deca2f68cc3756c",
+  "shmbridge_binary_sha256": "c707335b4d41ae61b15f9abc9fc0df8997905299575d8c889df73a18cd73f3c4",
+  "passed": true
+}

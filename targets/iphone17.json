@@ -1,0 +1,10 @@
+{
+  "product": "iPhone11,2",
+  "device_class": "d321ap",
+  "version": "17.7",
+  "build": "21H16",
+  "chip_id": "0x8020",
+  "board_id": "0x0E",
+  "url": "https://updates.cdn-apple.com/2024FallFCS/fullrestores/062-79002/2CDE0E28-284D-4554-A20B-DAFB4703AF3F/iPhone11,2,iPhone11,4,iPhone11,6_17.7_21H16_Restore.ipsw",
+  "status": "architecture audit only; not a bootable board configuration"
+}

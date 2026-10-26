@@ -1,0 +1,44 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = GiuliaInitrdDxe
+  FILE_GUID = 5C0E4B7B-31D2-4E8F-9A66-0B1F7D2C8E43
+  MODULE_TYPE = DXE_DRIVER
+  VERSION_STRING = 1.0
+  ENTRY_POINT = GiuliaInitrdDxeEntry
+[Sources]
+  GiuliaInitrdDxe.c
+  ScanPolicy.h
+  TouchClock.c
+  TouchPower.c
+  HallPower.c
+  HallClock.c
+  HallPreparePolicy.h
+  WifiPcie.c
+  GpuPower.c
+  GpuGunyah.c
+[Packages]
+  MdePkg/MdePkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+  QcomPkg/QcomPkg.dec
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  DxeServicesTableLib
+  FdtLib
+  HobLib
+  IoLib
+  MemoryAllocationLib
+  PrintLib
+  UefiRuntimeServicesTableLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+[Guids]
+  gSiliciumEntryArgHobGuid
+[Protocols]
+  gEfiBlockIoProtocolGuid
+  gEfiDevicePathProtocolGuid
+  gEfiClockProtocolGuid
+  gEfiMonotonicCounterArchProtocolGuid
+[Depex]
+  gEfiMonotonicCounterArchProtocolGuid

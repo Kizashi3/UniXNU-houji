@@ -1,0 +1,12 @@
+{
+  "product": "iPhone10,3",
+  "device_class": "d22ap",
+  "version": "16.7.16",
+  "build": "20H392",
+  "chip_id": "0x8015",
+  "board_id": "0x06",
+  "url": "https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw",
+  "kernel_member": "kernelcache.release.iphone10b",
+  "kernel_im4p_sha256": "2d6a13d040aaf87cec09bb6906d43e9bd8cea951e43d1aa1cd62707dfdc5aaec",
+  "status": "Independent iPhone iOS 16 port target; kernel ABI and 4K patches require qualification"
+}

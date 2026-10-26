@@ -1,0 +1,84 @@
+name: houji XNU kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      xcode:
+        description: Xcode version on the macos-26 runner
+        required: true
+        default: "26.6"
+
+permissions:
+  contents: read
+
+jobs:
+  kernel:
+    runs-on: macos-26
+    timeout-minutes: 360
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ inputs.xcode }}.app/Contents/Developer
+      DEVICE_DIR: ${{ github.workspace }}/device
+    steps:
+      - name: Check out UniXNU
+        uses: actions/checkout@v4
+        with:
+          repository: UniXNU/UniXNU
+          path: unixnu
+          persist-credentials: false
+
+      - name: Check out houji device repository
+        uses: actions/checkout@v4
+        with:
+          path: device
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install host tools
+        run: |
+          brew install llvm lld mtools dtc
+          if ! command -v unifdef >/dev/null; then
+            brew install unifdef
+            echo "$(brew --prefix unifdef)/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Validate runner
+        run: |
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphoneos --find mig
+          for tool in git make clang cmake ninja unifdef; do command -v "$tool"; done
+
+      - name: Configure and fetch sources
+        working-directory: unixnu
+        run: |
+          ./unixnu defconfig houji_defconfig -D "$DEVICE_DIR"
+          ./unixnu fetch xnu libplatform libdispatch AvailabilityVersions libpthread corecrypto-2023 -D "$DEVICE_DIR"
+
+      - name: Build houji kernel
+        working-directory: unixnu
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./unixnu build kernel -D "$DEVICE_DIR" -j 3
+
+      - name: Hash kernel artifact
+        if: success()
+        working-directory: unixnu
+        run: shasum -a 256 out/houji/kernel/kernel.macho > out/houji/kernel/kernel.macho.sha256
+
+      - name: Upload kernel and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: houji-xnu-kernel-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            unixnu/out/houji/kernel/kernel.macho
+            unixnu/out/houji/kernel/kernel.json
+            unixnu/out/houji/kernel/kernel.macho.sha256
+            unixnu/out/houji/logs/**/*.log
+            unixnu/out/houji/.config
+            device/unixnu.lock

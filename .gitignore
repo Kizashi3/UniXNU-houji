@@ -1,0 +1,15 @@
+.venv*/
+Build/
+out/
+__pycache__/
+*.pyc
+*.bak
+*.img
+*.fd
+*.ipsw
+*.zip
+*.dmg
+*.bin
+inputs/kernelcache*
+inputs/*firmware*
+inputs/*userdata*

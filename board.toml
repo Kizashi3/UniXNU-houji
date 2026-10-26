@@ -1,0 +1,100 @@
+# Xiaomi 14 (houji): XNU first-entry build; no system volume or storage driver yet.
+[board]
+name = "houji"
+soc = "SM8650"
+description = "Xiaomi 14 houji SM8650"
+kit = "houji"
+
+# Read-only live GPT of the connected Xiaomi 14 unit, CRC-checked on 2026-10-21.
+# Specific to the connected 256 GB unit; does not authorize flashing userdata.
+[userdata]
+first_lba = 3920350
+last_lba = 61321210
+lba_bytes = 4096
+windows = [
+  { name = "OS", component = "OS" },
+  { name = "SystemOS", component = "Cryptex1,SystemOS" },
+]
+
+[ipsw]
+url = "https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw"
+product = "iPhone10,3"
+version = "16.7.16"
+build = "20H392"
+device_class = "d22ap"
+chip_id = 0x8015
+board_id = 6
+fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache"]   # the small components
+
+[ipsw.sha256]
+# Raw KernelCache member pin (the local input is the same IM4P member).
+"kernelcache.release.iphone10b" = "2d6a13d040aaf87cec09bb6906d43e9bd8cea951e43d1aa1cd62707dfdc5aaec"
+
+[kernel]
+defconfig = "houji_defconfig"
+archives = [
+  "build-corecrypto-14.py",
+  "build-corecrypto-14.py --namespace",
+  "build-arm-driver.py ArmDTPlatform",
+  "build-arm-driver.py ArmCpu",
+  "build-libpthread-kernel.py",
+]
+
+[kernel.prelink]
+tool = "kits/NativePrelink/emit_prelink.py"
+kernel = "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
+# Set after macOS compression_tool decodes the iOS 16.7.16 KernelCache IM4P.
+slide = "-0x1000000"
+early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005ab4ae0"
+roots = [
+  "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
+  "com.apple.driver.AppleARMPlatform",
+  "com.apple.driver.AppleARMWatchdogTimer",
+  "com.apple.driver.AppleAudioClockLibs",
+  "com.apple.driver.AppleEffaceableStorage",
+  "com.apple.driver.AppleIISController",
+  "com.apple.driver.AppleM2ScalerCSCDriver",
+  "com.apple.driver.AppleMobileFileIntegrity",
+  "com.apple.driver.ApplePMGR",
+  "com.apple.driver.IODARTFamily",
+  "com.apple.filesystems.apfs",
+  "com.apple.iokit.CoreAnalyticsFamily",
+  "com.apple.iokit.IOAVFamily",
+  "com.apple.iokit.IOAudio2Family",
+  "com.apple.iokit.IOCECFamily",
+  "com.apple.iokit.IOCryptoAcceleratorFamily",
+  "com.apple.iokit.IOGPUFamily",
+  "com.apple.iokit.IOHDCPFamily",
+  "com.apple.iokit.IOMobileGraphicsFamily",
+  "com.apple.iokit.IOReportFamily",
+  "com.apple.iokit.IOSlowAdaptiveClockingFamily",
+  "com.apple.iokit.IOStorageFamily",
+  "com.apple.iokit.IOSurface",
+  "com.apple.kec.Libm",
+  "com.apple.kec.corecrypto",
+  "com.apple.kext.AppleMatch",
+  "com.apple.kext.CoreTrust",
+  "com.apple.security.AppleImage4",
+  "com.apple.security.sandbox",
+  "com.apple.iokit.IOHIDFamily",
+  "com.apple.iokit.IOHIDEventDriver",
+]
+
+[payload]
+volume = "GIULIAESP"
+size_mib = 192
+loader = "firmware"
+title = "Xiaomi 14 houji XNU first entry (no system volume)"
+# The first-entry handoff window, not total installed device RAM.
+dram_size = "0x10000000"
+panic_screen = false
+timeout = 0
+kernel_args = ["-v", "serial=3", "debug=0x14e", "armcpu-diagnostics=1", "houji-ufs-probe=2"]
+
+[payload.adt]
+tool = "scripts/make-houji-adt.py"
+owned_memory_size = "0x10000000"
+cpu_regs = "0"
+psci_method = "smc"
+[firmware]
+config = "houji"
