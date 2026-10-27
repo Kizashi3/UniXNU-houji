@@ -49,7 +49,6 @@ early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005ab4
 roots = [
   "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
   "com.apple.driver.AppleAudioClockLibs",
-  "com.apple.driver.AppleM2ScalerCSCDriver",
   "com.apple.driver.AppleMobileFileIntegrity",
   "com.apple.driver.ApplePMGR",
   "com.apple.driver.IODARTFamily",
