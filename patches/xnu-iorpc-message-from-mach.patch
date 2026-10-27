@@ -1,15 +1,14 @@
 diff --git a/iokit/Kernel/IOUserServer.cpp b/iokit/Kernel/IOUserServer.cpp
-index b14ca9c4c..5245e7ef4 100644
+index b14ca9c4c..cd08b2104 100644
 --- a/iokit/Kernel/IOUserServer.cpp
 +++ b/iokit/Kernel/IOUserServer.cpp
-@@ -7426,3 +7426,14 @@ IOEventLink::SetEventlinkPort_Impl(mach_port_t port __unused)
+@@ -7426,3 +7426,13 @@ IOEventLink::SetEventlinkPort_Impl(mach_port_t port __unused)
  {
  	return kIOReturnUnsupported;
  }
 +/* UniXNU compatibility: some iOS 16 kernelcache components reference the
 + * user-facing IORPCMessageFromMach symbol when prelinked into the kernel. */
-+extern "C" __attribute__ (used, visibility("default"));
-+IORPCMessage *
++extern "C" __attribute__((used, visibility("default"))) IORPCMessage *
 +IORPCMessageFromMach(IORPCMessageMach * msg, bool reply)
 +{
 +	if (!reply) {
@@ -17,3 +16,4 @@ index b14ca9c4c..5245e7ef4 100644
 +	}
 +	return IORPCMessageFromMachReply(msg);
 +}
+\ No newline at end of file
