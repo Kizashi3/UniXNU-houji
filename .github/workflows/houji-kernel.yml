@@ -58,6 +58,12 @@ jobs:
           ./unixnu defconfig houji_defconfig -D "$DEVICE_DIR"
           ./unixnu fetch xnu libplatform libdispatch AvailabilityVersions libpthread corecrypto-2023 -D "$DEVICE_DIR"
 
+      - name: Apply XNU compatibility patch
+        working-directory: unixnu
+        run: |
+          ./unixnu tree -D "$DEVICE_DIR"
+          git -C out/houji/tree/refer/xnu apply "$DEVICE_DIR/patches/xnu-iorpc-message-from-mach.patch"
+
       - name: Annotate prelink binding diagnostics
         working-directory: unixnu
         run: |
