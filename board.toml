@@ -42,11 +42,13 @@ archives = [
 ]
 
 [kernel.prelink]
+kernelcache_sha256 = "2ec297bac95bcba01046fd0148e97e7e5885c05a6c18827f39f534ba375c1221"
 tool = "kits/NativePrelink/emit_prelink.py"
 kernel = "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
 # Set after macOS compression_tool decodes the iOS 16.7.16 KernelCache IM4P.
 slide = "-0x1000000"
-early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005ab4ae0"
+# 20H392 AMFI policy initializer; see docs/prelink-20H392-validation.md.
+early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005703c54"
 roots = [
   "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
   "com.apple.driver.AppleARMPlatform",

@@ -1,0 +1,11 @@
+--- a/kits/NativePrelink/emit_prelink.py
++++ b/kits/NativePrelink/emit_prelink.py
+@@ -17,6 +17,8 @@
+ VECTOR_REPEAT_DIGEST = 'f7bb30778915b574b63a17573babfdeb97251ae92fb57e7302e69783f454f92a'
+ ADLER32_VECTOR_DIGEST = '48bdf8e57f8647f2ef3cfda5b500209c4be9b5742632db0ff3614aca8d7ee63d'
+ MATH_LITERAL_POOLS = (
++    # iPhone X iOS 16.7.16 (20H392): math literal table, ends before the next function.
++    ('0000807f0000004100008040db0f493f', 1228, '73df5b757c53532583e3686b7d93df11ec1f5dd8c201d05502654a7812cc385f'),
+     ('00000000004a87c0f039fafe422e8640', 2160, '1a5eb119b57d453a6123eb839b259b96f2ff4f687fc8aabfdcf965ded106df81'),
+     ('0000807f0000f042db0f493f00008039', 1248, '92c7b2f87685a1e7a92cad6e7d408fdbc03bd67d1207b6579214040f413b2161'),
+     ('1f2003d500000000001018c00ee52615', 2188, 'c103ce1f2e204bbbfcc2069de79758b0ea399e5e7b39b2b8337cbf3d3f7f960a'),

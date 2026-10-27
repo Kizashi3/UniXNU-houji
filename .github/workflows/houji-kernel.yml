@@ -147,6 +147,14 @@ jobs:
           path.write_text(text)
           print(f"annotated {path}")
           PY
+      - name: Validate prelink compatibility scripts
+        working-directory: unixnu
+        run: |
+          git apply --check "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
+          git apply "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
+          python3 -m py_compile kits/NativePrelink/native_prelink.py kits/NativePrelink/emit_prelink.py
+          python3 -m unittest discover -s kits/NativePrelink -p 'test_*.py'
+
       - name: Build houji kernel
         working-directory: unixnu
         env:
@@ -159,6 +167,18 @@ jobs:
           build_status=${PIPESTATUS[0]}
           echo "UniXNU kernel build exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
           exit "$build_status"
+
+      - name: Check pinned iOS16 prelink inputs
+        if: always()
+        working-directory: unixnu
+        run: |
+          cache=out/ipsw/20H392/kernelcache.decompressed
+          if [ -f "$cache" ]; then
+            python3 "$DEVICE_DIR/scripts/verify-prelink-ios16.py" \
+              --kit kits/NativePrelink --kernelcache "$cache" \
+              --board "$DEVICE_DIR/board.toml" \
+              --output out/houji/logs/prelink-ios16-validation.json
+          fi
 
       - name: Collect kernel build diagnostics
         if: always()
