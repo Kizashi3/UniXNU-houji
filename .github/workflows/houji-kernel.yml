@@ -77,6 +77,41 @@ jobs:
               raise SystemExit(f"expected one native_prelink.py, found: {candidates}")
           path = candidates[0]
           text = path.read_text()
+
+          # The iOS 16 IOStorageFamily component imports this DriverKit-era
+          # helper. The native BCM2837 build retains the corresponding local
+          # IORPCMessageFromMachReply implementation, so expose local symbols
+          # to the resolver and use that implementation as a compatibility
+          # target when the C stub is dead-stripped.
+          replacements = [
+              ("def exports(data, image):", "def exports(data, image, include_local=False):"),
+              ("        if kind & 0xe0 or not kind & 1 or not kind & 0x0e:",
+               "        if kind & 0xe0 or not kind & 0x0e or (not include_local and not kind & 1):"),
+              ("    for address, names in exports(native_data, native).items():",
+               "    for address, names in exports(native_data, native, include_local=True).items:"),
+          ]
+          # Correct the final replacement's call syntax separately to keep the
+          # marker unambiguous across UniXNU revisions.
+          replacements[-1] = (replacements[-1][0],
+              "    for address, names in exports(native_data, native, include_local=True).items():")
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"prelink marker not found: {old}")
+              text = text.replace(old, new, 1)
+
+          anchor = "    packed = metadata['_PrelinkLinkKASLROffsets']"
+          alias = (
+              "    if '_IORPCMessageFromMach' not in native_symbols:\n"
+              "        reply = {address for address, names in exports(native_data, native, include_local=True).items()\n"
+              "                 if any('IORPCMessageFromMachReply' in name for name in names)}\n"
+              "        if len(reply) == 1:\n"
+              "            native_symbols['_IORPCMessageFromMach'] = reply\n"
+              "            print('native prelink compatibility alias: _IORPCMessageFromMach -> IORPCMessageFromMachReply')\n"
+          )
+          if anchor not in text:
+              raise SystemExit("prelink symbol anchor not found")
+          text = text.replace(anchor, alias + anchor, 1)
+
           old = "            replacement = unique_kernel_binding(target, original_symbols, native_symbols)"
           new = (
               "            try:\n"
@@ -99,11 +134,11 @@ jobs:
               "                raise ValueError(f\"{error}; source={source[2]}; site={site:#x}; roots={paths}\") from error"
           )
           if old not in text:
-              raise SystemExit(f"prelink binding line not found in {path}")
-          path.write_text(text.replace(old, new, 1))
+              raise SystemExit("prelink binding line not found")
+          text = text.replace(old, new, 1)
+          path.write_text(text)
           print(f"annotated {path}")
           PY
-
       - name: Build houji kernel
         working-directory: unixnu
         env:
