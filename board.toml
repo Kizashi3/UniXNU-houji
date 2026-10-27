@@ -76,8 +76,6 @@ roots = [
   "com.apple.kext.CoreTrust",
   "com.apple.security.AppleImage4",
   "com.apple.security.sandbox",
-  "com.apple.iokit.IOHIDFamily",
-  "com.apple.iokit.IOHIDEventDriver",
 ]
 
 [payload]
@@ -96,5 +94,6 @@ tool = "scripts/make-houji-adt.py"
 owned_memory_size = "0x10000000"
 cpu_regs = "0"
 psci_method = "smc"
+
 [firmware]
 config = "houji"
