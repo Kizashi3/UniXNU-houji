@@ -51,7 +51,6 @@ roots = [
   "com.apple.driver.AppleARMPlatform",
   "com.apple.driver.AppleARMWatchdogTimer",
   "com.apple.driver.AppleAudioClockLibs",
-  "com.apple.driver.AppleEffaceableStorage",
   "com.apple.driver.AppleIISController",
   "com.apple.driver.AppleM2ScalerCSCDriver",
   "com.apple.driver.AppleMobileFileIntegrity",
