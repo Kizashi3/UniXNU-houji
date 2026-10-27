@@ -50,7 +50,6 @@ roots = [
   "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
   "com.apple.driver.AppleAudioClockLibs",
   "com.apple.driver.AppleMobileFileIntegrity",
-  "com.apple.driver.ApplePMGR",
   "com.apple.driver.IODARTFamily",
   "com.apple.iokit.CoreAnalyticsFamily",
   "com.apple.iokit.IOAVFamily",
