@@ -71,11 +71,13 @@ jobs:
               raise SystemExit(f"expected one native_prelink.py, found: {candidates}")
           path = candidates[0]
           text = path.read_text()
-          old = "replacement = unique_kernel_binding(target, original_symbols, native_symbols)"
-          new = """try:
-                  replacement = unique_kernel_binding(target, original_symbols, native_symbols)
-              except ValueError as error:
-                  raise ValueError(f"{error}; source={source[2]}; site={site:#x}") from error"""
+          old = "            replacement = unique_kernel_binding(target, original_symbols, native_symbols)"
+          new = (
+              "            try:\n"
+              "                replacement = unique_kernel_binding(target, original_symbols, native_symbols)\n"
+              "            except ValueError as error:\n"
+              "                raise ValueError(f\"{error}; source={source[2]}; site={site:#x}\") from error"
+          )
           if old not in text:
               raise SystemExit(f"prelink binding line not found in {path}")
           path.write_text(text.replace(old, new, 1))
