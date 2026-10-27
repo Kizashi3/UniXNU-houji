@@ -62,7 +62,37 @@ jobs:
         working-directory: unixnu
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: ./unixnu build kernel -D "$DEVICE_DIR" -j 3
+        run: |
+          set -o pipefail
+          mkdir -p out/houji/logs
+          set +e
+          ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build.log
+          build_status=${PIPESTATUS[0]}
+          echo "UniXNU kernel build exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
+          exit "$build_status"
+
+      - name: Collect kernel build diagnostics
+        if: always()
+        working-directory: unixnu
+        run: |
+          mkdir -p out/houji/logs
+          {
+            echo "=== runner ==="
+            date -u
+            xcodebuild -version || true
+            xcrun --sdk iphoneos --show-sdk-version || true
+            echo "=== source revisions ==="
+            git rev-parse HEAD || true
+            git -C "$DEVICE_DIR" rev-parse HEAD || true
+            echo "=== output files ==="
+            find out/houji -maxdepth 5 -type f -print 2>/dev/null | sort || true
+            echo "=== log tails ==="
+            for log in out/houji/logs/*.log; do
+              [ -f "$log" ] || continue
+              echo "--- ${log} (last 250 lines) ---"
+              tail -n 250 "$log" || true
+            done
+          } | tee out/houji/logs/github-diagnostics.log
 
       - name: Hash kernel artifact
         if: success()
@@ -76,6 +106,7 @@ jobs:
           name: houji-xnu-kernel-${{ github.run_number }}
           if-no-files-found: warn
           path: |
+            unixnu/out/houji/**
             unixnu/out/houji/kernel/kernel.macho
             unixnu/out/houji/kernel/kernel.json
             unixnu/out/houji/kernel/kernel.macho.sha256
