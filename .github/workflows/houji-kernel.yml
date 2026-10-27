@@ -99,6 +99,26 @@ jobs:
                   raise SystemExit(f"prelink marker not found: {old}")
               text = text.replace(old, new, 1)
 
+          old_unique = '''def unique_kernel_binding(address, original_exports, native_by_name):
+    names = original_exports.get(address, [])
+    choices = {new for name in names for new in native_by_name.get(name, set())}
+    if len(choices) != 1:
+        raise ValueError(f'Kernel target {address:#x} has {len(choices)} native address candidates: {names}')
+    return next(iter(choices))
+'''
+          new_unique = '''def unique_kernel_binding(address, original_exports, native_by_name):
+    names = original_exports.get(address, [])
+    sets = [native_by_name.get(name, set()) for name in names]
+    common = set.intersection(*(set(values) for values in sets)) if sets else set()
+    if len(common) == 1:
+        return next(iter(common))
+    choices = set.union(*(set(values) for values in sets)) if sets else set()
+    raise ValueError(f'Kernel target {address:#x} has {len(choices)} native address candidates: {names}')
+'''
+          if old_unique not in text:
+              raise SystemExit("unique binding function not found")
+          text = text.replace(old_unique, new_unique, 1)
+
           anchor = "    packed = metadata['_PrelinkLinkKASLROffsets']"
           alias = (
               "    if '_IORPCMessageFromMach' not in native_symbols:\n"
