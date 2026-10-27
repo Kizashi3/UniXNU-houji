@@ -1,10 +1,11 @@
 diff --git a/iokit/Kernel/IOUserServer.cpp b/iokit/Kernel/IOUserServer.cpp
+index b14ca9c4c..0c04a5dea 100644
 --- a/iokit/Kernel/IOUserServer.cpp
 +++ b/iokit/Kernel/IOUserServer.cpp
-@@ -3668,3 +3668,14 @@ IORPCMessageFromMachReply(IORPCMessageMach * msg)
- 	return (IORPCMessage *)msg;
+@@ -7426,3 +7426,13 @@ IOEventLink::SetEventlinkPort_Impl(mach_port_t port __unused)
+ {
+ 	return kIOReturnUnsupported;
  }
-+
 +/* UniXNU compatibility: some iOS 16 kernelcache components reference the
 + * user-facing IORPCMessageFromMach symbol when prelinked into the kernel. */
 +extern "C" IORPCMessage *
