@@ -105,6 +105,7 @@ jobs:
         with:
           name: houji-xnu-kernel-${{ github.run_number }}
           if-no-files-found: warn
+          include-hidden-files: true
           path: |
             unixnu/out/houji/**
             unixnu/out/houji/kernel/kernel.macho
