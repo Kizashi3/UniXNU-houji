@@ -132,6 +132,12 @@ jobs:
             git -C "$DEVICE_DIR" rev-parse HEAD || true
             echo "=== output files ==="
             find out/houji -maxdepth 5 -type f -print 2>/dev/null | sort || true
+            echo "=== IORPC native symbol diagnostics ==="
+            native="out/houji/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
+            if [ -f "$native" ]; then
+              nm -an "$native" 2>/dev/null | grep -E 'IORPCMessageFromMach|IOUserServer' | tail -40 || true
+              grep -R -n 'IOUserServer.cpp' out/houji/tree/build/xnu 2>/dev/null | tail -20 || true
+            fi
             echo "=== log tails ==="
             for log in out/houji/logs/*.log; do
               [ -f "$log" ] || continue
