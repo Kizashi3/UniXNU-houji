@@ -150,10 +150,29 @@ jobs:
       - name: Validate prelink compatibility scripts
         working-directory: unixnu
         run: |
-          git apply --check "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
-          git apply "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
-          python3 -m py_compile kits/NativePrelink/native_prelink.py kits/NativePrelink/emit_prelink.py
-          python3 -m unittest discover -s kits/NativePrelink -p 'test_*.py'
+          # Resolve the board's build-tree alias to its actual submodule.
+          prelink_kit="$(python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import tomllib
+
+          board = tomllib.loads((Path(os.environ["DEVICE_DIR"]) / "board.toml").read_text())
+          emitter = (Path("out/houji/tree") / board["kernel"]["prelink"]["tool"]).resolve(strict=True)
+          if not emitter.is_file():
+              raise SystemExit(f"prelink emitter is not a file: {emitter}")
+          for name in ("native_prelink.py", "test_native_prelink.py", "test_emit_prelink.py"):
+              if not (emitter.parent / name).is_file():
+                  raise SystemExit(f"missing prelink source/test: {emitter.parent / name}")
+          print(emitter.parent)
+          PY
+          )"
+          echo "Resolved prelink kit: $prelink_kit"
+          echo "PRELINK_KIT=$prelink_kit" >> "$GITHUB_ENV"
+          # Strip a/kits/NativePrelink/ and apply inside the resolved submodule.
+          git -C "$prelink_kit" apply -p3 --check "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
+          git -C "$prelink_kit" apply -p3 "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
+          python3 -m py_compile "$prelink_kit/native_prelink.py" "$prelink_kit/emit_prelink.py"
+          python3 -m unittest discover -s "$prelink_kit" -p 'test_*.py'
 
       - name: Build houji kernel
         working-directory: unixnu
@@ -175,7 +194,7 @@ jobs:
           cache=out/ipsw/20H392/kernelcache.decompressed
           if [ -f "$cache" ]; then
             python3 "$DEVICE_DIR/scripts/verify-prelink-ios16.py" \
-              --kit kits/NativePrelink --kernelcache "$cache" \
+              --kit "$PRELINK_KIT" --kernelcache "$cache" \
               --board "$DEVICE_DIR/board.toml" \
               --output out/houji/logs/prelink-ios16-validation.json
           fi

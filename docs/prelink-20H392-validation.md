@@ -90,9 +90,33 @@ request/reply semantics. This patch does not claim to fix that ABI risk.
 After the workflow patches are applied to the UniXNU checkout:
 
     python3 DEVICE/scripts/verify-prelink-ios16.py \
-      --kit kits/NativePrelink \
+      --kit out/houji/tree/kits/NativePrelink \
       --kernelcache out/ipsw/20H392/kernelcache.decompressed \
       --board DEVICE/board.toml \
       --output out/houji/logs/prelink-ios16-validation.json
 
 No phone boot, partition write or data wipe was performed.
+
+
+## Cloud directory-layout correction
+
+The cloud UniXNU checkout stores the module at kits/XnuPrelink. The board's
+out/houji/tree/kits/NativePrelink path is an alias to that submodule.
+The workflow now resolves the board's emitter path to its physical parent,
+then applies the patch with git -C <physical-kit> apply -p3. Compilation,
+unit tests and the later real-cache regression step all use that same path
+through PRELINK_KIT.
+
+Validation used actual Git submodules, not just copied files, at XnuPrelink
+revision f876e3ee62e18fc06653dd75ed7dafcfb3950ac0:
+- both kits/XnuPrelink and legacy kits/NativePrelink layouts passed;
+- each ran the workflow's annotation, patch/test, and input-validation steps;
+- 26 upstream tests passed per layout;
+- both scanned 29 real-cache components and 223220 PC-relative encodings;
+- full emit with this cloud-kit revision and the archived native baseline
+  generated 57020416 bytes (same SHA256 as the earlier local candidate).
+- YAML parsing and bash -n passed.
+
+Fixture paths and results are archived on Ubuntu in
+/home/yun/桌面/临时/prelink-analysis/workflow-path-validation.json.
+The latest cloud native kernel still requires a new workflow run.
