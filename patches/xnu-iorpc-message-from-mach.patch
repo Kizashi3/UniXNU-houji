@@ -14,4 +14,4 @@ diff --git a/iokit/Kernel/IOUserServer.cpp b/iokit/Kernel/IOUserServer.cpp
 +		return nullptr;
 +	}
 +	return IORPCMessageFromMachReply(msg);
-+}n
++}
