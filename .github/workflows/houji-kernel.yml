@@ -61,11 +61,12 @@ jobs:
       - name: Annotate prelink binding diagnostics
         working-directory: unixnu
         run: |
-          ./unixnu tree -D "$DEVICE_DIR"
           python3 - <<'PY'
           from pathlib import Path
 
-          candidates = list(Path("out/houji/tree/kits").glob("*/native_prelink.py"))
+          candidates = list(Path("kits").glob("*/native_prelink.py"))
+          if not candidates:
+              candidates = list(Path("out/houji/tree/kits").glob("*/native_prelink.py"))
           if len(candidates) != 1:
               raise SystemExit(f"expected one native_prelink.py, found: {candidates}")
           path = candidates[0]
