@@ -76,7 +76,21 @@ jobs:
               "            try:\n"
               "                replacement = unique_kernel_binding(target, original_symbols, native_symbols)\n"
               "            except ValueError as error:\n"
-              "                raise ValueError(f\"{error}; source={source[2]}; site={site:#x}\") from error"
+              "                queue = [(root, [root]) for root in roots]\n"
+              "                seen = set()\n"
+              "                paths = []\n"
+              "                while queue:\n"
+              "                    identifier, chain = queue.pop(0)\n"
+              "                    if identifier in seen:\n"
+              "                        continue\n"
+              "                    seen.add(identifier)\n"
+              "                    if identifier == source[2]:\n"
+              "                        paths.append(' -> '.join(chain))\n"
+              "                        continue\n"
+              "                    entry = entries.get(identifier)\n"
+              "                    if entry:\n"
+              "                        queue.extend((dep, chain + [dep]) for dep in (entry.get('OSBundleLibraries') or {}))\n"
+              "                raise ValueError(f\"{error}; source={source[2]}; site={site:#x}; roots={paths}\") from error"
           )
           if old not in text:
               raise SystemExit(f"prelink binding line not found in {path}")
