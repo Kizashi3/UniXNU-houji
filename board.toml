@@ -68,7 +68,6 @@ roots = [
   "com.apple.iokit.IOMobileGraphicsFamily",
   "com.apple.iokit.IOReportFamily",
   "com.apple.iokit.IOSlowAdaptiveClockingFamily",
-  "com.apple.iokit.IOStorageFamily",
   "com.apple.iokit.IOSurface",
   "com.apple.kec.Libm",
   "com.apple.kec.corecrypto",
