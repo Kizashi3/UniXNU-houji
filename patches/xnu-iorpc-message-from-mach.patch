@@ -1,19 +1,19 @@
-diff --git a/iokit/Kernel/IOUserServer.cpp b/iokit/Kernel/IOUserServer.cpp
-index b14ca9c4c..cd08b2104 100644
---- a/iokit/Kernel/IOUserServer.cpp
-+++ b/iokit/Kernel/IOUserServer.cpp
-@@ -7426,3 +7426,13 @@ IOEventLink::SetEventlinkPort_Impl(mach_port_t port __unused)
- {
- 	return kIOReturnUnsupported;
+diff --git a/iokit/Kernel/IOLib.cpp b/iokit/Kernel/IOLib.cpp
+index 7addbb376..100776285 100644
+--- a/iokit/Kernel/IOLib.cpp
++++ b/iokit/Kernel/IOLib.cpp
+@@ -1704,3 +1704,14 @@ IOAlignmentToSize(IOAlignment align)
+ 	return size;
  }
-+/* UniXNU compatibility: some iOS 16 kernelcache components reference the
-+ * user-facing IORPCMessageFromMach symbol when prelinked into the kernel. */
-+extern "C" __attribute__((used, retain, visibility("default"))) IORPCMessage *
-+IORPCMessageFromMach(IORPCMessageMach * msg, bool reply)
+ } /* extern "C" */
++
++/* UniXNU compatibility: provide the user-facing IORPC symbol to prelinked
++ * iOS 16 storage components. The first-entry kernel does not run DriverKit
++ * user-server RPC, so an unhandled request is deliberately rejected. */
++struct IORPCMessage;
++struct IORPCMessageMach;
++extern C __attribute__((used, retain, visibility(default))) IORPCMessage *
++IORPCMessageFromMach(IORPCMessageMach * msg __unused, bool reply __unused)
 +{
-+	if (!reply) {
-+		return nullptr;
-+	}
-+	return IORPCMessageFromMachReply(msg);
++	return nullptr;
 +}
-\ No newline at end of file
