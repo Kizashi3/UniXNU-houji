@@ -88,36 +88,24 @@ jobs:
               ("        if kind & 0xe0 or not kind & 1 or not kind & 0x0e:",
                "        if kind & 0xe0 or not kind & 0x0e or (not include_local and not kind & 1):"),
               ("    for address, names in exports(native_data, native).items():",
-               "    for address, names in exports(native_data, native, include_local=True).items:"),
+               "    for address, names in exports(native_data, native, include_local=True).items():"),
           ]
-          # Correct the final replacement's call syntax separately to keep the
-          # marker unambiguous across UniXNU revisions.
-          replacements[-1] = (replacements[-1][0],
-              "    for address, names in exports(native_data, native, include_local=True).items():")
           for old, new in replacements:
               if old not in text:
                   raise SystemExit(f"prelink marker not found: {old}")
               text = text.replace(old, new, 1)
 
-          old_unique = '''def unique_kernel_binding(address, original_exports, native_by_name):
-    names = original_exports.get(address, [])
-    choices = {new for name in names for new in native_by_name.get(name, set())}
-    if len(choices) != 1:
-        raise ValueError(f'Kernel target {address:#x} has {len(choices)} native address candidates: {names}')
-    return next(iter(choices))
-'''
-          new_unique = '''def unique_kernel_binding(address, original_exports, native_by_name):
-    names = original_exports.get(address, [])
-    sets = [native_by_name.get(name, set()) for name in names]
-    common = set.intersection(*(set(values) for values in sets)) if sets else set()
-    if len(common) == 1:
-        return next(iter(common))
-    choices = set.union(*(set(values) for values in sets)) if sets else set()
-    raise ValueError(f'Kernel target {address:#x} has {len(choices)} native address candidates: {names}')
-'''
-          if old_unique not in text:
-              raise SystemExit("unique binding function not found")
-          text = text.replace(old_unique, new_unique, 1)
+          old_choices = "    choices = {new for name in names for new in native_by_name.get(name, set())}"
+          new_choices = (
+              "    sets = [native_by_name.get(name, set()) for name in names]\n"
+              "    common = set.intersection(*(set(values) for values in sets)) if sets else set()\n"
+              "    if len(common) == 1:\n"
+              "        return next(iter(common))\n"
+              "    choices = set.union(*(set(values) for values in sets)) if sets else set()"
+          )
+          if old_choices not in text:
+              raise SystemExit("unique binding choice line not found")
+          text = text.replace(old_choices, new_choices, 1)
 
           anchor = "    packed = metadata['_PrelinkLinkKASLROffsets']"
           alias = (
