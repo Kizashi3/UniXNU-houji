@@ -58,6 +58,29 @@ jobs:
           ./unixnu defconfig houji_defconfig -D "$DEVICE_DIR"
           ./unixnu fetch xnu libplatform libdispatch AvailabilityVersions libpthread corecrypto-2023 -D "$DEVICE_DIR"
 
+      - name: Annotate prelink binding diagnostics
+        working-directory: unixnu
+        run: |
+          ./unixnu tree -D "$DEVICE_DIR"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          candidates = list(Path("out/houji/tree/kits").glob("*/native_prelink.py"))
+          if len(candidates) != 1:
+              raise SystemExit(f"expected one native_prelink.py, found: {candidates}")
+          path = candidates[0]
+          text = path.read_text()
+          old = "replacement = unique_kernel_binding(target, original_symbols, native_symbols)"
+          new = """try:
+                  replacement = unique_kernel_binding(target, original_symbols, native_symbols)
+              except ValueError as error:
+                  raise ValueError(f"{error}; source={source[2]}; site={site:#x}") from error"""
+          if old not in text:
+              raise SystemExit(f"prelink binding line not found in {path}")
+          path.write_text(text.replace(old, new, 1))
+          print(f"annotated {path}")
+          PY
+
       - name: Build houji kernel
         working-directory: unixnu
         env:
