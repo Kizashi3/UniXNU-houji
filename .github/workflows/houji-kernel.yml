@@ -64,6 +64,15 @@ jobs:
           ./unixnu tree -D "$DEVICE_DIR"
           git -C out/houji/tree/refer/xnu apply "$DEVICE_DIR/patches/xnu-iorpc-message-from-mach.patch"
 
+      - name: Apply persistent early-log patch
+        working-directory: unixnu
+        run: |
+          patch="$DEVICE_DIR/patches/xnu/native-persistent-early-log.patch"
+          test -f "$patch"
+          git -C out/houji/tree/refer/xnu apply --check "$patch"
+          git -C out/houji/tree/refer/xnu apply "$patch"
+          git -C out/houji/tree/refer/xnu diff --check
+
       - name: Annotate prelink binding diagnostics
         working-directory: unixnu
         run: |

@@ -1,0 +1,96 @@
+diff --git a/osfmk/console/serial_general.c b/osfmk/console/serial_general.c
+index b1ca47a..63ffca3 100644
+--- a/osfmk/console/serial_general.c
++++ b/osfmk/console/serial_general.c
+@@ -33,6 +33,7 @@
+  */
+ 
+ #include <kern/spl.h>
++#include <kern/debug.h>
+ #include <mach/std_types.h>
+ #include <types.h>
+ #include <kern/thread.h>
+@@ -158,6 +159,7 @@ console_printbuf_state_init(struct console_printbuf_state * data, int write_on_n
+ void
+ console_printbuf_putc(int ch, void * arg)
+ {
++	debug_putc((char)ch);
+ 	struct console_printbuf_state * info = (struct console_printbuf_state *)arg;
+ 	info->total += 1;
+ 	if (info->pos < (SERIAL_CONS_BUF_SIZE - 1)) {
+diff --git a/osfmk/kern/debug.c b/osfmk/kern/debug.c
+index e9daeed..732f9e5 100644
+--- a/osfmk/kern/debug.c
++++ b/osfmk/kern/debug.c
+@@ -497,6 +497,18 @@ debug_log_init(void)
+ 	debug_buf_ptr = debug_buf_base;
+ 	debug_buf_size = gPanicSize - sizeof(struct embedded_panic_header);
+ 
++	/*
++	 * The DT panic region is also the recovery-visible boot log.  XNU normally
++	 * initializes the embedded panic header only when panic() is entered, which
++	 * makes a normal early-boot stall invisible after a reset.  Initialize the
++	 * header once the region and debug buffer are ready so every subsequent
++	 * kprintf byte can be recovered from pstore/ramoops.  Keep firmware-owned
++	 * shared-memory and boot-profile records intact.
++	 */
++	if (panic_info && panic_info->eph_magic != 'SHMC' && panic_info->eph_magic != 'BTRC') {
++		PE_init_panicheader();
++	}
++
+ #if CONFIG_EXT_PANICLOG
+ 	ext_paniclog_init();
+ #endif
+@@ -1777,6 +1789,13 @@ debug_putc(char c)
+ 	    (!is_debug_ptr_in_ext_paniclog())) {
+ 		*debug_buf_ptr = c;
+ 		debug_buf_ptr++;
++		/* Publish a bounded length after the character store.  Recovery can
++		 * therefore read a stopped boot without depending on a panic. */
++		if (panic_info) {
++			unsigned int length = (unsigned int)(debug_buf_ptr - debug_buf_base);
++			atomic_thread_fence(memory_order_release);
++			((volatile struct embedded_panic_header *)panic_info)->eph_panic_log_len = length;
++		}
+ 	}
+ }
+ 
+diff --git a/pexpert/arm/pe_kprintf.c b/pexpert/arm/pe_kprintf.c
+index 65144c7..dfedb28 100644
+--- a/pexpert/arm/pe_kprintf.c
++++ b/pexpert/arm/pe_kprintf.c
+@@ -16,6 +16,15 @@
+ /* Globals */
+ typedef void (*PE_kputc_t)(char);
+ SECURITY_READ_ONLY_LATE(PE_kputc_t) PE_kputc;
++static PE_kputc_t PE_kputc_backend;
++
++/* Mirror ordinary kprintf output into the DT panic region after it is mapped. */
++static void
++persistent_kputc(char c)
++{
++	debug_putc(c);
++	PE_kputc_backend(c);
++}
+ 
+ // disable_serial_output disables kprintf() *and* unbuffered panic output.
+ SECURITY_READ_ONLY_LATE(bool) disable_serial_output = true;
+@@ -59,15 +68,16 @@ static void
+ PE_init_kprintf(void)
+ {
+ 	if (serial_init()) {
+-		PE_kputc = serial_putc_crlf;
++		PE_kputc_backend = serial_putc_crlf;
+ 	} else {
+ 		/**
+ 		 * If serial failed to initialize then fall back to using the console,
+ 		 * and assume the console is using the video console (because clearly
+ 		 * serial doesn't work).
+ 		 */
+-		PE_kputc = console_write_unbuffered;
++		PE_kputc_backend = console_write_unbuffered;
+ 	}
++	PE_kputc = persistent_kputc;
+ }
+ STARTUP(KPRINTF, STARTUP_RANK_FIRST, PE_init_kprintf);
+ 

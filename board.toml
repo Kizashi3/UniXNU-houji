@@ -90,7 +90,7 @@ title = "Xiaomi 14 houji XNU first entry (no system volume)"
 dram_size = "0x10000000"
 panic_screen = false
 timeout = 0
-kernel_args = ["-v", "serial=3", "debug=0x14e", "armcpu-diagnostics=1", "houji-ufs-probe=2"]
+kernel_args = ["-v", "serial=3", "debug=0x14e", "-enable_kprintf_spam=1", "armcpu-diagnostics=1", "houji-ufs-probe=2"]
 
 [payload.adt]
 tool = "scripts/make-houji-adt.py"
