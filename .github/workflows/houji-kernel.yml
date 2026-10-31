@@ -194,6 +194,21 @@ jobs:
           ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build.log
           build_status=${PIPESTATUS[0]}
           echo "UniXNU kernel build exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
+          # A bootstrap pass can succeed while the archive phase is skipped by an
+          # older driver tree. Build the declared archives once and retry only when
+          # the final kernel reports the namespaced corecrypto archive is missing.
+          crypto_archive="out/houji/tree/build/corecrypto-2023/libcorecrypto_kernel_noasm-namespaced.a"
+          if [ "$build_status" -ne 0 ] && [ ! -f "$crypto_archive" ] && grep -q 'CRYPTO_ARCHIVE\|corecrypto_kernel_noasm-namespaced' out/houji/logs/kernel.log 2>/dev/null; then
+            echo "Retrying archive phase: namespaced corecrypto archive is missing" | tee -a out/houji/logs/github-build.log
+            python3 out/houji/tree/scripts/build-corecrypto-14.py 2>&1 | tee out/houji/logs/retry-archive-01-build-corecrypto-14.log
+            python3 out/houji/tree/scripts/build-corecrypto-14.py --namespace 2>&1 | tee out/houji/logs/retry-archive-02-build-corecrypto-14.log
+            python3 out/houji/tree/scripts/build-arm-driver.py ArmDTPlatform 2>&1 | tee out/houji/logs/retry-archive-03-build-arm-driver.log
+            python3 out/houji/tree/scripts/build-arm-driver.py ArmCpu 2>&1 | tee out/houji/logs/retry-archive-04-build-arm-driver.log
+            python3 out/houji/tree/scripts/build-libpthread-kernel.py 2>&1 | tee out/houji/logs/retry-archive-05-build-libpthread-kernel.log
+            ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build-retry.log
+            build_status=${PIPESTATUS[0]}
+            echo "UniXNU kernel retry exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
+          fi
           exit "$build_status"
 
       - name: Check pinned iOS16 prelink inputs
