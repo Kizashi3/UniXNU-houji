@@ -62,6 +62,13 @@ jobs:
         working-directory: unixnu
         run: |
           ./unixnu tree -D "$DEVICE_DIR"
+          # XNU's os/log.c includes this private libdispatch header. Some
+          # libdispatch revisions do not install it through xcodebuild, so
+          # stage it explicitly in the reproducible kernel fakeroot.
+          mkdir -p out/houji/tree/.cache/fakeroot/usr/local/include/os
+          firehose_header=$(find out/houji/tree/refer/libdispatch out/feeds -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)
+          test -n "$firehose_header" && cp "$firehose_header" out/houji/tree/.cache/fakeroot/usr/local/include/os/firehose_buffer_private.h
+          test -f out/houji/tree/.cache/fakeroot/usr/local/include/os/firehose_buffer_private.h
           git -C out/houji/tree/refer/xnu apply "$DEVICE_DIR/patches/xnu-iorpc-message-from-mach.patch"
 
       - name: Apply persistent early-log patch
