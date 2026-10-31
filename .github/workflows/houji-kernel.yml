@@ -220,6 +220,7 @@ jobs:
           set -o pipefail
           mkdir -p out/houji/logs
           python3 "$DEVICE_DIR/scripts/patch-unixnu-kernel-firehose.py" scripts/unixnu/kernel.py
+          python3 -m py_compile scripts/unixnu/kernel.py
           set +e
           ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build.log
           build_status=${PIPESTATUS[0]}

@@ -1,30 +1,62 @@
+#!/usr/bin/env python3
+"""Patch the assembled XNU recipe and validate the generated Python driver."""
+import ast
 from pathlib import Path
 import sys
-path=Path(sys.argv[1]) if len(sys.argv)>1 else Path('scripts/unixnu/kernel.py')
-text=path.read_text()
-marker="    script = ctx.tree / 'scripts/build-xnu-4k-baseline.sh'\n"
-insert="""    script = ctx.tree / 'scripts/build-xnu-4k-baseline.sh'
-    # Stage the libdispatch kernel firehose header after tree assembly.
-    baseline = script
-    baseline_text = baseline.read_text()
-    clone = "  git clone --shared refer/xnu .cache/xnu-work\\n"
-    stage = clone + "  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/os\\n  firehose=$(find ../../feeds -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)\\n  if [ -n \\\"$firehose\\\" ]; then cp \\\"$firehose\\\" .cache/xnu-work/EXTERNAL_HEADERS/os/firehose_buffer_private.h; fi\\n"
-    if clone in baseline_text and "firehose=$(find ../../feeds" not in baseline_text:
-        baseline_text = baseline_text.replace(clone, stage, 1)
-    flag = 'EXTRA_CFLAGS=' + chr(34) + '$EXTRA_CFLAGS -DOS_FIREHOSE_SPI=1' + chr(34)
-    anchor = 'EXTRA_CFLAGS=' + chr(34) + '$EXTRA_CFLAGS -DXNU_BOOT_PROGRESS=$BOOT_PROGRESS' + chr(34)
-    if flag not in baseline_text and anchor in baseline_text:
-        baseline_text = baseline_text.replace(anchor, flag + "\\n" + anchor, 1)
-    baseline.write_text(baseline_text)
-    # Firehose is compiled during bootstrap too; provide its archive to the first link.
-    bootstrap = 'if [ \"$BOOTSTRAP\" = 1 ] && [ -f \"$KERNEL_SDKROOT/usr/local/lib/kernel/libfirehose_kernel.a\" ]; then\n  EXTRA_MAKE_ARGS+=(\"LD_KERNEL_ARCHIVES=-L$KERNEL_SDKROOT/usr/local/lib/kernel -lfirehose_kernel\")\nfi\n'
-    anchor = 'if [ \"${XNU_SOURCE_CORECRYPTO14:-0}\" = 1 ]; then\n'
-    if bootstrap not in baseline_text and anchor in baseline_text:
-        baseline_text = baseline_text.replace(anchor, bootstrap + anchor, 1)
-        baseline.write_text(baseline_text)
-"""
-if marker not in text: raise SystemExit(f'kernel build marker missing in {path}')
-if 'firehose=$(find ../../feeds' not in text:
-    text=text.replace(marker,insert,1)
-    path.write_text(text)
-print(f'patched {path}')
+
+MARKER = "    script = ctx.tree / 'scripts/build-xnu-4k-baseline.sh'\n"
+END = '    if not script.is_file():\n'
+CLONE = '  git clone --shared refer/xnu .cache/xnu-work\n'
+STAGE = CLONE + '''  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/os
+  firehose=$(find ../../feeds -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)
+  if [ -n "$firehose" ]; then cp "$firehose" .cache/xnu-work/EXTERNAL_HEADERS/os/firehose_buffer_private.h; fi
+'''
+FLAGS = 'EXTRA_CFLAGS="$EXTRA_CFLAGS -DXNU_BOOT_PROGRESS=$BOOT_PROGRESS"'
+CRYPTO = 'if [ "${XNU_SOURCE_CORECRYPTO14:-0}" = 1 ]; then\n'
+BOOTSTRAP = '''# Firehose must also be available to the bootstrap link.
+if [ "$BOOTSTRAP" = 1 ]; then
+  test -f "$KERNEL_SDKROOT/usr/local/lib/kernel/libfirehose_kernel.a"
+  EXTRA_MAKE_ARGS+=("LD_KERNEL_ARCHIVES=-L$KERNEL_SDKROOT/usr/local/lib/kernel -lfirehose_kernel")
+fi
+'''
+REPLACEMENTS = (
+    (CLONE, STAGE),
+    (FLAGS, 'EXTRA_CFLAGS="$EXTRA_CFLAGS -DOS_FIREHOSE_SPI=1"\n' + FLAGS),
+    (CRYPTO, BOOTSTRAP + CRYPTO),
+)
+
+
+def patch_driver(text):
+    if text.count(MARKER) != 1:
+        raise ValueError('Expected exactly one XNU build script marker')
+    start = text.index(MARKER) + len(MARKER)
+    end = text.index(END, start)
+    existing = text[start:end]
+    if existing.strip() and 'baseline' not in existing:
+        raise ValueError('Unexpected code before build script validation')
+    # repr serializes each shell string into valid Python, including newlines.
+    block = (
+        '    # Device Firehose recipe adjustments after tree assembly.\n'
+        '    baseline_text = script.read_text()\n'
+        f'    for old, new in {REPLACEMENTS!r}:\n'
+        '        if new in baseline_text:\n'
+        '            continue\n'
+        '        if baseline_text.count(old) != 1:\n'
+        '            raise Error(f"Firehose recipe anchor missing or ambiguous: {old!r}")\n'
+        '        baseline_text = baseline_text.replace(old, new, 1)\n'
+        '    script.write_text(baseline_text)\n'
+    )
+    result = text[:start] + block + text[end:]
+    ast.parse(result)
+    return result
+
+
+def main():
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('scripts/unixnu/kernel.py')
+    result = patch_driver(path.read_text())
+    path.write_text(result)
+    print(f'patched and syntax-validated {path}')
+
+
+if __name__ == '__main__':
+    main()
