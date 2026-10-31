@@ -37,7 +37,32 @@ def patch_driver(text):
     # repr serializes each shell string into valid Python, including newlines.
     block = (
         '    # Device Firehose recipe adjustments after tree assembly.\n'
+        '    # Assemble the full upstream series plus device-specific changes.\n'
+        '    import shutil\n'
+        "    upstream_patches = ctx.root / 'patches/xnu'\n"
+        "    device_patches = ctx.device / 'patches/xnu'\n"
+        '    if not upstream_patches.is_dir():\n'
+        "        raise Error(f'Upstream XNU patches missing: {upstream_patches}')\n"
+        "    selected = {p.name: p for p in upstream_patches.glob('*.patch')}\n"
+        '    # These device fixes are superseded by the upstream versions. In particular,\n'
+        '    # upstream public-entitlements-header also fixes necp_client.c.\n'
+        "    superseded = {'availability-fakeroot.patch', 'pmap-reserved-field.patch',\n"
+        "                  'public-entitlements-header.patch'}\n"
+        "    selected.update({p.name: p for p in device_patches.glob('*.patch') if p.name not in superseded})\n"
+        "    if not ctx.need_config().get('XNU_BOOT_PROGRESS'):\n"
+        '        # This optional display hook overlaps persistent kprintf mirroring.\n'
+        '        # The device already selects persistent logging and BOOT_PROGRESS=n.\n'
+        "        selected.pop('zzz-boot-progress.patch', None)\n"
+        "    series = ctx.tree / '.cache/xnu-patch-series'\n"
+        '    series.mkdir(parents=True, exist_ok=True)\n'
+        "    for stale in series.glob('*.patch'):\n"
+        '        if stale.name not in selected:\n'
+        '            stale.unlink()\n'
+        '    for name, patch in sorted(selected.items()):\n'
+        '        shutil.copyfile(patch, series / name)\n'
+        "    log(f'kernel: assembled {len(selected)} upstream/device XNU patches')\n"
         '    baseline_text = script.read_text()\n'
+        "    baseline_text = baseline_text.replace('/patches/xnu/', '/.cache/xnu-patch-series/')\n"
         f'    for old, new in {REPLACEMENTS!r}:\n'
         '        if new in baseline_text:\n'
         '            continue\n'
@@ -47,7 +72,6 @@ def patch_driver(text):
         '    script.write_text(baseline_text)\n'
     )
     result = text[:start] + block + text[end:]
-    result = result.replace("        subprocess_env = {**env, 'XNU_BOOT_PROGRESS': '0', 'XNU_BOOTSTRAP': '1'}", "        subprocess_env = {**env, 'XNU_BOOT_PROGRESS': '0', 'XNU_BOOTSTRAP': '1', 'XNU_ARMCPU': '0', 'XNU_ARM_DT_PLATFORM': '0', 'XNU_SOURCE_PTHREAD': '0'}", 1)
     ast.parse(result)
     return result
 
