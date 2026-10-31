@@ -223,6 +223,16 @@ jobs:
             git -C "$DEVICE_DIR" rev-parse HEAD || true
             echo "=== output files ==="
             find out/houji -maxdepth 5 -type f -print 2>/dev/null | sort || true
+            echo "=== build configuration and required archives ==="
+            test -f out/houji/.config && cat out/houji/.config || true
+            find out/houji/tree/build/corecrypto-2023 -maxdepth 1 -type f -print -exec shasum -a 256 {} \; 2>/dev/null || true
+            test -f out/houji/tree/build/corecrypto-2023/libcorecrypto_kernel_noasm-namespaced.a && echo "PASS corecrypto namespaced archive" || echo "MISSING corecrypto namespaced archive"
+            echo "=== compiler/link/test failure matches ==="
+            for log in out/houji/logs/*.log; do
+              [ -f "$log" ] || continue
+              echo "--- ${log} failure matches ---"
+              grep -n -E '(^|[[:space:]])(fatal )?error:|undefined reference|duplicate symbol|No such file|test -f .* failed|make(\[[0-9]+\])?: \*\*\*|command failed' "$log" | tail -n 120 || true
+            done
             echo "=== IORPC native symbol diagnostics ==="
             native="out/houji/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
             if [ -f "$native" ]; then
