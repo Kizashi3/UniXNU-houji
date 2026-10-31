@@ -47,6 +47,7 @@ def patch_driver(text):
         '    script.write_text(baseline_text)\n'
     )
     result = text[:start] + block + text[end:]
+    result = result.replace("        subprocess_env = {**env, 'XNU_BOOT_PROGRESS': '0', 'XNU_BOOTSTRAP': '1'}", "        subprocess_env = {**env, 'XNU_BOOT_PROGRESS': '0', 'XNU_BOOTSTRAP': '1', 'XNU_ARMCPU': '0', 'XNU_ARM_DT_PLATFORM': '0', 'XNU_SOURCE_PTHREAD': '0'}", 1)
     ast.parse(result)
     return result
 
