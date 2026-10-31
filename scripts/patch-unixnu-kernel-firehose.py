@@ -16,6 +16,12 @@ insert="""    script = ctx.tree / 'scripts/build-xnu-4k-baseline.sh'
     if flag not in baseline_text and anchor in baseline_text:
         baseline_text = baseline_text.replace(anchor, flag + "\\n" + anchor, 1)
     baseline.write_text(baseline_text)
+    # Firehose is compiled during bootstrap too; provide its archive to the first link.
+    bootstrap = 'if [ \"$BOOTSTRAP\" = 1 ] && [ -f \"$KERNEL_SDKROOT/usr/local/lib/kernel/libfirehose_kernel.a\" ]; then\n  EXTRA_MAKE_ARGS+=(\"LD_KERNEL_ARCHIVES=-L$KERNEL_SDKROOT/usr/local/lib/kernel -lfirehose_kernel\")\nfi\n'
+    anchor = 'if [ \"${XNU_SOURCE_CORECRYPTO14:-0}\" = 1 ]; then\n'
+    if bootstrap not in baseline_text and anchor in baseline_text:
+        baseline_text = baseline_text.replace(anchor, bootstrap + anchor, 1)
+        baseline.write_text(baseline_text)
 """
 if marker not in text: raise SystemExit(f'kernel build marker missing in {path}')
 if 'firehose=$(find ../../feeds' not in text:
