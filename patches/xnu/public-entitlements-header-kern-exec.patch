@@ -1,8 +1,13 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index 8bba078..7bfca65 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
 @@ -183,7 +183,7 @@
+ 
  #include "kern_exec_internal.h"
  
 -#include <CodeSignature/Entitlements.h>
 +#include <CoreEntitlements/CoreEntitlements.h>
+ 
+ #include <mach/exclaves.h>
+ 
