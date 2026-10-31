@@ -1,0 +1,8 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -183,7 +183,7 @@
+ #include "kern_exec_internal.h"
+ 
+-#include <CodeSignature/Entitlements.h>
++#include <CoreEntitlements/CoreEntitlements.h>
