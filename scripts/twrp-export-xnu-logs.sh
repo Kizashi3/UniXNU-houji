@@ -1,11 +1,14 @@
 #!/system/bin/sh
-# Read XNU's DT panic/console region through recovery's pstore interface.
-# This script never writes a phone partition; it only copies records out.
+# Export XNU's DT reserved-memory log from Android recovery/TWRP.
+# The script only reads pstore or the reserved region and copies records to
+# shared storage; it never writes UFS, userdata, or any boot partition.
 set -u
 
 OUT=${1:-/sdcard/UniXNU/xnu-logs}
 PRAM_BASE=${PRAM_BASE:-0xA7000000}
 PRAM_SIZE=${PRAM_SIZE:-0x400000}
+# embedded_panic_header is packed and is 168 bytes in the XNU tree used here.
+HEADER_MIN=${HEADER_MIN:-168}
 mkdir -p "$OUT" || exit 1
 mount -t pstore pstore /sys/fs/pstore 2>/dev/null || true
 
@@ -31,12 +34,11 @@ for file in /sys/fs/pstore/*; do
     found=1
 done
 
-# XNU's embedded_panic_header is not Linux's persistent_ram_buffer format, so
-# a recovery kernel may expose no /sys/fs/pstore file even though the reserved
-# physical region contains the log.  Read the reserved region only when the
-# recovery exposes /dev/mem; never write it and never touch UFS.  The raw dump
-# is retained for diagnosis, while xnu-readable.log receives only the bounded
-# header-declared XNU log when the magic and lengths are valid.
+# XNU embedded_panic_header is not Linux persistent_ram_buffer format.  If
+# pstore has no record, read the reserved physical region through /dev/mem.
+# The header fields are little-endian: panic_log_offset at byte 20 and
+# panic_log_len at byte 24.  Earlier bytes 16..23 contain the high half of
+# the flags field and the offset, so reading at 16 would silently misparse it.
 if [ "$found" -eq 0 ] && [ -r /dev/mem ]; then
     page=4096
     base_pages=$((PRAM_BASE / page))
@@ -44,16 +46,24 @@ if [ "$found" -eq 0 ] && [ -r /dev/mem ]; then
     if dd if=/dev/mem of="$OUT/xnu-pram.bin" bs=$page skip=$base_pages count=$pages 2>/dev/null; then
         magic=$(od -An -tx1 -N4 "$OUT/xnu-pram.bin" 2>/dev/null | tr -d ' \n')
         if [ "$magic" = "4b4e5546" ]; then
-            set -- $(od -An -tu4 -j16 -N8 "$OUT/xnu-pram.bin" 2>/dev/null)
+            set -- $(od -An -tu4 -j20 -N8 "$OUT/xnu-pram.bin" 2>/dev/null)
             log_offset=${1:-0}
             log_length=${2:-0}
-            if [ "$log_offset" -ge 32 ] && [ "$log_length" -le $((PRAM_SIZE - log_offset)) ]; then
+            printf 'panic_magic=FUNK\npanic_log_offset=%s\npanic_log_length=%s\n' \
+                "$log_offset" "$log_length" >> "$manifest"
+            if [ "$log_offset" -ge "$HEADER_MIN" ] &&
+               [ "$log_offset" -le "$PRAM_SIZE" ] &&
+               [ "$log_length" -le $((PRAM_SIZE - log_offset)) ]; then
                 dd if="$OUT/xnu-pram.bin" of="$OUT/xnu-readable.log" bs=1 \
                     skip="$log_offset" count="$log_length" 2>/dev/null || true
                 found=1
-                printf 'raw_pram_base=%s\nraw_pram_size=%s\nlog_offset=%s\nlog_length=%s\n' \
-                    "$PRAM_BASE" "$PRAM_SIZE" "$log_offset" "$log_length" >> "$manifest"
+                printf 'raw_pram_base=%s\nraw_pram_size=%s\n' \
+                    "$PRAM_BASE" "$PRAM_SIZE" >> "$manifest"
+            else
+                printf 'status=INVALID_LOG_RANGE\n' >> "$manifest"
             fi
+        else
+            printf 'raw_pram_magic=%s\n' "$magic" >> "$manifest"
         fi
     fi
 fi
@@ -76,8 +86,8 @@ if command -v sha256sum >/dev/null 2>&1; then
 fi
 sync
 if [ "$found" -eq 0 ]; then
-    printf 'status=NO_PSTORE_RECORD\n' >> "$manifest"
-    echo "XNU log export: no pstore record found" >&2
+    printf 'status=NO_PSTORE_OR_XNU_RECORD\n' >> "$manifest"
+    echo "XNU log export: no pstore or XNU reserved-memory record found" >&2
     exit 2
 fi
 printf 'status=OK\n' >> "$manifest"
