@@ -219,19 +219,8 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p out/houji/logs
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("scripts/unixnu/kernel.py")
-          text = path.read_text()
-          marker = "    script = ctx.tree / 'scripts/build-xnu-4k-baseline.sh'\n"
-          addition = marker + "    baseline = script\n    baseline_text = baseline.read_text()\n    clone = \"  git clone --shared refer/xnu .cache/xnu-work\\n\"\n    stage = clone + \"  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/os\\n  firehose=$(find ../../feeds -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)\\n  if [ -n \\\"$firehose\\\" ]; then cp \\\"$firehose\\\" .cache/xnu-work/EXTERNAL_HEADERS/os/firehose_buffer_private.h; fi\\n\"\n    if \"firehose=$(find ../../feeds\" not in baseline_text:\n        if clone not in baseline_text:\n            raise SystemExit(\"XNU clone marker not found\")\n        baseline_text = baseline_text.replace(clone, stage, 1)\n    flag = 'EXTRA_CFLAGS="$EXTRA_CFLAGS -DOS_FIREHOSE_SPI=1"'\n    if flag not in baseline_text:\n        anchor = 'EXTRA_CFLAGS="$EXTRA_CFLAGS -DXNU_BOOT_PROGRESS=$BOOT_PROGRESS"'\n        if anchor not in baseline_text:\n            raise SystemExit("XNU CFLAGS anchor not found")\n        baseline_text = baseline_text.replace(anchor, flag + "\\n" + anchor, 1)\n    baseline.write_text(baseline_text)\n"
-          if marker not in text:
-              raise SystemExit("kernel script marker not found")
-          if "firehose=$(find ../../feeds" not in text:
-              text = text.replace(marker, addition, 1)
-              path.write_text(text)
-          print("patched kernel driver for firehose staging")
-          PY
+          git -C . apply --check "$DEVICE_DIR/patches/unixnu-kernel-firehose-stage.patch"
+          git -C . apply "$DEVICE_DIR/patches/unixnu-kernel-firehose-stage.patch"
           set +e
           ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build.log
           build_status=${PIPESTATUS[0]}
