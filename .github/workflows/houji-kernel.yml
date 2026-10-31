@@ -194,6 +194,10 @@ jobs:
           ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build.log
           build_status=${PIPESTATUS[0]}
           echo "UniXNU kernel build exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
+          if [ "$build_status" -ne 0 ] && [ -f out/houji/logs/kernel-bootstrap.log ]; then
+            echo "=== first bootstrap compiler errors ===" | tee -a out/houji/logs/github-build.log
+            grep -n -E 'fatal error:|error: ' out/houji/logs/kernel-bootstrap.log | head -n 30 | tee -a out/houji/logs/github-build.log || true
+          fi
           # A bootstrap pass can succeed while the archive phase is skipped by an
           # older driver tree. Build the declared archives once and retry only when
           # the final kernel reports the namespaced corecrypto archive is missing.
