@@ -84,7 +84,7 @@ jobs:
           path = Path("out/houji/tree/scripts/build-xnu-4k-baseline.sh")
           text = path.read_text()
           marker = "  git clone --shared refer/xnu .cache/xnu-work\n"
-          copy = marker + "  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/os\n  firehose=$(find refer/libdispatch ../feeds -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)\n  if [ -n \"$firehose\" ]; then cp \"$firehose\" .cache/xnu-work/EXTERNAL_HEADERS/os/firehose_buffer_private.h; fi\n"
+          copy = marker + "  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/os\n  firehose=$(find . -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)\n  if [ -n \"$firehose\" ]; then cp \"$firehose\" .cache/xnu-work/EXTERNAL_HEADERS/os/firehose_buffer_private.h; fi\n"
           if marker not in text:
               raise SystemExit("XNU clone marker not found")
           if "firehose=$(find refer/libdispatch ../feeds" not in text:
