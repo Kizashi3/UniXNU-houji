@@ -1,0 +1,14 @@
+--- a/bsd/sys/make_symbol_aliasing.sh
++++ b/bsd/sys/make_symbol_aliasing.sh
+@@ -2,5 +2,11 @@
+ OUTPUT="$2"
+ 
+ AVAILABILITY_PL="${SDKROOT}/${DRIVERKITROOT}/usr/local/libexec/availability.pl"
++# UniXNU builds the host availability tool in its reproducible fakeroot.
++# Apple's SDK path is still passed as SDKROOT during installhdrs, so use the
++# explicitly exported fallback when that SDK does not ship the helper.
++if [ ! -x "${AVAILABILITY_PL}" ] && [ -n "${XNU_AVAILABILITY_PL:-}" ] && [ -x "${XNU_AVAILABILITY_PL}" ]; then
++    AVAILABILITY_PL="${XNU_AVAILABILITY_PL}"
++fi
+ 
+ if [ ! -x "${AVAILABILITY_PL}" ] ; then
