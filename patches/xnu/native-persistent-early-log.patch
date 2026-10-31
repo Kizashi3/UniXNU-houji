@@ -49,7 +49,7 @@ index e9daeed..732f9e5 100644
 +		 * therefore read a stopped boot without depending on a panic. */
 +		if (panic_info) {
 +			unsigned int length = (unsigned int)(debug_buf_ptr - debug_buf_base);
-+			atomic_thread_fence(memory_order_release);
++			os_atomic_thread_fence(release);
 +			((volatile struct embedded_panic_header *)panic_info)->eph_panic_log_len = length;
 +		}
  	}
