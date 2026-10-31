@@ -1,0 +1,317 @@
+diff --git a/package/UniXNUPkg/Library/UniXNULib/Main.c b/package/UniXNUPkg/Library/UniXNULib/Main.c
+index c1d76fe..8963d83 100644
+--- a/package/UniXNUPkg/Library/UniXNULib/Main.c
++++ b/package/UniXNUPkg/Library/UniXNULib/Main.c
+@@ -7,9 +7,149 @@
+ 
+ #include "Internal.h"
+ 
++#include <Guid/FileInfo.h>
++#include <Protocol/LoadedImage.h>
+ #include <Protocol/SerialIo.h>
+ 
+ STATIC EFI_SERIAL_IO_PROTOCOL  *mSerial;
++STATIC EFI_FILE_PROTOCOL       *mLogFile;
++
++STATIC
++EFI_STATUS
++OpenLogDirectory (
++  IN EFI_FILE_PROTOCOL  *Root,
++  IN CONST CHAR16       *Path
++  )
++{
++  EFI_FILE_PROTOCOL  *Directory;
++  EFI_STATUS          Status;
++
++  Status = Root->Open (
++    Root,
++    &Directory,
++    (CHAR16 *)Path,
++    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE,
++    EFI_FILE_DIRECTORY
++    );
++  if (!EFI_ERROR (Status) && (Directory != NULL)) {
++    Directory->Close (Directory);
++  }
++  return Status;
++}
++
++STATIC
++EFI_STATUS
++OpenLogOnVolume (
++  IN  EFI_HANDLE         Volume,
++  OUT EFI_FILE_PROTOCOL  **File
++  )
++{
++  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *Fs;
++  EFI_FILE_PROTOCOL                *Root;
++  EFI_FILE_PROTOCOL                *Opened;
++  EFI_FILE_INFO                    *Info;
++  EFI_STATUS                       Status;
++  UINTN                            InfoSize;
++
++  *File = NULL;
++  Status = gBS->HandleProtocol (Volume, &gEfiSimpleFileSystemProtocolGuid, (VOID **)&Fs);
++  if (EFI_ERROR (Status)) {
++    return Status;
++  }
++  Status = Fs->OpenVolume (Fs, &Root);
++  if (EFI_ERROR (Status)) {
++    return Status;
++  }
++
++  Status = OpenLogDirectory (Root, L"\\EFI");
++  if (!EFI_ERROR (Status)) {
++    Status = OpenLogDirectory (Root, L"\\EFI\\UniXNU");
++  }
++  if (!EFI_ERROR (Status)) {
++    Status = OpenLogDirectory (Root, L"\\EFI\\UniXNU\\logs");
++  }
++  if (EFI_ERROR (Status)) {
++    Root->Close (Root);
++    return Status;
++  }
++
++  Status = Root->Open (
++    Root,
++    &Opened,
++    L"\\EFI\\UniXNU\\logs\\boot.log",
++    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE,
++    0
++    );
++  Root->Close (Root);
++  if (EFI_ERROR (Status)) {
++    return Status;
++  }
++
++  // Start a fresh record for each boot while retaining the file itself.
++  InfoSize = 0;
++  Status = Opened->GetInfo (Opened, &gEfiFileInfoGuid, &InfoSize, NULL);
++  if (Status == EFI_BUFFER_TOO_SMALL) {
++    Info = AllocateZeroPool (InfoSize);
++    if (Info != NULL) {
++      if (!EFI_ERROR (Opened->GetInfo (Opened, &gEfiFileInfoGuid, &InfoSize, Info))) {
++        Info->FileSize = 0;
++        Opened->SetInfo (Opened, &gEfiFileInfoGuid, InfoSize, Info);
++      }
++      FreePool (Info);
++    }
++  }
++  Opened->SetPosition (Opened, 0);
++  *File = Opened;
++  return EFI_SUCCESS;
++}
++
++STATIC
++VOID
++InitLogFile (
++  IN EFI_HANDLE  ImageHandle
++  )
++{
++  EFI_LOADED_IMAGE_PROTOCOL  *Loaded;
++  EFI_HANDLE                 Volume;
++  EFI_STATUS                 Status;
++
++  mLogFile = NULL;
++  Status = gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Loaded);
++  if (EFI_ERROR (Status) || (Loaded == NULL)) {
++    return;
++  }
++  Volume = Loaded->DeviceHandle;
++  if (Volume != NULL && !EFI_ERROR (OpenLogOnVolume (Volume, &mLogFile))) {
++    return;
++  }
++
++  // A firmware-volume copy of UniXNU may have no SimpleFileSystem device
++  // handle. Try every exposed FAT filesystem as a recovery-visible fallback.
++  {
++    EFI_HANDLE  *Handles;
++    UINTN       Count;
++    UINTN       Index;
++
++    Handles = NULL;
++    Count   = 0;
++    if (!EFI_ERROR (gBS->LocateHandleBuffer (
++                      ByProtocol,
++                      &gEfiSimpleFileSystemProtocolGuid,
++                      NULL,
++                      &Count,
++                      &Handles
++                      ))) {
++      for (Index = 0; Index < Count; Index++) {
++        if (!EFI_ERROR (OpenLogOnVolume (Handles[Index], &mLogFile))) {
++          break;
++        }
++      }
++      if (Handles != NULL) {
++        FreePool (Handles);
++      }
++    }
++  }
++}
+ 
+ VOID
+ UniXNULogInit (
+@@ -40,10 +180,20 @@ UniXNULog (
+   AsciiStrCatS (Line, sizeof (Line), "\r\n");
+ 
+   DEBUG ((PcdGet32 (PcdUniXNUDebugLevel), "%a", Line));
++  Size = AsciiStrLen (Line);
+   if (mSerial != NULL) {
+-    Size = AsciiStrLen (Line);
+     mSerial->Write (mSerial, &Size, Line);
+   }
++  if (mLogFile != NULL) {
++    UINTN  FileSize;
++    FileSize = Size;
++    if (EFI_ERROR (mLogFile->Write (mLogFile, &FileSize, Line)) || FileSize != Size) {
++      mLogFile->Close (mLogFile);
++      mLogFile = NULL;
++    } else {
++      mLogFile->Flush (mLogFile);
++    }
++  }
+ }
+ 
+ EFI_STATUS
+@@ -67,6 +217,7 @@ UniXNURun (
+   //
+   gBS->SetWatchdogTimer (0, 0, 0, NULL);
+   UniXNULogInit ();
++  InitLogFile (ImageHandle);
+   UniXNULog (
+     "UniXNU %a starting as %a, firmware %s rev 0x%x",
+     UNIXNU_VERSION_STRING,
+diff --git a/package/UniXNUPkg/Library/UniXNULib/Ui.c b/package/UniXNUPkg/Library/UniXNULib/Ui.c
+index d4599b7..9d46190 100644
+--- a/package/UniXNUPkg/Library/UniXNULib/Ui.c
++++ b/package/UniXNUPkg/Library/UniXNULib/Ui.c
+@@ -10,6 +10,7 @@
+ **/
+ 
+ #include "Internal.h"
++#include "QrMarker.h"
+ 
+ #define PIXEL(r, g, b)  { (b), (g), (r), 0 }
+ 
+@@ -29,6 +30,53 @@ STATIC CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL  mBadgeOn     = PIXEL (0x1B, 0x44, 0x
+ //
+ #define STATUS_LINES  3
+ 
++STATIC
++VOID
++FillRect (
++  IN UNIXNU_UI                          *Ui,
++  IN UINTN                          X,
++  IN UINTN                          Y,
++  IN UINTN                          W,
++  IN UINTN                          H,
++  IN EFI_GRAPHICS_OUTPUT_BLT_PIXEL  Color
++  );
++
++STATIC
++VOID
++DrawQrMarker (
++  IN UNIXNU_UI  *Ui
++  )
++{
++  UINTN  Module;
++  UINTN  Quiet;
++  UINTN  Size;
++  UINTN  X;
++  UINTN  Y;
++  UINTN  Row;
++  UINTN  Col;
++
++  if (Ui->Mode != UniXNUUiGraphics || Ui->Gop == NULL) {
++    return;
++  }
++  Module = MAX (2, MIN (Ui->Scale, 5));
++  Quiet  = 4 * Module;
++  Size   = (UNIXNU_QR_SIZE * Module) + (2 * Quiet);
++  if ((Size >= Ui->Width) || (Size >= Ui->Height)) {
++    return;
++  }
++  X = Ui->Width - Size - Module;
++  Y = Ui->Height - Size - Module;
++  FillRect (Ui, X, Y, Size, Size, mText);
++  for (Row = 0; Row < UNIXNU_QR_SIZE; Row++) {
++    for (Col = 0; Col < UNIXNU_QR_SIZE; Col++) {
++      if ((gUniXNUQrMarker[Row] & (1U << Col)) != 0) {
++        FillRect (Ui, X + Quiet + Col * Module, Y + Quiet + Row * Module,
++                  Module, Module, mBackground);
++      }
++    }
++  }
++}
++
+ STATIC
+ VOID
+ FillRect (
+@@ -741,6 +789,7 @@ UniXNUUiDrawFrame (
+ 
+   if (Ui->Portrait) {
+     DrawFramePortrait (Ui, Config);
++    DrawQrMarker (Ui);
+     return;
+   }
+ 
+@@ -806,6 +855,7 @@ UniXNUUiDrawFrame (
+   if (Ui->Info[0] != L'\0') {
+     DrawCentered (Ui, Ui->FooterTop + (STATUS_LINES + 1) * (Ch + Ch / 3), Ui->Info, Ui->Scale, mDim);
+   }
++  DrawQrMarker (Ui);
+ }
+ 
+ VOID
+diff --git a/package/UniXNUPkg/Library/UniXNULib/UniXNULib.inf b/package/UniXNUPkg/Library/UniXNULib/UniXNULib.inf
+index bfdb3b3..e6a0356 100644
+--- a/package/UniXNUPkg/Library/UniXNULib/UniXNULib.inf
++++ b/package/UniXNUPkg/Library/UniXNULib/UniXNULib.inf
+@@ -27,6 +27,7 @@
+   Toml.c
+   Ui.c
+   Volume.c
++  QrMarker.h
+ 
+ [Packages]
+   MdePkg/MdePkg.dec
+diff --git a/package/UniXNUPkg/Library/UniXNULib/QrMarker.h b/package/UniXNUPkg/Library/UniXNULib/QrMarker.h
+new file mode 100644
+index 0000000..029123a
+--- /dev/null
++++ b/package/UniXNUPkg/Library/UniXNULib/QrMarker.h
+@@ -0,0 +1,33 @@
++#ifndef UNIXNU_QR_MARKER_H_
++#define UNIXNU_QR_MARKER_H_
++
++#define UNIXNU_QR_SIZE 25
++STATIC CONST UINT32 gUniXNUQrMarker[UNIXNU_QR_SIZE] = {
++  0x1FC287FU,
++  0x105F541U,
++  0x175C65DU,
++  0x175FD5DU,
++  0x175AA5DU,
++  0x104D541U,
++  0x1FD557FU,
++  0x0010E00U,
++  0x0AA7BDFU,
++  0x16DB824U,
++  0x190F4FDU,
++  0x00EC184U,
++  0x08566FAU,
++  0x16988B5U,
++  0x1ABE5F9U,
++  0x18ACD35U,
++  0x1BF7941U,
++  0x1D1CF00U,
++  0x1F5217FU,
++  0x0914A41U,
++  0x09FBD5DU,
++  0x187AF5DU,
++  0x10F755DU,
++  0x137D941U,
++  0x1D6717FU
++};
++
++#endif
