@@ -134,9 +134,11 @@ jobs:
           {
             set +e
             # Each bindings archive links the driver object that build-arm-driver.py
-            # compiles, and neither script creates the other's output directory.
-            # Both drivers and both bindings scripts have been renamed upstream, so
-            # resolve everything from the tree this run actually checked out rather
+            # compiles, and neither script creates the other's output directory. Both
+            # drivers and both bindings scripts have been renamed upstream, and the
+            # virtio bindings step cannot run without an original-kernelcache audit
+            # this board never generates, so the board now lists that driver directly.
+            # Resolve everything from the tree this run actually checked out rather
             # than hard-coding a revision here.
             python3 - "$DEVICE_DIR/board.toml" out/houji/tree "$DIAG_DIR" <<'PY'
           import re
@@ -219,9 +221,7 @@ jobs:
           entries = [m.group(1) for m in re.finditer(r'"([^"]+)"', block.group(1))]
 
 
-          def kind(name):
-              if not name.endswith('bindings.py'):
-                  return None
+          def family(name):
               lowered = name.lower()
               if 'aes' in lowered:
                   return 'aes'
@@ -230,35 +230,67 @@ jobs:
               return None
 
 
+          def kind(name):
+              if not name.endswith('bindings.py'):
+                  return None
+              return family(name)
+
+
+          def listed_driver(entry):
+              parts = entry.split()
+              if len(parts) != 2 or not parts[0].endswith('build-arm-driver.py'):
+                  return None
+              return family(parts[1])
+
+
           wanted = {'aes': (r'aes[^ ]*bindings\.py', r'aes', 'NativeAES'),
                     'virtio': (r'(?:virtio|mmio)[^ ]*bindings\.py', r'virtio.*block|block.*virtio', 'NativeVirtioBlock')}
           targets = {}
-          for name in entries:
-              found = kind(name.split()[0])
-              if found and found not in targets:
-                  pattern, driver_pattern, legacy = wanted[found]
-                  drv = driver(driver_pattern, legacy)
-                  targets[found] = (drv, script(pattern, name.split()[0], name.split()[0]))
-
-          missing = [found for found in wanted if found not in targets]
-          if missing:
-              raise SystemExit('board.toml archives has no bindings entry for: ' + ', '.join(missing))
+          for entry in entries:
+              first = entry.split()[0]
+              found, role = kind(first), 'bindings'
+              if not found:
+                  found, role = listed_driver(entry), 'driver'
+              if not found or found in targets:
+                  continue
+              binding_pattern, driver_pattern, legacy = wanted[found]
+              drv = driver(driver_pattern, legacy)
+              targets[found] = (drv, script(binding_pattern, first, first) if role == 'bindings' else None)
 
           for found, (drv, resolved) in targets.items():
-              if not resolved.endswith('.py') or not (scripts / resolved).is_file():
+              if resolved is None:
+                  print('%s: driver=%s bindings=none (linked by the kernel build) objects=%s'
+                        % (found, drv['invocation'], drv['objects_dir']))
+                  continue
+              if not (scripts / resolved).is_file():
                   raise SystemExit('no %s bindings script found in tree (board asked for %s)' % (found, resolved))
               drv['objects_dir'] = drv['objects_dir'] or objects_dir(resolved)
               print('%s: driver=%s bindings=%s objects=%s' % (found, drv['invocation'], resolved, drv['objects_dir']))
 
+          absent = [found for found in wanted if found not in targets]
+          if absent:
+              raise SystemExit('board.toml archives mention neither driver nor bindings for: ' + ', '.join(absent))
+
           result = []
+          emitted = set()
           for entry in entries:
               name = entry.split()[0]
               found = kind(name)
               if found:
                   drv, resolved = targets[found]
                   entry = resolved + entry[len(name):]
-                  if drv['invocation'] not in result:
+                  if drv['invocation'] not in emitted:
                       result.append(drv['invocation'])
+                      emitted.add(drv['invocation'])
+                  result.append(entry)
+                  continue
+              found = listed_driver(entry)
+              if found and found in targets:
+                  invocation = targets[found][0]['invocation']
+                  if invocation not in emitted:
+                      result.append(invocation)
+                      emitted.add(invocation)
+                  continue
               result.append(entry)
 
           body = ''.join('  "%s",\n' % entry for entry in result)
