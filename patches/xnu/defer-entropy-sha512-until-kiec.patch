@@ -1,0 +1,61 @@
+diff --git a/osfmk/prng/entropy.c b/osfmk/prng/entropy.c
+index d57d48c..cbb2b52 100644
+--- a/osfmk/prng/entropy.c
++++ b/osfmk/prng/entropy.c
+@@ -28,6 +28,7 @@
+ 
+ #include <libkern/crypto/sha2.h>
+ #include <libkern/crypto/crypto.h>
++#include <libkern/crypto/crypto_internal.h>
+ #include <os/atomic_private.h>
+ #include <kern/assert.h>
+ #include <kern/percpu.h>
+@@ -195,11 +196,38 @@ entropy_analysis_store(entropy_sample_t sample)
+ 
+ #endif  // ENTROPY_ANALYSIS_SUPPORTED
+ 
++/*
++ * The prelinked corecrypto KIEC installs the kernel PRNG before it hands over
++ * its crypto dispatch table, so g_crypto_funcs is still NULL while
++ * register_and_init_prng() runs entropy_init(). Deferring SHA512_Init() to the
++ * first entropy consumption keeps the digest stream identical, because no
++ * sample is absorbed before entropy_provide() takes the mutex.
++ */
++static int entropy_sha512_pending = 1;
++
++static void
++entropy_sha512_start(void)
++{
++	if (__improbable(entropy_sha512_pending == 0)) {
++		return;
++	}
++	if (__improbable(g_crypto_funcs == NULL)) {
++		panic("[entropy] crypto functions not registered before SHA-512 use");
++	}
++	SHA512_Init(&entropy_data.sha512_ctx);
++	entropy_sha512_pending = 0;
++}
++
+ __startup_func
+ void
+ entropy_init(void)
+ {
+-	SHA512_Init(&entropy_data.sha512_ctx);
++	if (__improbable(g_crypto_funcs == NULL)) {
++		entropy_sha512_pending = 1;
++	} else {
++		SHA512_Init(&entropy_data.sha512_ctx);
++		entropy_sha512_pending = 0;
++	}
+ 
+ 	lck_grp_init(&entropy_data.lock_group, "entropy-data", LCK_GRP_ATTR_NULL);
+ 	lck_mtx_init(&entropy_data.mutex, &entropy_data.lock_group, LCK_ATTR_NULL);
+@@ -487,6 +515,8 @@ entropy_provide(size_t *entropy_size, void *entropy, __unused void *arg)
+ 		return sample_count;
+ 	}
+ 
++	entropy_sha512_start();
++
+ 	health_test_result_t health_test_result = health_test_success;
+ 
+ 	// We accumulate entropy from all CPUs.

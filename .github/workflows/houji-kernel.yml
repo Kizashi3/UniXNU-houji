@@ -369,6 +369,24 @@ jobs:
             echo "shared-cache MACF bypass is present in ubc_subr.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Apply deferred entropy SHA-512 init
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            patch="$DEVICE_DIR/patches/xnu/defer-entropy-sha512-until-kiec.patch"
+            test -f "$patch"
+            xnu=out/houji/tree/refer/xnu
+            if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
+              git -C "$xnu" apply "$patch"
+            else
+              echo "git apply refused, retrying with patch and fuzz"
+              (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
+            fi
+            grep -q 'entropy_sha512_start' "$xnu/osfmk/prng/entropy.c"
+            echo "deferred entropy SHA-512 init is present in entropy.c"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Annotate prelink binding diagnostics
         working-directory: unixnu
         run: |
