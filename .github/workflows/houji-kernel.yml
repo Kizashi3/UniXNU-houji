@@ -646,15 +646,37 @@ jobs:
             files=(unixnu/out/houji/kernel/kernel.macho)
             for extra in kernel.macho.sha256 kernel.json; do
               p=unixnu/out/houji/kernel/$extra
-              [ -s "$p" ] && files+=("$p")
+              if [ -s "$p" ]; then files+=("$p"); fi
             done
             if gh release create "$tag" --target "$GITHUB_SHA" \
                  --title "houji kernel run ${GITHUB_RUN_NUMBER}" \
                  --notes "Automated build of ${GITHUB_SHA} on ${GITHUB_REF_NAME}." \
-                 "${files[@]}"; then
+                 "${files[@]}" > "$DIAG_DIR/release.log" 2>&1; then
               echo "kernel release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
             else
               echo "KERNEL_RELEASE_FAILED"
+            fi
+            cat "$DIAG_DIR/release.log" || true
+            # A release depends on the API and on a token scope that run 66 proved
+            # unreliable, and this workspace cannot read raw file URLs at all. The
+            # diagnostics branch is writable and reachable over git+ssh, so the image
+            # is committed there too and the boot pipeline fetches it from git.
+            mkdir -p "$stage/diag/kernels"
+            cp unixnu/out/houji/kernel/kernel.macho "$stage/diag/kernels/run-${GITHUB_RUN_NUMBER}-kernel.macho"
+            for extra in kernel.macho.sha256 kernel.json; do
+              p=unixnu/out/houji/kernel/$extra
+              if [ -s "$p" ]; then cp "$p" "$stage/diag/kernels/run-${GITHUB_RUN_NUMBER}-${extra}"; fi
+            done
+            if [ -s "$DIAG_DIR/release.log" ]; then
+              cp "$DIAG_DIR/release.log" "$stage/diag/kernels/run-${GITHUB_RUN_NUMBER}-release.log"
+            fi
+            git -C "$stage/diag" add -f kernels
+            git -C "$stage/diag" commit -q -m "kernel for run ${GITHUB_RUN_NUMBER} (${GITHUB_SHA:0:7})" \
+              || echo "kernel already on the branch"
+            if GIT_TERMINAL_PROMPT=0 git -C "$stage/diag" push -f origin ci-diagnostics; then
+              echo "KERNEL_BRANCH_PUSHED kernels/run-${GITHUB_RUN_NUMBER}-kernel.macho"
+            else
+              echo "KERNEL_BRANCH_PUSH_FAILED"
             fi
           else
             echo "no kernel.macho produced"
