@@ -267,9 +267,17 @@ jobs:
               drv['objects_dir'] = drv['objects_dir'] or objects_dir(resolved)
               print('%s: driver=%s bindings=%s objects=%s' % (found, drv['invocation'], resolved, drv['objects_dir']))
 
-          absent = [found for found in wanted if found not in targets]
+          # A board may mention only one family: a driver whose base class lives in the
+          # prelinked IOStorageFamily kext needs an audited prelink before it can link.
+          mentioned = set()
+          for entry in entries:
+              found = kind(entry.split()[0]) or listed_driver(entry)
+              if found:
+                  mentioned.add(found)
+          absent = [found for found in sorted(mentioned) if found not in targets]
           if absent:
-              raise SystemExit('board.toml archives mention neither driver nor bindings for: ' + ', '.join(absent))
+              raise SystemExit('board.toml mentions %s but the tree resolves neither driver nor bindings'
+                               % ', '.join(absent))
 
           result = []
           emitted = set()
