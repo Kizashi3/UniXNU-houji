@@ -39,6 +39,8 @@ archives = [
   "build-arm-driver.py ArmDTPlatform",
   "build-arm-driver.py ArmCpu",
   "build-libpthread-kernel.py",
+  "build-native-aes-bindings.py",
+  "build-native-virtio-bindings.py",
 ]
 
 [kernel.prelink]

@@ -136,10 +136,13 @@ _start:
 
 # Executed through the bootstrap identity map. Return to physical addressing
 # before writing the physical framebuffer, then park; never resume XNU here.
+# Yellow is only emitted after observing SCTLR_EL1.M == 1.
+# The branch to the final park loop avoids a false success with translation off.
 POST_MMU_MARKER = """.text
 .global _start
 _start:
   mrs x7, SCTLR_EL1
+  tbz x7, #0, 2f
   bic x7, x7, #1
   dsb sy
   msr SCTLR_EL1, x7

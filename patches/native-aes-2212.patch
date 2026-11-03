@@ -1,0 +1,124 @@
+diff --git a/NativeAES.cpp b/NativeAES.cpp
+index febdc09..3003a0a 100644
+--- a/NativeAES.cpp
++++ b/NativeAES.cpp
+@@ -27,7 +27,7 @@ public:
+     return IOService::callPlatformFunction(name, wait, a, b, c, d);
+   }
+   const char *getAlgorithmName() override { return "AES-CBC"; }
+-  bool isKeySupported(unsigned selector) override { return selector == 0; }
++  bool isKeySupported(unsigned selector) override { return selector == 0 || selector == 2212; }
+   unsigned getSupportedOptions() override { return 1; }
+   IOReturn performAES(void *, void *, task_t, unsigned long long, IOAESIV *,
+                      IOAESOperation, IOAESKeyData *, IOAESCompletion, void *) override;
+@@ -42,19 +42,31 @@ static int cbc(const unsigned char *input, unsigned char *output, size_t bytes,
+                unsigned char iv[16], const IOAESKeyData &key, IOAESOperation operation)
+ {
+   union { aes_encrypt_ctx encrypt; aes_decrypt_ctx decrypt; } context;
+-  unsigned char nextIV[16];
++  unsigned char chaining[16], block[16], nextIV[16];
+   int result;
++  memcpy(chaining, iv, sizeof(chaining));
+   if (operation == IOAESDecrypt) {
+-    memcpy(nextIV, input + bytes - 16, 16);
+     result = aes_decrypt_key(key.bytes, key.bits / 8, &context.decrypt);
+-    if (!result) result = aes_decrypt_cbc(input, iv, static_cast<unsigned>(bytes / 16), output, &context.decrypt);
++    for (size_t offset = 0; !result && offset < bytes; offset += sizeof(block)) {
++      memcpy(nextIV, input + offset, sizeof(nextIV));
++      result = aes_decrypt(input + offset, block, &context.decrypt);
++      if (!result) {
++        for (size_t i = 0; i < sizeof(block); ++i) output[offset + i] = block[i] ^ chaining[i];
++        memcpy(chaining, nextIV, sizeof(chaining));
++      }
++    }
+   } else {
+     result = aes_encrypt_key(key.bytes, key.bits / 8, &context.encrypt);
+-    if (!result) result = aes_encrypt_cbc(input, iv, static_cast<unsigned>(bytes / 16), output, &context.encrypt);
+-    if (!result) memcpy(nextIV, output + bytes - 16, 16);
++    for (size_t offset = 0; !result && offset < bytes; offset += sizeof(block)) {
++      for (size_t i = 0; i < sizeof(block); ++i) block[i] = input[offset + i] ^ chaining[i];
++      result = aes_encrypt(block, output + offset, &context.encrypt);
++      if (!result) memcpy(chaining, output + offset, sizeof(chaining));
++    }
+   }
+-  if (!result) memcpy(iv, nextIV, 16);
++  if (!result) memcpy(iv, chaining, sizeof(chaining));
+   cc_clear(sizeof(context), &context);
++  cc_clear(sizeof(chaining), chaining);
++  cc_clear(sizeof(block), block);
+   cc_clear(sizeof(nextIV), nextIV);
+   return result;
+ }
+@@ -152,7 +164,8 @@ IOReturn NativeAES::performAES(IOMemoryDescriptor *input, IOMemoryDescriptor *ou
+ {
+   if (!input || !output || !key || !iv || !bytes || (bytes & 15) ||
+       (key->bits != 128 && key->bits != 192 && key->bits != 256)) return kIOReturnBadArgument;
+-  if (key->selector || (operation != IOAESEncrypt && operation != IOAESDecrypt)) {
++  // 2212 is the owner nonce-test key selector; its IOAESKeyData carries a raw zero key in this QEMU path.
++  if ((key->selector != 0 && key->selector != 2212) || (operation != IOAESEncrypt && operation != IOAESDecrypt)) {
+     __atomic_fetch_add(&native_aes_unsupported_key, 1, __ATOMIC_RELAXED);
+     return kIOReturnUnsupported;
+   }
+@@ -218,3 +231,62 @@ IOReturn NativeAES::performAES(void *input, void *output, task_t task, unsigned
+   destination->release();
+   return result;
+ }
++
++// UniXNU QEMU: kernel-side SystemOS cache mount and launchd environment.
++extern "C" {
++typedef unsigned long long uxnu_addr;
++struct uxnu_mount_args { uxnu_addr type; uxnu_addr path; int flags; int pad; uxnu_addr data; };
++struct uxnu_exec_args { uxnu_addr fname; uxnu_addr argp; uxnu_addr envp; };
++extern int mount(void *, struct uxnu_mount_args *, int *);
++extern int execve(void *, struct uxnu_exec_args *, int *);
++volatile uxnu_addr uxnu_cache_scratch = 0;
++volatile int uxnu_cache_mounted = 0;
++volatile int unixnu_cache_mount_result = -1;
++static const char uxnu_cache_env[] = "DYLD_SHARED_CACHE_DIR=/cache/System/Library/Caches/com.apple.dyld";
++
++static __attribute__((noinline)) int uxcopy(const void *k, uxnu_addr u, unsigned long n) { return copyout(k, u, n); }
++
++int unixnu_mount_stub(void *p, uxnu_addr scratch, const char *path)
++{
++    if (!uxnu_cache_mounted) {
++        unsigned char data[0x150];
++        uxnu_cache_mounted = 1;
++        memset(data, 0, sizeof(data));
++        uxcopy("apfs", scratch + 0x00, 5);
++        uxcopy("/cache", scratch + 0x20, 7);
++        *(uxnu_addr *)(data + 0x00) = scratch + 0x40;
++        *(uxnu_addr *)(data + 0x08) = 1;
++        *(unsigned short *)(data + 0x10) = 1;
++        *(unsigned int *)(data + 0x144) = 99;
++        *(unsigned int *)(data + 0x148) = 99;
++        uxcopy(data, scratch + 0x80, sizeof(data));
++        struct uxnu_mount_args uap;
++        uap.type = scratch + 0x00;
++        uap.path = scratch + 0x20;
++        uap.flags = 1;
++        uap.pad = 0;
++        uap.data = scratch + 0x80;
++        int retval = 0;
++        int mr = -1;
++        static const char *const devs[] = { "/dev/disk0s1", "/dev/disk1s1", "/dev/disk2s1", "/dev/disk3s1" };
++        for (int i = 0; i < 4; i++) {
++            uxcopy(devs[i], scratch + 0x40, 14);
++            uxcopy(data, scratch + 0x80, sizeof(data));
++            mr = mount(p, &uap, &retval);
++            if (!mr) break;
++        }
++        uxcopy(uxnu_cache_env, scratch + 0xF00, sizeof(uxnu_cache_env));
++        uxnu_addr envp[2] = { scratch + 0xF00, 0 };
++        uxcopy(envp, scratch + 0xF80, sizeof(envp));
++        unixnu_cache_mount_result = mr;
++    }
++    uxnu_cache_scratch = scratch;
++    return ((int (*)(void *, uxnu_addr, const char *))0xfffffff0076d6ff4ULL)(p, scratch, path);
++}
++
++int unixnu_exec_stub(void *p, struct uxnu_exec_args *uap, int *retval)
++{
++    if (uxnu_cache_scratch) uap->envp = uxnu_cache_scratch + 0xF80;
++    return execve(p, uap, retval);
++}
++}

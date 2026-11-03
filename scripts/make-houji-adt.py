@@ -53,9 +53,17 @@ def main():
                    help='Match a published IOMedia volume UUID after UFS qualification')
     p.add_argument('--data-ramdisk', action='store_true',
                    help='Hand a dense APFS Data seed to the standard XNU RAMDisk path')
+    p.add_argument('--panic-base', type=lambda s: int(s, 0), default=0xA7000000,
+                   help='Physical base of the stock Xiaomi 14 ramoops region')
+    p.add_argument('--panic-size', type=lambda s: int(s, 0), default=0x400000,
+                   help='Size of the stock Xiaomi 14 ramoops region')
     args = p.parse_args()
     if args.dram_size != 0x10000000 or args.owned_memory_size != 0x10000000:
         p.error('First-entry profile requires a 256 MiB handoff window')
+    if (args.panic_base == 0 or args.panic_size < 0x1000 or
+            args.panic_base > 0xffffffffffffffff - args.panic_size or
+            args.panic_size > 0xffffffff):
+        p.error('panic region must be a nonzero physical range representable by XNU')
     u32 = lambda x: struct.pack('<I', x)
     u64 = lambda x: struct.pack('<Q', x)
     tree = node('device-tree', [
@@ -69,6 +77,10 @@ def main():
                         ('dram-base', u64(0x80000000)), ('dram-size', u64(args.dram_size)),
                         ('darwinboot-memory-size', u64(args.owned_memory_size)),
                         ('crypto-hash-method', b'sha2-384\0'),
+                        # Image4 selector 12 requires this OSData policy property.
+                        # 1 enables prevention; the native getter yields allow-mixing=false.
+                        ('mix-n-match-prevention-status', u32(1)),
+                        ('embedded-panic-log-size', u32(args.panic_size)),
                         *([('root-matching', ('<dict><key>IOProviderClass</key><string>IOMedia</string>'
                            '<key>IOPropertyMatch</key><dict><key>UUID</key><string>' +
                            str(args.root_match_volume_uuid).upper() + '</string></dict></dict>\0').encode())]
@@ -77,9 +89,14 @@ def main():
              [node('memory-map', ([('RAMDisk', bytes(16))] if args.data_ramdisk else []) +
                                  ([('TrustCache', bytes(16))] if args.trust_cache else [])),
               node('manifest-properties')]),
+        node('pram', [('reg', struct.pack('<QQ', args.panic_base, args.panic_size))]),
         node('cpus', children=[node('cpu0', [('state', b'running\0'), ('reg', u32(0)),
              ('device_type', b'cpu\0'), ('compatible', b'qcom,kryo\0'),
              ('timebase-frequency', u32(19200000))])]),
+        # ArmCpu reads /psci/method before attempting secondary CPU startup.
+        # Keep the selected conduit in the emitted ADT; this does not enable SMP.
+        node('psci', [('compatible', b'arm,psci-1.0\0arm,psci-0.2\0'),
+                      ('method', args.psci_method.encode() + b'\0')]),
         node('defaults', [('sleep-disabled', u32(1))]), node('options'),
         node('product', [('product-name', b'Xiaomi 14\0'), ('model', b'houji\0')]),
         node('arm-io', [('device_type', b'arm-io\0'), ('#address-cells', u32(2)),
