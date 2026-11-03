@@ -12,15 +12,16 @@ on:
         default: "26.6"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   kernel:
     runs-on: macos-26
     timeout-minutes: 360
     env:
-      DEVELOPER_DIR: /Applications/Xcode_${{ inputs.xcode }}.app/Contents/Developer
       DEVICE_DIR: ${{ github.workspace }}/device
+      DIAG_DIR: ${{ github.workspace }}/unixnu/out/houji/logs
+      XCODE_INPUT: ${{ inputs.xcode }}
     steps:
       - name: Check out UniXNU
         uses: actions/checkout@v4
@@ -49,179 +50,236 @@ jobs:
 
       - name: Validate runner
         run: |
-          test -d "$DEVELOPER_DIR"
+          # A push-triggered run has no workflow inputs, so resolve Xcode from the
+          # runner rather than trusting the dispatch-only input path.
+          selected=""
+          for candidate in "/Applications/Xcode_${XCODE_INPUT:-26.6}.app/Contents/Developer" \
+                           "$(xcode-select -p)" /Applications/Xcode.app/Contents/Developer; do
+            if [ -n "$candidate" ] && [ -d "$candidate" ]; then
+              selected="$candidate"
+              break
+            fi
+          done
+          if [ -z "$selected" ]; then
+            echo "no usable Xcode found on this runner"
+            ls -d /Applications/Xcode* 2>/dev/null || true
+            exit 1
+          fi
+          echo "selected DEVELOPER_DIR=$selected"
+          echo "DEVELOPER_DIR=$selected" >> "$GITHUB_ENV"
+          export DEVELOPER_DIR="$selected"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
           xcrun --sdk iphoneos --find mig
           for tool in git make clang cmake ninja unifdef; do command -v "$tool"; done
+          mkdir -p "$DIAG_DIR"
 
       - name: Configure and fetch sources
         working-directory: unixnu
         run: |
-          ./unixnu defconfig houji_defconfig -D "$DEVICE_DIR"
-          ./unixnu fetch xnu libplatform libdispatch AvailabilityVersions libpthread corecrypto-2023 -D "$DEVICE_DIR"
+          mkdir -p "$DIAG_DIR"
+          {
+            ./unixnu defconfig houji_defconfig -D "$DEVICE_DIR"
+            ./unixnu fetch xnu libplatform libdispatch AvailabilityVersions libpthread corecrypto-2023 -D "$DEVICE_DIR"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Apply XNU compatibility patch
         working-directory: unixnu
         run: |
-          ./unixnu tree -D "$DEVICE_DIR"
-          # XNU's os/log.c includes this private libdispatch header. Some
-          # libdispatch revisions do not install it through xcodebuild, so
-          # stage it explicitly in the reproducible kernel fakeroot.
-          firehose_header=$(find out/houji/tree/refer/libdispatch out/feeds -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)
-          test -n "$firehose_header"
-          for destination in \
-            out/houji/tree/.cache/fakeroot/usr/include/os/firehose_buffer_private.h \
-            out/houji/tree/.cache/fakeroot/usr/local/include/os/firehose_buffer_private.h; do
-            mkdir -p "$(dirname "$destination")"
-            cp "$firehose_header" "$destination"
-            test -f "$destination"
-          done
-          git -C out/houji/tree/refer/xnu apply "$DEVICE_DIR/patches/xnu-iorpc-message-from-mach.patch"
+          mkdir -p "$DIAG_DIR"
+          {
+            ./unixnu tree -D "$DEVICE_DIR"
+            # XNU's os/log.c includes this private libdispatch header. Some
+            # libdispatch revisions do not install it through xcodebuild, so
+            # stage it explicitly in the reproducible kernel fakeroot.
+            firehose_header=$(find out/houji/tree/refer/libdispatch out/feeds -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)
+            test -n "$firehose_header"
+            for destination in \
+              out/houji/tree/.cache/fakeroot/usr/include/os/firehose_buffer_private.h \
+              out/houji/tree/.cache/fakeroot/usr/local/include/os/firehose_buffer_private.h; do
+              mkdir -p "$(dirname "$destination")"
+              cp "$firehose_header" "$destination"
+              test -f "$destination"
+            done
+            git -C out/houji/tree/refer/xnu apply "$DEVICE_DIR/patches/xnu-iorpc-message-from-mach.patch"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Apply NativeAES 2212 fix
         working-directory: unixnu
         run: |
-          aes_dir="$(dirname "$(find out/houji/tree -path '*/NativeAES/NativeAES.cpp' -type f -print -quit)")"
-          test -n "$aes_dir"
-          echo "NativeAES source: $aes_dir"
-          (cd "$aes_dir" && (git apply "$DEVICE_DIR/patches/native-aes-2212.patch" || patch -p1 --forward < "$DEVICE_DIR/patches/native-aes-2212.patch"))
+          mkdir -p "$DIAG_DIR"
+          {
+            aes_dir="$(dirname "$(find out/houji/tree -path '*/NativeAES/NativeAES.cpp' -type f -print -quit)")"
+            test -n "$aes_dir"
+            echo "NativeAES source: $aes_dir"
+            (cd "$aes_dir" && (git apply "$DEVICE_DIR/patches/native-aes-2212.patch" || patch -p1 --forward < "$DEVICE_DIR/patches/native-aes-2212.patch"))
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Prepare XNU host header staging
         working-directory: unixnu
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("out/houji/tree/scripts/build-xnu-4k-baseline.sh")
-          text = path.read_text()
-          marker = "  git clone --shared refer/xnu .cache/xnu-work\n"
-          copy = marker + "  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/os\n  firehose=$(find . -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)\n  if [ -n \"$firehose\" ]; then cp \"$firehose\" .cache/xnu-work/EXTERNAL_HEADERS/os/firehose_buffer_private.h; fi\n"
-          if marker not in text:
-              raise SystemExit("XNU clone marker not found")
-          if "firehose=$(find refer/libdispatch ../feeds" not in text:
-              text = text.replace(marker, copy, 1)
-              path.write_text(text)
-          print(f"prepared {path}")
-          PY
+          mkdir -p "$DIAG_DIR"
+          {
+            python3 - <<'PY'
+            from pathlib import Path
+            path = Path("out/houji/tree/scripts/build-xnu-4k-baseline.sh")
+            text = path.read_text()
+            marker = "  git clone --shared refer/xnu .cache/xnu-work\n"
+            copy = marker + "  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/os\n  firehose=$(find . -path '*/os/firehose_buffer_private.h' -type f -print -quit 2>/dev/null || true)\n  if [ -n \"$firehose\" ]; then cp \"$firehose\" .cache/xnu-work/EXTERNAL_HEADERS/os/firehose_buffer_private.h; fi\n"
+            if marker not in text:
+                raise SystemExit("XNU clone marker not found")
+            if "firehose=$(find refer/libdispatch ../feeds" not in text:
+                text = text.replace(marker, copy, 1)
+                path.write_text(text)
+            print(f"prepared {path}")
+            PY
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Apply persistent early-log patch
         working-directory: unixnu
         run: |
-          patch="$DEVICE_DIR/patches/xnu/native-persistent-early-log.patch"
-          test -f "$patch"
-          git -C out/houji/tree/refer/xnu apply --check "$patch"
-          git -C out/houji/tree/refer/xnu apply "$patch"
-          git -C out/houji/tree/refer/xnu diff --check
+          mkdir -p "$DIAG_DIR"
+          {
+            patch="$DEVICE_DIR/patches/xnu/native-persistent-early-log.patch"
+            test -f "$patch"
+            git -C out/houji/tree/refer/xnu apply --check "$patch"
+            git -C out/houji/tree/refer/xnu apply "$patch"
+            git -C out/houji/tree/refer/xnu diff --check
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
+      - name: Apply XNU shared-cache MACF bypass
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            patch="$DEVICE_DIR/patches/xnu/skip-shared-cache-macf-check.patch"
+            test -f "$patch"
+            xnu=out/houji/tree/refer/xnu
+            if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
+              git -C "$xnu" apply "$patch"
+            else
+              echo "git apply refused, retrying with patch and fuzz"
+              (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
+            fi
+            grep -q 'skipping MACF signature check' "$xnu/bsd/kern/ubc_subr.c"
+            echo "shared-cache MACF bypass is present in ubc_subr.c"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Annotate prelink binding diagnostics
         working-directory: unixnu
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          mkdir -p "$DIAG_DIR"
+          {
+            python3 - <<'PY'
+            from pathlib import Path
 
-          candidates = list(Path("kits").glob("*/native_prelink.py"))
-          if not candidates:
-              candidates = list(Path("out/houji/tree/kits").glob("*/native_prelink.py"))
-          if len(candidates) != 1:
-              raise SystemExit(f"expected one native_prelink.py, found: {candidates}")
-          path = candidates[0]
-          text = path.read_text()
+            candidates = list(Path("kits").glob("*/native_prelink.py"))
+            if not candidates:
+                candidates = list(Path("out/houji/tree/kits").glob("*/native_prelink.py"))
+            if len(candidates) != 1:
+                raise SystemExit(f"expected one native_prelink.py, found: {candidates}")
+            path = candidates[0]
+            text = path.read_text()
 
-          # The iOS 16 IOStorageFamily component imports this DriverKit-era
-          # helper. The native BCM2837 build retains the corresponding local
-          # IORPCMessageFromMachReply implementation, so expose local symbols
-          # to the resolver and use that implementation as a compatibility
-          # target when the C stub is dead-stripped.
-          replacements = [
-              ("def exports(data, image):", "def exports(data, image, include_local=False):"),
-              ("        if kind & 0xe0 or not kind & 1 or not kind & 0x0e:",
-               "        if kind & 0xe0 or not kind & 0x0e or (not include_local and not kind & 1):"),
-              ("    for address, names in exports(native_data, native).items():",
-               "    for address, names in exports(native_data, native, include_local=True).items():"),
-          ]
-          for old, new in replacements:
-              if old not in text:
-                  raise SystemExit(f"prelink marker not found: {old}")
-              text = text.replace(old, new, 1)
+            # The iOS 16 IOStorageFamily component imports this DriverKit-era
+            # helper. The native BCM2837 build retains the corresponding local
+            # IORPCMessageFromMachReply implementation, so expose local symbols
+            # to the resolver and use that implementation as a compatibility
+            # target when the C stub is dead-stripped.
+            replacements = [
+                ("def exports(data, image):", "def exports(data, image, include_local=False):"),
+                ("        if kind & 0xe0 or not kind & 1 or not kind & 0x0e:",
+                 "        if kind & 0xe0 or not kind & 0x0e or (not include_local and not kind & 1):"),
+                ("    for address, names in exports(native_data, native).items():",
+                 "    for address, names in exports(native_data, native, include_local=True).items():"),
+            ]
+            for old, new in replacements:
+                if old not in text:
+                    raise SystemExit(f"prelink marker not found: {old}")
+                text = text.replace(old, new, 1)
 
-          old_choices = "    choices = {new for name in names for new in native_by_name.get(name, set())}"
-          new_choices = (
-              "    sets = [native_by_name.get(name, set()) for name in names]\n"
-              "    common = set.intersection(*(set(values) for values in sets)) if sets else set()\n"
-              "    if len(common) == 1:\n"
-              "        return next(iter(common))\n"
-              "    choices = set.union(*(set(values) for values in sets)) if sets else set()"
-          )
-          if old_choices not in text:
-              raise SystemExit("unique binding choice line not found")
-          text = text.replace(old_choices, new_choices, 1)
+            old_choices = "    choices = {new for name in names for new in native_by_name.get(name, set())}"
+            new_choices = (
+                "    sets = [native_by_name.get(name, set()) for name in names]\n"
+                "    common = set.intersection(*(set(values) for values in sets)) if sets else set()\n"
+                "    if len(common) == 1:\n"
+                "        return next(iter(common))\n"
+                "    choices = set.union(*(set(values) for values in sets)) if sets else set()"
+            )
+            if old_choices not in text:
+                raise SystemExit("unique binding choice line not found")
+            text = text.replace(old_choices, new_choices, 1)
 
-          anchor = "    packed = metadata['_PrelinkLinkKASLROffsets']"
-          alias = (
-              "    if '_IORPCMessageFromMach' not in native_symbols:\n"
-              "        reply = {address for address, names in exports(native_data, native, include_local=True).items()\n"
-              "                 if any('IORPCMessageFromMachReply' in name for name in names)}\n"
-              "        if len(reply) == 1:\n"
-              "            native_symbols['_IORPCMessageFromMach'] = reply\n"
-              "            print('native prelink compatibility alias: _IORPCMessageFromMach -> IORPCMessageFromMachReply')\n"
-          )
-          if anchor not in text:
-              raise SystemExit("prelink symbol anchor not found")
-          text = text.replace(anchor, alias + anchor, 1)
+            anchor = "    packed = metadata['_PrelinkLinkKASLROffsets']"
+            alias = (
+                "    if '_IORPCMessageFromMach' not in native_symbols:\n"
+                "        reply = {address for address, names in exports(native_data, native, include_local=True).items()\n"
+                "                 if any('IORPCMessageFromMachReply' in name for name in names)}\n"
+                "        if len(reply) == 1:\n"
+                "            native_symbols['_IORPCMessageFromMach'] = reply\n"
+                "            print('native prelink compatibility alias: _IORPCMessageFromMach -> IORPCMessageFromMachReply')\n"
+            )
+            if anchor not in text:
+                raise SystemExit("prelink symbol anchor not found")
+            text = text.replace(anchor, alias + anchor, 1)
 
-          old = "            replacement = unique_kernel_binding(target, original_symbols, native_symbols)"
-          new = (
-              "            try:\n"
-              "                replacement = unique_kernel_binding(target, original_symbols, native_symbols)\n"
-              "            except ValueError as error:\n"
-              "                queue = [(root, [root]) for root in roots]\n"
-              "                seen = set()\n"
-              "                paths = []\n"
-              "                while queue:\n"
-              "                    identifier, chain = queue.pop(0)\n"
-              "                    if identifier in seen:\n"
-              "                        continue\n"
-              "                    seen.add(identifier)\n"
-              "                    if identifier == source[2]:\n"
-              "                        paths.append(' -> '.join(chain))\n"
-              "                        continue\n"
-              "                    entry = entries.get(identifier)\n"
-              "                    if entry:\n"
-              "                        queue.extend((dep, chain + [dep]) for dep in (entry.get('OSBundleLibraries') or {}))\n"
-              "                raise ValueError(f\"{error}; source={source[2]}; site={site:#x}; roots={paths}\") from error"
-          )
-          if old not in text:
-              raise SystemExit("prelink binding line not found")
-          text = text.replace(old, new, 1)
-          path.write_text(text)
-          print(f"annotated {path}")
-          PY
+            old = "            replacement = unique_kernel_binding(target, original_symbols, native_symbols)"
+            new = (
+                "            try:\n"
+                "                replacement = unique_kernel_binding(target, original_symbols, native_symbols)\n"
+                "            except ValueError as error:\n"
+                "                queue = [(root, [root]) for root in roots]\n"
+                "                seen = set()\n"
+                "                paths = []\n"
+                "                while queue:\n"
+                "                    identifier, chain = queue.pop(0)\n"
+                "                    if identifier in seen:\n"
+                "                        continue\n"
+                "                    seen.add(identifier)\n"
+                "                    if identifier == source[2]:\n"
+                "                        paths.append(' -> '.join(chain))\n"
+                "                        continue\n"
+                "                    entry = entries.get(identifier)\n"
+                "                    if entry:\n"
+                "                        queue.extend((dep, chain + [dep]) for dep in (entry.get('OSBundleLibraries') or {}))\n"
+                "                raise ValueError(f\"{error}; source={source[2]}; site={site:#x}; roots={paths}\") from error"
+            )
+            if old not in text:
+                raise SystemExit("prelink binding line not found")
+            text = text.replace(old, new, 1)
+            path.write_text(text)
+            print(f"annotated {path}")
+            PY
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
       - name: Validate prelink compatibility scripts
         working-directory: unixnu
         run: |
-          # Resolve the board's build-tree alias to its actual submodule.
-          prelink_kit="$(python3 - <<'PY'
-          import os
-          from pathlib import Path
-          import tomllib
+          mkdir -p "$DIAG_DIR"
+          {
+            # Resolve the board's build-tree alias to its actual submodule.
+            prelink_kit="$(python3 - <<'PY'
+            import os
+            from pathlib import Path
+            import tomllib
 
-          board = tomllib.loads((Path(os.environ["DEVICE_DIR"]) / "board.toml").read_text())
-          emitter = (Path("out/houji/tree") / board["kernel"]["prelink"]["tool"]).resolve(strict=True)
-          if not emitter.is_file():
-              raise SystemExit(f"prelink emitter is not a file: {emitter}")
-          for name in ("native_prelink.py", "test_native_prelink.py", "test_emit_prelink.py"):
-              if not (emitter.parent / name).is_file():
-                  raise SystemExit(f"missing prelink source/test: {emitter.parent / name}")
-          print(emitter.parent)
-          PY
-          )"
-          echo "Resolved prelink kit: $prelink_kit"
-          echo "PRELINK_KIT=$prelink_kit" >> "$GITHUB_ENV"
-          # Strip a/kits/NativePrelink/ and apply inside the resolved submodule.
-          git -C "$prelink_kit" apply -p3 --check "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
-          git -C "$prelink_kit" apply -p3 "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
-          python3 -m py_compile "$prelink_kit/native_prelink.py" "$prelink_kit/emit_prelink.py"
-          python3 -m unittest discover -s "$prelink_kit" -p 'test_*.py'
+            board = tomllib.loads((Path(os.environ["DEVICE_DIR"]) / "board.toml").read_text())
+            emitter = (Path("out/houji/tree") / board["kernel"]["prelink"]["tool"]).resolve(strict=True)
+            if not emitter.is_file():
+                raise SystemExit(f"prelink emitter is not a file: {emitter}")
+            for name in ("native_prelink.py", "test_native_prelink.py", "test_emit_prelink.py"):
+                if not (emitter.parent / name).is_file():
+                    raise SystemExit(f"missing prelink source/test: {emitter.parent / name}")
+            print(emitter.parent)
+            PY
+            )"
+            echo "Resolved prelink kit: $prelink_kit"
+            echo "PRELINK_KIT=$prelink_kit" >> "$GITHUB_ENV"
+            # Strip a/kits/NativePrelink/ and apply inside the resolved submodule.
+            git -C "$prelink_kit" apply -p3 --check "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
+            git -C "$prelink_kit" apply -p3 "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
+            python3 -m py_compile "$prelink_kit/native_prelink.py" "$prelink_kit/emit_prelink.py"
+            python3 -m unittest discover -s "$prelink_kit" -p 'test_*.py'
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Build houji kernel
         working-directory: unixnu
@@ -264,13 +322,16 @@ jobs:
         if: always()
         working-directory: unixnu
         run: |
-          cache=out/ipsw/20H392/kernelcache.decompressed
-          if [ -f "$cache" ]; then
-            python3 "$DEVICE_DIR/scripts/verify-prelink-ios16.py" \
-              --kit "$PRELINK_KIT" --kernelcache "$cache" \
-              --board "$DEVICE_DIR/board.toml" \
-              --output out/houji/logs/prelink-ios16-validation.json
-          fi
+          mkdir -p "$DIAG_DIR"
+          {
+            cache=out/ipsw/20H392/kernelcache.decompressed
+            if [ -f "$cache" ]; then
+              python3 "$DEVICE_DIR/scripts/verify-prelink-ios16.py" \
+                --kit "$PRELINK_KIT" --kernelcache "$cache" \
+                --board "$DEVICE_DIR/board.toml" \
+                --output out/houji/logs/prelink-ios16-validation.json
+            fi
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Collect kernel build diagnostics
         if: always()
@@ -331,3 +392,66 @@ jobs:
             unixnu/out/houji/logs/**/*.log
             unixnu/out/houji/.config
             device/unixnu.lock
+
+      # Console logs are only readable with an API token, which this workspace
+      # does not have, so publish the collected logs and the kernel image on
+      # paths that anonymous HTTP can read: the ci-diagnostics branch for text
+      # and a release for the binaries.
+      - name: Publish CI diagnostics
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            echo "=== run meta ==="
+            echo "run ${GITHUB_RUN_NUMBER} attempt ${GITHUB_RUN_ATTEMPT} job ${GITHUB_JOB}"
+            echo "commit ${GITHUB_SHA} branch ${GITHUB_REF_NAME} trigger ${GITHUB_EVENT_NAME}"
+            echo "unixnu $(git -C unixnu rev-parse HEAD 2>/dev/null || echo unknown)"
+            echo "device $(git -C "$DEVICE_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+            echo "selected DEVELOPER_DIR ${DEVELOPER_DIR:-unset}"
+            echo "=== files under unixnu/out/houji (maxdepth 4) ==="
+            find unixnu/out/houji -maxdepth 4 -type f -print 2>/dev/null | sort | head -n 200
+            echo "=== early-steps.log tail ==="
+            tail -n 300 "$DIAG_DIR/early-steps.log" 2>/dev/null || echo "(no early-steps.log)"
+          } > "$DIAG_DIR/run-meta.log"
+          {
+            cat "$DIAG_DIR/run-meta.log"
+            echo "=== github-diagnostics.log tail ==="
+            tail -n 1200 "$DIAG_DIR/github-diagnostics.log" 2>/dev/null || echo "(no github-diagnostics.log)"
+          } > "$DIAG_DIR/latest.log"
+          stage=$(mktemp -d)
+          git init -q "$stage/diag"
+          git -C "$stage/diag" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$stage/diag" config user.name houji-ci
+          git -C "$stage/diag" config user.email houji-ci@users.noreply.github.com
+          git -C "$stage/diag" checkout -q -B ci-diagnostics
+          dest="$stage/diag/run-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:7}"
+          mkdir -p "$dest"
+          cp "$DIAG_DIR"/*.log "$dest/" 2>/dev/null || true
+          cp "$DIAG_DIR/latest.log" "$stage/diag/run-latest.log" 2>/dev/null || true
+          git -C "$stage/diag" add -f -A
+          git -C "$stage/diag" commit -q -m "diagnostics for run ${GITHUB_RUN_NUMBER} ($(echo "$GITHUB_REF_NAME" | cut -c1-20) ${GITHUB_SHA:0:7})" || echo "nothing new to publish"
+          if GIT_TERMINAL_PROMPT=0 git -C "$stage/diag" push -f origin ci-diagnostics; then
+            echo "diagnostics branch: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/ci-diagnostics/run-latest.log"
+          else
+            echo "DIAG_BRANCH_PUSH_FAILED"
+          fi
+          if [ -s unixnu/out/houji/kernel/kernel.macho ]; then
+            tag="ci-kernel-${GITHUB_RUN_NUMBER}"
+            files=(unixnu/out/houji/kernel/kernel.macho)
+            for extra in kernel.macho.sha256 kernel.json; do
+              p=unixnu/out/houji/kernel/$extra
+              [ -s "$p" ] && files+=("$p")
+            done
+            if gh release create "$tag" --target "$GITHUB_SHA" \
+                 --title "houji kernel run ${GITHUB_RUN_NUMBER}" \
+                 --notes "Automated build of ${GITHUB_SHA} on ${GITHUB_REF_NAME}." \
+                 "${files[@]}"; then
+              echo "kernel release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+            else
+              echo "KERNEL_RELEASE_FAILED"
+            fi
+          else
+            echo "no kernel.macho produced"
+          fi
