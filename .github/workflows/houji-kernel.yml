@@ -132,78 +132,150 @@ jobs:
         run: |
           mkdir -p "$DIAG_DIR"
           {
-            # A bindings archive consumes the driver object that build-arm-driver.py
-            # produces, so the object has to be archived first. Both the driver
-            # directories and the bindings scripts have been renamed upstream, so
-            # resolve the names of the revision this run actually checked out.
-            exists=$( [ -e drivers/SoftwareAES ] && echo SoftwareAES )
-            test -n "$exists" || exists=$( [ -e drivers/NativeAES ] && echo NativeAES )
-            aes_driver=$exists
-            exists=$( [ -e drivers/VirtioMmioBlock ] && echo VirtioMmioBlock )
-            test -n "$exists" || exists=$( [ -e drivers/NativeVirtioBlock ] && echo NativeVirtioBlock )
-            virtio_driver=$exists
-            exists=$( [ -e scripts/build-native-aes-bindings.py ] && echo build-native-aes-bindings.py )
-            test -n "$exists" || exists=$( [ -e scripts/build-software-aes-bindings.py ] && echo build-software-aes-bindings.py )
-            aes_script=$exists
-            exists=$( [ -e scripts/build-native-virtio-bindings.py ] && echo build-native-virtio-bindings.py )
-            test -n "$exists" || exists=$( [ -e scripts/build-virtio-mmio-bindings.py ] && echo build-virtio-mmio-bindings.py )
-            virtio_script=$exists
-            echo "AES driver directory: ${aes_driver:-absent}"
-            echo "virtio driver directory: ${virtio_driver:-absent}"
-            echo "AES bindings script: ${aes_script:-absent}"
-            echo "virtio bindings script: ${virtio_script:-absent}"
-            ls drivers 2>/dev/null | tr '\n' ' '
-            echo
-            python3 - "$DEVICE_DIR/board.toml" "$aes_driver" "$virtio_driver" \
-              "$aes_script" "$virtio_script" <<'PY'
-          import re, sys
+            set +e
+            # Each bindings archive links the driver object that build-arm-driver.py
+            # compiles, and neither script creates the other's output directory.
+            # Both drivers and both bindings scripts have been renamed upstream, so
+            # resolve everything from the tree this run actually checked out rather
+            # than hard-coding a revision here.
+            python3 - "$DEVICE_DIR/board.toml" out/houji/tree "$DIAG_DIR" <<'PY'
+          import re
+          import sys
+          import tomllib
           from pathlib import Path
 
-          path = Path(sys.argv[1])
-          aes_driver, virtio_driver, aes_script, virtio_script = sys.argv[2:6]
-          text = path.read_text()
+          board_path, tree, diag = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+          scripts, drivers = tree / 'scripts', tree / 'drivers'
+          print('tree:', tree, 'exists' if tree.is_dir() else 'MISSING')
+          print('driver directories:', sorted(p.name for p in drivers.iterdir()) if drivers.is_dir() else 'absent')
+          print('bindings scripts in tree:', sorted(p.name for p in scripts.glob('*bindings*.py')) if scripts.is_dir() else 'absent')
+
+          components = []
+          manifest = tree / 'components.toml'
+          if manifest.is_file():
+              components = tomllib.loads(manifest.read_text())['component']
+          else:
+              print('tree has no components.toml, falling back to legacy component names')
+
+          accepted = None
+          arm_driver = scripts / 'build-arm-driver.py'
+          if arm_driver.is_file():
+              for line in arm_driver.read_text(errors='replace').splitlines():
+                  if 'choices=[' in line:
+                      accepted = set(re.findall(r"['\"]([^'\"]+)['\"]", line))
+                      break
+          print('literal build-arm-driver.py choices:', sorted(accepted) if accepted else 'catalog derived')
+
+
+          def driver(pattern, fallback):
+              for entry in components:
+                  if entry.get('kind') != 'driver':
+                      continue
+                  names = [entry.get('id', ''), entry.get('legacy_name', '')]
+                  if not any(re.search(pattern, name or '', re.I) for name in names):
+                      continue
+                  identifier = entry['id']
+                  legacy = entry.get('legacy_name', identifier)
+                  chosen = identifier
+                  if accepted is not None and identifier not in accepted:
+                      chosen = legacy
+                  elif not (drivers / identifier).is_dir() and (drivers / legacy).is_dir():
+                      chosen = legacy
+                  build = entry.get('build')
+                  invocation = 'build-arm-driver.py ' + chosen
+                  if build and chosen == identifier:
+                      invocation = ' '.join(build)
+                  archive = next((path for path in entry.get('outputs', []) if path.endswith('.a')), None)
+                  return {
+                      'invocation': invocation,
+                      'objects_dir': str(tree / Path(archive).parent) if archive else None,
+                  }
+              return {'invocation': 'build-arm-driver.py ' + fallback, 'objects_dir': None}
+
+
+          def script(pattern, current, fallback):
+              candidates = sorted(p.name for p in scripts.glob('*.py')) if scripts.is_dir() else []
+              matching = [name for name in candidates if re.search(pattern, name, re.I)]
+              if current in matching:
+                  return current
+              if matching:
+                  return matching[0]
+              return fallback
+
+
+          def objects_dir(script_name):
+              for line in (scripts / script_name).read_text(errors='replace').splitlines():
+                  if '--objects-dir' in line:
+                      quoted = re.findall(r"'([^']+)'", line)
+                      if quoted:
+                          return str(tree / quoted[-1])
+              return None
+
+
+          text = board_path.read_text()
           block = re.search(r'^archives = \[\n(.*?)^\]', text, re.S | re.M)
           if not block:
               raise SystemExit('board.toml has no multi-line archives list')
           entries = [m.group(1) for m in re.finditer(r'"([^"]+)"', block.group(1))]
-          result, changed = [], 0
 
 
-          def is_bindings(entry, kind):
-              return re.search(r'build-(native|software|virtio|mmio)[^ ]*%s-bindings\.py' % kind, entry.split()[0])
+          def kind(name):
+              if not name.endswith('bindings.py'):
+                  return None
+              lowered = name.lower()
+              if 'aes' in lowered:
+                  return 'aes'
+              if 'virtio' in lowered or 'mmio' in lowered:
+                  return 'virtio'
+              return None
 
 
+          wanted = {'aes': (r'aes[^ ]*bindings\.py', r'aes', 'NativeAES'),
+                    'virtio': (r'(?:virtio|mmio)[^ ]*bindings\.py', r'virtio.*block|block.*virtio', 'NativeVirtioBlock')}
+          targets = {}
+          for name in entries:
+              found = kind(name.split()[0])
+              if found and found not in targets:
+                  pattern, driver_pattern, legacy = wanted[found]
+                  drv = driver(driver_pattern, legacy)
+                  targets[found] = (drv, script(pattern, name.split()[0], name.split()[0]))
+
+          missing = [found for found in wanted if found not in targets]
+          if missing:
+              raise SystemExit('board.toml archives has no bindings entry for: ' + ', '.join(missing))
+
+          for found, (drv, resolved) in targets.items():
+              if not resolved.endswith('.py') or not (scripts / resolved).is_file():
+                  raise SystemExit('no %s bindings script found in tree (board asked for %s)' % (found, resolved))
+              drv['objects_dir'] = drv['objects_dir'] or objects_dir(resolved)
+              print('%s: driver=%s bindings=%s objects=%s' % (found, drv['invocation'], resolved, drv['objects_dir']))
+
+          result = []
           for entry in entries:
               name = entry.split()[0]
-              if is_bindings(entry, 'aes'):
-                  if aes_script and name != aes_script:
-                      entry = aes_script + entry[len(name):]
-                      changed += 1
-                  if aes_driver and 'build-arm-driver.py ' + aes_driver not in result:
-                      result.append('build-arm-driver.py ' + aes_driver)
-              if is_bindings(entry, 'virtio'):
-                  if virtio_script and name != virtio_script:
-                      entry = virtio_script + entry[len(name):]
-                      changed += 1
-                  if virtio_driver and 'build-arm-driver.py ' + virtio_driver not in result:
-                      result.append('build-arm-driver.py ' + virtio_driver)
+              found = kind(name)
+              if found:
+                  drv, resolved = targets[found]
+                  entry = resolved + entry[len(name):]
+                  if drv['invocation'] not in result:
+                      result.append(drv['invocation'])
               result.append(entry)
 
-          body = ''.join('  "%s",\n' % e for e in result)
-          path.write_text(text[:block.start()] + 'archives = [\n' + body + ']' + text[block.end():])
-          print('archives rewritten: %d entries, %d renames' % (len(result), changed))
-          print('AES objects:', [e for e in result if 'aes' in e or 'AES' in e])
-          print('virtio objects:', [e for e in result if 'irtio' in e])
-          try:
-              import tomllib
-          except ModuleNotFoundError:
-              tomllib = None
-          if tomllib:
-              tomllib.loads(path.read_text())
-              print('board.toml still parses')
-          else:
-              print('tomllib unavailable, skipped parse check')
+          body = ''.join('  "%s",\n' % entry for entry in result)
+          board_path.write_text(text[:block.start()] + 'archives = [\n' + body + ']' + text[block.end():])
+          tomllib.loads(board_path.read_text())
+          print('archives rewritten: %d entries, board.toml still parses' % len(result))
+          for entry in result:
+              print('  archive:', entry)
+
+          directories = [drv['objects_dir'] for drv, _ in targets.values() if drv['objects_dir']]
+          (diag / 'objects-dirs.txt').write_text(''.join(d + '\n' for d in directories))
           PY
+            echo "board archive rewrite rc=$?"
+            while read -r objects; do
+              [ -n "$objects" ] || continue
+              mkdir -p "$objects" && echo "prepared objects directory $objects"
+            done < "$DIAG_DIR/objects-dirs.txt"
             cat "$DEVICE_DIR/board.toml"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
