@@ -1,6 +1,9 @@
 name: houji XNU kernel
 
 on:
+  push:
+    branches:
+      - kernel-cs-bypass
   workflow_dispatch:
     inputs:
       xcode:
@@ -75,6 +78,14 @@ jobs:
             test -f "$destination"
           done
           git -C out/houji/tree/refer/xnu apply "$DEVICE_DIR/patches/xnu-iorpc-message-from-mach.patch"
+
+      - name: Apply NativeAES 2212 fix
+        working-directory: unixnu
+        run: |
+          aes_dir="$(dirname "$(find out/houji/tree -path '*/NativeAES/NativeAES.cpp' -type f -print -quit)")"
+          test -n "$aes_dir"
+          echo "NativeAES source: $aes_dir"
+          (cd "$aes_dir" && (git apply "$DEVICE_DIR/patches/native-aes-2212.patch" || patch -p1 --forward < "$DEVICE_DIR/patches/native-aes-2212.patch"))
 
       - name: Prepare XNU host header staging
         working-directory: unixnu
