@@ -127,6 +127,86 @@ jobs:
             grep -n 'selector == 2212' "$aes_src"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Order driver object archives in board.toml
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            # A bindings archive consumes the driver object that build-arm-driver.py
+            # produces, so the object has to be archived first. Both the driver
+            # directories and the bindings scripts have been renamed upstream, so
+            # resolve the names of the revision this run actually checked out.
+            exists=$( [ -e drivers/SoftwareAES ] && echo SoftwareAES )
+            test -n "$exists" || exists=$( [ -e drivers/NativeAES ] && echo NativeAES )
+            aes_driver=$exists
+            exists=$( [ -e drivers/VirtioMmioBlock ] && echo VirtioMmioBlock )
+            test -n "$exists" || exists=$( [ -e drivers/NativeVirtioBlock ] && echo NativeVirtioBlock )
+            virtio_driver=$exists
+            exists=$( [ -e scripts/build-native-aes-bindings.py ] && echo build-native-aes-bindings.py )
+            test -n "$exists" || exists=$( [ -e scripts/build-software-aes-bindings.py ] && echo build-software-aes-bindings.py )
+            aes_script=$exists
+            exists=$( [ -e scripts/build-native-virtio-bindings.py ] && echo build-native-virtio-bindings.py )
+            test -n "$exists" || exists=$( [ -e scripts/build-virtio-mmio-bindings.py ] && echo build-virtio-mmio-bindings.py )
+            virtio_script=$exists
+            echo "AES driver directory: ${aes_driver:-absent}"
+            echo "virtio driver directory: ${virtio_driver:-absent}"
+            echo "AES bindings script: ${aes_script:-absent}"
+            echo "virtio bindings script: ${virtio_script:-absent}"
+            ls drivers 2>/dev/null | tr '\n' ' '
+            echo
+            python3 - "$DEVICE_DIR/board.toml" "$aes_driver" "$virtio_driver" \
+              "$aes_script" "$virtio_script" <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          aes_driver, virtio_driver, aes_script, virtio_script = sys.argv[2:6]
+          text = path.read_text()
+          block = re.search(r'^archives = \[\n(.*?)^\]', text, re.S | re.M)
+          if not block:
+              raise SystemExit('board.toml has no multi-line archives list')
+          entries = [m.group(1) for m in re.finditer(r'"([^"]+)"', block.group(1))]
+          result, changed = [], 0
+
+
+          def is_bindings(entry, kind):
+              return re.search(r'build-(native|software|virtio|mmio)[^ ]*%s-bindings\.py' % kind, entry.split()[0])
+
+
+          for entry in entries:
+              name = entry.split()[0]
+              if is_bindings(entry, 'aes'):
+                  if aes_script and name != aes_script:
+                      entry = aes_script + entry[len(name):]
+                      changed += 1
+                  if aes_driver and 'build-arm-driver.py ' + aes_driver not in result:
+                      result.append('build-arm-driver.py ' + aes_driver)
+              if is_bindings(entry, 'virtio'):
+                  if virtio_script and name != virtio_script:
+                      entry = virtio_script + entry[len(name):]
+                      changed += 1
+                  if virtio_driver and 'build-arm-driver.py ' + virtio_driver not in result:
+                      result.append('build-arm-driver.py ' + virtio_driver)
+              result.append(entry)
+
+          body = ''.join('  "%s",\n' % e for e in result)
+          path.write_text(text[:block.start()] + 'archives = [\n' + body + ']' + text[block.end():])
+          print('archives rewritten: %d entries, %d renames' % (len(result), changed))
+          print('AES objects:', [e for e in result if 'aes' in e or 'AES' in e])
+          print('virtio objects:', [e for e in result if 'irtio' in e])
+          try:
+              import tomllib
+          except ModuleNotFoundError:
+              tomllib = None
+          if tomllib:
+              tomllib.loads(path.read_text())
+              print('board.toml still parses')
+          else:
+              print('tomllib unavailable, skipped parse check')
+          PY
+            cat "$DEVICE_DIR/board.toml"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Prepare XNU host header staging
         working-directory: unixnu
         run: |
