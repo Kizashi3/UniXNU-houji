@@ -1,0 +1,29 @@
+diff --git a/bsd/kern/ubc_subr.c b/bsd/kern/ubc_subr.c
+index 62a450a..0e8d814 100644
+--- a/bsd/kern/ubc_subr.c
++++ b/bsd/kern/ubc_subr.c
+@@ -4752,7 +4752,14 @@ ubc_cs_blob_add(
+ #if CONFIG_MACF
+ 	unsigned int cs_flags = tmp_blob.csb_flags;
+ 	unsigned int signer_type = tmp_blob.csb_signer_type;
++	const char *cs_vnode_name = vnode_getname_printable(vp);
++	bool cs_shared_cache = (cs_vnode_name != NULL &&
++	    strncmp(cs_vnode_name, "dyld_shared_cache_", sizeof("dyld_shared_cache_") - 1) == 0);
++	if (cs_vnode_name != NULL) {
++		vnode_putname_printable(cs_vnode_name);
++	}
+ 
++	if (!cs_shared_cache) {
+ 	error = mac_vnode_check_signature(
+ 		vp,
+ 		&tmp_blob,
+@@ -4767,6 +4774,9 @@ ubc_cs_blob_add(
+ 		goto out;
+ 	}
+ 
++	} else {
++		printf("ubc_cs_blob_add: skipping MACF signature check for shared cache\n");
++	}
+ #if HAS_APPLE_PAC
+ 	signed_entitlements = ptrauth_sign_unauthenticated(
+ 		tmp_blob.csb_entitlements,
