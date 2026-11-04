@@ -127,6 +127,19 @@ jobs:
             grep -n 'selector == 2212' "$aes_src"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Bind NativeAES base entry points to the kernel IOService
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            bindings=$(find -L drivers out/houji/tree -name native-aes-original-bindings.S -type f -print -quit)
+            test -n "$bindings"
+            echo "NativeAES bindings: $bindings"
+            python3 "$DEVICE_DIR/scripts/bind-native-aes-tors.py" "$bindings"
+            grep -q 'UniXNU: base entry points bound to the kernel IOService' "$bindings"
+            echo "native AES constructors no longer jump into unpopulated prelink text"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Order driver object archives in board.toml
         working-directory: unixnu
         run: |
