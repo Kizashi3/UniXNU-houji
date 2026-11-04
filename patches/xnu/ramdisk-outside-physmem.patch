@@ -1,16 +1,17 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..45ea12f 100644
+index 92142f7..6988b28 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
-@@ -42,6 +42,7 @@ extern "C" {
+@@ -42,6 +42,8 @@ extern "C" {
  #include <sys/code_signing.h>
  #include <vm/pmap.h>
  #include <vm/vm_map.h>
 +#include <vm/vm_kern.h>
++#include <vm/memory_types.h>
  #include <pexpert/pexpert.h>
  #include <kern/clock.h>
  #if CONFIG_KDP_INTERACTIVE_DEBUGGING
-@@ -773,7 +774,40 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +775,43 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -26,13 +27,16 @@ index 92142f7..45ea12f 100644
 +				 */
 +				extern "C" {
 +				extern unsigned long gPhysBase, gPhysSize;
++				/* <machine/pmap.h> is hidden behind MACH_KERNEL_PRIVATE, which iokit/ does not get. */
++				extern vm_map_address_t pmap_map(vm_map_address_t va, vm_offset_t sa, vm_offset_t ea,
++				    vm_prot_t prot, unsigned int flags);
 +				}
 +				vm_offset_t ramdBase;
 +				if ((ramdParms[0] >= gPhysBase) && ((ramdParms[0] - gPhysBase) < gPhysSize) &&
 +				    (ramdParms[1] <= (gPhysSize - (ramdParms[0] - gPhysBase)))) {
 +					ramdBase = ml_static_ptovirt(ramdParms[0]);
 +				} else {
-+					pmap_paddr_t ramdPhys = (pmap_paddr_t)ramdParms[0];
++					vm_offset_t ramdPhys = (vm_offset_t)ramdParms[0];
 +					vm_size_t ramdOffset = (vm_size_t)(ramdPhys & PAGE_MASK);
 +					vm_size_t ramdSpan = round_page((vm_size_t)ramdParms[1] + ramdOffset);
 +					vm_offset_t ramdMap;
