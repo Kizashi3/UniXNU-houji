@@ -1,0 +1,33 @@
+name: probe runner availability
+
+on:
+  push:
+    branches:
+      - kernel-cs-bypass
+    paths:
+      - .github/workflows/probe-runner.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15, macos-14, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    steps:
+      - name: Report image
+        run: |
+          echo "label=${{ matrix.os }}"
+          if [ "$(uname)" = Darwin ]; then
+            sw_vers
+            xcode-select -p
+            ls -d /Applications/Xcode*.app
+            xcodebuild -version
+          else
+            uname -a
+          fi
