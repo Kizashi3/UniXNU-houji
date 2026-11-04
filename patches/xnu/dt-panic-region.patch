@@ -1,0 +1,15 @@
+diff --git a/pexpert/pexpert/arm64/BCM2837.h b/pexpert/pexpert/arm64/BCM2837.h
+index d9f0723..c234d16 100644
+--- a/pexpert/pexpert/arm64/BCM2837.h
++++ b/pexpert/pexpert/arm64/BCM2837.h
+@@ -60,7 +60,9 @@
+ #define BCM2837_PUT32(addr, value) do { *((volatile uint32_t *) addr) = value; } while(0)
+ #define BCM2837_GET32(addr) *((volatile uint32_t *) addr)
+ 
+-#define PLATFORM_PANIC_LOG_PADDR        0x3c0fc000
++/* UniXNU: the DT panic region (pram/reg + chosen/embedded-panic-log-size) is the only
++ * persistent log on the target; the Pi address is not backed by RAM there. */
++// #define PLATFORM_PANIC_LOG_PADDR     0x3c0fc000
+ #define PLATFORM_PANIC_LOG_SIZE         16384        // 16kb
+ #endif /* ! ASSEMBLER */
+ 
