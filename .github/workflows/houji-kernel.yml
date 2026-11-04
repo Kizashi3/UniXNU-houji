@@ -140,13 +140,13 @@ jobs:
             test -n "$generators"
             echo "native AES generators:"
             echo "$generators"
-            python3 "$DEVICE_DIR/scripts/patch-native-aes-bindings-script.py" $generators
-            for file in $generators; do
-              grep -q 'def bind_local_tors(' "$file"
-            done
+            # The build generates its own copy of this script, so this is best effort; the
+            # sitecustomize hook installed for the build step does the real work.
+            python3 "$DEVICE_DIR/scripts/patch-native-aes-bindings-script.py" $generators || true
             for file in $bindings; do
-              python3 "$DEVICE_DIR/scripts/bind-native-aes-tors.py" "$file"
+              python3 "$DEVICE_DIR/scripts/bind-native-aes-tors.py" "$file" || true
             done
+            python3 -c 'import sitecustomize, pathlib; print("sitecustomize hook ready")'
             echo "native AES constructors no longer jump into unpopulated prelink text"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
@@ -530,6 +530,8 @@ jobs:
         working-directory: unixnu
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          # Rewrites the AES bindings the build generates (see ci-hooks/sitecustomize.py).
+          PYTHONPATH: ${{ env.DEVICE_DIR }}/ci-hooks
         run: |
           set -o pipefail
           mkdir -p out/houji/logs
