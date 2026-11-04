@@ -1,0 +1,48 @@
+diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
+index 92142f7..2a6a5f0 100644
+--- a/iokit/bsddev/IOKitBSDInit.cpp
++++ b/iokit/bsddev/IOKitBSDInit.cpp
+@@ -42,6 +42,7 @@ extern "C" {
+ #include <sys/code_signing.h>
+ #include <vm/pmap.h>
+ #include <vm/vm_map.h>
++#include <vm/vm_kern.h>
+ #include <pexpert/pexpert.h>
+ #include <kern/clock.h>
+ #if CONFIG_KDP_INTERACTIVE_DEBUGGING
+@@ -773,7 +774,34 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+ 					panic("ramdisk params");
+ 				}
+ #endif /* __LP64__ */
+-				(void)mdevadd(-1, ml_static_ptovirt(ramdParms[0]) >> 12, (unsigned int) (ramdParms[1] >> 12), 0);        /* Initialize it and pass back the device number */
++#if defined(__arm64__)
++				/*
++				 * UniXNU: the DT ramdisk normally sits inside the physical aperture handed to
++				 * the kernel. When a bootloader leaves it outside (in-place boot ramdisk), the
++				 * direct map cannot name it, so map the range explicitly as normal cacheable
++				 * memory instead of guessing a virtual address through phystokv().
++				 */
++				extern "C" {
++				extern unsigned long gPhysBase, gPhysSize;
++				}
++				vm_offset_t ramdBase;
++				if ((ramdParms[0] >= gPhysBase) && ((ramdParms[0] - gPhysBase) < gPhysSize) &&
++				    (ramdParms[1] <= (gPhysSize - (ramdParms[0] - gPhysBase)))) {
++					ramdBase = ml_static_ptovirt(ramdParms[0]);
++				} else {
++					vm_size_t ramdSize = round_page(ramdParms[1]);
++					kern_return_t kr = kmem_alloc(kernel_map, &ramdBase, ramdSize,
++					    KMA_NOFAIL | KMA_PERMANENT, VM_KERN_MEMORY_IOKIT);
++					if (kr != KERN_SUCCESS) {
++						panic("ramdisk map failed %llx+%llx", (uint64_t)ramdParms[0], (uint64_t)ramdParms[1]);
++					}
++					pmap_map(ramdBase, ramdParms[0], ramdParms[0] + ramdSize,
++					    VM_PROT_READ | VM_PROT_WRITE, VM_WIMG_DEFAULT);
++				}
++#else
++				vm_offset_t ramdBase = ml_static_ptovirt(ramdParms[0]);
++#endif /* __arm64__ */
++				(void)mdevadd(-1, ramdBase >> 12, (unsigned int) (ramdParms[1] >> 12), 0);        /* Initialize it and pass back the device number */
+ 			}
+ 			regEntry->release();                                                            /* Toss the entry */
+ 		}
