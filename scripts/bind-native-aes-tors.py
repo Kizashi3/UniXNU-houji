@@ -14,10 +14,10 @@ import sys
 from pathlib import Path
 
 REBIND = {
-    '__ZN16IOAESAcceleratorC2EPK11OSMetaClass': '__ZN8IOServiceC2EPK11OSMetaClass',
-    '__ZN16IOAESAcceleratorD0Ev': '__ZN8IOServiceD0Ev',
-    '__ZN16IOAESAcceleratorD1Ev': '__ZN8IOServiceD1Ev',
-    '__ZN16IOAESAcceleratorD2Ev': '__ZN8IOServiceD2Ev',
+    '__ZN16IOAESAcceleratorC2EPK11OSMetaClass': '__ZN9IOServiceC2EPK11OSMetaClass',
+    '__ZN16IOAESAcceleratorD0Ev': '__ZN9IOServiceD0Ev',
+    '__ZN16IOAESAcceleratorD1Ev': '__ZN9IOServiceD1Ev',
+    '__ZN16IOAESAcceleratorD2Ev': '__ZN9IOServiceD2Ev',
 }
 MARKER = '// UniXNU: base entry points bound to the kernel IOService'
 
