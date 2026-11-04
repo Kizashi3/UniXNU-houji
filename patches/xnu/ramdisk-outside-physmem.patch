@@ -1,5 +1,5 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..2a6a5f0 100644
+index 92142f7..45ea12f 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
 @@ -42,6 +42,7 @@ extern "C" {
@@ -10,7 +10,7 @@ index 92142f7..2a6a5f0 100644
  #include <pexpert/pexpert.h>
  #include <kern/clock.h>
  #if CONFIG_KDP_INTERACTIVE_DEBUGGING
-@@ -773,7 +774,34 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +774,40 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -20,7 +20,9 @@ index 92142f7..2a6a5f0 100644
 +				 * UniXNU: the DT ramdisk normally sits inside the physical aperture handed to
 +				 * the kernel. When a bootloader leaves it outside (in-place boot ramdisk), the
 +				 * direct map cannot name it, so map the range explicitly as normal cacheable
-+				 * memory instead of guessing a virtual address through phystokv().
++				 * memory instead of guessing a virtual address through phystokv(). Boot
++				 * allocations are only guaranteed to be hardware-page aligned, so grow the
++				 * mapping down to a software page and hand mdev the shifted base.
 +				 */
 +				extern "C" {
 +				extern unsigned long gPhysBase, gPhysSize;
@@ -30,14 +32,18 @@ index 92142f7..2a6a5f0 100644
 +				    (ramdParms[1] <= (gPhysSize - (ramdParms[0] - gPhysBase)))) {
 +					ramdBase = ml_static_ptovirt(ramdParms[0]);
 +				} else {
-+					vm_size_t ramdSize = round_page(ramdParms[1]);
-+					kern_return_t kr = kmem_alloc(kernel_map, &ramdBase, ramdSize,
++					pmap_paddr_t ramdPhys = (pmap_paddr_t)ramdParms[0];
++					vm_size_t ramdOffset = (vm_size_t)(ramdPhys & PAGE_MASK);
++					vm_size_t ramdSpan = round_page((vm_size_t)ramdParms[1] + ramdOffset);
++					vm_offset_t ramdMap;
++					kern_return_t kr = kmem_alloc(kernel_map, &ramdMap, ramdSpan,
 +					    KMA_NOFAIL | KMA_PERMANENT, VM_KERN_MEMORY_IOKIT);
 +					if (kr != KERN_SUCCESS) {
 +						panic("ramdisk map failed %llx+%llx", (uint64_t)ramdParms[0], (uint64_t)ramdParms[1]);
 +					}
-+					pmap_map(ramdBase, ramdParms[0], ramdParms[0] + ramdSize,
++					pmap_map(ramdMap, ramdPhys - ramdOffset, ramdPhys - ramdOffset + ramdSpan,
 +					    VM_PROT_READ | VM_PROT_WRITE, VM_WIMG_DEFAULT);
++					ramdBase = ramdMap + ramdOffset;
 +				}
 +#else
 +				vm_offset_t ramdBase = ml_static_ptovirt(ramdParms[0]);
