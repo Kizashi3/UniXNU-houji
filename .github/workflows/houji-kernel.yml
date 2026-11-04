@@ -130,15 +130,20 @@ jobs:
       - name: Bind NativeAES base entry points to the kernel IOService
         working-directory: unixnu
         run: |
+          set -o pipefail
           mkdir -p "$DIAG_DIR"
           {
-            # The kernel build links a copy of the bindings, so patch every one in the tree.
+            # The build compiles bindings it generates itself, so patch the generator too.
+            mapfile -t generators < <(find -L . -name 'build-native-aes-bindings.py' -type f -print)
             mapfile -t bindings < <(find -L . -name native-aes-original-bindings.S -type f -print)
-            test "${#bindings[@]}" -gt 0
-            printf 'NativeAES bindings %d: %s\n' "${#bindings[@]}" "${bindings[@]}"
+            test "${#generators[@]}" -gt 0
+            printf 'native AES generator %d: %s\n' "${#generators[@]}" "${generators[@]}"
+            python3 "$DEVICE_DIR/scripts/patch-native-aes-bindings-script.py" "${generators[@]}"
+            for file in "${generators[@]}"; do
+              grep -q 'def bind_local_tors(' "$file"
+            done
             for file in "${bindings[@]}"; do
               python3 "$DEVICE_DIR/scripts/bind-native-aes-tors.py" "$file"
-              grep -q 'UniXNU: base entry points bound to the kernel IOService' "$file"
             done
             echo "native AES constructors no longer jump into unpopulated prelink text"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
@@ -559,20 +564,19 @@ jobs:
       - name: Verify the AES base binding reached the kernel
         working-directory: unixnu
         run: |
-          mkdir -p "$DIAG_DIR"
-          {
-            kernel=out/houji/kernel/kernel.macho
-            test -f "$kernel"
-            if nm -a "$kernel" 2>/dev/null | grep -q '^fffffff004a80038 A __ZN16IOAESAcceleratorC2EPK11OSMetaClass$'; then
-              echo "AES base constructor is still bound to the stale absolute address"
-              exit 1
-            fi
-            if nm -a "$kernel" 2>/dev/null | grep -q '__ZN16IOAESAcceleratorC2EPK11OSMetaClass'; then
-              echo "AES base constructor is bound in the image (thunk)"
-            else
-              echo "warning: AES base constructor symbol not found in the image"
-            fi
-          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+          kernel=out/houji/kernel/kernel.macho
+          test -f "$kernel"
+          nm -a "$kernel" > /tmp/kernel-nm.txt 2>/dev/null || true
+          if grep -q 'A __ZN16IOAESAcceleratorC2EPK11OSMetaClass$' /tmp/kernel-nm.txt; then
+            grep 'A __ZN16IOAESAcceleratorC2EPK11OSMetaClass$' /tmp/kernel-nm.txt
+            echo "AES base constructor is still bound to an absolute address"
+            exit 1
+          fi
+          if grep -q '__ZN16IOAESAcceleratorC2EPK11OSMetaClass' /tmp/kernel-nm.txt; then
+            echo "AES base constructor is bound in the image (thunk)"
+          else
+            echo "warning: AES base constructor symbol not found in the image"
+          fi
 
       - name: Check pinned iOS16 prelink inputs
         if: always()
