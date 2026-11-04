@@ -134,15 +134,17 @@ jobs:
           mkdir -p "$DIAG_DIR"
           {
             # The build compiles bindings it generates itself, so patch the generator too.
-            mapfile -t generators < <(find -L . -name 'build-native-aes-bindings.py' -type f -print)
-            mapfile -t bindings < <(find -L . -name native-aes-original-bindings.S -type f -print)
-            test "${#generators[@]}" -gt 0
-            printf 'native AES generator %d: %s\n' "${#generators[@]}" "${generators[@]}"
-            python3 "$DEVICE_DIR/scripts/patch-native-aes-bindings-script.py" "${generators[@]}"
-            for file in "${generators[@]}"; do
+            # macOS runners still ship bash 3.2, which has no mapfile.
+            generators=$(find -L . -name 'build-native-aes-bindings.py' -type f -print)
+            bindings=$(find -L . -name native-aes-original-bindings.S -type f -print)
+            test -n "$generators"
+            echo "native AES generators:"
+            echo "$generators"
+            python3 "$DEVICE_DIR/scripts/patch-native-aes-bindings-script.py" $generators
+            for file in $generators; do
               grep -q 'def bind_local_tors(' "$file"
             done
-            for file in "${bindings[@]}"; do
+            for file in $bindings; do
               python3 "$DEVICE_DIR/scripts/bind-native-aes-tors.py" "$file"
             done
             echo "native AES constructors no longer jump into unpopulated prelink text"
