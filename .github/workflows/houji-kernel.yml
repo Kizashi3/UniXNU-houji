@@ -129,6 +129,8 @@ jobs:
 
       - name: Bind NativeAES base entry points to the kernel IOService
         working-directory: unixnu
+        env:
+          PYTHONPATH: ${{ env.DEVICE_DIR }}/ci-hooks
         run: |
           set -o pipefail
           mkdir -p "$DIAG_DIR"
@@ -146,7 +148,8 @@ jobs:
             for file in $bindings; do
               python3 "$DEVICE_DIR/scripts/bind-native-aes-tors.py" "$file" || true
             done
-            python3 -c 'import sitecustomize, pathlib; print("sitecustomize hook ready")'
+            test -f "$DEVICE_DIR/ci-hooks/sitecustomize.py"
+            python3 -c 'import sitecustomize; print("sitecustomize hook ready")'
             echo "native AES constructors no longer jump into unpopulated prelink text"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
