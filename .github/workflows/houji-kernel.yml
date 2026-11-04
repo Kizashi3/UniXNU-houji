@@ -445,8 +445,8 @@ jobs:
               echo "git apply refused, retrying with patch and fuzz"
               (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
             fi
-            grep -q 'ml_io_map(ramdParms' "$xnu/iokit/bsddev/IOKitBSDInit.cpp"
-            echo "out-of-aperture DT ramdisks are mapped through ml_io_map"
+            grep -q 'pmap_map(ramdMap' "$xnu/iokit/bsddev/IOKitBSDInit.cpp"
+            echo "out-of-aperture DT ramdisks are mapped with kmem_alloc + pmap_map"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Annotate prelink binding diagnostics
