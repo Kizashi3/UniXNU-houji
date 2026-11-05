@@ -1,46 +1,126 @@
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1881,6 +1881,62 @@
+@@ -1881,6 +1881,142 @@
  	panic_with_thread_kernel_state("Kernel data abort.", state);
  }
  
 +/*
-+ * HOUJI-SVCTRACE-v1: log the system calls made from user threads.
++ * HOUJI-SVCTRACE-v2: log the system calls made from user threads.
 + *
-+ * The ramdisk root ships no /dev nodes, so nothing a userland process writes can be
-+ * observed and launchd blocking inside the kernel looks exactly like dyld looping in
-+ * userland. The svctrace=N boot-arg prints the first N user-thread SVC entries with
-+ * their argument registers; the final entry without a matching return line is the
-+ * call the boot is stuck in.
++ * The ramdisk root ships no /dev nodes, so nothing a user-thread writes can be observed and a
++ * process blocked inside the kernel looks exactly like dyld looping in userland. svctrace=N
++ * prints the first N user-thread SVC entries with their argument registers; the last entry
++ * without a matching return line is the call the boot is stuck in. sysctl entries additionally
++ * print their decoded MIB, and usrlog=N echoes writes to fd 0..2 onto the kernel console.
 + */
 +
 +extern boolean_t PE_parse_boot_argn(const char *arg_string, void *arg_ptr, int arg_len);
 +
++#define UNIXNU_SYSCTL_TRAP  202
++#define UNIXNU_WRITE_TRAP   4
++
 +static uint32_t unixnu_svctrace_limit;
 +static uint32_t unixnu_svctrace_seen;
 +static int unixnu_svctrace_parsed;
++
++static uint32_t unixnu_usrlog_limit;
++static uint32_t unixnu_usrlog_seen;
++static int unixnu_usrlog_parsed;
++static char unixnu_usrlog_line[257];
++
++/*
++ * sysctl(int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen)
++ * The MIB is the only argument that says which handler will run, and the handler is where a
++ * stalled boot spends its time, so resolve it here rather than guess from the registers.
++ */
++static void
++unixnu_sysctl_note(arm_saved_state64_t *state64)
++{
++	int name[8];
++	uint64_t namelen;
++	unsigned int i;
++	kern_return_t kr;
++
++	namelen = state64->x[1];
++	if ((namelen == 0) || (namelen > 8)) {
++		kprintf("SVCTRACE: sysctl namelen=%lu\n", (unsigned long) namelen);
++		return;
++	}
++	kr = copyin((user_addr_t) state64->x[0], (void *) name, (vm_size_t) (namelen * sizeof(int)));
++	if (kr != KERN_SUCCESS) {
++		kprintf("SVCTRACE: sysctl copyin(name=0x%llx) failed %d\n",
++		    (unsigned long long) state64->x[0], kr);
++		return;
++	}
++	kprintf("SVCTRACE: sysctl name=%d", name[0]);
++	for (i = 1; i < (unsigned int) namelen; i++) {
++		kprintf(".%d", name[i]);
++	}
++	kprintf(" old=%llx oldlenp=%llx new=%llx newlen=%llx\n",
++	    (unsigned long long) state64->x[2], (unsigned long long) state64->x[3],
++	    (unsigned long long) state64->x[4], (unsigned long long) state64->x[5]);
++}
++
++static void
++unixnu_usrlog(arm_saved_state64_t *state64)
++{
++	size_t len;
++	kern_return_t kr;
++
++	if (unixnu_usrlog_parsed == 0) {
++		unixnu_usrlog_parsed = 1;
++		PE_parse_boot_argn("usrlog", &unixnu_usrlog_limit, sizeof(unixnu_usrlog_limit));
++	}
++	if ((unixnu_usrlog_limit == 0) || (state64->x[0] > 2) || (state64->x[2] == 0)) {
++		return;
++	}
++	if (unixnu_usrlog_seen++ >= unixnu_usrlog_limit) {
++		return;
++	}
++	len = (size_t) state64->x[2];
++	if (len > sizeof(unixnu_usrlog_line) - 1) {
++		len = sizeof(unixnu_usrlog_line) - 1;
++	}
++	kr = copyin((user_addr_t) state64->x[1], unixnu_usrlog_line, (vm_size_t) len);
++	if (kr != KERN_SUCCESS) {
++		kprintf("USRLOG: copyin(0x%llx, %lu) failed %d\n",
++		    (unsigned long long) state64->x[1], (unsigned long) len, kr);
++		return;
++	}
++	unixnu_usrlog_line[len] = '\0';
++	kprintf("USRLOG: fd=%u %s", (unsigned) state64->x[0], unixnu_usrlog_line);
++	if (unixnu_usrlog_line[len - 1] != '\n') {
++		kprintf("\n");
++	}
++}
 +
 +static boolean_t
 +unixnu_svctrace_begin(arm_saved_state_t *state, thread_t thread, int trap_no)
 +{
 +	arm_saved_state64_t *state64;
 +
++	if (!is_saved_state64(state) || (get_threadtask_early(thread) == kernel_task)) {
++		return FALSE;
++	}
++	state64 = saved_state64(state);
++	if (trap_no == UNIXNU_SYSCTL_TRAP) {
++		unixnu_sysctl_note(state64);
++	} else if (trap_no == UNIXNU_WRITE_TRAP) {
++		unixnu_usrlog(state64);
++	}
++
 +	if (unixnu_svctrace_parsed == 0) {
 +		unixnu_svctrace_parsed = 1;
 +		PE_parse_boot_argn("svctrace", &unixnu_svctrace_limit, sizeof(unixnu_svctrace_limit));
 +	}
-+	if ((unixnu_svctrace_limit == 0) || !is_saved_state64(state) ||
-+	    (get_threadtask_early(thread) == kernel_task)) {
-+		return FALSE;
-+	}
-+	if ((trap_no == MACH_ARM_TRAP_ABSTIME) || (trap_no == MACH_ARM_TRAP_CONTTIME) ||
++	if ((unixnu_svctrace_limit == 0) ||
++	    (trap_no == MACH_ARM_TRAP_ABSTIME) || (trap_no == MACH_ARM_TRAP_CONTTIME) ||
 +	    (trap_no == (int)PLATFORM_SYSCALL_TRAP_NO)) {
 +		return FALSE;
 +	}
 +	if (unixnu_svctrace_seen++ >= unixnu_svctrace_limit) {
 +		return FALSE;
 +	}
-+	state64 = saved_state64(state);
 +	kprintf("SVCTRACE: -> %u trap=%d pc=%llx x0=%llx x1=%llx x2=%llx x3=%llx x4=%llx x5=%llx x16=%llx x17=%llx\n",
 +	    (unsigned) unixnu_svctrace_seen, trap_no,
 +	    (unsigned long long) get_saved_state_pc(state),
@@ -63,7 +143,7 @@
  extern void syscall_trace(struct arm_saved_state * regs);
  
  static void
-@@ -1889,6 +1945,7 @@
+@@ -1889,6 +2025,7 @@
  	int      trap_no = get_saved_state_svc_number(state);
  	thread_t thread  = current_thread();
  	struct   proc *p;
@@ -71,7 +151,7 @@
  
  #define handle_svc_kprintf(x...) /* kprintf("handle_svc: " x) */
  
-@@ -1906,6 +1963,8 @@
+@@ -1906,6 +2043,8 @@
  
  	current_cached_proc_cred_update();
  
@@ -80,7 +160,7 @@
  	if (trap_no < 0) {
  		switch (trap_no) {
  		case MACH_ARM_TRAP_ABSTIME:
-@@ -1928,6 +1987,10 @@
+@@ -1928,6 +2067,10 @@
  
  		unix_syscall(state, thread, p);
  	}

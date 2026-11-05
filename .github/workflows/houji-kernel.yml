@@ -391,7 +391,7 @@ jobs:
               echo "git apply refused, retrying with patch and fuzz"
               (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
             fi
-            grep -q 'HOUJI-SVCTRACE-v1' "$xnu/osfmk/arm64/sleh.c"
+            grep -q 'HOUJI-SVCTRACE-v' "$xnu/osfmk/arm64/sleh.c"
             echo "SVC trace is present in sleh.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
