@@ -1,17 +1,18 @@
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1881,6 +1881,142 @@
+@@ -1881,6 +1881,156 @@
  	panic_with_thread_kernel_state("Kernel data abort.", state);
  }
  
 +/*
-+ * HOUJI-SVCTRACE-v2: log the system calls made from user threads.
++ * HOUJI-SVCTRACE-v3: log the system calls made from user threads.
 + *
 + * The ramdisk root ships no /dev nodes, so nothing a user-thread writes can be observed and a
 + * process blocked inside the kernel looks exactly like dyld looping in userland. svctrace=N
 + * prints the first N user-thread SVC entries with their argument registers; the last entry
-+ * without a matching return line is the call the boot is stuck in. sysctl entries additionally
-+ * print their decoded MIB, and usrlog=N echoes writes to fd 0..2 onto the kernel console.
++ * without a matching return line is the call the boot is stuck in. sysctl entries print their
++ * decoded MIB (and the string behind a name2oid lookup), and usrlog=N echoes writes to fd 0..2
++ * onto the kernel console.
 + */
 +
 +extern boolean_t PE_parse_boot_argn(const char *arg_string, void *arg_ptr, int arg_len);
@@ -51,6 +52,19 @@
 +		kprintf("SVCTRACE: sysctl copyin(name=0x%llx) failed %d\n",
 +		    (unsigned long long) state64->x[0], kr);
 +		return;
++	}
++	if ((namelen == 2) && (name[0] == 0) && (name[1] == 3) &&
++	    (state64->x[4] != 0) && (state64->x[5] != 0)) {
++		char needle[64];
++		uint64_t needlelen = state64->x[5];
++
++		if (needlelen > sizeof(needle) - 1) {
++			needlelen = sizeof(needle) - 1;
++		}
++		if (copyin((user_addr_t) state64->x[4], needle, (vm_size_t) needlelen) == 0) {
++			needle[needlelen] = 0;
++			kprintf("SVCTRACE: name2oid [%s]\n", needle);
++		}
 +	}
 +	kprintf("SVCTRACE: sysctl name=%d", name[0]);
 +	for (i = 1; i < (unsigned int) namelen; i++) {
@@ -143,7 +157,7 @@
  extern void syscall_trace(struct arm_saved_state * regs);
  
  static void
-@@ -1889,6 +2025,7 @@
+@@ -1889,6 +2039,7 @@
  	int      trap_no = get_saved_state_svc_number(state);
  	thread_t thread  = current_thread();
  	struct   proc *p;
@@ -151,7 +165,7 @@
  
  #define handle_svc_kprintf(x...) /* kprintf("handle_svc: " x) */
  
-@@ -1906,6 +2043,8 @@
+@@ -1906,6 +2057,8 @@
  
  	current_cached_proc_cred_update();
  
@@ -160,7 +174,7 @@
  	if (trap_no < 0) {
  		switch (trap_no) {
  		case MACH_ARM_TRAP_ABSTIME:
-@@ -1928,6 +2067,10 @@
+@@ -1928,6 +2081,10 @@
  
  		unix_syscall(state, thread, p);
  	}
