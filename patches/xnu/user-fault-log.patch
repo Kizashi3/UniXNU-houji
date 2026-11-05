@@ -1,0 +1,25 @@
+--- a/osfmk/arm64/sleh.c
++++ b/osfmk/arm64/sleh.c
+@@ -1678,6 +1678,22 @@
+ 		exit_with_jit_exception(current_proc());
+ 	}
+ 
++	{
++		arm_saved_state64_t *ss64 = saved_state64(state);
++
++		/* HOUJI-FAULT-v1: this fault is about to become a signal. */
++		printf("HOUJI-FAULT-v1: task %p pc %#llx far %#llx esr %#llx prot %#x code %#llx lr %#llx sp %#llx x0 %#llx x1 %#llx\n",
++		    (void *)get_threadtask(thread),
++		    (unsigned long long)get_saved_state_pc(state),
++		    (unsigned long long)fault_addr,
++		    (unsigned long long)esr,
++		    (unsigned)fault_type,
++		    (unsigned long long)codes[0],
++		    (unsigned long long)ss64->lr,
++		    (unsigned long long)ss64->sp,
++		    (unsigned long long)ss64->x[0],
++		    (unsigned long long)ss64->x[1]);
++	}
+ 	exception_triage(exc, codes, numcodes);
+ 	__builtin_unreachable();
+ }

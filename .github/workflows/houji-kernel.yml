@@ -395,6 +395,24 @@ jobs:
             echo "SVC trace is present in sleh.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Apply user fault log
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            patch="$DEVICE_DIR/patches/xnu/user-fault-log.patch"
+            test -f "$patch"
+            xnu=out/houji/tree/refer/xnu
+            if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
+              git -C "$xnu" apply "$patch"
+            else
+              echo "git apply refused, retrying with patch and fuzz"
+              (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
+            fi
+            grep -q HOUJI-FAULT-v1 "$xnu/osfmk/arm64/sleh.c"
+            echo "user fault log is present in sleh.c"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Apply shared-cache kernel probe
         working-directory: unixnu
         run: |
