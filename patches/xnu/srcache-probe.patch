@@ -1,0 +1,73 @@
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -7014,6 +7014,61 @@
+  *		initproc might be different.
+  */
+ static int
++/*
++ * HOUJI-SRCACHE-v1: parse the dyld shared cache at boot so the kernel can pre-map it into the
++ * shared region, which is the flow iOS uses. This probe reports the files, their headers and the
++ * mapping tables; the mapping itself comes in a follow-up patch.
++ */
++static void
++unixnu_srcache_probe(void)
++{
++	static const char *paths[] = {
++		"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64",
++		"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64.01",
++	};
++	unsigned int i;
++
++	for (i = 0; i < sizeof(paths) / sizeof(paths[0]); i++) {
++		vnode_t vp = NULL;
++		struct vnode_attr va;
++		uint8_t hdr[0x300];
++		int error;
++
++		error = vnode_lookup(paths[i], 0, &vp, vfs_context_kernel());
++		if (error != 0) {
++			printf("HOUJI-SRCACHE: lookup %s failed %d\n", paths[i], error);
++			continue;
++		}
++		VATTR_INIT(&va);
++		VATTR_WANTED(&va, va_data_size);
++		error = vnode_getattr(vp, &va, vfs_context_kernel());
++		if (error != 0) {
++			printf("HOUJI-SRCACHE: getattr %s failed %d\n", paths[i], error);
++			vnode_put(vp);
++			continue;
++		}
++		bzero(hdr, sizeof(hdr));
++		error = vn_rdwr(UIO_READ, vp, (caddr_t)hdr, sizeof(hdr), 0, UIO_SYSSPACE,
++		    IO_NODELOCKED, kauth_cred_get(), NULL, current_proc());
++		if (error != 0) {
++			printf("HOUJI-SRCACHE: read %s failed %d\n", paths[i], error);
++			vnode_put(vp);
++			continue;
++		}
++		{
++			uint32_t map_off = *(uint32_t *)(void *)(hdr + 0x10);
++			uint32_t map_cnt = *(uint32_t *)(void *)(hdr + 0x14);
++			uint64_t region = *(uint64_t *)(void *)(hdr + 0xe0);
++			uint64_t region_size = *(uint64_t *)(void *)(hdr + 0xe8);
++
++			printf("HOUJI-SRCACHE: %s size %lld magic %.16s mapOff %#x mapCnt %u region %#llx+%#llx\n",
++			    paths[i], (long long)va.va_data_size, hdr, map_off, map_cnt,
++			    (unsigned long long)region, (unsigned long long)region_size);
++		}
++		vnode_put(vp);
++	}
++}
++
+ load_init_program_at_path(proc_t p, user_addr_t scratch_addr, const char* path)
+ {
+ 	int retval[2];
+@@ -7141,6 +7196,8 @@
+ void
+ load_init_program(proc_t p)
+ {
++	unixnu_srcache_probe();
++
+ 	uint32_t i;
+ 	int error;
+ 	vm_map_t map = current_map();
