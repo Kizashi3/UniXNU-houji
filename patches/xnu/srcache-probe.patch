@@ -1,6 +1,6 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,256 @@
+@@ -2089,6 +2089,252 @@
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -246,10 +246,6 @@
 +			vnode_put(srms[i].vp);
 +			srms[i].vp = NULL;
 +		}
-+		if (srms[i].file_control != MEMORY_OBJECT_CONTROL_NULL) {
-+			vm_object_deallocate((vm_object_t)srms[i].file_control);
-+			srms[i].file_control = MEMORY_OBJECT_CONTROL_NULL;
-+		}
 +	}
 +	vm_shared_region_deallocate(sr);
 +}
@@ -257,7 +253,7 @@
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2347,9 @@
+@@ -2097,6 +2343,9 @@
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
