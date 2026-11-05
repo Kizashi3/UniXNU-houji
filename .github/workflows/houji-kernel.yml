@@ -409,8 +409,8 @@ jobs:
               echo "git apply refused, retrying with patch and fuzz"
               (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
             fi
-            grep -q 'HOUJI-SRCACHE-v1' "$xnu/bsd/kern/kern_exec.c"
-            echo "shared-cache probe is present in kern_exec.c"
+            grep -q 'HOUJI-SRCACHE-v1' "$xnu/bsd/vm/vm_unix.c"
+            echo "shared-cache probe is present in vm_unix.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Apply XNU shared-cache MACF bypass

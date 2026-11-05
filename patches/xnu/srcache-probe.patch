@@ -1,37 +1,42 @@
---- a/bsd/kern/kern_exec.c
-+++ b/bsd/kern/kern_exec.c
-@@ -7014,6 +7014,61 @@
-  *		initproc might be different.
+--- a/bsd/vm/vm_unix.c
++++ b/bsd/vm/vm_unix.c
+@@ -2090,6 +2090,71 @@
+  * EFAULT	bad address for "start_address"
   */
- static int
+ int
 +/*
-+ * HOUJI-SRCACHE-v1: parse the dyld shared cache at boot so the kernel can pre-map it into the
-+ * shared region, which is the flow iOS uses. This probe reports the files, their headers and the
-+ * mapping tables; the mapping itself comes in a follow-up patch.
++ * HOUJI-SRCACHE-v1: report the dyld shared cache layout from the kernel. This is the first step
++ * towards mapping the cache into the shared region at boot the way iOS does, which is what makes
++ * dyld's shared_region_check_np() succeed on a real device.
 + */
 +static void
 +unixnu_srcache_probe(void)
 +{
++	static int probed;
 +	static const char *paths[] = {
 +		"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64",
 +		"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64.01",
 +	};
 +	unsigned int i;
 +
++	if (probed) {
++		return;
++	}
++	probed = 1;
 +	for (i = 0; i < sizeof(paths) / sizeof(paths[0]); i++) {
 +		vnode_t vp = NULL;
 +		struct vnode_attr va;
 +		uint8_t hdr[0x300];
 +		int error;
 +
-+		error = vnode_lookup(paths[i], 0, &vp, vfs_context_kernel());
++		error = vnode_lookup(paths[i], 0, &vp, vfs_context_current());
 +		if (error != 0) {
 +			printf("HOUJI-SRCACHE: lookup %s failed %d\n", paths[i], error);
 +			continue;
 +		}
 +		VATTR_INIT(&va);
 +		VATTR_WANTED(&va, va_data_size);
-+		error = vnode_getattr(vp, &va, vfs_context_kernel());
++		error = vnode_getattr(vp, &va, vfs_context_current());
 +		if (error != 0) {
 +			printf("HOUJI-SRCACHE: getattr %s failed %d\n", paths[i], error);
 +			vnode_put(vp);
@@ -40,12 +45,7 @@
 +		bzero(hdr, sizeof(hdr));
 +		error = vn_rdwr(UIO_READ, vp, (caddr_t)hdr, sizeof(hdr), 0, UIO_SYSSPACE,
 +		    IO_NODELOCKED, kauth_cred_get(), NULL, current_proc());
-+		if (error != 0) {
-+			printf("HOUJI-SRCACHE: read %s failed %d\n", paths[i], error);
-+			vnode_put(vp);
-+			continue;
-+		}
-+		{
++		if (error == 0) {
 +			uint32_t map_off = *(uint32_t *)(void *)(hdr + 0x10);
 +			uint32_t map_cnt = *(uint32_t *)(void *)(hdr + 0x14);
 +			uint64_t region = *(uint64_t *)(void *)(hdr + 0xe0);
@@ -54,20 +54,30 @@
 +			printf("HOUJI-SRCACHE: %s size %lld magic %.16s mapOff %#x mapCnt %u region %#llx+%#llx\n",
 +			    paths[i], (long long)va.va_data_size, hdr, map_off, map_cnt,
 +			    (unsigned long long)region, (unsigned long long)region_size);
++			if ((map_cnt > 0) && (map_off + 40 <= sizeof(hdr))) {
++				uint64_t m_addr = *(uint64_t *)(void *)(hdr + map_off);
++				uint64_t m_size = *(uint64_t *)(void *)(hdr + map_off + 8);
++				uint64_t m_file = *(uint64_t *)(void *)(hdr + map_off + 16);
++				printf("HOUJI-SRCACHE:   map0 addr %#llx size %#llx fileOff %#llx\n",
++				    (unsigned long long)m_addr, (unsigned long long)m_size,
++				    (unsigned long long)m_file);
++			}
++		} else {
++			printf("HOUJI-SRCACHE: read %s failed %d\n", paths[i], error);
 +		}
 +		vnode_put(vp);
 +	}
 +}
 +
- load_init_program_at_path(proc_t p, user_addr_t scratch_addr, const char* path)
+ shared_region_check_np(
+ 	__unused struct proc                    *p,
+ 	struct shared_region_check_np_args      *uap,
+@@ -2097,6 +2162,8 @@
  {
- 	int retval[2];
-@@ -7141,6 +7196,8 @@
- void
- load_init_program(proc_t p)
- {
-+	unixnu_srcache_probe();
+ 	vm_shared_region_t      shared_region;
+ 	mach_vm_offset_t        start_address = 0;
 +
- 	uint32_t i;
- 	int error;
- 	vm_map_t map = current_map();
++	unixnu_srcache_probe();
+ 	int                     error = 0;
+ 	kern_return_t           kr;
+ 	task_t                  task = current_task();
