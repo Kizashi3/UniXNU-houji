@@ -1,6 +1,6 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,363 @@
+@@ -2089,6 +2089,320 @@
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -137,54 +137,11 @@
 + * HOUJI-SRCACHE-v4: map the cache's dynamic data page.
 + *
 + * dynamicDataOffset/dynamicDataMaxSize (header + 0x1f0/0x1f8) reserve a writable zero-filled
-+ * page at sharedRegionStart + 0xaade4000. dyld maps it anonymously through the fd == -1 path of
-+ * shared_region_map_and_slide() and libSystem keeps the main thread's errno there. A kernel
-+ * pre-mapped cache leaves the page unmapped, so the first errno access faults at that address.
++ * page at sharedRegionStart + 0xaade4000 that libSystem keeps the main thread's errno in. dyld
++ * maps it anonymously when it maps the cache; a kernel pre-mapped cache has to do that itself.
++ * struct vm_shared_region is private to osfmk, so the vm_map_enter lives in vm_shared_region.c.
 + */
-+static void
-+unixnu_srcache_dynamic(vm_shared_region_t sr, uint64_t offset, uint64_t size)
-+{
-+	ipc_port_t sr_handle;
-+	vm_named_entry_t sr_mem_entry;
-+	vm_map_t sr_map;
-+	vm_object_t object;
-+	vm_map_offset_t target;
-+	vm_map_size_t map_size;
-+	vm_map_kernel_flags_t vmk_flags;
-+	kern_return_t kr;
-+
-+	if ((sr == NULL) || (size == 0)) {
-+		return;
-+	}
-+	sr_handle = sr->sr_mem_entry;
-+	sr_mem_entry = mach_memory_entry_from_port(sr_handle);
-+	if (sr_mem_entry == NULL) {
-+		printf("HOUJI-SRCACHE: dynamic page: no memory entry\n");
-+		return;
-+	}
-+	sr_map = sr_mem_entry->backing.map;
-+	if (sr_map == VM_MAP_NULL) {
-+		printf("HOUJI-SRCACHE: dynamic page: no sub map\n");
-+		return;
-+	}
-+	map_size = vm_map_round_page(size, VM_MAP_PAGE_MASK(sr_map));
-+	object = vm_object_allocate(map_size);
-+	if (object == VM_OBJECT_NULL) {
-+		printf("HOUJI-SRCACHE: dynamic page: object alloc failed\n");
-+		return;
-+	}
-+	target = (vm_map_offset_t)offset;
-+	vmk_flags = VM_MAP_KERNEL_FLAGS_FIXED();
-+	vmk_flags.vmkf_already = TRUE;
-+	vmk_flags.vmkf_no_copy_on_read = 1;
-+	kr = vm_map_enter(sr_map, &target, map_size, 0, vmk_flags, object, 0, TRUE,
-+	    VM_PROT_READ | VM_PROT_WRITE, VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_DEFAULT);
-+	printf("HOUJI-SRCACHE: dynamic page %#llx+%#llx kr=%d\n",
-+	    (unsigned long long)offset, (unsigned long long)size, kr);
-+	if (kr != KERN_SUCCESS) {
-+		vm_object_deallocate(object);
-+	}
-+}
++extern kern_return_t unixnu_srcache_map_anonymous(void *sr, uint64_t offset, uint64_t size);
 +
 +static void
 +unixnu_srcache_map(void)
@@ -347,7 +304,7 @@
 +	kr = vm_shared_region_map_file(sr, nfiles, srms);
 +	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
 +	if (kr == KERN_SUCCESS) {
-+		unixnu_srcache_dynamic(sr, dyn_off, dyn_size);
++		unixnu_srcache_map_anonymous(sr, dyn_off, dyn_size);
 +	}
 +	for (i = 0; i < nfiles; i++) {
 +		if (srms[i].vp != NULL) {
@@ -364,7 +321,7 @@
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2454,9 @@
+@@ -2097,6 +2411,9 @@
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;

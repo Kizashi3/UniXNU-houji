@@ -1,0 +1,62 @@
+--- a/osfmk/vm/vm_shared_region.c
++++ b/osfmk/vm/vm_shared_region.c
+@@ -4040,3 +4040,59 @@
+ 	vm_shared_region_unlock();
+ 	return vnode;
+ }
++
++/*
++ * HOUJI-SRCACHE-v5: map the dyld cache's dynamic data page.
++ *
++ * The cache header's dynamicDataOffset/dynamicDataMaxSize reserve a writable, zero-filled page
++ * at sharedRegionStart + 0xaade4000. dyld normally maps it anonymously through the fd == -1
++ * path of shared_region_map_and_slide(), but a kernel pre-mapped cache makes that call fail
++ * (sr_first_mapping is already set), and libSystem stores the main thread's errno there. The
++ * bsd mapper cannot reach these private structures, so do the vm_map_enter here.
++ */
++kern_return_t
++unixnu_srcache_map_anonymous(void *sr_cookie, uint64_t offset, uint64_t size)
++{
++	struct vm_shared_region *shared_region = (struct vm_shared_region *)sr_cookie;
++	ipc_port_t sr_handle;
++	vm_named_entry_t sr_mem_entry;
++	vm_map_t sr_map;
++	vm_object_t object;
++	vm_map_offset_t target;
++	vm_map_size_t map_size;
++	vm_map_kernel_flags_t vmk_flags;
++	kern_return_t kr;
++
++	if ((shared_region == NULL) || (offset == 0) || (size == 0)) {
++		return KERN_INVALID_ARGUMENT;
++	}
++	sr_handle = shared_region->sr_mem_entry;
++	sr_mem_entry = mach_memory_entry_from_port(sr_handle);
++	if (sr_mem_entry == NULL) {
++		printf("HOUJI-SRCACHE: dynamic page: no memory entry\n");
++		return KERN_INVALID_ARGUMENT;
++	}
++	sr_map = sr_mem_entry->backing.map;
++	if (sr_map == VM_MAP_NULL) {
++		printf("HOUJI-SRCACHE: dynamic page: no sub map\n");
++		return KERN_INVALID_ARGUMENT;
++	}
++	map_size = vm_map_round_page(size, VM_MAP_PAGE_MASK(sr_map));
++	object = vm_object_allocate(map_size);
++	if (object == VM_OBJECT_NULL) {
++		printf("HOUJI-SRCACHE: dynamic page: object alloc failed\n");
++		return KERN_RESOURCE_SHORTAGE;
++	}
++	target = (vm_map_offset_t)offset;
++	vmk_flags = VM_MAP_KERNEL_FLAGS_FIXED();
++	vmk_flags.vmkf_already = TRUE;
++	vmk_flags.vmkf_no_copy_on_read = 1;
++	kr = vm_map_enter(sr_map, &target, map_size, 0, vmk_flags, object, 0, TRUE,
++	    VM_PROT_READ | VM_PROT_WRITE, VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_DEFAULT);
++	printf("HOUJI-SRCACHE: dynamic page %#llx+%#llx kr=%d\n",
++	    (unsigned long long)offset, (unsigned long long)size, kr);
++	if (kr != KERN_SUCCESS) {
++		vm_object_deallocate(object);
++	}
++	return kr;
++}

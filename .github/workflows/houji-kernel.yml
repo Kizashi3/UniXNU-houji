@@ -431,6 +431,24 @@ jobs:
             echo "shared-cache probe is present in vm_unix.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Apply shared-cache dynamic page mapping
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            patch="$DEVICE_DIR/patches/xnu/srcache-dynamic.patch"
+            test -f "$patch"
+            xnu=out/houji/tree/refer/xnu
+            if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
+              git -C "$xnu" apply "$patch"
+            else
+              echo "git apply refused, retrying with patch and fuzz"
+              (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
+            fi
+            grep -q HOUJI-SRCACHE-v5 "$xnu/osfmk/vm/vm_shared_region.c"
+            echo "shared-cache dynamic page mapping is present in vm_shared_region.c"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Apply XNU shared-cache MACF bypass
         working-directory: unixnu
         run: |
