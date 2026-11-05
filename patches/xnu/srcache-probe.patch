@@ -1,6 +1,6 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,301 @@
+@@ -2089,6 +2089,363 @@
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -133,6 +133,59 @@
 +	    (unsigned long long)sig_off, (unsigned long long)sig_size, error);
 +}
 +
++/*
++ * HOUJI-SRCACHE-v4: map the cache's dynamic data page.
++ *
++ * dynamicDataOffset/dynamicDataMaxSize (header + 0x1f0/0x1f8) reserve a writable zero-filled
++ * page at sharedRegionStart + 0xaade4000. dyld maps it anonymously through the fd == -1 path of
++ * shared_region_map_and_slide() and libSystem keeps the main thread's errno there. A kernel
++ * pre-mapped cache leaves the page unmapped, so the first errno access faults at that address.
++ */
++static void
++unixnu_srcache_dynamic(vm_shared_region_t sr, uint64_t offset, uint64_t size)
++{
++	ipc_port_t sr_handle;
++	vm_named_entry_t sr_mem_entry;
++	vm_map_t sr_map;
++	vm_object_t object;
++	vm_map_offset_t target;
++	vm_map_size_t map_size;
++	vm_map_kernel_flags_t vmk_flags;
++	kern_return_t kr;
++
++	if ((sr == NULL) || (size == 0)) {
++		return;
++	}
++	sr_handle = sr->sr_mem_entry;
++	sr_mem_entry = mach_memory_entry_from_port(sr_handle);
++	if (sr_mem_entry == NULL) {
++		printf("HOUJI-SRCACHE: dynamic page: no memory entry\n");
++		return;
++	}
++	sr_map = sr_mem_entry->backing.map;
++	if (sr_map == VM_MAP_NULL) {
++		printf("HOUJI-SRCACHE: dynamic page: no sub map\n");
++		return;
++	}
++	map_size = vm_map_round_page(size, VM_MAP_PAGE_MASK(sr_map));
++	object = vm_object_allocate(map_size);
++	if (object == VM_OBJECT_NULL) {
++		printf("HOUJI-SRCACHE: dynamic page: object alloc failed\n");
++		return;
++	}
++	target = (vm_map_offset_t)offset;
++	vmk_flags = VM_MAP_KERNEL_FLAGS_FIXED();
++	vmk_flags.vmkf_already = TRUE;
++	vmk_flags.vmkf_no_copy_on_read = 1;
++	kr = vm_map_enter(sr_map, &target, map_size, 0, vmk_flags, object, 0, TRUE,
++	    VM_PROT_READ | VM_PROT_WRITE, VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_DEFAULT);
++	printf("HOUJI-SRCACHE: dynamic page %#llx+%#llx kr=%d\n",
++	    (unsigned long long)offset, (unsigned long long)size, kr);
++	if (kr != KERN_SUCCESS) {
++		vm_object_deallocate(object);
++	}
++}
++
 +static void
 +unixnu_srcache_map(void)
 +{
@@ -187,6 +240,8 @@
 +	unsigned int nfiles = 0;
 +	unsigned int nmaps = 0;
 +	unsigned int i;
++	uint64_t dyn_off = 0;
++	uint64_t dyn_size = 0;
 +	kern_return_t kr;
 +
 +	if (unixnu_srcache_flag_parsed == 0) {
@@ -242,6 +297,10 @@
 +		}
 +		map_off = *(uint32_t *)(void *)(hdr + 0x10);
 +		map_cnt = *(uint32_t *)(void *)(hdr + 0x14);
++		if (i == 0) {
++			dyn_off = *(uint64_t *)(void *)(hdr + 0x1f0);
++			dyn_size = *(uint64_t *)(void *)(hdr + 0x1f8);
++		}
 +		if ((map_cnt == 0) || (map_cnt > 8) || (nmaps + map_cnt > UNIXNU_SRCACHE_MAX_MAPS)) {
 +			printf("HOUJI-SRCACHE: %s mapCnt %u unsupported\n", path, map_cnt);
 +			vnode_put(vp);
@@ -287,6 +346,9 @@
 +	printf("HOUJI-SRCACHE: mapping %u files, %u mappings\n", nfiles, nmaps);
 +	kr = vm_shared_region_map_file(sr, nfiles, srms);
 +	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
++	if (kr == KERN_SUCCESS) {
++		unixnu_srcache_dynamic(sr, dyn_off, dyn_size);
++	}
 +	for (i = 0; i < nfiles; i++) {
 +		if (srms[i].vp != NULL) {
 +			vnode_lock_spin(srms[i].vp);
@@ -302,7 +364,7 @@
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2392,9 @@
+@@ -2097,6 +2454,9 @@
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
