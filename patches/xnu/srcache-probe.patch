@@ -1,6 +1,6 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,252 @@
+@@ -2089,6 +2089,301 @@
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -72,8 +72,8 @@
 + *
 + * A real iPhone boots with the cache already mapped, so dyld's shared_region_check_np() returns
 + * its address and dyld never has to find, open or authorize the cache itself. Do the same here:
-+ * open the cache set from the root, read each file's header and 32-byte mapping entries, and hand
-+ * the result to the existing vm_shared_region_map_file() engine.
++ * open the cache set from the root, read each file's header and 32-byte mapping entries, sign
++ * the vnode the way F_ADDFILESIGS would, and hand the result to vm_shared_region_map_file().
 + */
 +extern boolean_t PE_parse_boot_argn(const char *arg_string, void *arg_ptr, int arg_len);
 +
@@ -84,6 +84,54 @@
 +static int unixnu_srcache_tried;
 +static int unixnu_srcache_enabled;
 +static int unixnu_srcache_flag_parsed;
++
++/*
++ * HOUJI-SRCACHE-v3: install the cache file's embedded code signature on its vnode before the
++ * region is mapped. dyld does this with fcntl(F_ADDFILESIGS_RETURN), which reads the SuperBlob
++ * from the end of the file and calls ubc_cs_blob_add(); a kernel pre-mapped cache never gets
++ * that call, so the vnode's VM object stays unsigned and the first executable fault into the
++ * mapping is rejected with "rejecting invalid page ... signed:0".
++ */
++static void
++unixnu_srcache_sign(vnode_t vp, const char *path, uint64_t file_size, const uint8_t *hdr)
++{
++	uint64_t sig_off = *(const uint64_t *)(const void *)(hdr + 0x28);
++	uint64_t sig_size = *(const uint64_t *)(const void *)(hdr + 0x30);
++	vm_offset_t blob_addr = 0;
++	vm_size_t blob_size = 0;
++	int resid = 0;
++	int error;
++
++	if ((sig_size == 0) || (sig_size > (40ULL * 1024 * 1024)) ||
++	    (sig_off > file_size) || (sig_size > file_size - sig_off)) {
++		printf("HOUJI-SRCACHE: %s no embedded signature (%#llx+%#llx)\n", path,
++		    (unsigned long long)sig_off, (unsigned long long)sig_size);
++		return;
++	}
++	blob_size = (vm_size_t)sig_size;
++	if (ubc_cs_blob_allocate(&blob_addr, &blob_size) != KERN_SUCCESS) {
++		printf("HOUJI-SRCACHE: %s signature alloc failed\n", path);
++		return;
++	}
++	bzero((void *)blob_addr, blob_size);
++	error = vn_rdwr(UIO_READ, vp, (caddr_t)blob_addr, (int)blob_size, (off_t)sig_off,
++	    UIO_SYSSPACE, IO_NODELOCKED, kauth_cred_get(), &resid, current_proc());
++	if (resid > 0) {
++		bzero((void *)(blob_addr + (blob_size - resid)), resid);
++	}
++	if (error != 0) {
++		printf("HOUJI-SRCACHE: %s signature read failed %d\n", path, error);
++		ubc_cs_blob_deallocate(blob_addr, blob_size);
++		return;
++	}
++	error = ubc_cs_blob_add(vp, proc_platform(current_proc()), CPU_TYPE_ANY,
++	    CPU_SUBTYPE_ANY, 0, &blob_addr, blob_size, NULL, 0, NULL);
++	if ((error != 0) && (blob_addr != 0)) {
++		ubc_cs_blob_deallocate(blob_addr, blob_size);
++	}
++	printf("HOUJI-SRCACHE: %s signature %#llx+%#llx blob add %d\n", path,
++	    (unsigned long long)sig_off, (unsigned long long)sig_size, error);
++}
 +
 +static void
 +unixnu_srcache_map(void)
@@ -207,6 +255,7 @@
 +			vnode_put(vp);
 +			continue;
 +		}
++		unixnu_srcache_sign(vp, path, (uint64_t)va.va_data_size, hdr);
 +		bzero(&srms[nfiles], sizeof(srms[nfiles]));
 +		srms[nfiles].vp = vp;
 +		srms[nfiles].file_size = (memory_object_size_t)va.va_data_size;
@@ -253,7 +302,7 @@
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2343,9 @@
+@@ -2097,6 +2392,9 @@
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
