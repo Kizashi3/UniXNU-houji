@@ -1,11 +1,11 @@
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1881,6 +1881,156 @@
+@@ -1881,6 +1881,168 @@
  	panic_with_thread_kernel_state("Kernel data abort.", state);
  }
  
 +/*
-+ * HOUJI-SVCTRACE-v3: log the system calls made from user threads.
++ * HOUJI-SVCTRACE-v4: log the system calls made from user threads.
 + *
 + * The ramdisk root ships no /dev nodes, so nothing a user-thread writes can be observed and a
 + * process blocked inside the kernel looks exactly like dyld looping in userland. svctrace=N
@@ -24,6 +24,8 @@
 +static uint32_t unixnu_svctrace_seen;
 +static int unixnu_svctrace_parsed;
 +
++static uint32_t unixnu_usrlog_all;
++static int unixnu_usrlog_all_parsed;
 +static uint32_t unixnu_usrlog_limit;
 +static uint32_t unixnu_usrlog_seen;
 +static int unixnu_usrlog_parsed;
@@ -85,7 +87,17 @@
 +		unixnu_usrlog_parsed = 1;
 +		PE_parse_boot_argn("usrlog", &unixnu_usrlog_limit, sizeof(unixnu_usrlog_limit));
 +	}
-+	if ((unixnu_usrlog_limit == 0) || (state64->x[0] > 2) || (state64->x[2] == 0)) {
++	if (unixnu_usrlog_all_parsed == 0) {
++		unixnu_usrlog_all_parsed = 1;
++		PE_parse_boot_argn("usrlogall", &unixnu_usrlog_all, sizeof(unixnu_usrlog_all));
++	}
++	if (unixnu_usrlog_limit == 0) {
++		return;
++	}
++	if ((state64->x[0] > 2) && (unixnu_usrlog_all == 0)) {
++		return;
++	}
++	if (state64->x[2] == 0) {
 +		return;
 +	}
 +	if (unixnu_usrlog_seen++ >= unixnu_usrlog_limit) {
@@ -157,7 +169,7 @@
  extern void syscall_trace(struct arm_saved_state * regs);
  
  static void
-@@ -1889,6 +2039,7 @@
+@@ -1889,6 +2051,7 @@
  	int      trap_no = get_saved_state_svc_number(state);
  	thread_t thread  = current_thread();
  	struct   proc *p;
@@ -165,7 +177,7 @@
  
  #define handle_svc_kprintf(x...) /* kprintf("handle_svc: " x) */
  
-@@ -1906,6 +2057,8 @@
+@@ -1906,6 +2069,8 @@
  
  	current_cached_proc_cred_update();
  
@@ -174,7 +186,7 @@
  	if (trap_no < 0) {
  		switch (trap_no) {
  		case MACH_ARM_TRAP_ABSTIME:
-@@ -1928,6 +2081,10 @@
+@@ -1928,6 +2093,10 @@
  
  		unix_syscall(state, thread, p);
  	}
