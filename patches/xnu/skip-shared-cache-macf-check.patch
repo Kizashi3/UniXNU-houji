@@ -1,8 +1,43 @@
-diff --git a/bsd/kern/ubc_subr.c b/bsd/kern/ubc_subr.c
-index 62a450a..0e8d814 100644
 --- a/bsd/kern/ubc_subr.c
 +++ b/bsd/kern/ubc_subr.c
-@@ -4752,7 +4752,14 @@ ubc_cs_blob_add(
+@@ -4348,6 +4348,26 @@
+  * This function must be called when the storage for the code signature can
+  * no longer change.
+  */
++/*
++ * HOUJI-CSLAX-v1: the shared cache's entitlements blob cannot be accelerated by AMFI on this
++ * platform, which currently fails the whole code signature registration. Allow the boot to treat
++ * that as "no accelerated entitlements" instead.
++ */
++extern boolean_t PE_parse_boot_argn(const char *arg_string, void *arg_ptr, int arg_len);
++
++static int unixnu_cs_lax_parsed;
++static uint32_t unixnu_cs_lax;
++
++static boolean_t
++unixnu_cs_lax_enabled(void)
++{
++	if (unixnu_cs_lax_parsed == 0) {
++		unixnu_cs_lax_parsed = 1;
++		PE_parse_boot_argn("cs_blob_lax", &unixnu_cs_lax, sizeof(unixnu_cs_lax));
++	}
++	return unixnu_cs_lax != 0;
++}
++
+ static errno_t
+ accelerate_entitlement_queries(
+ 	struct cs_blob *cs_blob)
+@@ -4399,6 +4419,9 @@
+ 
+ 	if (ret != KERN_SUCCESS) {
+ 		printf("unable to adjust OSEntitlements context without monitor: %d\n", ret);
++		if (unixnu_cs_lax_enabled()) {
++			return 0;
++		}
+ 		return EPERM;
+ 	}
+ 
+@@ -4752,7 +4775,14 @@
  #if CONFIG_MACF
  	unsigned int cs_flags = tmp_blob.csb_flags;
  	unsigned int signer_type = tmp_blob.csb_signer_type;
@@ -17,7 +52,7 @@ index 62a450a..0e8d814 100644
  	error = mac_vnode_check_signature(
  		vp,
  		&tmp_blob,
-@@ -4767,6 +4774,9 @@ ubc_cs_blob_add(
+@@ -4767,6 +4797,9 @@
  		goto out;
  	}
  
