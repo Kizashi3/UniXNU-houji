@@ -1,6 +1,6 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,71 @@
+@@ -2089,6 +2089,256 @@
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -67,25 +67,7 @@
 +	}
 +}
 +
-+static void unixnu_srcache_map(void);
-+
- int
- shared_region_check_np(
- 	__unused struct proc                    *p,
-@@ -2097,6 +2162,9 @@
- {
- 	vm_shared_region_t      shared_region;
- 	mach_vm_offset_t        start_address = 0;
-+
-+	unixnu_srcache_probe();
-+	unixnu_srcache_map();
- 	int                     error = 0;
- 	kern_return_t           kr;
- 	task_t                  task = current_task();
-@@ -2226,6 +2294,186 @@
- 	struct vm_shared_region  *shared_region);
- 
- /*
++/*
 + * HOUJI-SRCACHE-v2: map the dyld shared cache into this task's shared region.
 + *
 + * A real iPhone boots with the cache already mapped, so dyld's shared_region_check_np() returns
@@ -97,17 +79,11 @@
 +
 +#define UNIXNU_SRCACHE_DIR       "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
 +#define UNIXNU_SRCACHE_MAX_FILES 48
-+#define UNIXNU_SRCACHE_MAX_MAPS  96
++#define UNIXNU_SRCACHE_MAX_MAPS  48
 +
 +static int unixnu_srcache_tried;
 +static int unixnu_srcache_enabled;
 +static int unixnu_srcache_flag_parsed;
-+
-+static void shared_region_map_and_slide_cleanup(
-+	struct proc              *p,
-+	uint32_t                 files_count,
-+	struct _sr_file_mappings *sr_file_mappings,
-+	struct vm_shared_region  *shared_region);
 +
 +static void
 +unixnu_srcache_map(void)
@@ -190,7 +166,7 @@
 +		vnode_t vp = NULL;
 +		struct vnode_attr va;
 +		uint8_t hdr[0x200];
-+		uint8_t table[UNIXNU_SRCACHE_MAX_MAPS * 32];
++		uint8_t table[8 * 32];
 +		uint32_t map_off;
 +		uint32_t map_cnt;
 +		unsigned int m;
@@ -262,10 +238,32 @@
 +	printf("HOUJI-SRCACHE: mapping %u files, %u mappings\n", nfiles, nmaps);
 +	kr = vm_shared_region_map_file(sr, nfiles, srms);
 +	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
-+	shared_region_map_and_slide_cleanup(current_proc(), nfiles, srms, sr);
++	for (i = 0; i < nfiles; i++) {
++		if (srms[i].vp != NULL) {
++			vnode_lock_spin(srms[i].vp);
++			srms[i].vp->v_flag |= VSHARED_DYLD;
++			vnode_unlock(srms[i].vp);
++			vnode_put(srms[i].vp);
++			srms[i].vp = NULL;
++		}
++		if (srms[i].file_control != MEMORY_OBJECT_CONTROL_NULL) {
++			vm_object_deallocate((vm_object_t)srms[i].file_control);
++			srms[i].file_control = MEMORY_OBJECT_CONTROL_NULL;
++		}
++	}
++	vm_shared_region_deallocate(sr);
 +}
 +
-+/*
-  * Setup part of _shared_region_map_and_slide().
-  * It had to be broken out of _shared_region_map_and_slide() to
-  * prevent compiler inlining from blowing out the stack.
+ int
+ shared_region_check_np(
+ 	__unused struct proc                    *p,
+@@ -2097,6 +2347,9 @@
+ {
+ 	vm_shared_region_t      shared_region;
+ 	mach_vm_offset_t        start_address = 0;
++
++	unixnu_srcache_probe();
++	unixnu_srcache_map();
+ 	int                     error = 0;
+ 	kern_return_t           kr;
+ 	task_t                  task = current_task();
