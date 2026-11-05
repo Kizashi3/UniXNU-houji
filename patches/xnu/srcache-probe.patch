@@ -1,13 +1,11 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2090,6 +2090,71 @@
+@@ -2089,6 +2089,71 @@
+  * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
- int
 +/*
-+ * HOUJI-SRCACHE-v1: report the dyld shared cache layout from the kernel. This is the first step
-+ * towards mapping the cache into the shared region at boot the way iOS does, which is what makes
-+ * dyld's shared_region_check_np() succeed on a real device.
++ * HOUJI-SRCACHE-v1: report the dyld shared cache layout from the kernel.
 + */
 +static void
 +unixnu_srcache_probe(void)
@@ -54,7 +52,7 @@
 +			printf("HOUJI-SRCACHE: %s size %lld magic %.16s mapOff %#x mapCnt %u region %#llx+%#llx\n",
 +			    paths[i], (long long)va.va_data_size, hdr, map_off, map_cnt,
 +			    (unsigned long long)region, (unsigned long long)region_size);
-+			if ((map_cnt > 0) && (map_off + 40 <= sizeof(hdr))) {
++			if ((map_cnt > 0) && (map_off + 32 <= sizeof(hdr))) {
 +				uint64_t m_addr = *(uint64_t *)(void *)(hdr + map_off);
 +				uint64_t m_size = *(uint64_t *)(void *)(hdr + map_off + 8);
 +				uint64_t m_file = *(uint64_t *)(void *)(hdr + map_off + 16);
@@ -69,15 +67,205 @@
 +	}
 +}
 +
++static void unixnu_srcache_map(void);
++
+ int
  shared_region_check_np(
  	__unused struct proc                    *p,
- 	struct shared_region_check_np_args      *uap,
-@@ -2097,6 +2162,8 @@
+@@ -2097,6 +2162,9 @@
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
 +
 +	unixnu_srcache_probe();
++	unixnu_srcache_map();
  	int                     error = 0;
  	kern_return_t           kr;
  	task_t                  task = current_task();
+@@ -2226,6 +2294,186 @@
+ 	struct vm_shared_region  *shared_region);
+ 
+ /*
++ * HOUJI-SRCACHE-v2: map the dyld shared cache into this task's shared region.
++ *
++ * A real iPhone boots with the cache already mapped, so dyld's shared_region_check_np() returns
++ * its address and dyld never has to find, open or authorize the cache itself. Do the same here:
++ * open the cache set from the root, read each file's header and 32-byte mapping entries, and hand
++ * the result to the existing vm_shared_region_map_file() engine.
++ */
++extern boolean_t PE_parse_boot_argn(const char *arg_string, void *arg_ptr, int arg_len);
++
++#define UNIXNU_SRCACHE_DIR       "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
++#define UNIXNU_SRCACHE_MAX_FILES 48
++#define UNIXNU_SRCACHE_MAX_MAPS  96
++
++static int unixnu_srcache_tried;
++static int unixnu_srcache_enabled;
++static int unixnu_srcache_flag_parsed;
++
++static void shared_region_map_and_slide_cleanup(
++	struct proc              *p,
++	uint32_t                 files_count,
++	struct _sr_file_mappings *sr_file_mappings,
++	struct vm_shared_region  *shared_region);
++
++static void
++unixnu_srcache_map(void)
++{
++	static const char *suffixes[] = {
++	    "",
++	    ".01",
++	    ".02",
++	    ".03",
++	    ".04",
++	    ".05",
++	    ".06",
++	    ".07",
++	    ".08",
++	    ".09",
++	    ".10",
++	    ".11",
++	    ".12",
++	    ".13",
++	    ".14",
++	    ".15",
++	    ".16",
++	    ".17",
++	    ".18",
++	    ".19",
++	    ".20",
++	    ".21",
++	    ".22",
++	    ".23",
++	    ".24",
++	    ".25",
++	    ".26",
++	    ".27.dylddata",
++	    ".28.dyldlinkedit",
++	    ".29",
++	    ".30",
++	    ".31",
++	    ".32",
++	    ".33",
++	    ".34",
++	    ".35",
++	    ".36",
++	    ".37",
++	    ".38",
++	    ".39",
++	    ".40",
++	    ".41.dylddata",
++	    ".42.dyldlinkedit"
++	};
++	struct shared_file_mapping_slide_np maps[UNIXNU_SRCACHE_MAX_MAPS];
++	struct _sr_file_mappings srms[UNIXNU_SRCACHE_MAX_FILES];
++	struct vm_shared_region *sr;
++	unsigned int nfiles = 0;
++	unsigned int nmaps = 0;
++	unsigned int i;
++	kern_return_t kr;
++
++	if (unixnu_srcache_flag_parsed == 0) {
++		uint32_t on = 0;
++		unixnu_srcache_flag_parsed = 1;
++		PE_parse_boot_argn("srcache", &on, sizeof(on));
++		unixnu_srcache_enabled = (on != 0);
++	}
++	if ((unixnu_srcache_enabled == 0) || (unixnu_srcache_tried != 0)) {
++		return;
++	}
++	unixnu_srcache_tried = 1;
++	bzero(maps, sizeof(maps));
++	bzero(srms, sizeof(srms));
++
++	sr = vm_shared_region_trim_and_get(current_task());
++	if (sr == NULL) {
++		printf("HOUJI-SRCACHE: no shared region\n");
++		return;
++	}
++
++	for (i = 0; (i < sizeof(suffixes) / sizeof(suffixes[0])) &&
++	    (nfiles < UNIXNU_SRCACHE_MAX_FILES); i++) {
++		char path[160];
++		vnode_t vp = NULL;
++		struct vnode_attr va;
++		uint8_t hdr[0x200];
++		uint8_t table[UNIXNU_SRCACHE_MAX_MAPS * 32];
++		uint32_t map_off;
++		uint32_t map_cnt;
++		unsigned int m;
++		int error;
++
++		snprintf(path, sizeof(path), "%s%s", UNIXNU_SRCACHE_DIR, suffixes[i]);
++		error = vnode_lookup(path, 0, &vp, vfs_context_current());
++		if (error != 0) {
++			continue;
++		}
++		VATTR_INIT(&va);
++		VATTR_WANTED(&va, va_data_size);
++		error = vnode_getattr(vp, &va, vfs_context_current());
++		if (error != 0) {
++			vnode_put(vp);
++			continue;
++		}
++		bzero(hdr, sizeof(hdr));
++		error = vn_rdwr(UIO_READ, vp, (caddr_t)hdr, sizeof(hdr), 0, UIO_SYSSPACE,
++		    IO_NODELOCKED, kauth_cred_get(), NULL, current_proc());
++		if ((error != 0) || (memcmp(hdr, "dyld_v1", 7) != 0)) {
++			printf("HOUJI-SRCACHE: %s not a dyld cache (err %d)\n", path, error);
++			vnode_put(vp);
++			continue;
++		}
++		map_off = *(uint32_t *)(void *)(hdr + 0x10);
++		map_cnt = *(uint32_t *)(void *)(hdr + 0x14);
++		if ((map_cnt == 0) || (map_cnt > 8) || (nmaps + map_cnt > UNIXNU_SRCACHE_MAX_MAPS)) {
++			printf("HOUJI-SRCACHE: %s mapCnt %u unsupported\n", path, map_cnt);
++			vnode_put(vp);
++			continue;
++		}
++		bzero(table, sizeof(table));
++		error = vn_rdwr(UIO_READ, vp, (caddr_t)table, (int)(map_cnt * 32), map_off,
++		    UIO_SYSSPACE, IO_NODELOCKED, kauth_cred_get(), NULL, current_proc());
++		if (error != 0) {
++			printf("HOUJI-SRCACHE: read %s mappings failed %d\n", path, error);
++			vnode_put(vp);
++			continue;
++		}
++		bzero(&srms[nfiles], sizeof(srms[nfiles]));
++		srms[nfiles].vp = vp;
++		srms[nfiles].file_size = (memory_object_size_t)va.va_data_size;
++		srms[nfiles].file_control = ubc_getobject(vp, UBC_HOLDOBJECT);
++		srms[nfiles].mappings_count = map_cnt;
++		srms[nfiles].mappings = &maps[nmaps];
++		srms[nfiles].slide = 0;
++		for (m = 0; m < map_cnt; m++) {
++			uint8_t *e = table + m * 32;
++			struct shared_file_mapping_slide_np *mp = &maps[nmaps + m];
++
++			mp->sms_address = *(uint64_t *)(void *)(e + 0);
++			mp->sms_size = *(uint64_t *)(void *)(e + 8);
++			mp->sms_file_offset = *(uint64_t *)(void *)(e + 16);
++			mp->sms_max_prot = (vm_prot_t)(*(uint32_t *)(void *)(e + 24));
++			mp->sms_init_prot = (vm_prot_t)(*(uint32_t *)(void *)(e + 28));
++			mp->sms_slide_size = 0;
++			mp->sms_slide_start = 0;
++		}
++		nmaps += map_cnt;
++		nfiles++;
++	}
++
++	if (nfiles == 0) {
++		printf("HOUJI-SRCACHE: no cache files found\n");
++		vm_shared_region_deallocate(sr);
++		return;
++	}
++	printf("HOUJI-SRCACHE: mapping %u files, %u mappings\n", nfiles, nmaps);
++	kr = vm_shared_region_map_file(sr, nfiles, srms);
++	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
++	shared_region_map_and_slide_cleanup(current_proc(), nfiles, srms, sr);
++}
++
++/*
+  * Setup part of _shared_region_map_and_slide().
+  * It had to be broken out of _shared_region_map_and_slide() to
+  * prevent compiler inlining from blowing out the stack.
