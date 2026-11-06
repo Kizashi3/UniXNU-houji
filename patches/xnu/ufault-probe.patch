@@ -1,0 +1,42 @@
+diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
+index ff5296d..acd52e6 100644
+--- a/osfmk/arm64/sleh.c
++++ b/osfmk/arm64/sleh.c
+@@ -1564,6 +1564,37 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+ 			vm_fault_addr = VM_USER_STRIP_TBI(fault_addr);
+ 		}
+ 
++		{
++			/* HOUJI-UFAULT-v1: log every user data fault before vm_fault, gated by ufault=. */
++			extern boolean_t PE_parse_boot_argn(const char *, void *, int);
++			static int unixnu_uf_parsed;
++			static int unixnu_uf_on;
++			static uint64_t unixnu_uf_n;
++			if (unixnu_uf_parsed == 0) {
++				uint32_t on = 0;
++				unixnu_uf_parsed = 1;
++				PE_parse_boot_argn("ufault", &on, sizeof(on));
++				unixnu_uf_on = (on != 0);
++			}
++			if (unixnu_uf_on) {
++				uint64_t c = ++unixnu_uf_n;
++				if (c <= 40 || (c % 500) == 0) {
++					arm_saved_state64_t *uf_ss = saved_state64(state);
++					printf("HOUJI-UFAULT: n=%llu pc=%#llx far=%#llx vfa=%#llx prot=%#x esr=%#x code=%#x lr=%#llx x0=%#llx x1=%#llx\n",
++					    (unsigned long long)c,
++					    (unsigned long long)get_saved_state_pc(state),
++					    (unsigned long long)fault_addr,
++					    (unsigned long long)vm_fault_addr,
++					    (unsigned)fault_type,
++					    (unsigned)esr,
++					    (unsigned)fault_code,
++					    (unsigned long long)uf_ss->lr,
++					    (unsigned long long)uf_ss->x[0],
++					    (unsigned long long)uf_ss->x[1]);
++				}
++			}
++		}
++
+ 		/* check to see if it is just a pmap ref/modify fault */
+ 		if (!is_translation_fault(fault_code)) {
+ 			result = arm_fast_fault(map->pmap,
