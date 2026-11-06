@@ -1,32 +1,42 @@
+diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
+index ff5296d..933b167 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1678,6 +1678,30 @@
+@@ -1678,6 +1678,38 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
 +	{
 +		arm_saved_state64_t *ss64 = saved_state64(state);
-+
 +		uint64_t tpidrro = 0;
 +		uint64_t tpidr = 0;
-+
-+		/* HOUJI-FAULT-v1: this fault is about to become a signal. */
++		uint32_t insn_pc = 0;
++		uint32_t insn_lr = 0;
++		extern int copyin(user_addr_t, void *, size_t);
 +		__asm__ volatile("mrs %0, TPIDRRO_EL0" : "=r"(tpidrro));
 +		__asm__ volatile("mrs %0, TPIDR_EL0" : "=r"(tpidr));
-+		printf("HOUJI-FAULT-v1: task %p pc %#llx far %#llx esr %#llx prot %#x code %#llx lr %#llx sp %#llx x0 %#llx x1 %#llx tp %#llx tpidr %#llx x18 %#llx\n",
++		copyin((user_addr_t)get_saved_state_pc(state), (void *)&insn_pc, sizeof(insn_pc));
++		copyin((user_addr_t)ss64->lr, (void *)&insn_lr, sizeof(insn_lr));
++		printf("HOUJI-FAULT-v2: task %p pc %#llx insn %08x lr %#llx linsn %08x far %#llx esr %#llx prot %#x code %#llx sp %#llx x0 %#llx x1 %#llx x2 %#llx x3 %#llx x4 %#llx x5 %#llx x6 %#llx x7 %#llx x8 %#llx tp %#llx tpidr %#llx\n",
 +		    (void *)get_threadtask(thread),
-+		    (unsigned long long)get_saved_state_pc(state),
++		    (unsigned long long)get_saved_state_pc(state), (unsigned)insn_pc,
++		    (unsigned long long)ss64->lr, (unsigned)insn_lr,
 +		    (unsigned long long)fault_addr,
 +		    (unsigned long long)esr,
 +		    (unsigned)fault_type,
 +		    (unsigned long long)codes[0],
-+		    (unsigned long long)ss64->lr,
 +		    (unsigned long long)ss64->sp,
 +		    (unsigned long long)ss64->x[0],
 +		    (unsigned long long)ss64->x[1],
++		    (unsigned long long)ss64->x[2],
++		    (unsigned long long)ss64->x[3],
++		    (unsigned long long)ss64->x[4],
++		    (unsigned long long)ss64->x[5],
++		    (unsigned long long)ss64->x[6],
++		    (unsigned long long)ss64->x[7],
++		    (unsigned long long)ss64->x[8],
 +		    (unsigned long long)tpidrro,
-+		    (unsigned long long)tpidr,
-+		    (unsigned long long)ss64->x[18]);
++		    (unsigned long long)tpidr);
 +	}
  	exception_triage(exc, codes, numcodes);
  	__builtin_unreachable();
