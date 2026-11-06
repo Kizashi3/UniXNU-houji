@@ -33,22 +33,24 @@ jobs:
       - name: Retarget the dangling ArmCpu submodule pin
         working-directory: unixnu
         run: |
-          # Upstream pins drivers/ArmCpu to 2e11cda72740b985dedde3e32ba72b0fd64eb475,
-          # which the repository no longer serves ("upload-pack: not our ref"). A plain
-          # recursive submodule update aborts there and leaves every later submodule
-          # (including kits/XnuPrelink) unchecked out. Clone the repository once, then
-          # retarget the parent index entry to a commit that exists, so the normal
-          # recursive update below succeeds for the whole tree.
-          git submodule init
-          git submodule update --init drivers/ArmCpu || true
-          git -C drivers/ArmCpu fetch --depth 1 origin main
-          armcpu_main="$(git -C drivers/ArmCpu rev-parse FETCH_HEAD)"
-          echo "unixnu: retargeting drivers/ArmCpu to $armcpu_main"
-          git update-index --cacheinfo 160000,"$armcpu_main",drivers/ArmCpu
-          git submodule update --init --recursive
-          test -f drivers/ArmCpu/ArmCpu.cpp
-          ls drivers/ArmCpu | head
-          test -d kits/XnuPrelink/patches
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          {
+            # Upstream pins drivers/ArmCpu to 2e11cda72740b985dedde3e32ba72b0fd64eb475,
+            # which the repository no longer serves ("upload-pack: not our ref"). A plain
+            # recursive submodule update aborts there and leaves every later submodule
+            # (including kits/XnuPrelink) unchecked out. Resolve a commit that exists,
+            # rewrite the parent index entry, then let the normal recursive update run.
+            git submodule init
+            armcpu_main="$(git ls-remote https://github.com/UniXNU/ArmCpu.git refs/heads/main | awk '{print $1}')"
+            test -n "$armcpu_main"
+            echo "unixnu: retargeting drivers/ArmCpu from the dangling pin to $armcpu_main"
+            git update-index --cacheinfo 160000,"$armcpu_main",drivers/ArmCpu
+            git submodule update --init --recursive
+            test -f drivers/ArmCpu/ArmCpu.cpp
+            git -C drivers/ArmCpu rev-parse --short HEAD
+            test -d kits/XnuPrelink/patches
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Check out houji device repository
         uses: actions/checkout@v4
