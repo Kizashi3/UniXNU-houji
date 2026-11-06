@@ -41,14 +41,15 @@ jobs:
           # ArmCpu's main branch for the one that is gone.
           git submodule init
           git submodule status | awk '{print $2}' | while read -r path; do
-            git submodule update --init --recursive -- "$path" || echo "unixnu: submodule $path failed"
+            git submodule update --init -- "$path" || echo "unixnu: submodule $path failed"
           done
-          if ! git -C drivers/ArmCpu rev-parse --verify -q HEAD >/dev/null 2>&1; then
-            echo "unixnu: drivers/ArmCpu pin unavailable, using origin/main"
-            git -C drivers/ArmCpu fetch --depth 1 origin main
-            git -C drivers/ArmCpu checkout -q FETCH_HEAD
-          fi
+          # Force the one dangling pin to a commit that exists. Do it unconditionally:
+          # a failed checkout can leave a valid-looking HEAD behind an empty worktree.
+          git -C drivers/ArmCpu fetch --depth 1 origin main || true
+          git -C drivers/ArmCpu checkout -q -f FETCH_HEAD || true
           git -C drivers/ArmCpu rev-parse --short HEAD
+          test -f drivers/ArmCpu/ArmCpu.cpp
+          ls drivers/ArmCpu | head
           git -C kits/XnuPrelink rev-parse --short HEAD
           test -d kits/XnuPrelink/patches
 
@@ -675,6 +676,33 @@ jobs:
             git -C "$prelink_kit" apply -p3 "$DEVICE_DIR/patches/prelink-ios16-libm-literal.patch"
             python3 -m py_compile "$prelink_kit/native_prelink.py" "$prelink_kit/emit_prelink.py"
             python3 -m unittest discover -s "$prelink_kit" -p 'test_*.py'
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
+      - name: Ensure ArmCpu sources are present in the build tree
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            echo "== ArmCpu tree state =="
+            readlink -f out/houji/tree/drivers/ArmCpu || true
+            ls -la out/houji/tree/drivers/ArmCpu 2>/dev/null | head -20 || true
+            # The upstream pin is gone and the submodule machinery can leave an
+            # empty checkout; make the tree point at real sources before compiling.
+            if [ ! -f out/houji/tree/drivers/ArmCpu/ArmCpu.cpp ]; then
+              echo "ArmCpu.cpp missing; materialising UniXNU/ArmCpu main"
+              git -C drivers/ArmCpu fetch --depth 1 origin main || true
+              git -C drivers/ArmCpu checkout -q -f FETCH_HEAD || true
+              if [ ! -f drivers/ArmCpu/ArmCpu.cpp ]; then
+                rm -rf /tmp/armcpu-src
+                mkdir -p /tmp/armcpu-src
+                curl -sSL --retry 4 -o /tmp/armcpu.tar.gz \
+                  https://api.github.com/repos/UniXNU/ArmCpu/tarball/main
+                tar -xzf /tmp/armcpu.tar.gz -C /tmp/armcpu-src
+                cp -a /tmp/armcpu-src/UniXNU-ArmCpu-*/. drivers/ArmCpu/
+              fi
+            fi
+            test -f out/houji/tree/drivers/ArmCpu/ArmCpu.cpp
+            echo "ArmCpu sources OK"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Build houji kernel
