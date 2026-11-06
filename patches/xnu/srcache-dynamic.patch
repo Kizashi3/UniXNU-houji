@@ -1,50 +1,39 @@
 diff --git a/osfmk/vm/vm_shared_region.c b/osfmk/vm/vm_shared_region.c
-index 0bb45c5..392eed7 100644
+index 0bb45c5..7a87234 100644
 --- a/osfmk/vm/vm_shared_region.c
 +++ b/osfmk/vm/vm_shared_region.c
-@@ -4040,3 +4040,77 @@ vm_shared_region_root_dir(
+@@ -4040,3 +4040,65 @@ vm_shared_region_root_dir(
  	vm_shared_region_unlock();
  	return vnode;
  }
 +
 +/*
-+ * HOUJI-SRCACHE-v6: map the dyld cache's dynamic data page.
++ * HOUJI-SRCACHE-v7: map the dyld cache's dynamic data page.
 + *
-+ * Mirror the fd == -1 anonymous path of shared_region_map_and_slide(): allocate the
-+ * object, pre-fault and zero its pages through a temporary kernel mapping so they are
-+ * resident, then enter the object into the shared-region sub-map. A fresh anonymous
-+ * object entered directly into the sub-map otherwise leaves dyld looping on translation
-+ * faults (vm_fault returns success but no PTE is established for the zero-fill page).
++ * The dynamic data page is process-private writable data (errno, all_image_infos, ...).
++ * Entering a fresh anonymous object into the shared-region sub-map leaves dyld looping on
++ * translation faults: vm_fault() returns KERN_SUCCESS but no PTE sticks in the task pmap
++ * (the shared-region sub-map fault path). Instead pre-fault and zero the object through a
++ * temporary kernel mapping, then enter it directly into the current task's private map at
++ * sr_base_address + offset, overwriting the sub-map coverage for that range. The standard
++ * task anonymous fault path then resolves it like any other process mapping.
 + */
 +kern_return_t
 +unixnu_srcache_map_anonymous(void *sr_cookie, uint64_t offset, uint64_t size)
 +{
 +	struct vm_shared_region *shared_region = (struct vm_shared_region *)sr_cookie;
-+	ipc_port_t sr_handle;
-+	vm_named_entry_t sr_mem_entry;
-+	vm_map_t sr_map;
 +	vm_object_t object;
-+	vm_map_offset_t target;
 +	vm_map_offset_t kaddr = 0;
++	vm_map_offset_t target;
 +	vm_map_size_t map_size;
 +	vm_map_kernel_flags_t vmk_flags;
++	task_t task;
 +	kern_return_t kr;
 +
 +	if ((shared_region == NULL) || (offset == 0) || (size == 0)) {
 +		return KERN_INVALID_ARGUMENT;
 +	}
-+	sr_handle = shared_region->sr_mem_entry;
-+	sr_mem_entry = mach_memory_entry_from_port(sr_handle);
-+	if (sr_mem_entry == NULL) {
-+		printf("HOUJI-SRCACHE: dynamic page: no memory entry\n");
-+		return KERN_INVALID_ARGUMENT;
-+	}
-+	sr_map = sr_mem_entry->backing.map;
-+	if (sr_map == VM_MAP_NULL) {
-+		printf("HOUJI-SRCACHE: dynamic page: no sub map\n");
-+		return KERN_INVALID_ARGUMENT;
-+	}
-+	map_size = vm_map_round_page(size, VM_MAP_PAGE_MASK(sr_map));
++	map_size = vm_map_round_page(size, VM_MAP_PAGE_MASK(kernel_map));
 +	object = vm_object_allocate(map_size);
 +	if (object == VM_OBJECT_NULL) {
 +		printf("HOUJI-SRCACHE: dynamic page: object alloc failed\n");
@@ -65,16 +54,15 @@ index 0bb45c5..392eed7 100644
 +	bzero((void *)kaddr, map_size);
 +	vm_map_remove(kernel_map, kaddr, kaddr + map_size);
 +
-+	target = (vm_map_offset_t)offset;
-+	vmk_flags = VM_MAP_KERNEL_FLAGS_FIXED();
-+	vmk_flags.vmkf_already = TRUE;
++	task = current_task();
++	target = (vm_map_offset_t)(shared_region->sr_base_address + offset);
++	vmk_flags = VM_MAP_KERNEL_FLAGS_FIXED(.vmf_overwrite = true);
++	vmk_flags.vmkf_overwrite_immutable = true;
 +	vmk_flags.vmkf_no_copy_on_read = 1;
-+	vmk_flags.vmf_permanent = shared_region_make_permanent(shared_region,
-+	    VM_PROT_READ | VM_PROT_WRITE);
-+	kr = vm_map_enter(sr_map, &target, map_size, 0, vmk_flags, object, 0, TRUE,
++	kr = vm_map_enter(task->map, &target, map_size, 0, vmk_flags, object, 0, TRUE,
 +	    VM_PROT_READ | VM_PROT_WRITE, VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_DEFAULT);
-+	printf("HOUJI-SRCACHE: dynamic page %#llx+%#llx kr=%d\n",
-+	    (unsigned long long)offset, (unsigned long long)size, kr);
++	printf("HOUJI-SRCACHE: dynamic page task %#llx+%#llx kr=%d\n",
++	    (unsigned long long)target, (unsigned long long)size, kr);
 +	if (kr != KERN_SUCCESS) {
 +		vm_object_deallocate(object);
 +	}
