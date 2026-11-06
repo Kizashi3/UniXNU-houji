@@ -494,6 +494,7 @@ jobs:
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Apply HOUJI video console depth fix
+        if: false   # temporary A/B: is this patch what faults the kernel before kprintf?
         working-directory: unixnu
         run: |
           mkdir -p "$DIAG_DIR"
