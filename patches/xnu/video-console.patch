@@ -1,20 +1,19 @@
---- a/pexpert/arm/pe_init.c	2026-11-06 21:11:08.890031677 +0800
-+++ b/pexpert/arm/pe_init.c	2026-11-06 21:11:08.890145867 +0800
-@@ -441,6 +441,17 @@
- 			) % 4;
- 		PE_state.video.v_scale = ((boot_args_ptr->Video.v_depth >> kBootVideoDepthScaleShift) & kBootVideoDepthMask) + 1;
- 		PE_state.video.v_display = boot_args_ptr->Video.v_display;
-+		printf("HOUJI-VIDEO: args base=%lx row=%lx w=%lx h=%lx depth=%lx disp=%lx\n",
-+		    (unsigned long)boot_args_ptr->Video.v_baseAddr,
-+		    (unsigned long)boot_args_ptr->Video.v_rowBytes,
-+		    (unsigned long)boot_args_ptr->Video.v_width,
-+		    (unsigned long)boot_args_ptr->Video.v_height,
-+		    (unsigned long)boot_args_ptr->Video.v_depth,
-+		    (unsigned long)boot_args_ptr->Video.v_display);
-+		if (PE_state.video.v_depth == 0) {
-+			PE_state.video.v_depth = 32;
-+			printf("HOUJI-VIDEO: depth was zero, forced 32\n");
-+		}
- 		strlcpy(PE_state.video.v_pixelFormat, "BBBBBBBBGGGGGGGGRRRRRRRR", sizeof(PE_state.video.v_pixelFormat));
- 	}
- 	if (!vm_initialized) {
+diff --git a/osfmk/console/video_console.c b/osfmk/console/video_console.c
+index 4c1edf1..daccb90 100644
+--- a/osfmk/console/video_console.c
++++ b/osfmk/console/video_console.c
+@@ -3057,6 +3057,14 @@ vcattach(void)
+ {
+ 	vm_initialized = TRUE;
+ 
++	/* HOUJI: the boot framebuffer is handed to us in graphics mode, which leaves
++	   gc_enabled false and disableConsoleOutput true, so no kernel log ever reaches
++	   the panel. Claim the console in text mode before the acquisition below so the
++	   msgbuf replay paints the boot log. */
++	gc_graphics_boot = FALSE;
++	gc_desire_text = TRUE;
++	disableConsoleOutput = FALSE;
++
+ #if defined(CONFIG_VC_PROGRESS_METER_SUPPORT)
+ 	const boot_args * bootargs  = (typeof(bootargs))PE_state.bootArgs;
+ 

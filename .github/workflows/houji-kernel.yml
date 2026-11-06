@@ -493,8 +493,7 @@ jobs:
             echo "shared-cache MACF bypass is present in ubc_subr.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
-      - name: Apply HOUJI video console depth fix
-        if: false   # temporary A/B: is this patch what faults the kernel before kprintf?
+      - name: Apply HOUJI text video console patch
         working-directory: unixnu
         run: |
           mkdir -p "$DIAG_DIR"
