@@ -30,27 +30,24 @@ jobs:
           path: unixnu
           persist-credentials: false
 
-      - name: Initialize UniXNU submodules
+      - name: Retarget the dangling ArmCpu submodule pin
         working-directory: unixnu
         run: |
-          # Upstream currently pins drivers/ArmCpu to 2e11cda72740b985dedde3e32ba72b0fd64eb475,
+          # Upstream pins drivers/ArmCpu to 2e11cda72740b985dedde3e32ba72b0fd64eb475,
           # which the repository no longer serves ("upload-pack: not our ref"). A plain
           # recursive submodule update aborts there and leaves every later submodule
-          # (including kits/XnuPrelink) unchecked out. Populate them one by one so a
-          # single dangling pin cannot take the whole tree down, then fall back to
-          # ArmCpu's main branch for the one that is gone.
+          # (including kits/XnuPrelink) unchecked out. Clone the repository once, then
+          # retarget the parent index entry to a commit that exists, so the normal
+          # recursive update below succeeds for the whole tree.
           git submodule init
-          git submodule status | awk '{print $2}' | while read -r path; do
-            git submodule update --init -- "$path" || echo "unixnu: submodule $path failed"
-          done
-          # Force the one dangling pin to a commit that exists. Do it unconditionally:
-          # a failed checkout can leave a valid-looking HEAD behind an empty worktree.
-          git -C drivers/ArmCpu fetch --depth 1 origin main || true
-          git -C drivers/ArmCpu checkout -q -f FETCH_HEAD || true
-          git -C drivers/ArmCpu rev-parse --short HEAD
+          git submodule update --init drivers/ArmCpu || true
+          git -C drivers/ArmCpu fetch --depth 1 origin main
+          armcpu_main="$(git -C drivers/ArmCpu rev-parse FETCH_HEAD)"
+          echo "unixnu: retargeting drivers/ArmCpu to $armcpu_main"
+          git update-index --cacheinfo 160000,"$armcpu_main",drivers/ArmCpu
+          git submodule update --init --recursive
           test -f drivers/ArmCpu/ArmCpu.cpp
           ls drivers/ArmCpu | head
-          git -C kits/XnuPrelink rev-parse --short HEAD
           test -d kits/XnuPrelink/patches
 
       - name: Check out houji device repository
