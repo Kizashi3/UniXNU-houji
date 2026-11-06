@@ -1,0 +1,29 @@
+diff --git a/iokit/Kernel/IONVRAMCHRPHandler.cpp b/iokit/Kernel/IONVRAMCHRPHandler.cpp
+index bff5658..13eb3f9 100644
+--- a/iokit/Kernel/IONVRAMCHRPHandler.cpp
++++ b/iokit/Kernel/IONVRAMCHRPHandler.cpp
+@@ -744,6 +744,24 @@ IONVRAMCHRPHandler::setVariableInternal(const uuid_t varGuid, const char *variab
+ 		convertObjectToProp(nullptr, &existingSize, variableName, existing);
+ 	}
+ 
++	{
++		/* HOUJI-NVDEDUP-v1: a same-value rewrite (AMFI PMGR latch retry) must not
++		   mark _newData and re-serialize the whole dictionary on every sync. */
++		extern boolean_t PE_parse_boot_argn(const char *, void *, int);
++		static int nvdedup_parsed;
++		static int nvdedup_on;
++		if (nvdedup_parsed == 0) {
++			uint32_t on = 0;
++			nvdedup_parsed = 1;
++			PE_parse_boot_argn("nvdedup", &on, sizeof(on));
++			nvdedup_on = (on != 0);
++		}
++		if (nvdedup_on && (remove == false) && (existing != nullptr) &&
++		    (object != nullptr) && existing->isEqualTo(object)) {
++			return kIOReturnSuccess;
++		}
++	}
++
+ 	if (remove == false) {
+ 		convertObjectToProp(nullptr, &newSize, variableName, object);
+ 

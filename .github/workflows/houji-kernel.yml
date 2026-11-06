@@ -457,6 +457,24 @@ jobs:
             echo "pid-1 user fault probe is present in sleh.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Apply NVRAM redundant-write dedup
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            patch="$DEVICE_DIR/patches/xnu/nvdedup.patch"
+            test -f "$patch"
+            xnu=out/houji/tree/refer/xnu
+            if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
+              git -C "$xnu" apply "$patch"
+            else
+              echo "git apply refused, retrying with patch and fuzz"
+              (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
+            fi
+            grep -q HOUJI-NVDEDUP-v1 "$xnu/iokit/Kernel/IONVRAMCHRPHandler.cpp"
+            echo "NVRAM dedup is present in IONVRAMCHRPHandler.cpp"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Apply shared-cache kernel probe
         working-directory: unixnu
         run: |
@@ -489,7 +507,7 @@ jobs:
               echo "git apply refused, retrying with patch and fuzz"
               (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
             fi
-            grep -q HOUJI-SRCACHE-v5 "$xnu/osfmk/vm/vm_shared_region.c"
+            grep -q unixnu_srcache_map_anonymous "$xnu/osfmk/vm/vm_shared_region.c"
             echo "shared-cache dynamic page mapping is present in vm_shared_region.c"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
