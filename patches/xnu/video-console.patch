@@ -1,6 +1,6 @@
---- a/pexpert/arm/pe_init.c	2026-11-06 20:59:29.738087966 +0800
-+++ b/pexpert/arm/pe_init.c	2026-11-06 20:59:29.766515335 +0800
-@@ -441,6 +441,19 @@
+--- a/pexpert/arm/pe_init.c	2026-11-06 21:11:08.890031677 +0800
++++ b/pexpert/arm/pe_init.c	2026-11-06 21:11:08.890145867 +0800
+@@ -441,6 +441,17 @@
  			) % 4;
  		PE_state.video.v_scale = ((boot_args_ptr->Video.v_depth >> kBootVideoDepthScaleShift) & kBootVideoDepthMask) + 1;
  		PE_state.video.v_display = boot_args_ptr->Video.v_display;
@@ -13,8 +13,7 @@
 +		    (unsigned long)boot_args_ptr->Video.v_display);
 +		if (PE_state.video.v_depth == 0) {
 +			PE_state.video.v_depth = 32;
-+			printf("HOUJI-VIDEO: depth was zero, forced 32
-+");
++			printf("HOUJI-VIDEO: depth was zero, forced 32\n");
 +		}
  		strlcpy(PE_state.video.v_pixelFormat, "BBBBBBBBGGGGGGGGRRRRRRRR", sizeof(PE_state.video.v_pixelFormat));
  	}
