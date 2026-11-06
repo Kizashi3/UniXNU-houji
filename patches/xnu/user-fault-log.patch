@@ -1,8 +1,8 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..933b167 100644
+index ff5296d..d816d4c 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1678,6 +1678,38 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -1678,6 +1678,37 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
@@ -12,7 +12,6 @@ index ff5296d..933b167 100644
 +		uint64_t tpidr = 0;
 +		uint32_t insn_pc = 0;
 +		uint32_t insn_lr = 0;
-+		extern int copyin(user_addr_t, void *, size_t);
 +		__asm__ volatile("mrs %0, TPIDRRO_EL0" : "=r"(tpidrro));
 +		__asm__ volatile("mrs %0, TPIDR_EL0" : "=r"(tpidr));
 +		copyin((user_addr_t)get_saved_state_pc(state), (void *)&insn_pc, sizeof(insn_pc));
