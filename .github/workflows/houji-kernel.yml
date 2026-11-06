@@ -30,6 +30,28 @@ jobs:
           path: unixnu
           persist-credentials: false
 
+      - name: Initialize UniXNU submodules
+        working-directory: unixnu
+        run: |
+          # Upstream currently pins drivers/ArmCpu to 2e11cda72740b985dedde3e32ba72b0fd64eb475,
+          # which the repository no longer serves ("upload-pack: not our ref"). A plain
+          # recursive submodule update aborts there and leaves every later submodule
+          # (including kits/XnuPrelink) unchecked out. Populate them one by one so a
+          # single dangling pin cannot take the whole tree down, then fall back to
+          # ArmCpu's main branch for the one that is gone.
+          git submodule init
+          git submodule status | awk '{print $2}' | while read -r path; do
+            git submodule update --init --recursive -- "$path" || echo "unixnu: submodule $path failed"
+          done
+          if ! git -C drivers/ArmCpu rev-parse --verify -q HEAD >/dev/null 2>&1; then
+            echo "unixnu: drivers/ArmCpu pin unavailable, using origin/main"
+            git -C drivers/ArmCpu fetch --depth 1 origin main
+            git -C drivers/ArmCpu checkout -q FETCH_HEAD
+          fi
+          git -C drivers/ArmCpu rev-parse --short HEAD
+          git -C kits/XnuPrelink rev-parse --short HEAD
+          test -d kits/XnuPrelink/patches
+
       - name: Check out houji device repository
         uses: actions/checkout@v4
         with:
