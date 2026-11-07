@@ -1,0 +1,53 @@
+diff --git a/osfmk/kern/ipc_tt.c b/osfmk/kern/ipc_tt.c
+index d31a590..1245aa0 100644
+--- a/osfmk/kern/ipc_tt.c
++++ b/osfmk/kern/ipc_tt.c
+@@ -1960,6 +1960,8 @@ task_get_special_port_internal(
+ 	case TASK_BOOTSTRAP_PORT:
+ 		port = ipc_port_copy_send_mqueue(task->itk_bootstrap);
+ 		itk_unlock(task);
++		printf("HOUJI-SETPORT: get bootstrap task=%p port=%p
++", task, port);
+ 		break;
+ 
+ 	case TASK_ACCESS_PORT:
+@@ -2169,6 +2171,8 @@ task_set_special_port(
+ 	}
+ 
+ 	if (IP_VALID(port) && port->ip_immovable_send) {
++		printf("HOUJI-SETPORT: which=%d task=%p port=%p immovable -> INVALID_RIGHT\n",
++		    which, task, port);
+ 		return KERN_INVALID_RIGHT;
+ 	}
+ 
+@@ -2190,7 +2194,11 @@ task_set_special_port(
+ 		break;
+ 	}
+ 
+-	return task_set_special_port_internal(task, which, port);
++	kern_return_t kr = task_set_special_port_internal(task, which, port);
++	if (which == TASK_BOOTSTRAP_PORT) {
++		printf("HOUJI-SETPORT: which=%d port=%p kr=%d\n", which, port, kr);
++	}
++	return kr;
+ }
+ 
+ /*
+@@ -2324,6 +2332,8 @@ _kernelrpc_mach_ports_register3(
+ 
+ 	for (int i = 0; i < TASK_PORT_REGISTER_MAX; i++) {
+ 		if (IP_VALID(ports[i]) && ports[i]->ip_immovable_send) {
++			printf("HOUJI-SETPORT: register port[%d]=%p immovable -> INVALID_RIGHT\n",
++			    i, ports[i]);
+ 			return KERN_INVALID_RIGHT;
+ 		}
+ 	}
+@@ -2349,6 +2359,8 @@ _kernelrpc_mach_ports_register3(
+ 
+ 	itk_unlock(task);
+ 
++	printf("HOUJI-SETPORT: register ports %p/%p/%p ok\n", ports[0], ports[1], ports[2]);
++
+ 	for (int i = 0; i < TASK_PORT_REGISTER_MAX; i++) {
+ 		ipc_port_release_send(ports[i]);
+ 	}
