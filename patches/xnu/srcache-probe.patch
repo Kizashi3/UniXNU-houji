@@ -1,8 +1,8 @@
 diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
-index 8696353..f43bae6 100644
+index 8696353..f052dcd 100644
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,388 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
+@@ -2089,6 +2089,417 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -36,6 +36,8 @@ index 8696353..f43bae6 100644
 +		}
 +		VATTR_INIT(&va);
 +		VATTR_WANTED(&va, va_data_size);
++		VATTR_WANTED(&va, va_fsid);
++		VATTR_WANTED(&va, va_fileid);
 +		error = vnode_getattr(vp, &va, vfs_context_current());
 +		if (error != 0) {
 +			printf("HOUJI-SRCACHE: getattr %s failed %d\n", paths[i], error);
@@ -204,6 +206,10 @@ index 8696353..f43bae6 100644
 +	unsigned int i;
 +	uint64_t dyn_off = 0;
 +	uint64_t dyn_size = 0;
++	uint64_t dyn_base = 0; /* HOUJI-SRCACHE-v9 */
++	uint32_t dyn_fsid = 0;
++	uint64_t dyn_objid = 0;
++	int cerr = 0;
 +	kern_return_t kr;
 +
 +	if (unixnu_srcache_flag_parsed == 0) {
@@ -279,6 +285,9 @@ index 8696353..f43bae6 100644
 +		if (i == 0) {
 +			dyn_off = *(uint64_t *)(void *)(hdr + 0x1f0);
 +			dyn_size = *(uint64_t *)(void *)(hdr + 0x1f8);
++			dyn_base = *(uint64_t *)(void *)(hdr + 0xe0);
++			dyn_fsid = (uint32_t)va.va_fsid;
++			dyn_objid = (uint64_t)va.va_fileid;
 +		}
 +		if ((map_cnt == 0) || (map_cnt > 8) || (nmaps + map_cnt > UNIXNU_SRCACHE_MAX_MAPS)) {
 +			printf("HOUJI-SRCACHE: %s mapCnt %u unsupported\n", path, map_cnt);
@@ -373,6 +382,26 @@ index 8696353..f43bae6 100644
 +	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
 +	if (kr == KERN_SUCCESS) {
 +		unixnu_srcache_map_anonymous(sr, dyn_off, dyn_size);
++		/*
++		 * HOUJI-SRCACHE-v9: dyld's DyldProcessConfig halts unless the dynamic
++		 * config page carries the magic and the cache file's fs identity.
++		 */
++		if ((dyn_size >= 32) && (dyn_base != 0)) {
++			struct {
++				char magic[16];
++				uint64_t fsid;
++				uint64_t objid;
++			} dyn_cfg;
++			bzero(&dyn_cfg, sizeof(dyn_cfg));
++			memcpy(dyn_cfg.magic, "dyld_data    v0", 16);
++			dyn_cfg.fsid = dyn_fsid ? (uint64_t)dyn_fsid : 1;
++			dyn_cfg.objid = dyn_objid ? dyn_objid : 1;
++			cerr = copyout(&dyn_cfg, (user_addr_t)(dyn_base + dyn_off),
++			    sizeof(dyn_cfg));
++			printf("HOUJI-SRCACHE: dynamic ids %llx/%llx copyout %d\n",
++			    (unsigned long long)dyn_cfg.fsid,
++			    (unsigned long long)dyn_cfg.objid, cerr);
++		}
 +	}
 +	for (i = 0; i < nfiles; i++) {
 +		if (srms[i].vp != NULL) {
@@ -391,7 +420,7 @@ index 8696353..f43bae6 100644
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2479,9 @@ shared_region_check_np(
+@@ -2097,6 +2508,9 @@ shared_region_check_np(
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
