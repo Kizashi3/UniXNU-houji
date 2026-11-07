@@ -1,8 +1,8 @@
 diff --git a/osfmk/vm/vm_shared_region.c b/osfmk/vm/vm_shared_region.c
-index 0bb45c5..285230f 100644
+index 0bb45c5..800edb1 100644
 --- a/osfmk/vm/vm_shared_region.c
 +++ b/osfmk/vm/vm_shared_region.c
-@@ -4040,3 +4040,235 @@ vm_shared_region_root_dir(
+@@ -4040,3 +4040,232 @@ vm_shared_region_root_dir(
  	vm_shared_region_unlock();
  	return vnode;
  }
@@ -12,9 +12,6 @@ index 0bb45c5..285230f 100644
 + * pre-mapped cache to learn the real pointer_format / counts, and check whether a
 + * suspect target (0x1e4618000) appears. No page writes.
 + */
-+extern int copyin(user_addr_t, void *, size_t);
-+extern int copyout(const void *, user_addr_t, size_t);
-+
 +static int
 +unixnu_cs_rd(uint64_t va, void *buf, size_t n)
 +{
