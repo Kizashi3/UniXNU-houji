@@ -1,8 +1,8 @@
 diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
-index 8696353..2593761 100644
+index 8696353..f43bae6 100644
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,339 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
+@@ -2089,6 +2089,388 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -244,8 +244,11 @@ index 8696353..2593761 100644
 +		struct vnode_attr va;
 +		uint8_t hdr[0x200];
 +		uint8_t table[8 * 32];
++		uint8_t slide_tab[8 * 64]; /* HOUJI-SRCACHE-v8 */
 +		uint32_t map_off;
 +		uint32_t map_cnt;
++		uint32_t slide_off;
++		uint32_t slide_cnt;
 +		unsigned int m;
 +		int error;
 +
@@ -271,6 +274,8 @@ index 8696353..2593761 100644
 +		}
 +		map_off = *(uint32_t *)(void *)(hdr + 0x10);
 +		map_cnt = *(uint32_t *)(void *)(hdr + 0x14);
++		slide_off = *(uint32_t *)(void *)(hdr + 0x138);
++		slide_cnt = *(uint32_t *)(void *)(hdr + 0x13c);
 +		if (i == 0) {
 +			dyn_off = *(uint64_t *)(void *)(hdr + 0x1f0);
 +			dyn_size = *(uint64_t *)(void *)(hdr + 0x1f8);
@@ -308,6 +313,50 @@ index 8696353..2593761 100644
 +			mp->sms_slide_size = 0;
 +			mp->sms_slide_start = 0;
 +		}
++		/*
++		 * HOUJI-SRCACHE-v8: iOS 16 caches encode the __DATA pointers as v2 slide
++		 * chains (the high 16 bits hold the delta to the next pointer), so the
++		 * pages must go through the shared-region pager even when the runtime
++		 * slide is zero.  Feed it the mappingWithSlide table the same way dyld
++		 * does: the slide blob lives inside the file's last (__LINKEDIT) mapping.
++		 */
++		if ((slide_cnt == map_cnt) && (slide_off != 0) &&
++		    (slide_off < (uint32_t)va.va_data_size)) {
++			bzero(slide_tab, sizeof(slide_tab));
++			error = vn_rdwr(UIO_READ, vp, (caddr_t)slide_tab,
++			    (int)(slide_cnt * 56), slide_off, UIO_SYSSPACE, IO_NODELOCKED,
++			    kauth_cred_get(), NULL, current_proc());
++			if (error == 0) {
++				uint64_t last_addr = maps[nmaps + map_cnt - 1].sms_address;
++				uint64_t last_off = maps[nmaps + map_cnt - 1].sms_file_offset;
++				for (m = 0; m < map_cnt; m++) {
++					uint8_t *se = slide_tab + m * 56;
++					struct shared_file_mapping_slide_np *mp = &maps[nmaps + m];
++					uint64_t sfo = *(uint64_t *)(void *)(se + 24);
++					uint64_t sfs = *(uint64_t *)(void *)(se + 32);
++					uint32_t sflags = *(uint32_t *)(void *)(se + 40);
++					vm_prot_t add = VM_PROT_SLIDE;
++
++					if ((sflags & 1) == 0) {
++						add |= VM_PROT_NOAUTH;
++					}
++					if ((sflags & 4) != 0) {
++						/* __DATA_CONST is writable in the cache runtime. */
++						mp->sms_init_prot |= VM_PROT_WRITE;
++					}
++					if ((sfs == 0) || (sfo < last_off)) {
++						continue;
++					}
++					mp->sms_slide_start = last_addr + (sfo - last_off);
++					mp->sms_slide_size = sfs;
++					mp->sms_max_prot |= add;
++					mp->sms_init_prot |= add;
++				}
++				printf("HOUJI-SRCACHE: %s %u slid mappings\n", path, slide_cnt);
++			} else {
++				printf("HOUJI-SRCACHE: read %s slide info failed %d\n", path, error);
++			}
++		}
 +		nmaps += map_cnt;
 +		nfiles++;
 +	}
@@ -342,7 +391,7 @@ index 8696353..2593761 100644
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2430,9 @@ shared_region_check_np(
+@@ -2097,6 +2479,9 @@ shared_region_check_np(
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
