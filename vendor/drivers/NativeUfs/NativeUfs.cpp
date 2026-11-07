@@ -285,6 +285,39 @@ static void zero32 (void *start, size_t length)
 // (arm_smmu_write_sme). ARM IHI 0062D.c table 3-1 additionally requires VA64=1
 // for inputs above 32 bits even with SCTLR.M=0. Storage DMA path only; this
 // is physical pass-through, not a page-table or Adreno 4 KiB qualification.
+// Bounded, allocation-free SMMU table text: no formatted output before panic.
+static void smmuFormatTable (uintptr_t smmu, char *table, size_t size)
+{
+  static const char digits[] = "0123456789abcdef";
+  char *out = table;
+  char *end = table + size - 1;
+  uint32_t idr0 = read32 (smmu, 0x20), idr1 = read32 (smmu, 0x24), idr2 = read32 (smmu, 0x28);
+  unsigned groups = idr0 & 0xff;
+  if (groups > 16) groups = 16;
+  const char *prefix = "smmu table scr0=";
+  while (*prefix) *out++ = *prefix++;
+  for (int shift = 28; shift >= 0; shift -= 4) *out++ = digits[(read32 (smmu, 0) >> shift) & 15];
+  *out++ = ' '; *out++ = 'i'; *out++ = 'd'; *out++ = 'r'; *out++ = '=';
+  uint32_t ids[3] = { idr0, idr1, idr2 };
+  for (unsigned k = 0; k < 3; k++) {
+    for (int shift = 28; shift >= 0; shift -= 4) *out++ = digits[(ids[k] >> shift) & 15];
+    *out++ = k == 2 ? ' ' : '/';
+  }
+  *out++ = 'n'; *out++ = '='; *out++ = digits[(groups >> 4) & 15]; *out++ = digits[groups & 15];
+  for (unsigned i = 0; i < groups; i++) {
+    if (out + 24 > end) break;
+    *out++ = ' '; *out++ = digits[(i >> 4) & 15]; *out++ = digits[i & 15]; *out++ = ':';
+    uint32_t smr = read32 (smmu, 0x800 + 4 * i);
+    for (int shift = 28; shift >= 0; shift -= 4) *out++ = digits[(smr >> shift) & 15];
+    if (smr & 0x80000000U) {
+      uint32_t s2cr = read32 (smmu, 0xc00 + 4 * i);
+      *out++ = '/';
+      for (int shift = 28; shift >= 0; shift -= 4) *out++ = digits[(s2cr >> shift) & 15];
+    }
+  }
+  *out = 0;
+}
+
 static void smmuBypassStream (uint16_t stream, OSSharedPtr<IOMemoryMap> &keep, uint32_t *report,
                               uint64_t dma, uint64_t bytes)
 {
@@ -301,33 +334,8 @@ static void smmuBypassStream (uint16_t stream, OSSharedPtr<IOMemoryMap> &keep, u
     gRootDiagnostic.result = static_cast<uint32_t> (kIOReturnNotReady);
     gRootDiagnostic.smr = plan.smr; gRootDiagnostic.s2cr = plan.s2cr;
     rootDiagnosticFailure (plan.error);
-    // Bounded, allocation-free table dump: no formatted output before panic.
-    static char smmuTable[768];
-    static const char smmuDigits[] = "0123456789abcdef";
-    char *out = smmuTable;
-    uint32_t idr0 = read32 (smmu, 0x20), idr1 = read32 (smmu, 0x24), idr2 = read32 (smmu, 0x28);
-    unsigned groups = idr0 & 0xff;
-    if (groups > 16) groups = 16;
-    const char *prefix = "smmu table scr0=";
-    while (*prefix) *out++ = *prefix++;
-    for (int shift = 28; shift >= 0; shift -= 4) *out++ = smmuDigits[(read32 (smmu, 0) >> shift) & 15];
-    *out++ = ' '; *out++ = 'i'; *out++ = 'd'; *out++ = 'r'; *out++ = '=';
-    uint32_t ids[3] = { idr0, idr1, idr2 };
-    for (unsigned k = 0; k < 3; k++) {
-      for (int shift = 28; shift >= 0; shift -= 4) *out++ = smmuDigits[(ids[k] >> shift) & 15];
-      *out++ = k == 2 ? ' ' : '/';
-    }
-    *out++ = 'n'; *out++ = '='; *out++ = smmuDigits[(groups >> 4) & 15]; *out++ = smmuDigits[groups & 15];
-    for (unsigned i = 0; i < groups; i++) {
-      if (out + 24 > smmuTable + sizeof smmuTable - 1) break;
-      *out++ = ' '; *out++ = smmuDigits[(i >> 4) & 15]; *out++ = smmuDigits[i & 15]; *out++ = ':';
-      uint32_t pair[2] = { read32 (smmu, 0x800 + 4 * i), read32 (smmu, 0xc00 + 4 * i) };
-      for (unsigned k = 0; k < 2; k++) {
-        for (int shift = 28; shift >= 0; shift -= 4) *out++ = smmuDigits[(pair[k] >> shift) & 15];
-        if (k == 0) *out++ = '/';
-      }
-    }
-    *out = 0;
+    char smmuTable[768];
+    smmuFormatTable (smmu, smmuTable, sizeof smmuTable);
     panic ("NATIVE_UFS smmu: %s slot=%u smr=%x s2cr=%x\n%s", plan.error, plan.slot, plan.smr, plan.s2cr, smmuTable);
   }
   unsigned bank = plan.bank, index = plan.slot;
@@ -1799,21 +1807,20 @@ bool NativeUfs::start (IOService *provider)
     adoptAndRead (probe);
   }
   if (probe == 15) {
-    // QEMU self-test: a synthetic firmware table in ordinary RAM. A real SMMU (IDR0 != 0) is never written.
-    OSSharedPtr<IOMemoryMap> selfMap;
-    uintptr_t selfSmmu = mapPhys (0x15000000ULL, 0xd0000, selfMap);
-    if (!selfSmmu) panic ("NATIVE_UFS smmu self-test: map failed");
-    if (read32 (selfSmmu, 0x20) == 0) {
-      write32 (selfSmmu, 0x20, (1U << 30) | 64);
-      write32 (selfSmmu, 0x24, (2U << 28) | 8);
-      write32 (selfSmmu, 0x28, (1U << 12) | (3U << 8) | (3U << 4) | 3U);
-      write32 (selfSmmu, 0x800, 0x80000660U);
-      write32 (selfSmmu, 0xc00, 0U);
-      uint32_t report[3] = { 0, 0, 0 };
-      smmuBypassStream (0x60, selfMap, report, 0x80000000ULL, 4096);
-      panic ("NATIVE_UFS smmu self-test: no conflict");
-    }
-    panic ("NATIVE_UFS smmu self-test: real SMMU present, skipped");
+    // QEMU self-test of the table formatter on ordinary RAM (no hardware access).
+    volatile uint32_t *fake = static_cast<volatile uint32_t *> (IOMalloc (0x2000));
+    if (!fake) panic ("NATIVE_UFS smmu self-test: allocation failed");
+    for (unsigned i = 0; i < 0x2000 / 4; i++) fake[i] = 0;
+    fake[0x20 / 4] = (1U << 30) | 64;
+    fake[0x24 / 4] = (2U << 28) | 8;
+    fake[0x28 / 4] = (1U << 12) | (3U << 8) | (3U << 4) | 3U;
+    fake[0x800 / 4] = 0x80000660U;
+    fake[0xc00 / 4] = 0U;
+    fake[0x804 / 4] = 0x80000060U;
+    fake[0xc04 / 4] = 7U;
+    char selfTable[768];
+    smmuFormatTable (reinterpret_cast<uintptr_t> (fake), selfTable, sizeof selfTable);
+    panic ("NATIVE_UFS smmu self-test\n%s", selfTable);
   }
   if (probe == 10) {
     // Read-only check before anything is flashed: LUN 0 GPT -> "userdata" -> its first block.
