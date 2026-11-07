@@ -1,6 +1,8 @@
+diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
+index 8696353..2593761 100644
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,320 @@
+@@ -2089,6 +2089,339 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -79,7 +81,8 @@
 +
 +#define UNIXNU_SRCACHE_DIR       "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
 +#define UNIXNU_SRCACHE_MAX_FILES 48
-+#define UNIXNU_SRCACHE_MAX_MAPS  48
++/* The 44-file iOS 16 cache set needs ~51 mappings; keep the kernel stack out of it. */
++#define UNIXNU_SRCACHE_MAX_MAPS  256 /* HOUJI-SRCACHE-v7 */
 +
 +static int unixnu_srcache_tried;
 +static int unixnu_srcache_enabled;
@@ -191,8 +194,10 @@
 +	    ".41.dylddata",
 +	    ".42.dyldlinkedit"
 +	};
-+	struct shared_file_mapping_slide_np maps[UNIXNU_SRCACHE_MAX_MAPS];
-+	struct _sr_file_mappings srms[UNIXNU_SRCACHE_MAX_FILES];
++	struct shared_file_mapping_slide_np *maps;
++	struct _sr_file_mappings *srms;
++	vm_size_t maps_size = (vm_size_t)(UNIXNU_SRCACHE_MAX_MAPS * sizeof(*maps));
++	vm_size_t srms_size = (vm_size_t)(UNIXNU_SRCACHE_MAX_FILES * sizeof(*srms));
 +	struct vm_shared_region *sr;
 +	unsigned int nfiles = 0;
 +	unsigned int nmaps = 0;
@@ -211,14 +216,26 @@
 +		return;
 +	}
 +	unixnu_srcache_tried = 1;
-+	bzero(maps, sizeof(maps));
-+	bzero(srms, sizeof(srms));
-+
 +	sr = vm_shared_region_trim_and_get(current_task());
 +	if (sr == NULL) {
 +		printf("HOUJI-SRCACHE: no shared region\n");
 +		return;
 +	}
++	maps = kalloc_data(maps_size, Z_WAITOK);
++	srms = kalloc_data(srms_size, Z_WAITOK);
++	if ((maps == NULL) || (srms == NULL)) {
++		printf("HOUJI-SRCACHE: no memory for the mapping table\n");
++		if (maps != NULL) {
++			kfree_data(maps, maps_size);
++		}
++		if (srms != NULL) {
++			kfree_data(srms, srms_size);
++		}
++		vm_shared_region_deallocate(sr);
++		return;
++	}
++	bzero(maps, maps_size);
++	bzero(srms, srms_size);
 +
 +	for (i = 0; (i < sizeof(suffixes) / sizeof(suffixes[0])) &&
 +	    (nfiles < UNIXNU_SRCACHE_MAX_FILES); i++) {
@@ -297,6 +314,8 @@
 +
 +	if (nfiles == 0) {
 +		printf("HOUJI-SRCACHE: no cache files found\n");
++		kfree_data(maps, maps_size);
++		kfree_data(srms, srms_size);
 +		vm_shared_region_deallocate(sr);
 +		return;
 +	}
@@ -315,13 +334,15 @@
 +			srms[i].vp = NULL;
 +		}
 +	}
++	kfree_data(maps, maps_size);
++	kfree_data(srms, srms_size);
 +	vm_shared_region_deallocate(sr);
 +}
 +
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2411,9 @@
+@@ -2097,6 +2430,9 @@ shared_region_check_np(
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
