@@ -69,3 +69,5 @@ else:
     board.write_text(text)
     print('board.toml: NativeUfs archive added')
 # Diagnostics note: push once per run; the diagnostics branch keeps only the latest run.
+
+# Rerun after the native-only artifact of run 138.
