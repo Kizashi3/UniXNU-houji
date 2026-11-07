@@ -1200,6 +1200,7 @@ extern "C" unsigned native_ufs_store_gpt_check (void)
   return rootCrc32 (entries, gStoreGeometry.entryCount * 128) == gStoreGeometry.entriesCrc ? 0 : 5;
 }
 
+#if defined(NATIVE_UFS_ROOT_PUBLICATION) && NATIVE_UFS_ROOT_PUBLICATION
 // One read-only window of the root image as a block device: 512-byte sectors on top of 4096-byte
 // UFS blocks, so the unchanged dmg disk images (GPT with 512-byte sectors) parse as they do on
 // the virtio path.
@@ -1726,6 +1727,7 @@ static void mediaReportThread (void *, wait_result_t)
   }
   panic ("%s", gMediaReport);
 }
+#endif
 
 bool NativeUfs::start (IOService *provider)
 {
@@ -1815,6 +1817,7 @@ bool NativeUfs::start (IOService *provider)
            vm_page_wire_count, vm_page_speculative_count, vm_page_purgeable_count,
            memorystatus_available_pages, max_mem, nprocs);
   }
+#if defined(NATIVE_UFS_ROOT_PUBLICATION) && NATIVE_UFS_ROOT_PUBLICATION
   if (probe == 13) {
     unsigned delay = 12;
     PE_parse_boot_argn ("native-ufs-stats-delay", &delay, sizeof (delay));
@@ -1843,9 +1846,11 @@ bool NativeUfs::start (IOService *provider)
   if (rootMode && !probe) {
     return startRoot (provider);
   }
+#endif
   return false;
 }
 
+#if defined(NATIVE_UFS_ROOT_PUBLICATION) && NATIVE_UFS_ROOT_PUBLICATION
 // Boot the root image's windows as block devices. Soft-fails (logs, publishes nothing).
 bool NativeUfs::startRoot (IOService *provider)
 {
@@ -1956,6 +1961,7 @@ bool NativeUfs::startRoot (IOService *provider)
   }
   return true;
 }
+#endif
 
 void NativeUfs::stop (IOService *provider)
 {
