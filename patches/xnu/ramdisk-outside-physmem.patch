@@ -1,8 +1,8 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..dd2131d 100644
+index 92142f7..4924580 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
-@@ -54,6 +54,31 @@ extern "C" {
+@@ -54,6 +54,32 @@ extern "C" {
  #include <corecrypto/ccsha2.h>
  #include <kdp/sk_core.h>
  
@@ -29,12 +29,13 @@ index 92142f7..dd2131d 100644
 +extern vm_map_address_t pmap_map(vm_map_address_t va, vm_offset_t sa, vm_offset_t ea,
 +    vm_prot_t prot, unsigned int flags);
 +extern unsigned long gPhysBase, gPhysSize;
++extern "C" boolean_t native_ufs_fill_ramdisk(vm_offset_t base, vm_size_t size);
 +#endif /* __arm64__ */
 +
  // how long to wait for matching root device, secs
  #if DEBUG
  #define ROOTDEVICETIMEOUT       120
-@@ -773,7 +798,39 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +799,42 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -67,6 +68,9 @@ index 92142f7..dd2131d 100644
 +						pmap_map(ramdMap, ramdPhys - ramdOffset, ramdPhys - ramdOffset + ramdSpan,
 +						    VM_PROT_READ | VM_PROT_WRITE, VM_WIMG_DEFAULT);
 +						ramdBase = ramdMap + ramdOffset;
++					}
++					if (!native_ufs_fill_ramdisk(ramdBase, (vm_size_t)ramdParms[1])) {
++						panic("native-ufs: ramdisk fill failed");
 +					}
 +					(void)mdevadd(-1, ramdBase >> 12, (unsigned int) (ramdParms[1] >> 12), 0);        /* Initialize it and pass back the device number */
 +				#else
