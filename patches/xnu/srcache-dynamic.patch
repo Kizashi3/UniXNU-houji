@@ -1,23 +1,192 @@
 diff --git a/osfmk/vm/vm_shared_region.c b/osfmk/vm/vm_shared_region.c
-index 0bb45c5..7a87234 100644
+index 0bb45c5..285230f 100644
 --- a/osfmk/vm/vm_shared_region.c
 +++ b/osfmk/vm/vm_shared_region.c
-@@ -4040,3 +4040,65 @@ vm_shared_region_root_dir(
+@@ -4040,3 +4040,235 @@ vm_shared_region_root_dir(
  	vm_shared_region_unlock();
  	return vnode;
  }
 +
 +/*
-+ * HOUJI-SRCACHE-v7: map the dyld cache's dynamic data page.
-+ *
-+ * The dynamic data page is process-private writable data (errno, all_image_infos, ...).
-+ * Entering a fresh anonymous object into the shared-region sub-map leaves dyld looping on
-+ * translation faults: vm_fault() returns KERN_SUCCESS but no PTE sticks in the task pmap
-+ * (the shared-region sub-map fault path). Instead pre-fault and zero the object through a
-+ * temporary kernel mapping, then enter it directly into the current task's private map at
-+ * sr_base_address + offset, overwriting the sub-map coverage for that range. The standard
-+ * task anonymous fault path then resolves it like any other process mapping.
++ * HOUJI-SRCACHE-FIXINFO: read-only diagnostic. Parse DYLD_CHAINED_FIXUPS of the
++ * pre-mapped cache to learn the real pointer_format / counts, and check whether a
++ * suspect target (0x1e4618000) appears. No page writes.
 + */
++extern int copyin(user_addr_t, void *, size_t);
++extern int copyout(const void *, user_addr_t, size_t);
++
++static int
++unixnu_cs_rd(uint64_t va, void *buf, size_t n)
++{
++	return copyin((user_addr_t)va, buf, n);
++}
++
++void
++unixnu_srcache_fixinfo(struct vm_shared_region *sr)
++{
++	uint64_t base = sr->sr_base_address;
++	uint32_t imoff = 0, imcnt = 0;
++	uint64_t tot_rebase = 0, tot_bind = 0, imgs_chained = 0;
++	uint64_t tot_bind_off = 0, tot_rebase_off = 0, applied = 0;
++	uint16_t fmts_seen = 0; /* bitmask of pointer_format seen (0..15) */
++	uint32_t i;
++
++	if (unixnu_cs_rd(base + 0x1c0, &imoff, 4) || unixnu_cs_rd(base + 0x1c4, &imcnt, 4)) {
++		printf("HOUJI-FIXINFO: cannot read main header\n");
++		return;
++	}
++	printf("HOUJI-FIXINFO: imagesOffset=%#x imagesCount=%u base=%#llx\n",
++	    imoff, imcnt, (unsigned long long)base);
++	if (imcnt > 4000) {
++		printf("HOUJI-FIXINFO: implausible imagesCount\n");
++		return;
++	}
++
++	for (i = 0; i < imcnt; i++) {
++		uint64_t addr = 0, o, ncmds;
++		uint32_t cmd, cmdsz, dataoff = 0, datasize = 0;
++		uint32_t ncmds32 = 0, j;
++
++		if (unixnu_cs_rd(base + imoff + (uint64_t)i * 32, &addr, 8)) {
++			continue;
++		}
++		if (addr < base || addr >= base + 0x100000000ULL) {
++			continue;
++		}
++		if (unixnu_cs_rd(addr + 16, &ncmds32, 4)) {
++			continue;
++		}
++		if (ncmds32 > 512) {
++			continue;
++		}
++		ncmds = ncmds32;
++		o = addr + 32;
++		for (j = 0; j < ncmds; j++) {
++			if (unixnu_cs_rd(o, &cmd, 4) || unixnu_cs_rd(o + 4, &cmdsz, 4)) {
++				break;
++			}
++			if (cmdsz < 8) {
++				break;
++			}
++			if (cmd == 0x80000034u) {
++				uint32_t d[2];
++				if (unixnu_cs_rd(o + 8, d, 8) == 0) {
++					dataoff = d[0];
++					datasize = d[1];
++				}
++				break;
++			}
++			o += cmdsz;
++		}
++		if (dataoff == 0) {
++			continue;
++		}
++		{
++			uint32_t fx[7];
++			uint32_t starts_off, seg_count, s;
++			if (unixnu_cs_rd(addr + dataoff, fx, sizeof(fx))) {
++				continue;
++			}
++			starts_off = fx[1];
++			if (unixnu_cs_rd(addr + dataoff + starts_off, &seg_count, 4)) {
++				continue;
++			}
++			if (seg_count == 0 || seg_count > 64) {
++				continue;
++			}
++			imgs_chained++;
++			for (s = 0; s < seg_count; s++) {
++				uint32_t seg_info_off = 0, seg[8];
++				uint16_t page_size, pfmt;
++				uint64_t seg_off;
++				uint32_t page_count, k;
++				if (unixnu_cs_rd(addr + dataoff + starts_off + 4 + (uint64_t)s * 4, &seg_info_off, 4)) {
++					continue;
++				}
++				if (seg_info_off == 0) {
++					continue;
++				}
++				if (unixnu_cs_rd(addr + dataoff + starts_off + seg_info_off, seg, 24)) {
++					continue;
++				}
++				page_size = (uint16_t)(seg[1] & 0xffff);
++				pfmt = (uint16_t)((seg[1] >> 16) & 0xffff);
++				seg_off = ((uint64_t)seg[3] << 32) | (uint64_t)seg[2];
++				page_count = seg[5] & 0xffff;
++				if (pfmt < 16) {
++					fmts_seen |= (uint16_t)(1u << pfmt);
++				}
++				if (page_size == 0 || page_count > 0x4000) {
++					continue;
++				}
++				for (k = 0; k < page_count; k++) {
++					uint16_t pe = 0;
++					uint64_t loc;
++					int guard = 0;
++					if (unixnu_cs_rd(addr + dataoff + starts_off + seg_info_off + 22 + (uint64_t)k * 2, &pe, 2)) {
++						break;
++					}
++					if (pe == 0xffff || (pe & 0x8000)) {
++						continue;
++					}
++					loc = addr + seg_off + (uint64_t)k * page_size + (uint64_t)pe * 4;
++					while (guard++ < 4096) {
++						uint64_t raw = 0, nxt;
++						if (unixnu_cs_rd(loc, &raw, 8)) {
++							break;
++						}
++						if (pfmt == 13) {
++							uint64_t runtimeOffset = raw & 0x3ffffffffULL;
++							uint64_t next = (raw >> 52) & 0x7ffULL;
++							uint64_t auth = (raw >> 63) & 1;
++							if (auth) {
++								tot_bind++;
++							} else {
++								uint64_t real = base + runtimeOffset;
++								tot_rebase++;
++								tot_rebase_off += runtimeOffset;
++								if ((real - base) < 0xaade8000ULL) {
++									uint64_t w = real | ((uint64_t)((raw >> 34) & 0xff) << 56);
++									if (copyout(&w, (user_addr_t)loc, 8) == 0) {
++										applied++;
++									}
++								}
++								if (real == 0x1e4618000ULL) {
++									printf("HOUJI-FIXINFO: FOUND raw %#llx @%#llx -> 0x1e4618000\n",
++									    (unsigned long long)raw, (unsigned long long)loc);
++								}
++							}
++							nxt = next * 8;
++						} else if (pfmt == 6) {
++							uint64_t target = raw & 0xfffffffffULL;
++							uint64_t next = (raw >> 51) & 0xfffULL;
++							uint64_t bind = (raw >> 63) & 1;
++							if (bind) {
++								tot_bind++;
++							} else {
++								tot_rebase++;
++								tot_rebase_off += target;
++							}
++							nxt = next * 4;
++						} else {
++							nxt = 0;
++							tot_bind_off++;
++						}
++						if (nxt == 0) {
++							break;
++						}
++						loc += nxt;
++					}
++				}
++			}
++		}
++	}
++	printf("HOUJI-FIXINFO: summary imgs_chained=%llu rebases=%llu applied=%llu binds=%llu other=%llu fmts_mask=%#x\n",
++	    (unsigned long long)imgs_chained, (unsigned long long)tot_rebase,
++	    (unsigned long long)applied, (unsigned long long)tot_bind,
++	    (unsigned long long)tot_bind_off, (unsigned)fmts_seen);
++}
++
 +kern_return_t
 +unixnu_srcache_map_anonymous(void *sr_cookie, uint64_t offset, uint64_t size)
 +{
@@ -66,5 +235,6 @@ index 0bb45c5..7a87234 100644
 +	if (kr != KERN_SUCCESS) {
 +		vm_object_deallocate(object);
 +	}
++	unixnu_srcache_fixinfo(shared_region);
 +	return kr;
 +}
