@@ -762,6 +762,13 @@ jobs:
             echo "ArmCpu sources OK"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Overlay and enable NativeUfs
+        working-directory: unixnu
+        run: |
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-nativeufs.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Build houji kernel
         working-directory: unixnu
         env:
@@ -792,6 +799,7 @@ jobs:
             python3 out/houji/tree/scripts/build-corecrypto-14.py --namespace 2>&1 | tee out/houji/logs/retry-archive-02-build-corecrypto-14.log
             python3 out/houji/tree/scripts/build-arm-driver.py ArmDTPlatform 2>&1 | tee out/houji/logs/retry-archive-03-build-arm-driver.log
             python3 out/houji/tree/scripts/build-arm-driver.py ArmCpu 2>&1 | tee out/houji/logs/retry-archive-04-build-arm-driver.log
+            python3 out/houji/tree/scripts/build-arm-driver.py NativeUfs 2>&1 | tee out/houji/logs/retry-archive-06-build-nativeufs.log
             python3 out/houji/tree/scripts/build-libpthread-kernel.py 2>&1 | tee out/houji/logs/retry-archive-05-build-libpthread-kernel.log
             test -f "$crypto_archive" || { echo "retry archive still missing: $crypto_archive" | tee -a out/houji/logs/github-build.log; exit 1; }
             set +x
