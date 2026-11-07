@@ -1,0 +1,24 @@
+diff --git a/osfmk/ipc/mach_port.c b/osfmk/ipc/mach_port.c
+index 8236961..6f03360 100644
+--- a/osfmk/ipc/mach_port.c
++++ b/osfmk/ipc/mach_port.c
+@@ -2598,6 +2598,9 @@ mach_port_construct(
+ {
+ 	kern_return_t           kr;
+ 	ipc_port_t              port;
++
++	printf("HOUJI-SETPORT: construct flags=%#x ctx=%#llx\n",
++	    options->flags, (unsigned long long)context);
+ 	ipc_port_init_flags_t   init_flags = IPC_PORT_INIT_MESSAGE_QUEUE;
+ 	void *port_splabel = NULL;
+ 	bool filter_msgs = FALSE;
+@@ -2814,6 +2817,9 @@ mach_port_construct(
+ 	/* Unlock port */
+ 	ip_mq_unlock(port);
+ 
++	printf("HOUJI-SETPORT: construct name=%#x svc=%d imm_send=%d imm_recv=%d\n",
++	    *name, port->ip_service_port, port->ip_immovable_send, port->ip_immovable_receive);
++
+ 	return KERN_SUCCESS;
+ }
+ 
