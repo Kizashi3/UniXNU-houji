@@ -4,7 +4,10 @@ struct UfsSmmuPlan {
   unsigned slot = 0xffffffffU, bank = 0, pages = 0;
   uint32_t smr = 0, s2cr = 0;
   bool reuse = false;
-  // A masked firmware group that also matches our stream precedes every free
+  // Firmware already maps our exact stream, but through a bank of its own. That
+  // bank is reprogrammed as the physical pass-through and the mapping kept.
+  bool adoptBank = false;
+  // A masked firmware group that also covers our stream precedes every free
   // group; it is moved to a later free slot and its slot is narrowed to the
   // exact stream so the other streams it covered keep a mapping.
   bool relocate = false;
@@ -50,7 +53,7 @@ static UfsSmmuPlan planUfsSmmuBank(uint16_t stream, uint64_t dma, uint64_t bytes
   if (bankFromTop >= banks - 1) {p.error = "no free context bank"; return p;}
   p.bank = banks - 1 - bankFromTop;
   unsigned freeSlot = 0xffffffffU, maskedSlot = 0xffffffffU, exactSlot = 0xffffffffU;
-  uint32_t maskedSmr = 0, maskedS2cr = 0;
+  uint32_t maskedSmr = 0, maskedS2cr = 0, exactSmr = 0, exactS2cr = 0;
   for (unsigned i = 0; i < count; ++i) {
     uint32_t smr = read(0x800 + 4 * i);
     if (!(smr & 0x80000000U)) {
@@ -66,40 +69,64 @@ static UfsSmmuPlan planUfsSmmuBank(uint16_t stream, uint64_t dma, uint64_t bytes
         if (maskedSlot == 0xffffffffU) { maskedSlot = i; maskedSmr = smr; maskedS2cr = s2cr; }
         continue;
       }
-      if (!ourBank) {
+      if (exactSlot != 0xffffffffU) {
         p.slot = i; p.smr = smr; p.s2cr = s2cr;
         p.error = "conflicting UFS stream mapping"; return p;
       }
-      if (exactSlot == 0xffffffffU) exactSlot = i;
-    } else if (ourBank) {
+      exactSlot = i; exactSmr = smr; exactS2cr = s2cr;
+      continue;
+    }
+    if (ourBank) {
       p.slot = i; p.smr = smr; p.s2cr = s2cr;
       p.error = "reserved context bank already used"; return p;
     }
   }
-  // Match order follows the lowest slot, so a masked group ahead of an exact
-  // one (or ahead of every free slot) has to be relocated to be taken over.
-  if (maskedSlot == 0xffffffffU) {
-    if (exactSlot != 0xffffffffU) { p.reuse = true; p.slot = exactSlot; }
-    else p.slot = freeSlot;
-  } else if (exactSlot != 0xffffffffU && exactSlot < maskedSlot) {
-    p.reuse = true; p.slot = exactSlot;
-  } else if (freeSlot != 0xffffffffU && freeSlot < maskedSlot) {
-    p.slot = freeSlot;
-  } else if (freeSlot != 0xffffffffU) {
-    p.relocate = true;
-    p.relocateTo = freeSlot;
-    p.relocateSmr = maskedSmr;
-    p.relocateS2cr = maskedS2cr;
-    p.slot = maskedSlot;
-    p.smr = maskedSmr;
-    p.s2cr = maskedS2cr;
+  // Match order follows the lowest slot. An exact group ahead of every masked
+  // group is taken over; when it points at firmware's own bank that bank is
+  // adopted (reprogrammed as bypass) instead of allocating a new one.
+  if (exactSlot != 0xffffffffU && (maskedSlot == 0xffffffffU || exactSlot < maskedSlot)) {
+    unsigned cb = exactS2cr & 0xff;
+    bool translation = ((exactS2cr >> 16) & 3) == 0;
+    if (!translation || cb >= banks) {
+      p.slot = exactSlot; p.smr = exactSmr; p.s2cr = exactS2cr;
+      p.error = "conflicting UFS stream mapping"; return p;
+    }
+    p.slot = exactSlot; p.smr = exactSmr; p.s2cr = exactS2cr;
+    if (cb == p.bank) {
+      p.reuse = true;
+    } else {
+      for (unsigned j = 0; j < count; ++j) {
+        if (j == exactSlot) continue;
+        uint32_t smr = read(0x800 + 4 * j);
+        if (!(smr & 0x80000000U)) continue;
+        if ((read(0xc00 + 4 * j) & 0xff) == cb) {
+          p.error = "reserved context bank already used"; return p;
+        }
+      }
+      p.adoptBank = true;
+      p.bank = cb;
+    }
+  } else if (maskedSlot != 0xffffffffU) {
+    if (freeSlot != 0xffffffffU && freeSlot < maskedSlot) {
+      p.slot = freeSlot;
+    } else if (freeSlot != 0xffffffffU) {
+      p.relocate = true;
+      p.relocateTo = freeSlot;
+      p.relocateSmr = maskedSmr;
+      p.relocateS2cr = maskedS2cr;
+      p.slot = maskedSlot;
+      p.smr = maskedSmr;
+      p.s2cr = maskedS2cr;
+    } else {
+      p.slot = maskedSlot; p.smr = maskedSmr; p.s2cr = maskedS2cr;
+      p.error = "conflicting UFS stream mapping"; return p;
+    }
   } else {
-    p.slot = maskedSlot; p.smr = maskedSmr; p.s2cr = maskedS2cr;
-    p.error = "conflicting UFS stream mapping"; return p;
+    p.slot = freeSlot;
   }
   uint32_t sctlr = read((p.pages + p.bank) * 4096);
-  if ((sctlr & 1) || (p.reuse && (sctlr || read(0x1000 + 4 * p.bank) != 0x10000 ||
-                                (read(0x1800 + 4 * p.bank) & ~1U)))) {
+  if (p.reuse && (sctlr || read(0x1000 + 4 * p.bank) != 0x10000 ||
+                  (read(0x1800 + 4 * p.bank) & ~1U))) {
     p.error = "reserved context bank not bypass"; return p;
   }
   if (p.slot == 0xffffffffU) p.error = "no free stream-match group";
