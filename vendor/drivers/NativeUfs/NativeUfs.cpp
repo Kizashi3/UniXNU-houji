@@ -301,16 +301,33 @@ static void smmuBypassStream (uint16_t stream, OSSharedPtr<IOMemoryMap> &keep, u
     gRootDiagnostic.result = static_cast<uint32_t> (kIOReturnNotReady);
     gRootDiagnostic.smr = plan.smr; gRootDiagnostic.s2cr = plan.s2cr;
     rootDiagnosticFailure (plan.error);
+    // Bounded, allocation-free table dump: no formatted output before panic.
     static char smmuTable[768];
+    static const char smmuDigits[] = "0123456789abcdef";
+    char *out = smmuTable;
     uint32_t idr0 = read32 (smmu, 0x20), idr1 = read32 (smmu, 0x24), idr2 = read32 (smmu, 0x28);
     unsigned groups = idr0 & 0xff;
-    if (groups > 12) groups = 12;
-    unsigned used = snprintf (smmuTable, sizeof smmuTable, "smmu table: scr0=%08x idr=%08x/%08x/%08x groups=%u",
-                              read32 (smmu, 0x0), idr0, idr1, idr2, idr0 & 0xff);
-    for (unsigned i = 0; i < groups && used + 24 < sizeof smmuTable; i++) {
-      used += snprintf (smmuTable + used, sizeof smmuTable - used, " %u:%08x/%08x", i,
-                        read32 (smmu, 0x800 + 4 * i), read32 (smmu, 0xc00 + 4 * i));
+    if (groups > 16) groups = 16;
+    const char *prefix = "smmu table scr0=";
+    while (*prefix) *out++ = *prefix++;
+    for (int shift = 28; shift >= 0; shift -= 4) *out++ = smmuDigits[(read32 (smmu, 0) >> shift) & 15];
+    *out++ = ' '; *out++ = 'i'; *out++ = 'd'; *out++ = 'r'; *out++ = '=';
+    uint32_t ids[3] = { idr0, idr1, idr2 };
+    for (unsigned k = 0; k < 3; k++) {
+      for (int shift = 28; shift >= 0; shift -= 4) *out++ = smmuDigits[(ids[k] >> shift) & 15];
+      *out++ = k == 2 ? ' ' : '/';
     }
+    *out++ = 'n'; *out++ = '='; *out++ = smmuDigits[(groups >> 4) & 15]; *out++ = smmuDigits[groups & 15];
+    for (unsigned i = 0; i < groups; i++) {
+      if (out + 24 > smmuTable + sizeof smmuTable - 1) break;
+      *out++ = ' '; *out++ = smmuDigits[(i >> 4) & 15]; *out++ = smmuDigits[i & 15]; *out++ = ':';
+      uint32_t pair[2] = { read32 (smmu, 0x800 + 4 * i), read32 (smmu, 0xc00 + 4 * i) };
+      for (unsigned k = 0; k < 2; k++) {
+        for (int shift = 28; shift >= 0; shift -= 4) *out++ = smmuDigits[(pair[k] >> shift) & 15];
+        if (k == 0) *out++ = '/';
+      }
+    }
+    *out = 0;
     panic ("NATIVE_UFS smmu: %s slot=%u smr=%x s2cr=%x\n%s", plan.error, plan.slot, plan.smr, plan.s2cr, smmuTable);
   }
   unsigned bank = plan.bank, index = plan.slot;
@@ -1780,6 +1797,23 @@ bool NativeUfs::start (IOService *provider)
   }
   if ((probe >= 3 && probe <= 5) || probe == 9) {
     adoptAndRead (probe);
+  }
+  if (probe == 15) {
+    // QEMU self-test: a synthetic firmware table in ordinary RAM. A real SMMU (IDR0 != 0) is never written.
+    OSSharedPtr<IOMemoryMap> selfMap;
+    uintptr_t selfSmmu = mapPhys (0x15000000ULL, 0xd0000, selfMap);
+    if (!selfSmmu) panic ("NATIVE_UFS smmu self-test: map failed");
+    if (read32 (selfSmmu, 0x20) == 0) {
+      write32 (selfSmmu, 0x20, (1U << 30) | 64);
+      write32 (selfSmmu, 0x24, (2U << 28) | 8);
+      write32 (selfSmmu, 0x28, (1U << 12) | (3U << 8) | (3U << 4) | 3U);
+      write32 (selfSmmu, 0x800, 0x80000660U);
+      write32 (selfSmmu, 0xc00, 0U);
+      uint32_t report[3] = { 0, 0, 0 };
+      smmuBypassStream (0x60, selfMap, report, 0x80000000ULL, 4096);
+      panic ("NATIVE_UFS smmu self-test: no conflict");
+    }
+    panic ("NATIVE_UFS smmu self-test: real SMMU present, skipped");
   }
   if (probe == 10) {
     // Read-only check before anything is flashed: LUN 0 GPT -> "userdata" -> its first block.
