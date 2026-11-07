@@ -878,6 +878,10 @@ jobs:
               echo "--- ${log} (last 250 lines) ---"
               tail -n 250 "$log" || true
             done
+            echo "=== native-ufs compile log (last 200 lines) ==="
+            tail -n 200 out/houji/tree/build/native-ufs/compile.log 2>/dev/null || true
+            echo "=== native-ufs compile command ==="
+            cat out/houji/tree/build/native-ufs/compile-command.json 2>/dev/null || true
           } | tee out/houji/logs/github-diagnostics.log
 
       - name: Hash kernel artifact
