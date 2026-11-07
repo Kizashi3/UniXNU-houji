@@ -17,6 +17,18 @@ if old in t:
     p.write_text(t.replace(old, new, 1)); print('build-arm-driver.py: verified flags removed')
 else:
     print('build-arm-driver.py: flags already absent')
+# point the pinned kernel link at the archive the tree driver actually produces
+x = tree / "scripts" / "build-xnu-4k-baseline.sh"
+xt = x.read_text()
+old_archive = "UFS_ARCHIVE=$ROOT/build/sheng-ufs/libShengUfs.a"
+new_archive = "UFS_ARCHIVE=$ROOT/build/native-ufs/libNativeUfs.a"
+if old_archive in xt:
+    x.write_text(xt.replace(old_archive, new_archive, 1)); print("build-xnu-4k-baseline.sh: UFS archive path -> native-ufs")
+elif new_archive in xt:
+    print("build-xnu-4k-baseline.sh: UFS archive path already native-ufs")
+else:
+    raise SystemExit("no UFS_ARCHIVE line in build-xnu-4k-baseline.sh")
+
 # add NativeUfs to the board archives
 b = dev / 'board.toml'; bt = b.read_text()
 if 'build-arm-driver.py NativeUfs' in bt:
