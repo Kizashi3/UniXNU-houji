@@ -1815,7 +1815,7 @@ bool NativeUfs::start (IOService *provider)
     fake[0x20 / 4] = (1U << 30) | 64;
     fake[0x24 / 4] = (2U << 28) | 8;
     fake[0x28 / 4] = (1U << 12) | (3U << 8) | (3U << 4) | 3U;
-    fake[0x800 / 4] = 0x80000660U;
+    fake[0x800 / 4] = 0x80000060U;
     fake[0xc00 / 4] = 0U;
     char selfBefore[768];
     smmuFormatTable (reinterpret_cast<uintptr_t> (fake), selfBefore, sizeof selfBefore);
@@ -1830,8 +1830,8 @@ bool NativeUfs::start (IOService *provider)
     }
     char selfAfter[768];
     smmuFormatTable (reinterpret_cast<uintptr_t> (fake), selfAfter, sizeof selfAfter);
-    panic ("NATIVE_UFS smmu self-test\nplan slot=%u bank=%u reuse=%u relocate=%u->%u result=%s\nbefore %s\nafter %s",
-           plan.slot, plan.bank, plan.reuse, plan.relocate, plan.relocateTo, result, selfBefore, selfAfter);
+    panic ("NATIVE_UFS smmu self-test\nplan slot=%u bank=%u reuse=%u adopt=%u relocate=%u->%u result=%s\nbefore %s\nafter %s",
+           plan.slot, plan.bank, plan.reuse, plan.adoptBank, plan.relocate, plan.relocateTo, result, selfBefore, selfAfter);
   }
   if (probe == 10) {
     // Read-only check before anything is flashed: LUN 0 GPT -> "userdata" -> its first block.
