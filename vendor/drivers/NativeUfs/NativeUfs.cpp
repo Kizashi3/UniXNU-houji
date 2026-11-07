@@ -1830,10 +1830,7 @@ bool NativeUfs::start (IOService *provider)
     }
     char selfAfter[768];
     smmuFormatTable (reinterpret_cast<uintptr_t> (fake), selfAfter, sizeof selfAfter);
-    panic ("NATIVE_UFS smmu self-test
-plan slot=%u bank=%u reuse=%u relocate=%u->%u result=%s
-before %s
-after %s",
+    panic ("NATIVE_UFS smmu self-test\nplan slot=%u bank=%u reuse=%u relocate=%u->%u result=%s\nbefore %s\nafter %s",
            plan.slot, plan.bank, plan.reuse, plan.relocate, plan.relocateTo, result, selfBefore, selfAfter);
   }
   if (probe == 10) {
