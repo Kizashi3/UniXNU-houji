@@ -1,5 +1,5 @@
 diff --git a/osfmk/kern/ipc_tt.c b/osfmk/kern/ipc_tt.c
-index d31a590..3d04311 100644
+index d31a590..10c9949 100644
 --- a/osfmk/kern/ipc_tt.c
 +++ b/osfmk/kern/ipc_tt.c
 @@ -1960,6 +1960,7 @@ task_get_special_port_internal(
@@ -32,7 +32,91 @@ index d31a590..3d04311 100644
  }
  
  /*
-@@ -2318,18 +2325,23 @@ _kernelrpc_mach_ports_register3(
+@@ -2307,6 +2314,83 @@ out:
+  *		KERN_INVALID_ARGUMENT	Too many port rights supplied.
+  */
+ 
++/*
++ * Legacy array-form kernel entry, kept for iOS 16 libsystem_kernel clients.
++ */
++kern_return_t
++mach_ports_register(
++	task_t                  task,
++	ipc_port_t             *init_port_set,
++	mach_msg_type_number_t  init_port_setCnt)
++{
++	ipc_port_t ports[TASK_PORT_REGISTER_MAX] = { IP_NULL, IP_NULL, IP_NULL };
++	unsigned int i;
++
++	if (task == TASK_NULL) {
++		return KERN_INVALID_ARGUMENT;
++	}
++	if (init_port_setCnt > TASK_PORT_REGISTER_MAX) {
++		return KERN_INVALID_ARGUMENT;
++	}
++	for (i = 0; i < init_port_setCnt; i++) {
++		ports[i] = init_port_set[i];
++		if (IP_VALID(ports[i]) && ports[i]->ip_immovable_send) {
++			return KERN_INVALID_RIGHT;
++		}
++	}
++
++	itk_lock(task);
++	if (!task->ipc_active) {
++		itk_unlock(task);
++		return KERN_INVALID_ARGUMENT;
++	}
++	for (i = 0; i < TASK_PORT_REGISTER_MAX; i++) {
++		ipc_port_t old = task->itk_registered[i];
++		task->itk_registered[i] = ports[i];
++		ports[i] = old;
++	}
++	itk_unlock(task);
++
++	printf("HOUJI-SETPORT: legacy register count=%u ok\n", init_port_setCnt);
++
++	for (i = 0; i < TASK_PORT_REGISTER_MAX; i++) {
++		ipc_port_release_send(ports[i]);
++	}
++	return KERN_SUCCESS;
++}
++
++kern_return_t
++mach_ports_lookup(
++	task_t                  task,
++	ipc_port_t            **init_port_set,
++	mach_msg_type_number_t *init_port_setCnt)
++{
++	ipc_port_t *ports;
++	unsigned int i;
++
++	if (task == TASK_NULL) {
++		return KERN_INVALID_ARGUMENT;
++	}
++	ports = kalloc_data(TASK_PORT_REGISTER_MAX * sizeof(*ports), Z_WAITOK);
++	if (ports == NULL) {
++		return KERN_RESOURCE_SHORTAGE;
++	}
++	itk_lock(task);
++	if (!task->ipc_active) {
++		itk_unlock(task);
++		kfree_data(ports, TASK_PORT_REGISTER_MAX * sizeof(*ports));
++		return KERN_INVALID_ARGUMENT;
++	}
++	for (i = 0; i < TASK_PORT_REGISTER_MAX; i++) {
++		ports[i] = ipc_port_copy_send_any(task->itk_registered[i]);
++	}
++	itk_unlock(task);
++
++	*init_port_set = ports;
++	*init_port_setCnt = TASK_PORT_REGISTER_MAX;
++	return KERN_SUCCESS;
++}
++
+ kern_return_t
+ _kernelrpc_mach_ports_register3(
+ 	task_t                  task,
+@@ -2318,18 +2402,23 @@ _kernelrpc_mach_ports_register3(
  		port1, port2, port3,
  	};
  
@@ -56,7 +140,7 @@ index d31a590..3d04311 100644
  		itk_unlock(task);
  		return KERN_INVALID_ARGUMENT;
  	}
-@@ -2349,6 +2361,8 @@ _kernelrpc_mach_ports_register3(
+@@ -2349,6 +2438,8 @@ _kernelrpc_mach_ports_register3(
  
  	itk_unlock(task);
  
