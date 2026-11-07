@@ -301,7 +301,17 @@ static void smmuBypassStream (uint16_t stream, OSSharedPtr<IOMemoryMap> &keep, u
     gRootDiagnostic.result = static_cast<uint32_t> (kIOReturnNotReady);
     gRootDiagnostic.smr = plan.smr; gRootDiagnostic.s2cr = plan.s2cr;
     rootDiagnosticFailure (plan.error);
-    panic ("NATIVE_UFS smmu: %s slot=%u smr=%x s2cr=%x", plan.error, plan.slot, plan.smr, plan.s2cr);
+    static char smmuTable[768];
+    uint32_t idr0 = read32 (smmu, 0x20), idr1 = read32 (smmu, 0x24), idr2 = read32 (smmu, 0x28);
+    unsigned groups = idr0 & 0xff;
+    if (groups > 12) groups = 12;
+    unsigned used = snprintf (smmuTable, sizeof smmuTable, "smmu table: scr0=%08x idr=%08x/%08x/%08x groups=%u",
+                              read32 (smmu, 0x0), idr0, idr1, idr2, idr0 & 0xff);
+    for (unsigned i = 0; i < groups && used + 24 < sizeof smmuTable; i++) {
+      used += snprintf (smmuTable + used, sizeof smmuTable - used, " %u:%08x/%08x", i,
+                        read32 (smmu, 0x800 + 4 * i), read32 (smmu, 0xc00 + 4 * i));
+    }
+    panic ("NATIVE_UFS smmu: %s slot=%u smr=%x s2cr=%x\n%s", plan.error, plan.slot, plan.smr, plan.s2cr, smmuTable);
   }
   unsigned bank = plan.bank, index = plan.slot;
   uintptr_t cb = smmu + (plan.pages + bank) * 4096;
