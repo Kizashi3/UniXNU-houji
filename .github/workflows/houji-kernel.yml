@@ -475,6 +475,24 @@ jobs:
             echo "NVRAM dedup is present in IONVRAMCHRPHandler.cpp"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Apply shared-cache CS-monitor bypass
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            patch="$DEVICE_DIR/patches/xnu/srcache-noreject.patch"
+            test -f "$patch"
+            xnu=out/houji/tree/refer/xnu
+            if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
+              git -C "$xnu" apply "$patch"
+            else
+              echo "git apply refused, retrying with patch and fuzz"
+              (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
+            fi
+            grep -q HOUJI-SRCACHE "$xnu/osfmk/vm/vm_fault.c"
+            echo "shared-cache CS-monitor bypass is present in vm_fault.c"
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Apply shared-cache kernel probe
         working-directory: unixnu
         run: |

@@ -1,0 +1,20 @@
+diff --git a/osfmk/vm/vm_fault.c b/osfmk/vm/vm_fault.c
+index 5184390..894ccbb 100644
+--- a/osfmk/vm/vm_fault.c
++++ b/osfmk/vm/vm_fault.c
+@@ -2830,7 +2830,14 @@ vm_fault_cs_handle_violation(
+ 			    m->vmp_wpmapped ? "yes" : "no",
+ 			    (int)prot);
+ 		}
+-		reject_page = cs_invalid_page((addr64_t) vaddr, &cs_killed);
++		/* HOUJI-SRCACHE: our pre-mapped shared cache pages carry no validated
++		   code-signing state; do not let the CS monitor reject them. */
++		if ((object != NULL) && object->object_is_shared_cache) {
++			cs_killed = FALSE;
++			reject_page = FALSE;
++		} else {
++			reject_page = cs_invalid_page((addr64_t) vaddr, &cs_killed);
++		}
+ 	}
+ 
+ 	if (reject_page) {
