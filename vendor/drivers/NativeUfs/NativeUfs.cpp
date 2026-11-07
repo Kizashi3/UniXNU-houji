@@ -58,6 +58,13 @@ volatile uint32_t native_ufs_utrl_ready = 0;
 volatile uint32_t native_ufs_uic_status = 0;
 volatile uint32_t native_ufs_uic_result = 0;
 }
+extern "C" {
+extern unsigned int vm_page_free_count, vm_page_active_count, vm_page_inactive_count,
+  vm_page_wire_count, vm_page_speculative_count, vm_page_purgeable_count;
+extern uint32_t vm_page_pages;
+extern unsigned int memorystatus_available_pages;
+extern int nprocs;
+}
 
 class NativeUfs : public IOService {
   OSDeclareDefaultStructors (NativeUfs)
