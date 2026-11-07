@@ -1734,6 +1734,12 @@ static void mediaReportThread (void *, wait_result_t)
   }
   panic ("%s", gMediaReport);
 }
+#else
+// Probe-only build: record the reason without the publication diagnostics.
+static void rootDiagnosticFailure (const char *reason)
+{
+  native_ufs_root_failure = reason;
+}
 #endif
 
 bool NativeUfs::start (IOService *provider)
