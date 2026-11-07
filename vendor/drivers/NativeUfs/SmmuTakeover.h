@@ -4,6 +4,12 @@ struct UfsSmmuPlan {
   unsigned slot = 0xffffffffU, bank = 0, pages = 0;
   uint32_t smr = 0, s2cr = 0;
   bool reuse = false;
+  // A masked firmware group that also matches our stream precedes every free
+  // group; it is moved to a later free slot and its slot is narrowed to the
+  // exact stream so the other streams it covered keep a mapping.
+  bool relocate = false;
+  unsigned relocateTo = 0xffffffffU;
+  uint32_t relocateSmr = 0, relocateS2cr = 0;
   const char *error = nullptr;
 };
 // ARM IHI 0062D.c sections 1.6 and 3.7: VA64=0 still rejects inputs above
@@ -43,11 +49,12 @@ static UfsSmmuPlan planUfsSmmuBank(uint16_t stream, uint64_t dma, uint64_t bytes
   if (count > 128) count = 128; // Firmware's reliably accessible groups only.
   if (bankFromTop >= banks - 1) {p.error = "no free context bank"; return p;}
   p.bank = banks - 1 - bankFromTop;
-  unsigned matches = 0;
+  unsigned freeSlot = 0xffffffffU, maskedSlot = 0xffffffffU, exactSlot = 0xffffffffU;
+  uint32_t maskedSmr = 0, maskedS2cr = 0;
   for (unsigned i = 0; i < count; ++i) {
     uint32_t smr = read(0x800 + 4 * i);
     if (!(smr & 0x80000000U)) {
-      if (!p.reuse) p.slot = i;
+      if (freeSlot == 0xffffffffU) freeSlot = i;
       continue;
     }
     uint32_t s2cr = read(0xc00 + 4 * i);
@@ -55,16 +62,40 @@ static UfsSmmuPlan planUfsSmmuBank(uint16_t stream, uint64_t dma, uint64_t bytes
     bool match = ((smr ^ stream) & 0xffff & ~mask) == 0;
     bool ourBank = ((s2cr >> 16) & 3) == 0 && (s2cr & 255) == p.bank;
     if (match) {
-      ++matches;
-      if (matches > 1 || mask || !ourBank) {
+      if (mask) {
+        if (maskedSlot == 0xffffffffU) { maskedSlot = i; maskedSmr = smr; maskedS2cr = s2cr; }
+        continue;
+      }
+      if (!ourBank) {
         p.slot = i; p.smr = smr; p.s2cr = s2cr;
         p.error = "conflicting UFS stream mapping"; return p;
       }
-      p.reuse = true; p.slot = i;
+      if (exactSlot == 0xffffffffU) exactSlot = i;
     } else if (ourBank) {
       p.slot = i; p.smr = smr; p.s2cr = s2cr;
       p.error = "reserved context bank already used"; return p;
     }
+  }
+  // Match order follows the lowest slot, so a masked group ahead of an exact
+  // one (or ahead of every free slot) has to be relocated to be taken over.
+  if (maskedSlot == 0xffffffffU) {
+    if (exactSlot != 0xffffffffU) { p.reuse = true; p.slot = exactSlot; }
+    else p.slot = freeSlot;
+  } else if (exactSlot != 0xffffffffU && exactSlot < maskedSlot) {
+    p.reuse = true; p.slot = exactSlot;
+  } else if (freeSlot != 0xffffffffU && freeSlot < maskedSlot) {
+    p.slot = freeSlot;
+  } else if (freeSlot != 0xffffffffU) {
+    p.relocate = true;
+    p.relocateTo = freeSlot;
+    p.relocateSmr = maskedSmr;
+    p.relocateS2cr = maskedS2cr;
+    p.slot = maskedSlot;
+    p.smr = maskedSmr;
+    p.s2cr = maskedS2cr;
+  } else {
+    p.slot = maskedSlot; p.smr = maskedSmr; p.s2cr = maskedS2cr;
+    p.error = "conflicting UFS stream mapping"; return p;
   }
   uint32_t sctlr = read((p.pages + p.bank) * 4096);
   if ((sctlr & 1) || (p.reuse && (sctlr || read(0x1000 + 4 * p.bank) != 0x10000 ||
@@ -115,10 +146,24 @@ static const char *configureUfsSmmu(const UfsSmmuPlan &p, uint16_t stream, Read 
   if (!p.reuse) write(0x1000 + 4 * p.bank, 0x10000);
   if (read(0x1800 + 4 * p.bank) != 1 || read(0x1000 + 4 * p.bank) != 0x10000 || read(cb) != 0)
     return "SMMU VA64 bypass readback";
+  if (p.relocate) {
+    // Publish the moved copy first; the shared mask keeps working while the
+    // original slot is narrowed to our exact stream.
+    write(0xc00 + 4 * p.relocateTo, p.relocateS2cr);
+    write(0x800 + 4 * p.relocateTo, p.relocateSmr);
+    if (read(0x800 + 4 * p.relocateTo) != p.relocateSmr ||
+        read(0xc00 + 4 * p.relocateTo) != p.relocateS2cr)
+      return "SMMU relocated stream readback";
+  }
   if (!p.reuse) {
-    write(0xc00 + 4 * p.slot, p.bank);
-    if (read(0xc00 + 4 * p.slot) != p.bank) return "SMMU stream context readback";
-    write(0x800 + 4 * p.slot, 0x80000000U | stream);
+    if (p.relocate) {
+      write(0x800 + 4 * p.slot, 0x80000000U | stream);
+      if (read(0x800 + 4 * p.slot) != (0x80000000U | stream)) return "SMMU stream match readback";
+      write(0xc00 + 4 * p.slot, p.bank);
+    } else {
+      write(0xc00 + 4 * p.slot, p.bank);
+      write(0x800 + 4 * p.slot, 0x80000000U | stream);
+    }
   }
   if (read(0x800 + 4 * p.slot) != (0x80000000U | stream) ||
       read(0xc00 + 4 * p.slot) != p.bank)

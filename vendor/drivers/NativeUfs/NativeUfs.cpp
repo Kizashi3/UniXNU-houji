@@ -1807,20 +1807,34 @@ bool NativeUfs::start (IOService *provider)
     adoptAndRead (probe);
   }
   if (probe == 15) {
-    // QEMU self-test of the table formatter on ordinary RAM (no hardware access).
-    volatile uint32_t *fake = static_cast<volatile uint32_t *> (IOMalloc (0x2000));
+    // QEMU self-test: a synthetic firmware table in ordinary RAM, then the real
+    // planner and configure path, then the resulting table.
+    volatile uint32_t *fake = static_cast<volatile uint32_t *> (IOMalloc (0x10000));
     if (!fake) panic ("NATIVE_UFS smmu self-test: allocation failed");
-    for (unsigned i = 0; i < 0x2000 / 4; i++) fake[i] = 0;
+    for (unsigned i = 0; i < 0x10000 / 4; i++) fake[i] = 0;
     fake[0x20 / 4] = (1U << 30) | 64;
     fake[0x24 / 4] = (2U << 28) | 8;
     fake[0x28 / 4] = (1U << 12) | (3U << 8) | (3U << 4) | 3U;
     fake[0x800 / 4] = 0x80000660U;
     fake[0xc00 / 4] = 0U;
-    fake[0x804 / 4] = 0x80000060U;
-    fake[0xc04 / 4] = 7U;
-    char selfTable[768];
-    smmuFormatTable (reinterpret_cast<uintptr_t> (fake), selfTable, sizeof selfTable);
-    panic ("NATIVE_UFS smmu self-test\n%s", selfTable);
+    char selfBefore[768];
+    smmuFormatTable (reinterpret_cast<uintptr_t> (fake), selfBefore, sizeof selfBefore);
+    UfsSmmuPlan plan = planUfsSmmu (0x60, 0x80000000ULL, 4096,
+      [fake](unsigned offset) { return fake[offset / 4]; });
+    const char *result = plan.error ? plan.error : "ok";
+    if (!plan.error) {
+      result = configureUfsSmmu (plan, 0x60,
+        [fake](unsigned offset) { return fake[offset / 4]; },
+        [fake](unsigned offset, uint32_t value) { fake[offset / 4] = value; __asm__ volatile ("dsb sy" ::: "memory"); });
+      if (!result) result = "configured";
+    }
+    char selfAfter[768];
+    smmuFormatTable (reinterpret_cast<uintptr_t> (fake), selfAfter, sizeof selfAfter);
+    panic ("NATIVE_UFS smmu self-test
+plan slot=%u bank=%u reuse=%u relocate=%u->%u result=%s
+before %s
+after %s",
+           plan.slot, plan.bank, plan.reuse, plan.relocate, plan.relocateTo, result, selfBefore, selfAfter);
   }
   if (probe == 10) {
     // Read-only check before anything is flashed: LUN 0 GPT -> "userdata" -> its first block.
