@@ -1,0 +1,16 @@
+diff --git a/osfmk/kern/ipc_kobject.c b/osfmk/kern/ipc_kobject.c
+index f9a166f..2c1044d 100644
+--- a/osfmk/kern/ipc_kobject.c
++++ b/osfmk/kern/ipc_kobject.c
+@@ -694,6 +694,11 @@ ipc_kobject_server(
+ 		assert(kr == KERN_SUCCESS);
+ 	}
+ 
++#if DEVELOPMENT || DEBUG
++	if (ip_kotype(port) == IKOT_TASK_CONTROL) {
++		printf("HOUJI-SETPORT: task kobj id=%d kr=%d\n", request_msgh_id, kr);
++	}
++#endif
+ 	if (kr != KERN_SUCCESS) {
+ 		assert(kr != MACH_SEND_TIMED_OUT &&
+ 		    kr != MACH_SEND_INTERRUPTED &&
