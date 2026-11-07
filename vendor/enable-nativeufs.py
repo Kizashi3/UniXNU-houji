@@ -68,3 +68,4 @@ else:
     text = text[:match.end()] + '  "build-arm-driver.py NativeUfs",\n' + text[match.end():]
     board.write_text(text)
     print('board.toml: NativeUfs archive added')
+# Diagnostics note: push once per run; the diagnostics branch keeps only the latest run.
