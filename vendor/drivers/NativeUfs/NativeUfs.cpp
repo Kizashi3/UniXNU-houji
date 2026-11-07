@@ -1777,6 +1777,59 @@ static void rootDiagnosticFailure (const char *reason)
 }
 #endif
 
+// Kernel-side root handoff: fill the loader-reserved ramdisk with the "OS" window
+// read from UFS. Called from IOFindBSDRoot before mdevadd; a no-op unless
+// native-ufs-fill is on the command line.
+extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
+{
+  unsigned enabled = 0;
+  PE_parse_boot_argn ("native-ufs-fill", &enabled, sizeof (enabled));
+  if (!enabled || !base || size < 4096) return true;
+  const char *why = "";
+  if (!hostBringUp (&why)) {
+    IOLog ("NativeUfs: fill bring-up failed: %s\n", why);
+    return false;
+  }
+  RootLayout *layout = static_cast<RootLayout *> (IOMalloc (sizeof (RootLayout)));
+  if (!layout) return false;
+  bool found = findRootLayout (layout, &why);
+  if (!found || layout->manifestStatus != 0) {
+    IOLog ("NativeUfs: fill layout failed: %s status=%u\n", found ? "manifest" : why, layout->manifestStatus);
+    IOFree (layout, sizeof (RootLayout));
+    return false;
+  }
+  const RootWindow *os = nullptr;
+  for (unsigned i = 0; i < layout->windows; ++i) {
+    if (!strcmp (layout->window[i].name, "OS")) os = &layout->window[i];
+  }
+  if (!os) {
+    IOLog ("NativeUfs: fill: no OS window\n");
+    IOFree (layout, sizeof (RootLayout));
+    return false;
+  }
+  uint64_t bytes = os->size < size ? os->size : (uint64_t)size;
+  IOLog ("NativeUfs: fill %llu MiB from window %s\n", bytes >> 20, os->name);
+  const uint32_t chunkBlocks = kDataMax / 4096;
+  for (uint64_t done = 0; done < bytes; ) {
+    uint32_t blocks = (uint32_t)((bytes - done) / 4096);
+    if (blocks > chunkBlocks) blocks = chunkBlocks;
+    uint64_t lba = layout->userdataFirst + (os->offset + done) / 4096;
+    IOReturn r = hostRead4k (0, lba, blocks, (void *)(base + done));
+    if (r != kIOReturnSuccess) {
+      IOLog ("NativeUfs: fill read failed at %llu/%llu (%x)\n", done, bytes, r);
+      IOFree (layout, sizeof (RootLayout));
+      return false;
+    }
+    done += (uint64_t)blocks * 4096;
+    if ((done & ((256ULL << 20) - 1)) == 0) {
+      IOLog ("NativeUfs: fill %llu/%llu MiB\n", done >> 20, bytes >> 20);
+    }
+  }
+  IOFree (layout, sizeof (RootLayout));
+  IOLog ("NativeUfs: fill complete %llu MiB\n", bytes >> 20);
+  return true;
+}
+
 bool NativeUfs::start (IOService *provider)
 {
   unsigned probe = 0, rootMode = 0;
