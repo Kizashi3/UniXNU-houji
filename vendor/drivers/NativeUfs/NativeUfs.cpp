@@ -1220,7 +1220,6 @@ houjiLogThread (void *param, wait_result_t wr)
 {
 	uint8_t *buf = static_cast<uint8_t *> (param);
 	uint32_t seq = 0;
-	uint32_t beat = 0;
 
 	(void) wr;
 	for (;;) {
@@ -1265,10 +1264,6 @@ houjiLogThread (void *param, wait_result_t wr)
 			blocks = (uint32_t)kLogReserveBlocks;
 		}
 		hostWrite4k (0, gLogRegionFirst, blocks, buf);
-		if ((++beat % 6) == 0) {
-			IOLog ("HOUJI-HB: alive seq=%u
-", (unsigned)seq);
-		}
 	}
 }
 
