@@ -1809,7 +1809,7 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
   }
   uint64_t bytes = os->size < size ? os->size : (uint64_t)size;
   IOLog ("NativeUfs: fill %llu MiB from window %s\n", bytes >> 20, os->name);
-  const uint32_t chunkBlocks = 1; // HOUJI-FILL-4K: small DMA reads (real-HW large-transfer corruption)
+  const uint32_t chunkBlocks = kDataMax / 4096; // HOUJI-FILL-128K: full-size DMA reads (speed)
   for (uint64_t done = 0; done < bytes; ) {
     uint32_t blocks = (uint32_t)((bytes - done) / 4096);
     if (blocks > chunkBlocks) blocks = chunkBlocks;
