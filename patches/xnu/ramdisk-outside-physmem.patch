@@ -1,5 +1,5 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..6552403 100644
+index 92142f7..b794847 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
 @@ -54,6 +54,32 @@ extern "C" {
@@ -35,7 +35,7 @@ index 92142f7..6552403 100644
  // how long to wait for matching root device, secs
  #if DEBUG
  #define ROOTDEVICETIMEOUT       120
-@@ -773,7 +799,45 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +799,47 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -61,6 +61,8 @@ index 92142f7..6552403 100644
 +						/* HOUJI-VAONLY: only address space here; pmap_map below installs the
 +						 * ramdisk PTEs. A real kmem_alloc would wire RAM equal to the volume
 +						 * (2.8GB) and starve the kernel (kmem_alloc failed with 6 on device). */
++						IOLog("HOUJI-RAMD-MAP: vaonly=1 phys=%#llx span=%#llx inap=%d
++", (uint64_t)ramdPhys, (uint64_t)ramdSpan, 1);
 +						kern_return_t kr = kernel_memory_allocate(kernel_map, &ramdMap, ramdSpan, 0,
 +						    static_cast<kma_flags_t>(KMA_NOFAIL | KMA_PERMANENT | KMA_VAONLY),
 +						    VM_KERN_MEMORY_IOKIT);
