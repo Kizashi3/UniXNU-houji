@@ -1782,8 +1782,11 @@ static void rootDiagnosticFailure (const char *reason)
 // native-ufs-fill is on the command line.
 static uint64_t gFillBytes, gFillFnv, gFillHead, gFillTail, gFillBase;
 static uint32_t gFillCrc;
+static uint32_t gChunkCrc[192];
+static int gChunks;
 
 extern "C" uint32_t crc32 (uint32_t crc, const void *buf, size_t size);
+extern "C" unsigned long gPhysBase, gPhysSize, gVirtBase;
 
 extern "C" void
 native_ufs_fill_report (void)
@@ -1796,6 +1799,29 @@ native_ufs_fill_report (void)
     IOLog ("HOUJI-FILL2: now=%08x fill=%08x %s\n",
            (unsigned)now, (unsigned)gFillCrc,
            (now == gFillCrc) ? "MATCH" : "DIFF-RAMDISK-CHANGED");
+    IOLog ("HOUJI-RAMD: va=%#llx bytes=%llu physBase=%#lx physSize=%#lx virtBase=%#lx inside=%d\n",
+           (unsigned long long)gFillBase, gFillBytes,
+           gPhysBase, gPhysSize, gVirtBase,
+           (gFillBase >= gVirtBase && (gFillBase - gVirtBase) < gPhysSize) ? 1 : 0);
+    {
+      int changed = 0;
+      int i;
+      for (i = 0; i < gChunks; i++) {
+        uint64_t off = (uint64_t)i << 24;
+        uint64_t n = gFillBytes - off;
+        uint32_t c;
+        if (n > (16ULL << 20)) n = 16ULL << 20;
+        c = crc32 (0, (const void *)(gFillBase + off), (size_t)n);
+        if (c != gChunkCrc[i]) {
+          if (changed < 8) {
+            IOLog ("HOUJI-CHUNK: idx %d off=%lluMiB fill=%08x now=%08x\n",
+                   i, (unsigned long long)(off >> 20), gChunkCrc[i], (unsigned)c);
+          }
+          changed++;
+        }
+      }
+      IOLog ("HOUJI-CHUNKS: total=%d changed=%d\n", gChunks, changed);
+    }
   }
 }
 
@@ -1863,9 +1889,24 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     uint64_t head = *(volatile uint64_t *)(base);
     uint64_t tail = *(volatile uint64_t *)(base + bytes - 8);
     gFillCrc = crc32 (0, (const void *)base, (size_t)bytes);
+    gChunks = 0;
+    for (uint64_t off = 0; off < bytes && gChunks < 192; off += (16ULL << 20)) {
+      uint64_t n = bytes - off;
+      if (n > (16ULL << 20)) n = 16ULL << 20;
+      gChunkCrc[gChunks++] = crc32 (0, (const void *)(base + off), (size_t)n);
+    }
     gFillBytes = bytes; gFillFnv = fnv; gFillHead = head; gFillTail = tail; gFillBase = base;
     IOLog ("NativeUfs: fill verify fnv=%016llx crc=%08x head=%016llx tail=%016llx\n",
            fnv, (unsigned)gFillCrc, head, tail);
+    /* HOUJI-RO: write-protect the ramdisk so any post-fill kernel write traps. */
+    {
+      extern "C" void pmap_protect (void *pmap, unsigned long long start, unsigned long long end, int prot);
+      extern "C" void *kernel_pmap;
+      unsigned long long pstart = ((unsigned long long)base) & ~0xFFFULL;
+      unsigned long long pend = (((unsigned long long)base) + bytes + 0xFFFULL) & ~0xFFFULL;
+      pmap_protect (kernel_pmap, pstart, pend, 1 /* VM_PROT_READ */);
+      IOLog ("NativeUfs: ramdisk write-protected %#llx+%#llx\n", pstart, pend - pstart);
+    }
   }
   IOFree (layout, sizeof (RootLayout));
   IOLog ("NativeUfs: fill complete %llu MiB\n", bytes >> 20);
