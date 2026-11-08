@@ -1788,7 +1788,6 @@ static int gChunks;
 extern "C" uint32_t crc32 (uint32_t crc, const void *buf, size_t size);
 extern "C" unsigned long gPhysBase, gPhysSize, gVirtBase;
 extern "C" void pmap_protect (void *pmap, unsigned long long start, unsigned long long end, int prot);
-extern "C" void *kernel_pmap;
 
 extern "C" void
 native_ufs_fill_report (void)
