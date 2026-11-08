@@ -1780,14 +1780,23 @@ static void rootDiagnosticFailure (const char *reason)
 // Kernel-side root handoff: fill the loader-reserved ramdisk with the "OS" window
 // read from UFS. Called from IOFindBSDRoot before mdevadd; a no-op unless
 // native-ufs-fill is on the command line.
-static uint64_t gFillBytes, gFillFnv, gFillHead, gFillTail;
+static uint64_t gFillBytes, gFillFnv, gFillHead, gFillTail, gFillBase;
+static uint32_t gFillCrc;
+
+extern "C" uint32_t crc32 (uint32_t crc, const void *buf, size_t size);
 
 extern "C" void
 native_ufs_fill_report (void)
 {
   if (gFillBytes == 0) return;
-  IOLog ("HOUJI-FILL: bytes=%llu fnv=%016llx head=%016llx tail=%016llx\n",
-         gFillBytes, gFillFnv, gFillHead, gFillTail);
+  {
+    uint32_t now = crc32 (0, (const void *)gFillBase, (size_t)gFillBytes);
+    IOLog ("HOUJI-FILL: bytes=%llu fnv=%016llx crc=%08x head=%016llx tail=%016llx\n",
+           gFillBytes, gFillFnv, (unsigned)now, gFillHead, gFillTail);
+    IOLog ("HOUJI-FILL2: now=%08x fill=%08x %s\n",
+           (unsigned)now, (unsigned)gFillCrc,
+           (now == gFillCrc) ? "MATCH" : "DIFF-RAMDISK-CHANGED");
+  }
 }
 
 extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
@@ -1853,8 +1862,10 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     }
     uint64_t head = *(volatile uint64_t *)(base);
     uint64_t tail = *(volatile uint64_t *)(base + bytes - 8);
-    gFillBytes = bytes; gFillFnv = fnv; gFillHead = head; gFillTail = tail;
-    IOLog ("NativeUfs: fill verify fnv=%016llx head=%016llx tail=%016llx\n", fnv, head, tail);
+    gFillCrc = crc32 (0, (const void *)base, (size_t)bytes);
+    gFillBytes = bytes; gFillFnv = fnv; gFillHead = head; gFillTail = tail; gFillBase = base;
+    IOLog ("NativeUfs: fill verify fnv=%016llx crc=%08x head=%016llx tail=%016llx\n",
+           fnv, (unsigned)gFillCrc, head, tail);
   }
   IOFree (layout, sizeof (RootLayout));
   IOLog ("NativeUfs: fill complete %llu MiB\n", bytes >> 20);
