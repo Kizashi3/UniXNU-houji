@@ -1777,14 +1777,10 @@ static void rootDiagnosticFailure (const char *reason)
 }
 #endif
 
-#include "RootMiBCrc.h"
-
 // Kernel-side root handoff: fill the loader-reserved ramdisk with the "OS" window
 // read from UFS. Called from IOFindBSDRoot before mdevadd; a no-op unless
 // native-ufs-fill is on the command line.
 static uint64_t gFillBytes, gFillFnv, gFillHead, gFillTail, gFillBase;
-static uint32_t fillChunkCrc[44];
-static unsigned fillChunk;
 static uint32_t gFillCrc;
 
 extern "C" uint32_t crc32 (uint32_t crc, const void *buf, size_t size);
@@ -1844,17 +1840,9 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
       return false;
     }
     done += (uint64_t)blocks * 4096;
-    /* HOUJI-R105: CRC of each completed 64 MiB region at the moment it was filled. */
-    if ((done & ((64ULL << 20) - 1)) == 0 && fillChunk < 43) {
-      fillChunkCrc[fillChunk++] = crc32 (0, (const void *)(base + done - (64ULL << 20)), (size_t)(64ULL << 20));
-    }
     if ((done & ((256ULL << 20) - 1)) == 0) {
       IOLog ("NativeUfs: fill %llu/%llu MiB\n", done >> 20, bytes >> 20);
     }
-  }
-  if (bytes > (uint64_t)fillChunk * (64ULL << 20) && fillChunk < 43) {
-    fillChunkCrc[fillChunk++] = crc32 (0, (const void *)(base + (uint64_t)fillChunk * (64ULL << 20)),
-                                       (size_t)(bytes - (uint64_t)fillChunk * (64ULL << 20)));
   }
   /* HOUJI-RAMDISK-FLUSH: push the cached fill writes back to DRAM so the md/@apfs
    * page-in path (which may read via a different alias) sees the data on real HW. */
@@ -1878,93 +1866,6 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     gFillBytes = bytes; gFillFnv = fnv; gFillHead = head; gFillTail = tail; gFillBase = base;
     IOLog ("NativeUfs: fill verify fnv=%016llx crc=%08x head=%016llx tail=%016llx\n",
            fnv, (unsigned)gFillCrc, head, tail);
-  }
-
-  /* HOUJI-R105: (1) CRC of each 64 MiB region computed right after it was copied,
-   * (2) full-image scan against a baked per-1MiB table, (3) re-read the first bad
-   * window with single-block SCSI reads and diff it byte for byte. Distinguishes
-   * "bad write/transfer now" from "ramdisk overwritten later" from "bad UFS source". */
-  {
-    uint32_t bad = 0, firstBad = 0xffffffffU, shown = 0;
-    uint8_t bad64[44];
-    for (unsigned i = 0; i < 44; i++) bad64[i] = 0;
-    IOLog ("HOUJI-CRCCHK: base=%08x/%08x dyld=%08x/%08x\n",
-           (unsigned)crc32 (0, (const void *)base, 4096), (unsigned)kRootCrcBase4k,
-           (unsigned)crc32 (0, (const void *)(base + 0x20D1000), 4096), (unsigned)kRootCrcDyldPage);
-    if (fillChunk) {
-      char line[256];
-      unsigned used = 0, n = 0;
-      for (unsigned i = 0; i < fillChunk; i++) {
-        used += snprintf (line + used, sizeof (line) - used, "%08x ", fillChunkCrc[i]);
-        if (++n == 6) { IOLog ("HOUJI-CHUNK64: %s\n", line); used = 0; line[0] = 0; n = 0; }
-      }
-      if (n) IOLog ("HOUJI-CHUNK64: %s\n", line);
-    }
-    for (uint32_t w = 0; w < kRootMiBCrcCount; w++) {
-      uint64_t off = (uint64_t)w << 20;
-      uint64_t len = bytes - off;
-      if (len > (uint64_t)(1 << 20)) len = 1 << 20;
-      uint32_t c = crc32 (0, (const void *)(base + off), (size_t)len);
-      if (c != kRootMiBCrc[w]) {
-        bad++;
-        if ((off >> 26) < 44) bad64[off >> 26]++;
-        if (firstBad == 0xffffffffU) firstBad = w;
-        if (shown++ < 6) {
-          IOLog ("HOUJI-MIBBAD: w=%u act=%08x exp=%08x\n", w, (unsigned)c, (unsigned)kRootMiBCrc[w]);
-        }
-      }
-    }
-    IOLog ("HOUJI-MIB: windows=%u bad=%u first=%d\n", (unsigned)kRootMiBCrcCount, (unsigned)bad,
-           (firstBad == 0xffffffffU) ? -1 : (int)firstBad);
-    {
-      char line[44 * 2 + 1];
-      for (unsigned i = 0; i < 43; i++) {
-        line[2 * i] = "0123456789abcdef"[(bad64[i] >> 4) & 15];
-        line[2 * i + 1] = "0123456789abcdef"[bad64[i] & 15];
-      }
-      line[86] = 0;
-      IOLog ("HOUJI-MIB64: %s\n", line);
-    }
-    if (firstBad != 0xffffffffU) {
-      uint8_t *scratch = (uint8_t *)IOMalloc (1 << 20);
-      if (scratch) {
-        uint64_t winOff = (uint64_t)firstBad << 20;
-        uint64_t len = bytes - winOff;
-        if (len > (uint64_t)(1 << 20)) len = 1 << 20;
-        bool ok = true;
-        for (uint64_t p = 0; p < len; p += 4096) {
-          uint64_t lba = layout->userdataFirst + (os->offset + winOff + p) / 4096;
-          if (hostRead4k (0, lba, 1, scratch + p) != kIOReturnSuccess) { ok = false; break; }
-        }
-        if (ok) {
-          const uint8_t *ram = (const uint8_t *)(base + winOff);
-          uint64_t first = len, nd = 0;
-          for (uint64_t p = 0; p < len; p++) {
-            if (ram[p] != scratch[p]) { nd++; if (first == len) first = p; }
-          }
-          IOLog ("HOUJI-REREAD: win=%d crc=%08x exp=%08x ndiff=%llu first=%lld\n",
-                 (int)firstBad, (unsigned)crc32 (0, (const void *)scratch, (size_t)len),
-                 (unsigned)kRootMiBCrc[firstBad], nd, (first == len) ? -1LL : (long long)first);
-          {
-            uint64_t d = (first == len) ? 0 : (first & ~15ULL);
-            char rh[33], sh[33];
-            for (unsigned i = 0; i < 16; i++) {
-              uint64_t q = d + i;
-              uint8_t a = (q < len) ? ram[q] : 0;
-              uint8_t b = (q < len) ? scratch[q] : 0;
-              rh[2 * i] = "0123456789abcdef"[a >> 4]; rh[2 * i + 1] = "0123456789abcdef"[a & 15];
-              sh[2 * i] = "0123456789abcdef"[b >> 4]; sh[2 * i + 1] = "0123456789abcdef"[b & 15];
-            }
-            rh[32] = sh[32] = 0;
-            IOLog ("HOUJI-DUMP: off=%llu ram=%s\n", d, rh);
-            IOLog ("HOUJI-DUMP: off=%llu ufs=%s\n", d, sh);
-          }
-        } else {
-          IOLog ("HOUJI-REREAD: single-block read failed win=%d\n", (int)firstBad);
-        }
-        IOFree (scratch, 1 << 20);
-      }
-    }
   }
   IOFree (layout, sizeof (RootLayout));
   IOLog ("NativeUfs: fill complete %llu MiB\n", bytes >> 20);
