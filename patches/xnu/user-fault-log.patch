@@ -1,5 +1,5 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..3b2c729 100644
+index ff5296d..eb68515 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
 @@ -60,6 +60,7 @@
@@ -10,7 +10,7 @@ index ff5296d..3b2c729 100644
  
  #include <sys/errno.h>
  #include <sys/kdebug.h>
-@@ -1678,6 +1679,98 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -1678,6 +1679,120 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
@@ -70,6 +70,26 @@ index ff5296d..3b2c729 100644
 +		}
 +		vm_map_unlock_read(fmap);
 +		{
++			static const uint64_t probe[4] = { 0x101500000ULL, 0x101580000ULL, 0x101600000ULL, 0x101680000ULL };
++			vm_map_t pmap2 = get_task_map(current_task());
++			vm_map_entry_t pentry = VM_MAP_ENTRY_NULL;
++			int pi;
++			vm_map_lock_read(pmap2);
++			for (pi = 0; pi < 4; pi++) {
++				if (vm_map_lookup_entry(pmap2, probe[pi], &pentry)) {
++					printf("HOUJI-MAP-P%d: %#llx IN [%#llx,%#llx) prot %#x\n", pi,
++					    (unsigned long long)probe[pi],
++					    (unsigned long long)pentry->vme_start, (unsigned long long)pentry->vme_end,
++					    (unsigned)pentry->protection);
++				} else {
++					printf("HOUJI-MAP-P%d: %#llx NO-ENTRY prev [%#llx,%#llx)\n", pi,
++					    (unsigned long long)probe[pi],
++					    (unsigned long long)pentry->vme_start, (unsigned long long)pentry->vme_end);
++				}
++			}
++			vm_map_unlock_read(pmap2);
++		}
++		{
 +			mach_vm_address_t aii = task_get_all_image_info_addr(current_task());
 +			if (aii) {
 +				uint8_t aib[0xC0];
@@ -84,6 +104,8 @@ index ff5296d..3b2c729 100644
 +					uint64_t qa8 = *(uint64_t *)(void *)(aib + 0xA8);
 +					uint64_t qb0 = *(uint64_t *)(void *)(aib + 0xB0);
 +					uint64_t qb8 = *(uint64_t *)(void *)(aib + 0xB8);
++					uint64_t q20 = *(uint64_t *)(void *)(aib + 0x20);
++					printf("HOUJI-DYLDIMG: base %#llx\n", (unsigned long long)q20);
 +					printf("HOUJI-DYLDINFO: aii %#llx ver %u cnt %u q80 %#llx q88 %#llx q90 %#llx q98 %#llx qA0 %#llx qA8 %#llx qB0 %#llx qB8 %#llx\n",
 +					    (unsigned long long)aii, ver, cnt,
 +					    (unsigned long long)q80, (unsigned long long)q88,
