@@ -1205,6 +1205,68 @@ extern "C" int native_ufs_log_write (uint64_t rel, uint32_t blocks, const void *
   return 1;
 }
 
+// ---- HOUJI: periodic kernel-log snapshot into the sheng-log window -------------------------------
+struct houji_msgbuf {
+	int msg_magic;
+	int msg_size;
+	int msg_bufx;
+	int msg_bufr;
+	char *msg_bufc;
+};
+extern "C" struct houji_msgbuf *msgbufp;
+
+static void
+houjiLogThread (void *param, wait_result_t wr)
+{
+	uint8_t *buf = static_cast<uint8_t *> (param);
+	uint32_t seq = 0;
+
+	(void) wr;
+	for (;;) {
+		IOSleep (5000);
+		if (!logMode () || !gStoreGeometry.valid || !gHost.ready) {
+			continue;
+		}
+		if (!gLogRegionBlocks) {
+			uint64_t partition = gStoreGeometry.last - gStoreGeometry.first + 1;
+			uint64_t imageBlocks = (gStoreGeometry.imageBytes + 4095) / 4096;
+			uint64_t first;
+			if (partition < kLogReserveBlocks + imageBlocks + 1024) {
+				continue;
+			}
+			first = gStoreGeometry.last + 1 - kLogReserveBlocks;
+			if (!hostLogOpen (first, kLogReserveBlocks)) {
+				continue;
+			}
+			gLogRegionFirst = first;
+			gLogRegionBlocks = kLogReserveBlocks;
+			IOLog ("HOUJI-LOG: window open lba=%llu blocks=%llu\n",
+			    (unsigned long long)first, (unsigned long long)kLogReserveBlocks);
+		}
+		struct houji_msgbuf *mb = msgbufp;
+		if (!mb || !mb->msg_bufc || mb->msg_magic != 0x063061 ||
+		    mb->msg_size <= 0 || mb->msg_size > (1 << 20)) {
+			continue;
+		}
+		uint32_t size = (uint32_t)mb->msg_size;
+		uint32_t idx = (uint32_t)mb->msg_bufx % size;
+		uint32_t off = 0;
+		uint32_t blocks;
+		memcpy (buf + off, "HOUJILOG", 8); off += 8;
+		*(uint32_t *)(void *)(buf + off) = 1; off += 4;
+		*(uint32_t *)(void *)(buf + off) = size; off += 4;
+		*(uint32_t *)(void *)(buf + off) = idx; off += 4;
+		*(uint32_t *)(void *)(buf + off) = ++seq; off += 4;
+		*(uint64_t *)(void *)(buf + off) = 0; off += 8;
+		memcpy (buf + off, mb->msg_bufc, size); off += size;
+		blocks = (off + 4095) / 4096;
+		if (blocks > (uint32_t)kLogReserveBlocks) {
+			blocks = (uint32_t)kLogReserveBlocks;
+		}
+		hostWrite4k (0, gLogRegionFirst, blocks, buf);
+	}
+}
+
 // The export region below the log window: its size in blocks once the log is open, else 0; writes at a block offset inside it.
 extern "C" uint64_t native_ufs_export_blocks (void) { return gLogRegionBlocks ? kExportBlocks : 0; }
 
@@ -1905,6 +1967,14 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
       unsigned long long pend = (((unsigned long long)base) + bytes + 0xFFFULL) & ~0xFFFULL;
       pmap_protect (kernel_pmap, pstart, pend, 1 /* VM_PROT_READ */);
       IOLog ("NativeUfs: ramdisk write-protected %#llx+%#llx\n", pstart, pend - pstart);
+    }
+  }
+  if (logMode ()) {
+    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 20) + 4096));
+    thread_t logthread = NULL;
+    if (logbuf && kernel_thread_start ((thread_continue_t)houjiLogThread, logbuf, &logthread) == KERN_SUCCESS) {
+      thread_deallocate (logthread);
+      IOLog ("HOUJI-LOG: snapshot thread started\n");
     }
   }
   IOFree (layout, sizeof (RootLayout));
