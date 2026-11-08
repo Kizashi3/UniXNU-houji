@@ -1272,7 +1272,7 @@ houjiLogThread (void *param, wait_result_t wr)
 			blocks = (uint32_t)kLogReserveBlocks;
 		}
 		if (hostWrite4k (0, gLogRegionFirst, blocks, buf) == kIOReturnSuccess) {
-			if (!beat) { IOLog ("HOUJI-LOG: first write ok\n"); }
+			if (seq == 1) { IOLog ("HOUJI-LOG: first write ok\n"); }
 		} else if (!warned) {
 			warned = 1;
 			IOLog ("HOUJI-LOG: write failed scsi=%x sense=%x result=%x\n",
