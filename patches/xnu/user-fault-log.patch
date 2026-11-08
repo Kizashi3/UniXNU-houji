@@ -1,8 +1,16 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..fe968b4 100644
+index ff5296d..8f67085 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1678,6 +1678,44 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -60,6 +60,7 @@
+ #include <vm/pmap.h>
+ #include <vm/vm_fault.h>
+ #include <vm/vm_kern.h>
++#include <vm/vm_map.h>
+ 
+ #include <sys/errno.h>
+ #include <sys/kdebug.h>
+@@ -1678,6 +1679,71 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
@@ -43,6 +51,33 @@ index ff5296d..fe968b4 100644
 +		    (unsigned long long)get_saved_state_pc(state),
 +		    (unsigned)win[0], (unsigned)win[1], (unsigned)win[2], (unsigned)win[3],
 +		    (unsigned)win[4], (unsigned)win[5], (unsigned)win[6], (unsigned)win[7]);
++	}
++	{
++		arm_saved_state64_t *fs64 = saved_state64(state);
++		vm_map_t fmap = get_task_map(current_task());
++		vm_map_entry_t fentry = VM_MAP_ENTRY_NULL;
++		vm_map_lock_read(fmap);
++		if (vm_map_lookup_entry(fmap, (vm_map_offset_t)fault_addr, &fentry)) {
++			printf("HOUJI-FAULT-MAP: far %#llx IN [%#llx,%#llx) prot %#x max %#x obj %p off %#llx\n",
++			    (unsigned long long)fault_addr,
++			    (unsigned long long)fentry->vme_start, (unsigned long long)fentry->vme_end,
++			    (unsigned)fentry->protection, (unsigned)fentry->max_protection,
++			    (void *)fentry->object.vm_object, (unsigned long long)fentry->offset);
++		} else {
++			printf("HOUJI-FAULT-MAP: far %#llx NO-ENTRY prev [%#llx,%#llx) prot %#x\n",
++			    (unsigned long long)fault_addr,
++			    (unsigned long long)fentry->vme_start, (unsigned long long)fentry->vme_end,
++			    (unsigned)fentry->protection);
++		}
++		vm_map_unlock_read(fmap);
++		uint64_t stk[8];
++		bzero(stk, sizeof(stk));
++		copyin((user_addr_t)fs64->sp, (void *)stk, sizeof(stk));
++		printf("HOUJI-FAULT-STK: sp %#llx [%#llx %#llx %#llx %#llx %#llx %#llx %#llx %#llx]\n",
++		    (unsigned long long)fs64->sp,
++		    (unsigned long long)stk[0], (unsigned long long)stk[1], (unsigned long long)stk[2],
++		    (unsigned long long)stk[3], (unsigned long long)stk[4], (unsigned long long)stk[5],
++		    (unsigned long long)stk[6], (unsigned long long)stk[7]);
 +	}
  	exception_triage(exc, codes, numcodes);
  	__builtin_unreachable();
