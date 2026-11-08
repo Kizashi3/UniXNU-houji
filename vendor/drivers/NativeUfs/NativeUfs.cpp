@@ -1825,6 +1825,13 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
       IOLog ("NativeUfs: fill %llu/%llu MiB\n", done >> 20, bytes >> 20);
     }
   }
+  /* HOUJI-RAMDISK-FLUSH: push the cached fill writes back to DRAM so the md/@apfs
+   * page-in path (which may read via a different alias) sees the data on real HW. */
+  for (uint64_t off = 0; off < bytes; off += (16ULL << 20)) {
+    uint64_t n = bytes - off;
+    if (n > (16ULL << 20)) n = (16ULL << 20);
+    flush_dcache ((vm_offset_t)(base + off), (unsigned)n, 0);
+  }
   IOFree (layout, sizeof (RootLayout));
   IOLog ("NativeUfs: fill complete %llu MiB\n", bytes >> 20);
   return true;
