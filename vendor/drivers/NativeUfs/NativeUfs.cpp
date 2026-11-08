@@ -1220,11 +1220,16 @@ houjiLogThread (void *param, wait_result_t wr)
 {
 	uint8_t *buf = static_cast<uint8_t *> (param);
 	uint32_t seq = 0;
+	int warned = 0;
 
 	(void) wr;
 	for (;;) {
 		IOSleep (5000);
-		if (!logMode () || !gStoreGeometry.valid || !gHost.ready) {
+		if (!logMode () || !gHost.ready) {
+			continue;
+		}
+		if (!gStoreGeometry.valid) {
+			if (!warned) { warned = 1; IOLog ("HOUJI-LOG: no store geometry\n"); }
 			continue;
 		}
 		if (!gLogRegionBlocks) {
@@ -1235,7 +1240,10 @@ houjiLogThread (void *param, wait_result_t wr)
 				continue;
 			}
 			first = gStoreGeometry.last + 1 - kLogReserveBlocks;
+			IOLog ("HOUJI-LOG: open lba=%llu blocks=%llu\n",
+			    (unsigned long long)first, (unsigned long long)kLogReserveBlocks);
 			if (!hostLogOpen (first, kLogReserveBlocks)) {
+				IOLog ("HOUJI-LOG: window refused\n");
 				continue;
 			}
 			gLogRegionFirst = first;
@@ -1263,7 +1271,9 @@ houjiLogThread (void *param, wait_result_t wr)
 		if (blocks > (uint32_t)kLogReserveBlocks) {
 			blocks = (uint32_t)kLogReserveBlocks;
 		}
-		hostWrite4k (0, gLogRegionFirst, blocks, buf);
+		if (hostWrite4k (0, gLogRegionFirst, blocks, buf) != kIOReturnSuccess) {
+			if (!warned) { warned = 1; IOLog ("HOUJI-LOG: write failed\n"); }
+		}
 	}
 }
 
@@ -1906,6 +1916,13 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     IOFree (layout, sizeof (RootLayout));
     return false;
   }
+  gStoreGeometry.valid = true;
+  gStoreGeometry.first = layout->userdataFirst;
+  gStoreGeometry.last = layout->userdataLast;
+  gStoreGeometry.imageBytes = layout->imageBytes;
+  IOLog ("HOUJI-LOG: geometry first=%llu last=%llu image=%llu\n",
+      (unsigned long long)gStoreGeometry.first, (unsigned long long)gStoreGeometry.last,
+      (unsigned long long)gStoreGeometry.imageBytes);
   const RootWindow *os = nullptr;
   for (unsigned i = 0; i < layout->windows; ++i) {
     if (!strcmp (layout->window[i].name, "OS")) os = &layout->window[i];
