@@ -1,5 +1,5 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..4924580 100644
+index 92142f7..6552403 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
 @@ -54,6 +54,32 @@ extern "C" {
@@ -35,7 +35,7 @@ index 92142f7..4924580 100644
  // how long to wait for matching root device, secs
  #if DEBUG
  #define ROOTDEVICETIMEOUT       120
-@@ -773,7 +799,42 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +799,45 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
