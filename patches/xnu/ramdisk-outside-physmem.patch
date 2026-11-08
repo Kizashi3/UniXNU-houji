@@ -1,5 +1,5 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..4924580 100644
+index 92142f7..ab5ec85 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
 @@ -54,6 +54,32 @@ extern "C" {
@@ -35,7 +35,7 @@ index 92142f7..4924580 100644
  // how long to wait for matching root device, secs
  #if DEBUG
  #define ROOTDEVICETIMEOUT       120
-@@ -773,7 +799,42 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +799,45 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -58,8 +58,11 @@ index 92142f7..4924580 100644
 +						vm_size_t ramdOffset = (vm_size_t)(ramdPhys & PAGE_MASK);
 +						vm_size_t ramdSpan = round_page((vm_size_t)ramdParms[1] + ramdOffset);
 +						vm_offset_t ramdMap;
-+						kern_return_t kr = kmem_alloc(kernel_map, &ramdMap, ramdSpan,
-+						    static_cast<kma_flags_t>(KMA_NOFAIL | KMA_PERMANENT),
++						/* kmem_alloc() would wire a real page per byte; this range only needs
++						 * address space because pmap_map() installs the ramdisk PTEs.
++						 * KMA_VAONLY keeps the mapping from consuming RAM equal to the volume. */
++						kern_return_t kr = kernel_memory_allocate(kernel_map, &ramdMap, ramdSpan, 0,
++						    static_cast<kma_flags_t>(KMA_NOFAIL | KMA_PERMANENT | KMA_VAONLY),
 +						    VM_KERN_MEMORY_IOKIT);
 +						if (kr != KERN_SUCCESS) {
 +							panic("ramdisk map failed %llx+%llx",
