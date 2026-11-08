@@ -1,5 +1,5 @@
 diff --git a/osfmk/kern/ipc_tt.c b/osfmk/kern/ipc_tt.c
-index d31a590..10c9949 100644
+index d31a590..e2b0af6 100644
 --- a/osfmk/kern/ipc_tt.c
 +++ b/osfmk/kern/ipc_tt.c
 @@ -1960,6 +1960,7 @@ task_get_special_port_internal(
@@ -42,7 +42,7 @@ index d31a590..10c9949 100644
 +kern_return_t
 +mach_ports_register(
 +	task_t                  task,
-+	ipc_port_t             *init_port_set,
++	mach_port_array_t       init_port_set,
 +	mach_msg_type_number_t  init_port_setCnt)
 +{
 +	ipc_port_t ports[TASK_PORT_REGISTER_MAX] = { IP_NULL, IP_NULL, IP_NULL };
@@ -55,7 +55,7 @@ index d31a590..10c9949 100644
 +		return KERN_INVALID_ARGUMENT;
 +	}
 +	for (i = 0; i < init_port_setCnt; i++) {
-+		ports[i] = init_port_set[i];
++		ports[i] = init_port_set[i].port;
 +		if (IP_VALID(ports[i]) && ports[i]->ip_immovable_send) {
 +			return KERN_INVALID_RIGHT;
 +		}
@@ -84,10 +84,10 @@ index d31a590..10c9949 100644
 +kern_return_t
 +mach_ports_lookup(
 +	task_t                  task,
-+	ipc_port_t            **init_port_set,
++	mach_port_array_t      *init_port_set,
 +	mach_msg_type_number_t *init_port_setCnt)
 +{
-+	ipc_port_t *ports;
++	mach_port_ool_t *ports;
 +	unsigned int i;
 +
 +	if (task == TASK_NULL) {
@@ -104,7 +104,7 @@ index d31a590..10c9949 100644
 +		return KERN_INVALID_ARGUMENT;
 +	}
 +	for (i = 0; i < TASK_PORT_REGISTER_MAX; i++) {
-+		ports[i] = ipc_port_copy_send_any(task->itk_registered[i]);
++		ports[i].port = ipc_port_copy_send_any(task->itk_registered[i]);
 +	}
 +	itk_unlock(task);
 +
