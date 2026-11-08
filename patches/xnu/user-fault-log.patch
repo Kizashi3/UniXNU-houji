@@ -1,5 +1,5 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..8f67085 100644
+index ff5296d..7f51a13 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
 @@ -60,6 +60,7 @@
@@ -10,7 +10,7 @@ index ff5296d..8f67085 100644
  
  #include <sys/errno.h>
  #include <sys/kdebug.h>
-@@ -1678,6 +1679,71 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -1678,6 +1679,70 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
@@ -58,11 +58,10 @@ index ff5296d..8f67085 100644
 +		vm_map_entry_t fentry = VM_MAP_ENTRY_NULL;
 +		vm_map_lock_read(fmap);
 +		if (vm_map_lookup_entry(fmap, (vm_map_offset_t)fault_addr, &fentry)) {
-+			printf("HOUJI-FAULT-MAP: far %#llx IN [%#llx,%#llx) prot %#x max %#x obj %p off %#llx\n",
++			printf("HOUJI-FAULT-MAP: far %#llx IN [%#llx,%#llx) prot %#x max %#x\n",
 +			    (unsigned long long)fault_addr,
 +			    (unsigned long long)fentry->vme_start, (unsigned long long)fentry->vme_end,
-+			    (unsigned)fentry->protection, (unsigned)fentry->max_protection,
-+			    (void *)fentry->object.vm_object, (unsigned long long)fentry->offset);
++			    (unsigned)fentry->protection, (unsigned)fentry->max_protection);
 +		} else {
 +			printf("HOUJI-FAULT-MAP: far %#llx NO-ENTRY prev [%#llx,%#llx) prot %#x\n",
 +			    (unsigned long long)fault_addr,
