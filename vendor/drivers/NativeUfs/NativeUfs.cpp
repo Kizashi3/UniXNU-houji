@@ -1847,8 +1847,9 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
   {
     uint64_t fnv = 1469598103934665603ULL;
     for (uint64_t off = 0; off + 4096 <= bytes; off += 4096) {
-      uint64_t w = *(volatile uint64_t *)(base + off);
-      fnv = (fnv ^ w) * 1099511628211ULL;
+      fnv = (fnv ^ *(volatile uint64_t *)(base + off)) * 1099511628211ULL;
+      fnv = (fnv ^ *(volatile uint64_t *)(base + off + 0x800)) * 1099511628211ULL;
+      fnv = (fnv ^ *(volatile uint64_t *)(base + off + 0xFF8)) * 1099511628211ULL;
     }
     uint64_t head = *(volatile uint64_t *)(base);
     uint64_t tail = *(volatile uint64_t *)(base + bytes - 8);
