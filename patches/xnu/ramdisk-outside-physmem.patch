@@ -58,8 +58,11 @@ index 92142f7..4924580 100644
 +						vm_size_t ramdOffset = (vm_size_t)(ramdPhys & PAGE_MASK);
 +						vm_size_t ramdSpan = round_page((vm_size_t)ramdParms[1] + ramdOffset);
 +						vm_offset_t ramdMap;
-+						kern_return_t kr = kmem_alloc(kernel_map, &ramdMap, ramdSpan,
-+						    static_cast<kma_flags_t>(KMA_NOFAIL | KMA_PERMANENT),
++						/* HOUJI-VAONLY: only address space here; pmap_map below installs the
++						 * ramdisk PTEs. A real kmem_alloc would wire RAM equal to the volume
++						 * (2.8GB) and starve the kernel (kmem_alloc failed with 6 on device). */
++						kern_return_t kr = kernel_memory_allocate(kernel_map, &ramdMap, ramdSpan, 0,
++						    static_cast<kma_flags_t>(KMA_NOFAIL | KMA_PERMANENT | KMA_VAONLY),
 +						    VM_KERN_MEMORY_IOKIT);
 +						if (kr != KERN_SUCCESS) {
 +							panic("ramdisk map failed %llx+%llx",
