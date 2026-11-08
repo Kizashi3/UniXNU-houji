@@ -1,5 +1,5 @@
 diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
-index 8696353..f052dcd 100644
+index 8696353..4f2928a 100644
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
 @@ -2089,6 +2089,417 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
@@ -430,3 +430,13 @@ index 8696353..f052dcd 100644
  	int                     error = 0;
  	kern_return_t           kr;
  	task_t                  task = current_task();
+@@ -2976,6 +3390,9 @@ shared_region_map_and_slide_2_np(
+ 		slide_amount = 0;
+ 	}
+ #endif /* DEVELOPMENT || DEBUG */
++	printf("HOUJI-SLIDE: max=%#x amount=%#x map0=%#llx nfiles=%u nmaps=%u\n",
++	    (unsigned)max_slide, (unsigned)slide_amount,
++	    (unsigned long long)mappings[0].sms_address, files_count, mappings_count);
+ 
+ 	/*
+ 	 * Fix up the mappings to reflect the desired slide.
