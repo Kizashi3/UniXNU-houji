@@ -1,5 +1,5 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..7f51a13 100644
+index ff5296d..e0208e7 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
 @@ -60,6 +60,7 @@
@@ -10,7 +10,7 @@ index ff5296d..7f51a13 100644
  
  #include <sys/errno.h>
  #include <sys/kdebug.h>
-@@ -1678,6 +1679,70 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -1678,6 +1679,94 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
@@ -69,6 +69,30 @@ index ff5296d..7f51a13 100644
 +			    (unsigned)fentry->protection);
 +		}
 +		vm_map_unlock_read(fmap);
++		{
++			mach_vm_address_t aii = task_get_all_image_info_addr(current_task());
++			if (aii) {
++				uint8_t aib[0xC0];
++				if (copyin((user_addr_t)aii, aib, sizeof(aib)) == 0) {
++					uint32_t ver = *(uint32_t *)(void *)(aib + 0);
++					uint32_t cnt = *(uint32_t *)(void *)(aib + 4);
++					uint64_t q80 = *(uint64_t *)(void *)(aib + 0x80);
++					uint64_t q88 = *(uint64_t *)(void *)(aib + 0x88);
++					uint64_t q90 = *(uint64_t *)(void *)(aib + 0x90);
++					uint64_t q98 = *(uint64_t *)(void *)(aib + 0x98);
++					uint64_t qa0 = *(uint64_t *)(void *)(aib + 0xA0);
++					uint64_t qa8 = *(uint64_t *)(void *)(aib + 0xA8);
++					uint64_t qb0 = *(uint64_t *)(void *)(aib + 0xB0);
++					uint64_t qb8 = *(uint64_t *)(void *)(aib + 0xB8);
++					printf("HOUJI-DYLDINFO: aii %#llx ver %u cnt %u q80 %#llx q88 %#llx q90 %#llx q98 %#llx qA0 %#llx qA8 %#llx qB0 %#llx qB8 %#llx\n",
++					    (unsigned long long)aii, ver, cnt,
++					    (unsigned long long)q80, (unsigned long long)q88,
++					    (unsigned long long)q90, (unsigned long long)q98,
++					    (unsigned long long)qa0, (unsigned long long)qa8,
++					    (unsigned long long)qb0, (unsigned long long)qb8);
++				}
++			}
++		}
 +		uint64_t stk[8];
 +		bzero(stk, sizeof(stk));
 +		copyin((user_addr_t)fs64->sp, (void *)stk, sizeof(stk));
