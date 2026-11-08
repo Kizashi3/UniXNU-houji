@@ -1787,6 +1787,8 @@ static int gChunks;
 
 extern "C" uint32_t crc32 (uint32_t crc, const void *buf, size_t size);
 extern "C" unsigned long gPhysBase, gPhysSize, gVirtBase;
+extern "C" void pmap_protect (void *pmap, unsigned long long start, unsigned long long end, int prot);
+extern "C" void *kernel_pmap;
 
 extern "C" void
 native_ufs_fill_report (void)
@@ -1900,8 +1902,6 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
            fnv, (unsigned)gFillCrc, head, tail);
     /* HOUJI-RO: write-protect the ramdisk so any post-fill kernel write traps. */
     {
-      extern "C" void pmap_protect (void *pmap, unsigned long long start, unsigned long long end, int prot);
-      extern "C" void *kernel_pmap;
       unsigned long long pstart = ((unsigned long long)base) & ~0xFFFULL;
       unsigned long long pend = (((unsigned long long)base) + bytes + 0xFFFULL) & ~0xFFFULL;
       pmap_protect (kernel_pmap, pstart, pend, 1 /* VM_PROT_READ */);
