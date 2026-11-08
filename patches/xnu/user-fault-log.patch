@@ -1,5 +1,5 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..e0208e7 100644
+index ff5296d..3b2c729 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
 @@ -60,6 +60,7 @@
@@ -10,7 +10,7 @@ index ff5296d..e0208e7 100644
  
  #include <sys/errno.h>
  #include <sys/kdebug.h>
-@@ -1678,6 +1679,94 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -1678,6 +1679,98 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
@@ -90,6 +90,10 @@ index ff5296d..e0208e7 100644
 +					    (unsigned long long)q90, (unsigned long long)q98,
 +					    (unsigned long long)qa0, (unsigned long long)qa8,
 +					    (unsigned long long)qb0, (unsigned long long)qb8);
++					{
++						extern void native_ufs_fill_report (void);
++						native_ufs_fill_report ();
++					}
 +				}
 +			}
 +		}

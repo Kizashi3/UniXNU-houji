@@ -1780,6 +1780,16 @@ static void rootDiagnosticFailure (const char *reason)
 // Kernel-side root handoff: fill the loader-reserved ramdisk with the "OS" window
 // read from UFS. Called from IOFindBSDRoot before mdevadd; a no-op unless
 // native-ufs-fill is on the command line.
+static uint64_t gFillBytes, gFillFnv, gFillHead, gFillTail;
+
+extern "C" void
+native_ufs_fill_report (void)
+{
+  if (gFillBytes == 0) return;
+  IOLog ("HOUJI-FILL: bytes=%llu fnv=%016llx head=%016llx tail=%016llx\n",
+         gFillBytes, gFillFnv, gFillHead, gFillTail);
+}
+
 extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
 {
   unsigned enabled = 0;
@@ -1842,6 +1852,7 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     }
     uint64_t head = *(volatile uint64_t *)(base);
     uint64_t tail = *(volatile uint64_t *)(base + bytes - 8);
+    gFillBytes = bytes; gFillFnv = fnv; gFillHead = head; gFillTail = tail;
     IOLog ("NativeUfs: fill verify fnv=%016llx head=%016llx tail=%016llx\n", fnv, head, tail);
   }
   IOFree (layout, sizeof (RootLayout));
