@@ -83,3 +83,44 @@ index 92142f7..49a97b0 100644
  			}
  			regEntry->release();                                                            /* Toss the entry */
  		}
+diff --git a/osfmk/arm64/arm_vm_init.c b/osfmk/arm64/arm_vm_init.c
+index 985370e..7729497 100644
+--- a/osfmk/arm64/arm_vm_init.c
++++ b/osfmk/arm64/arm_vm_init.c
+@@ -1964,11 +1964,32 @@ arm_vm_init(uint64_t memory_size, boot_args * args)
+ 	avail_end = gPhysBase + mem_size;
+ 	assert(!(avail_end & PAGE_MASK));
+ 
+-#if KASAN
++	/*
++	 * HOUJI-RAMD-CLAMP: the bootloader reports the whole owned window as kernel memory so
++	 * that the physical aperture (gPhysSize) covers the in-place ramdisk.  Keep those pages
++	 * out of the VM free lists: end the managed pool at the ramdisk base.  real_avail_end
++	 * still covers the whole window so the static ptov mapping can name the ramdisk.
++	 */
++	{
++		DTEntry rdEntry;
++		DTMemoryMapRange const *rdRange;
++		unsigned int rdSize;
++
++		if ((SecureDTLookupEntry(NULL, "chosen/memory-map", &rdEntry) == kSuccess) &&
++		    (SecureDTGetProperty(rdEntry, "RAMDisk", (void const **)&rdRange, &rdSize) == kSuccess) &&
++		    (rdSize == sizeof(DTMemoryMapRange))) {
++			pmap_paddr_t rdStart = (pmap_paddr_t)(rdRange->paddr & ~(pmap_paddr_t)PAGE_MASK);
++			if ((rdStart > first_avail_phys) && (rdStart < avail_end)) {
++				printf("HOUJI-RAMD-CLAMP: pool 0x%lx..0x%lx -> end 0x%lx (ramdisk 0x%lx+0x%lx)\n",
++				    (unsigned long)first_avail_phys, (unsigned long)avail_end,
++				    (unsigned long)rdStart, (unsigned long)rdRange->paddr,
++				    (unsigned long)rdRange->length);
++				avail_end = rdStart;
++			}
++		}
++	}
++
+ 	real_avail_end = gPhysBase + real_phys_size;
+-#else
+-	real_avail_end = avail_end;
+-#endif
+ 
+ 	/*
+ 	 * Initialize l1 and l2 page table pages :
