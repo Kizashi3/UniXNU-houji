@@ -250,6 +250,9 @@ static IOReturn hostRead4k (uint8_t lun, uint64_t lba, uint32_t blocks, void *ds
   uint32_t scsi = 0;
   IOReturn status = hostScsi (lun, cdb, 10, true, blocks * 4096U, 1000000, &scsi);
   if (status == kIOReturnSuccess) {
+    /* HOUJI-DMA-FLUSH: the UFS controller DMA'd into this buffer; drop stale CPU
+     * cache lines so the memcpy below reads the fresh DRAM contents (real HW). */
+    flush_dcache ((vm_offset_t)(gHost.virt + kDataOffset), blocks * 4096U, 0);
     memcpy (dst, gHost.virt + kDataOffset, blocks * 4096U);
   }
   IOLockUnlock (gHost.lock);
@@ -318,3 +321,4 @@ static IOReturn hostSyncCache (void)
   return status;
 }
 
+#include <arm/caches_internal.h>
