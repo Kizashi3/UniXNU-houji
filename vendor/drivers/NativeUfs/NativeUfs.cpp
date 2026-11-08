@@ -1832,6 +1832,18 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     if (n > (16ULL << 20)) n = (16ULL << 20);
     flush_dcache ((vm_offset_t)(base + off), (unsigned)n, 0);
   }
+  /* HOUJI-FILL-VERIFY: sampled FNV-1a (first qword of every 4 KiB block) plus
+   * head/tail qwords; compare against the host-side hash of the source volume. */
+  {
+    uint64_t fnv = 1469598103934665603ULL;
+    for (uint64_t off = 0; off + 4096 <= bytes; off += 4096) {
+      uint64_t w = *(volatile uint64_t *)(base + off);
+      fnv = (fnv ^ w) * 1099511628211ULL;
+    }
+    uint64_t head = *(volatile uint64_t *)(base);
+    uint64_t tail = *(volatile uint64_t *)(base + bytes - 8);
+    IOLog ("NativeUfs: fill verify fnv=%016llx head=%016llx tail=%016llx\n", fnv, head, tail);
+  }
   IOFree (layout, sizeof (RootLayout));
   IOLog ("NativeUfs: fill complete %llu MiB\n", bytes >> 20);
   return true;
