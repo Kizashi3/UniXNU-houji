@@ -1,5 +1,5 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..eb68515 100644
+index ff5296d..05cd458 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
 @@ -60,6 +60,7 @@
@@ -10,7 +10,7 @@ index ff5296d..eb68515 100644
  
  #include <sys/errno.h>
  #include <sys/kdebug.h>
-@@ -1678,6 +1679,120 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -1678,6 +1679,140 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
@@ -88,6 +88,26 @@ index ff5296d..eb68515 100644
 +				}
 +			}
 +			vm_map_unlock_read(pmap2);
++		}
++		{
++			arm_saved_state64_t *cs64 = saved_state64(state);
++			uint64_t flr = get_saved_state_lr(state);
++			uint32_t cins[4] = { 0, 0, 0, 0 };
++			uint64_t dynq[4] = { 0, 0, 0, 0 };
++			copyin((user_addr_t)(flr - 16), cins, sizeof(cins));
++			/* fixed dynamic-data page for this cache: shared region 0x180000000 + 0xaade4000 */
++			copyin((user_addr_t)0x22ADE4000ULL, dynq, sizeof(dynq));
++			printf("HOUJI-CALLSITE: lr %#llx ins %08x %08x %08x %08x\n",
++			    (unsigned long long)flr, cins[0], cins[1], cins[2], cins[3]);
++			printf("HOUJI-REGS2: x9 %#llx x10 %#llx x11 %#llx x12 %#llx x13 %#llx x14 %#llx x15 %#llx x16 %#llx x17 %#llx\n",
++			    (unsigned long long)cs64->x[9], (unsigned long long)cs64->x[10],
++			    (unsigned long long)cs64->x[11], (unsigned long long)cs64->x[12],
++			    (unsigned long long)cs64->x[13], (unsigned long long)cs64->x[14],
++			    (unsigned long long)cs64->x[15], (unsigned long long)cs64->x[16],
++			    (unsigned long long)cs64->x[17]);
++			printf("HOUJI-DYNPAGE: %016llx %016llx %016llx %016llx\n",
++			    (unsigned long long)dynq[0], (unsigned long long)dynq[1],
++			    (unsigned long long)dynq[2], (unsigned long long)dynq[3]);
 +		}
 +		{
 +			mach_vm_address_t aii = task_get_all_image_info_addr(current_task());
