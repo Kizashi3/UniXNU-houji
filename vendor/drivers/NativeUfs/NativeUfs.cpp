@@ -2018,6 +2018,53 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
   return true;
 }
 
+// Step3: fill the second reserved ramdisk (rd2) from the SystemOS window.
+extern "C" boolean_t native_ufs_fill2 (vm_offset_t base, vm_size_t size)
+{
+  if (!base || size < 4096) return true;
+  const char *why = "";
+  if (!hostBringUp (&why)) { IOLog ("NativeUfs: fill2 bring-up failed: %s\n", why); return false; }
+  RootLayout *layout = static_cast<RootLayout *> (IOMalloc (sizeof (RootLayout)));
+  if (!layout) return false;
+  if (!findRootLayout (layout, &why) || layout->manifestStatus != 0) {
+    IOLog ("NativeUfs: fill2 layout failed: %s status=%u\n", why, layout->manifestStatus);
+    IOFree (layout, sizeof (RootLayout)); return false;
+  }
+  const RootWindow *sysos = nullptr;
+  for (unsigned i = 0; i < layout->windows; ++i)
+    if (!strcmp (layout->window[i].name, "SystemOS")) sysos = &layout->window[i];
+  if (!sysos) { IOLog ("NativeUfs: fill2 no SystemOS window\n"); IOFree (layout, sizeof (RootLayout)); return false; }
+  uint64_t bytes = sysos->size < size ? sysos->size : (uint64_t)size;
+  IOLog ("NativeUfs: fill2 %llu MiB from window %s\n", bytes >> 20, sysos->name);
+  const uint32_t chunkBlocks = kDataMax / 4096;
+  for (uint64_t done = 0; done < bytes; ) {
+    uint32_t blocks = (uint32_t)((bytes - done) / 4096);
+    if (blocks > chunkBlocks) blocks = chunkBlocks;
+    uint64_t lba = layout->userdataFirst + (sysos->offset + done) / 4096;
+    IOReturn r = hostRead4k (0, lba, blocks, (void *)(base + done));
+    if (r != kIOReturnSuccess) {
+      IOLog ("NativeUfs: fill2 read failed at %llu/%llu (%x)\n", done, bytes, r);
+      IOFree (layout, sizeof (RootLayout)); return false;
+    }
+    done += (uint64_t)blocks * 4096;
+    if ((done & ((256ULL << 20) - 1)) == 0) IOLog ("NativeUfs: fill2 %llu/%llu MiB\n", done >> 20, bytes >> 20);
+  }
+  for (uint64_t off = 0; off < bytes; off += (16ULL << 20)) {
+    uint64_t n = bytes - off; if (n > (16ULL << 20)) n = 16ULL << 20;
+    flush_dcache ((vm_offset_t)(base + off), (unsigned)n, 0);
+  }
+  {
+    uint64_t head = *(volatile uint64_t *)base;
+    uint64_t tail = *(volatile uint64_t *)(base + bytes - 8);
+    IOLog ("NativeUfs: fill2 verify head=%016llx tail=%016llx\n", head, tail);
+    pmap_protect (kernel_pmap, ((unsigned long long)base) & ~0xFFFULL,
+        (((unsigned long long)base) + bytes + 0xFFFULL) & ~0xFFFULL, 1);
+  }
+  IOFree (layout, sizeof (RootLayout));
+  IOLog ("NativeUfs: fill2 complete %llu MiB\n", bytes >> 20);
+  return true;
+}
+
 bool NativeUfs::start (IOService *provider)
 {
   unsigned probe = 0, rootMode = 0;
