@@ -81,7 +81,7 @@ index 8696353..4f2928a 100644
 + */
 +extern boolean_t PE_parse_boot_argn(const char *arg_string, void *arg_ptr, int arg_len);
 +
-+#define UNIXNU_SRCACHE_DIR       "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
++#define UNIXNU_SRCACHE_DIR       "/private/preboot/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
 +#define UNIXNU_SRCACHE_MAX_FILES 48
 +/* The 44-file iOS 16 cache set needs ~51 mappings; keep the kernel stack out of it. */
 +#define UNIXNU_SRCACHE_MAX_MAPS  256 /* HOUJI-SRCACHE-v7 */
