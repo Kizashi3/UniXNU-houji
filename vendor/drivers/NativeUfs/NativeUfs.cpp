@@ -1667,22 +1667,6 @@ void NativeUfsBlock::free ()
   IOBlockStorageDevice::free ();
 }
 
-static bool readWindowVolumeUuid (uint64_t absolute, char out[37])
-{
-  for (uint64_t off = 0; off < (256ULL << 20); off += kDataMax) {
-    if (hostRead4k (0, (absolute + off) / 4096, kDataMax / 4096, gScratch) != kIOReturnSuccess) return false;
-    for (unsigned b = 0; b + 4096 <= kDataMax; b += 4096) {
-      const uint8_t *sb = gScratch + b;
-      if (sb[32] != 'A' || sb[33] != 'P' || sb[34] != 'S' || sb[35] != 'B') continue;
-      const uint8_t *u = sb + 0xf0;
-      snprintf (out, 37, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
-                u[0],u[1],u[2],u[3],u[4],u[5],u[6],u[7],u[8],u[9],u[10],u[11],u[12],u[13],u[14],u[15]);
-      return true;
-    }
-  }
-  return false;
-}
-
 // Ordered publication of the root windows. The original owner-trust code resolves the SystemOS
 // volume by UUID immediately after the root is mounted, so SystemOS must already have published its
 // volume media by then; the OS window (whose volume is the root being waited for) goes last.
@@ -2259,13 +2243,7 @@ bool NativeUfs::startRoot (IOService *provider)
       }
       return true;
 #else
-      for (unsigned i = 0; i < gPending; ++i) {
-        gRootDiagnostic.publicationWindow = i;
-        uint64_t absolute = layout->userdataFirst * 4096ULL + layout->window[i].offset;
-        if (!readWindowVolumeUuid (absolute, gPendingUuid[i])) return false;
-        for (unsigned j = 0; j < i; ++j) if (!strcmp (gPendingUuid[i], gPendingUuid[j])) return false;
-      }
-      return true;
+      return false; // Root publication requires owner verification in every build.
 #endif
     }
     bool schedule () {
