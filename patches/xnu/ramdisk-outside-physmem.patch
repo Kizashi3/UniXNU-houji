@@ -1,3 +1,86 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index 8bba078..3f2a20d 100644
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -6991,6 +6991,58 @@ create_unix_stack(vm_map_t map, load_result_t* load_result,
+ 
+ #include <sys/reboot.h>
+ 
++/*
++ * UniXNU: the SystemOS cryptex arrives as a second memory disk (md1). Mount it
++ * read-only at /private/preboot before pid 1 starts and point dyld at the
++ * shared cache inside it. The mount data layout matches the iOS APFS mount
++ * arguments the storage mounter uses.
++ */
++static user_addr_t houji_rd2_envp = USER_ADDR_NULL;
++
++static int
++houji_rd2_mount(proc_t p, user_addr_t scratch)
++{
++	char rd2[64];
++	user64_addr_t spec = scratch + 0x160;
++	uint8_t payload[0x150] = {0};
++	uint16_t mode = 1;
++	uint32_t anonymous_owner = 99;
++	uint64_t mount_flags = MNT_RDONLY;
++	struct mount_args request = {.type = scratch + 0x100, .path = scratch + 0x120,
++	    .flags = (int)mount_flags, .data = scratch + 0x200};
++	user64_addr_t environment_vector[2] = {scratch + 0x400, USER_ADDR_NULL};
++	const char *environment = "DYLD_SHARED_CACHE_DIR=/private/preboot/System/Library/Caches/com.apple.dyld";
++	int32_t result = 0;
++	int error;
++
++	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2))) {
++		return 0;
++	}
++	memcpy(payload, &spec, sizeof(spec));
++	memcpy(payload + 8, &mount_flags, sizeof(mount_flags));
++	memcpy(payload + 16, &mode, sizeof(mode));
++	memcpy(payload + 0x144, &anonymous_owner, sizeof(anonymous_owner));
++	memcpy(payload + 0x148, &anonymous_owner, sizeof(anonymous_owner));
++	if ((error = copyout("apfs", request.type, 5)) != 0 ||
++	    (error = copyout("/private/preboot", request.path, 16)) != 0 ||
++	    (error = copyout("/dev/md1", spec, 9)) != 0 ||
++	    (error = copyout(payload, request.data, sizeof(payload))) != 0) {
++		return error;
++	}
++	error = mount(p, &request, &result);
++	if (error != 0) {
++		printf("HOUJI-RD2: mount md1 at /private/preboot failed: %d\n", error);
++		return error;
++	}
++	printf("HOUJI-RD2: mounted md1 at /private/preboot\n");
++	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
++	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
++		return error;
++	}
++	houji_rd2_envp = scratch + 0x500;
++	return 0;
++}
++
+ /*
+  * load_init_program_at_path
+  *
+@@ -7086,7 +7138,7 @@ load_init_program_at_path(proc_t p, user_addr_t scratch_addr, const char* path)
+ 	 */
+ 	init_exec_args.fname = argv0;
+ 	init_exec_args.argp = scratch_addr;
+-	init_exec_args.envp = USER_ADDR_NULL;
++	init_exec_args.envp = houji_rd2_envp;
+ 
+ 	/*
+ 	 * So that init task is set with uid,gid 0 token
+@@ -7148,6 +7200,10 @@ load_init_program(proc_t p)
+ 	mach_vm_size_t map_page_size = vm_map_page_size(map);
+ 
+ 	(void) mach_vm_allocate_kernel(map, &scratch_addr, map_page_size, VM_FLAGS_ANYWHERE, VM_KERN_MEMORY_NONE);
++
++	if (houji_rd2_mount(p, (user_addr_t)scratch_addr) != 0) {
++		printf("HOUJI-RD2: continuing without the SystemOS mount\n");
++	}
+ #if CONFIG_MEMORYSTATUS
+ 	(void) memorystatus_init_at_boot_snapshot();
+ #endif /* CONFIG_MEMORYSTATUS */
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
 index 92142f7..0ce2ce8 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
