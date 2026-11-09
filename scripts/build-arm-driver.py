@@ -95,7 +95,7 @@ if component in ('NativeVirtioBlock', 'NativeRamBlock', 'NativeUfs'):
         command += ['-DNATIVE_VERIFIED_BLOCK_MULTI_POLICY=1']
 if component == 'NativeUfs':
     command += ['-I', str(ROOT / 'kits/VerifiedRoot/include'), '-I', str(ROOT / 'drivers/NativeVirtioBlock'),
-                '-DNATIVE_VERIFIED_BLOCK=0', '-DNATIVE_UFS_ROOT_PUBLICATION=1', '-mgeneral-regs-only', '-Wno-unused-function']
+                '-DNATIVE_VERIFIED_BLOCK=0', '-DNATIVE_UFS_ROOT_PUBLICATION=1', '-mgeneral-regs-only']
 if component=='NativeOfflineGPU':
     command += ['-I',str(ROOT/'drivers/NativeVirtioConsole')]
 if component in ('NativeLegacyDisplay','NativeHidInput'):
