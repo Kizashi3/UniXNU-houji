@@ -2332,3 +2332,53 @@ void NativeUfs::stop (IOService *provider)
   fMap.reset ();
   IOService::stop (provider);
 }
+
+// HOUJI: resolve an APFS volume's IOMedia by its volume UUID. The kernel mounts a
+// volume device, not the container: apfs_vfsop_mount on the whole container ends in
+// "invalid fsindex: -1". APFS publishes one IOMedia per volume with the volume UUID
+// and a BSD node, so match that and hand back /dev/<bsdname>.
+extern "C" int native_verified_block_volume_device (const char *uuid, dev_t *device, char *path, size_t size)
+{
+  if (!uuid || !device || !path || size < 6 || strlen (uuid) != 36) return 0;
+  *device = NODEV;
+  path[0] = 0;
+  OSDictionary *matching = IOService::serviceMatching ("IOMedia");
+  OSDictionary *properties = OSDictionary::withCapacity (1);
+  OSString *wanted = OSString::withCString (uuid);
+  if (!matching || !properties || !wanted) {
+    if (wanted) wanted->release ();
+    if (properties) properties->release ();
+    if (matching) matching->release ();
+    return 0;
+  }
+  bool ready = properties->setObject ("UUID", wanted) && matching->setObject ("IOPropertyMatch", properties);
+  wanted->release ();
+  properties->release ();
+  OSIterator *iterator = ready ? IOService::getMatchingServices (matching) : nullptr;
+  matching->release ();
+  if (!iterator) return 0;
+  int found = 0;
+  dev_t candidate = NODEV;
+  char candidatePath[64] = {};
+  while (OSObject *object = iterator->getNextObject ()) {
+    IOService *media = OSDynamicCast (IOService, object);
+    if (!media) continue;
+    OSString *identity = OSDynamicCast (OSString, media->getProperty ("UUID"));
+    OSString *name = OSDynamicCast (OSString, media->getProperty (kIOBSDNameKey));
+    OSNumber *mjr = OSDynamicCast (OSNumber, media->getProperty (kIOBSDMajorKey));
+    OSNumber *mnr = OSDynamicCast (OSNumber, media->getProperty (kIOBSDMinorKey));
+    if (!identity || strcmp (identity->getCStringNoCopy (), uuid) || !name || !mjr || !mnr ||
+        !name->getLength () || name->getLength () >= sizeof (candidatePath) - 6 ||
+        name->getLength () >= size - 6 || mjr->unsigned64BitValue () > 255 ||
+        mnr->unsigned64BitValue () > 0xffffff) continue;
+    candidate = static_cast<dev_t> (makedev (mjr->unsigned32BitValue (), mnr->unsigned32BitValue ()));
+    snprintf (candidatePath, sizeof (candidatePath), "/dev/%s", name->getCStringNoCopy ());
+    found++;
+  }
+  iterator->release ();
+  if (!found) return 0;
+  *device = candidate;
+  strlcpy (path, candidatePath, size);
+  IOLog ("NativeUfs: volume device %s at %s dev=%d (matches %d)\n", uuid, path, (int) candidate, found);
+  return 1;
+}

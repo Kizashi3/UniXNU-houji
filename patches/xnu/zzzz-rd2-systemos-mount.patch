@@ -1,21 +1,27 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 6395911..19005b7 100644
+index 6395911..6ddc778 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -8170,6 +8170,56 @@ static const char * init_programs[] = {
+@@ -8170,6 +8170,76 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
 +/*
-+ * UniXNU: the SystemOS cryptex arrives as a second memory disk (md1). Mount it
-+ * read-only at /private/preboot before pid 1 starts and point dyld at the
-+ * shared cache inside it. The mount data layout matches the iOS APFS mount
-+ * arguments the storage mounter uses.
++ * UniXNU: the SystemOS cryptex arrives as a second memory disk (md1). Resolve the
++ * APFS volume it carries by UUID (the container itself has no mountable fsindex),
++ * mount that volume read-only at /private/preboot before pid 1 starts and point
++ * dyld at the shared cache inside it.
 + */
 +static int
 +houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
 +{
++	extern int native_verified_block_volume_device(const char *uuid, dev_t *device,
++	    char *path, size_t size);
++	extern void IOSleep(unsigned int usec);
 +	char rd2[64];
++	char device_path[64];
++	dev_t device = NODEV;
++	int tries;
 +	user64_addr_t spec = scratch + 0x160;
 +	uint8_t payload[0x150] = {0};
 +	uint16_t mode = 1;
@@ -31,6 +37,20 @@ index 6395911..19005b7 100644
 +	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2))) {
 +		return 0;
 +	}
++	for (tries = 0; tries < 20; tries++) {
++		if (native_verified_block_volume_device(
++		    "96096b28-b6dc-4bc7-9d3a-2632a0fe53f1", &device, device_path,
++		    sizeof(device_path))) {
++			break;
++		}
++		IOSleep(100 * 1000);
++	}
++	if (tries == 20) {
++		printf("HOUJI-RD2: SystemOS volume media not found, trying /dev/md1\n");
++		strlcpy(device_path, "/dev/md1", sizeof(device_path));
++	} else {
++		printf("HOUJI-RD2: mounting %s\n", device_path);
++	}
 +	memcpy(payload, &spec, sizeof(spec));
 +	memcpy(payload + 8, &mount_flags, sizeof(mount_flags));
 +	memcpy(payload + 16, &mode, sizeof(mode));
@@ -38,16 +58,16 @@ index 6395911..19005b7 100644
 +	memcpy(payload + 0x148, &anonymous_owner, sizeof(anonymous_owner));
 +	if ((error = copyout("apfs", request.type, 5)) != 0 ||
 +	    (error = copyout("/private/preboot", request.path, 16)) != 0 ||
-+	    (error = copyout("/dev/md1", spec, 9)) != 0 ||
++	    (error = copyout(device_path, spec, strlen(device_path) + 1)) != 0 ||
 +	    (error = copyout(payload, request.data, sizeof(payload))) != 0) {
 +		return error;
 +	}
 +	error = mount(p, &request, &result);
 +	if (error != 0) {
-+		printf("HOUJI-RD2: mount md1 at /private/preboot failed: %d\n", error);
++		printf("HOUJI-RD2: mount %s at /private/preboot failed: %d\n", device_path, error);
 +		return error;
 +	}
-+	printf("HOUJI-RD2: mounted md1 at /private/preboot\n");
++	printf("HOUJI-RD2: mounted %s at /private/preboot\n", device_path);
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
 +	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
 +		return error;
@@ -59,7 +79,7 @@ index 6395911..19005b7 100644
  void
  load_init_program(proc_t p)
  {
-@@ -8235,6 +8285,17 @@ load_init_program(proc_t p)
+@@ -8235,6 +8305,17 @@ load_init_program(proc_t p)
  	}
  #endif
  
