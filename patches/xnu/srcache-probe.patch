@@ -440,3 +440,17 @@ index 8696353..4f2928a 100644
  
  	/*
  	 * Fix up the mappings to reflect the desired slide.
+diff --git a/bsd/vfs/vfs_cluster.c b/bsd/vfs/vfs_cluster.c
+index ccc685a..75f043a 100644
+--- a/bsd/vfs/vfs_cluster.c
++++ b/bsd/vfs/vfs_cluster.c
+@@ -924,7 +924,8 @@ cluster_iodone(buf_t bp, void *callback_arg)
+ 			verify_buf = NULL;
+ 		}
+ 	} else if (cbp_head->b_attr.ba_flags & BA_WILL_VERIFY) {
+-		error = EBADMSG;
++		/* HOUJI: cryptex cache files cannot verify before their CS blob is installed. */
++		error = 0;
+ 	}
+ 
+ 	free_io_buf(cbp_head);
