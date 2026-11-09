@@ -1,14 +1,37 @@
 diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
-index 8696353..4f2928a 100644
+index 8696353..76ba85c 100644
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,417 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
+@@ -2089,6 +2089,434 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
 +/*
 + * HOUJI-SRCACHE-v1: report the dyld shared cache layout from the kernel.
 + */
++/*
++ * HOUJI: cryptex cache reads can transiently fail page verification (EBADMSG);
++ * retry a few times before treating the file as unreadable.
++ */
++extern void IOSleep(unsigned int usec);
++
++static int
++unixnu_srcache_read(vnode_t vp, caddr_t buf, int len, off_t off)
++{
++	int error = 0;
++	int attempt;
++
++	for (attempt = 0; attempt < 5; attempt++) {
++		error = vn_rdwr(UIO_READ, vp, buf, len, off, UIO_SYSSPACE, IO_NODELOCKED,
++		    kauth_cred_get(), NULL, current_proc());
++		if (error == 0) {
++			return 0;
++		}
++		IOSleep(20);
++	}
++	return error;
++}
++
 +static void
 +unixnu_srcache_probe(void)
 +{
@@ -45,8 +68,7 @@ index 8696353..4f2928a 100644
 +			continue;
 +		}
 +		bzero(hdr, sizeof(hdr));
-+		error = vn_rdwr(UIO_READ, vp, (caddr_t)hdr, sizeof(hdr), 0, UIO_SYSSPACE,
-+		    IO_NODELOCKED, kauth_cred_get(), NULL, current_proc());
++		error = unixnu_srcache_read(vp, (caddr_t)hdr, sizeof(hdr), 0);
 +		if (error == 0) {
 +			uint32_t map_off = *(uint32_t *)(void *)(hdr + 0x10);
 +			uint32_t map_cnt = *(uint32_t *)(void *)(hdr + 0x14);
@@ -119,8 +141,7 @@ index 8696353..4f2928a 100644
 +		return;
 +	}
 +	bzero((void *)blob_addr, blob_size);
-+	error = vn_rdwr(UIO_READ, vp, (caddr_t)blob_addr, (int)blob_size, (off_t)sig_off,
-+	    UIO_SYSSPACE, IO_NODELOCKED, kauth_cred_get(), &resid, current_proc());
++	error = unixnu_srcache_read(vp, (caddr_t)blob_addr, (int)blob_size, (off_t)sig_off);
 +	if (resid > 0) {
 +		bzero((void *)(blob_addr + (blob_size - resid)), resid);
 +	}
@@ -271,8 +292,7 @@ index 8696353..4f2928a 100644
 +			continue;
 +		}
 +		bzero(hdr, sizeof(hdr));
-+		error = vn_rdwr(UIO_READ, vp, (caddr_t)hdr, sizeof(hdr), 0, UIO_SYSSPACE,
-+		    IO_NODELOCKED, kauth_cred_get(), NULL, current_proc());
++		error = unixnu_srcache_read(vp, (caddr_t)hdr, sizeof(hdr), 0);
 +		if ((error != 0) || (memcmp(hdr, "dyld_v1", 7) != 0)) {
 +			printf("HOUJI-SRCACHE: %s not a dyld cache (err %d)\n", path, error);
 +			vnode_put(vp);
@@ -295,8 +315,7 @@ index 8696353..4f2928a 100644
 +			continue;
 +		}
 +		bzero(table, sizeof(table));
-+		error = vn_rdwr(UIO_READ, vp, (caddr_t)table, (int)(map_cnt * 32), map_off,
-+		    UIO_SYSSPACE, IO_NODELOCKED, kauth_cred_get(), NULL, current_proc());
++		error = unixnu_srcache_read(vp, (caddr_t)table, (int)(map_cnt * 32), map_off);
 +		if (error != 0) {
 +			printf("HOUJI-SRCACHE: read %s mappings failed %d\n", path, error);
 +			vnode_put(vp);
@@ -332,9 +351,7 @@ index 8696353..4f2928a 100644
 +		if ((slide_cnt == map_cnt) && (slide_off != 0) &&
 +		    (slide_off < (uint32_t)va.va_data_size)) {
 +			bzero(slide_tab, sizeof(slide_tab));
-+			error = vn_rdwr(UIO_READ, vp, (caddr_t)slide_tab,
-+			    (int)(slide_cnt * 56), slide_off, UIO_SYSSPACE, IO_NODELOCKED,
-+			    kauth_cred_get(), NULL, current_proc());
++			error = unixnu_srcache_read(vp, (caddr_t)slide_tab, (int)(slide_cnt * 56), slide_off);
 +			if (error == 0) {
 +				uint64_t last_addr = maps[nmaps + map_cnt - 1].sms_address;
 +				uint64_t last_off = maps[nmaps + map_cnt - 1].sms_file_offset;
@@ -420,7 +437,7 @@ index 8696353..4f2928a 100644
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2508,9 @@ shared_region_check_np(
+@@ -2097,6 +2525,9 @@ shared_region_check_np(
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
@@ -430,7 +447,7 @@ index 8696353..4f2928a 100644
  	int                     error = 0;
  	kern_return_t           kr;
  	task_t                  task = current_task();
-@@ -2976,6 +3390,9 @@ shared_region_map_and_slide_2_np(
+@@ -2976,6 +3407,9 @@ shared_region_map_and_slide_2_np(
  		slide_amount = 0;
  	}
  #endif /* DEVELOPMENT || DEBUG */
