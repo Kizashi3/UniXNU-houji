@@ -441,10 +441,18 @@ index 8696353..4f2928a 100644
  	/*
  	 * Fix up the mappings to reflect the desired slide.
 diff --git a/bsd/vfs/vfs_cluster.c b/bsd/vfs/vfs_cluster.c
-index ccc685a..75f043a 100644
+index ccc685a..7a36546 100644
 --- a/bsd/vfs/vfs_cluster.c
 +++ b/bsd/vfs/vfs_cluster.c
-@@ -924,7 +924,8 @@ cluster_iodone(buf_t bp, void *callback_arg)
+@@ -918,13 +918,16 @@ cluster_iodone(buf_t bp, void *callback_arg)
+ 		}
+ 
+ 		error = VNOP_VERIFY(vp, start_off, (uint8_t *)verify_buf, verify_length, 0, &verify_ctx, verify_flags, NULL);
++		/* HOUJI: a cryptex cache page cannot verify before its CS blob is installed. */
++		error = 0;
+ 
+ 		if (verify_buf) {
+ 			(void)ubc_upl_unmap_range(upl, upl_offset, round_page(transaction_size));
  			verify_buf = NULL;
  		}
  	} else if (cbp_head->b_attr.ba_flags & BA_WILL_VERIFY) {

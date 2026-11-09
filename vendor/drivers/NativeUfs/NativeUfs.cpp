@@ -2054,9 +2054,10 @@ extern "C" boolean_t native_ufs_fill2 (vm_offset_t base, vm_size_t size)
     flush_dcache ((vm_offset_t)(base + off), (unsigned)n, 0);
   }
   {
+    uint32_t crc = crc32 (0, (const void *)base, (size_t)bytes);
     uint64_t head = *(volatile uint64_t *)base;
     uint64_t tail = *(volatile uint64_t *)(base + bytes - 8);
-    IOLog ("NativeUfs: fill2 verify head=%016llx tail=%016llx\n", head, tail);
+    IOLog ("NativeUfs: fill2 verify crc=%08x head=%016llx tail=%016llx\n", crc, head, tail);
     pmap_protect (kernel_pmap, ((unsigned long long)base) & ~0xFFFULL,
         (((unsigned long long)base) + bytes + 0xFFFULL) & ~0xFFFULL, 1);
   }
