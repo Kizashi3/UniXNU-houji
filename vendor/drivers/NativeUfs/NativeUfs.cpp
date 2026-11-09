@@ -1271,7 +1271,21 @@ houjiLogThread (void *param, wait_result_t wr)
 		if (blocks > (uint32_t)kLogReserveBlocks) {
 			blocks = (uint32_t)kLogReserveBlocks;
 		}
-		if (hostWrite4k (0, gLogRegionFirst, blocks, buf) == kIOReturnSuccess) {
+		/* The DMA data area holds only kDataMax bytes; a 1 MiB msgbuf is ~257
+		 * 4K blocks, so one hostWrite4k would be rejected as BadArgument before
+		 * any SCSI command. Write it in kDataMax-sized chunks (FUA for durability). */
+		bool writeOk = true;
+		for (uint32_t done = 0; done < blocks; ) {
+			uint32_t chunk = blocks - done;
+			if (chunk > kDataMax / 4096) chunk = kDataMax / 4096;
+			if (hostWrite4k (0, gLogRegionFirst + done, chunk,
+			    buf + (uint64_t)done * 4096, true) != kIOReturnSuccess) {
+				writeOk = false;
+				break;
+			}
+			done += chunk;
+		}
+		if (writeOk) {
 			if (seq == 1) { IOLog ("HOUJI-LOG: first write ok\n"); }
 		} else if (!warned) {
 			warned = 1;
