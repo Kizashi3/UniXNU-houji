@@ -1671,7 +1671,7 @@ static bool readWindowVolumeUuid (uint64_t absolute, char out[37])
 {
   for (uint64_t off = 0; off < (256ULL << 20); off += kDataMax) {
     if (hostRead4k (0, (absolute + off) / 4096, kDataMax / 4096, gScratch) != kIOReturnSuccess) return false;
-    for (unsigned b = 0; b + 4096 <= (unsigned)kDataMax; b += 4096) {
+    for (unsigned b = 0; b + 4096 <= kDataMax; b += 4096) {
       const uint8_t *sb = gScratch + b;
       if (sb[32] != 'A' || sb[33] != 'P' || sb[34] != 'S' || sb[35] != 'B') continue;
       const uint8_t *u = sb + 0xf0;
