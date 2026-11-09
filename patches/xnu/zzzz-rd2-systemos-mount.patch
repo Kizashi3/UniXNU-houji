@@ -1,44 +1,20 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 6395911..bcddd67 100644
+index 6395911..c4fd804 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -8170,6 +8170,86 @@ static const char * init_programs[] = {
+@@ -8170,6 +8170,76 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
 +/*
 + * UniXNU: the SystemOS cryptex arrives as a second memory disk (md1). APFS mounts
-+ * a volume, not the container (the container yields "invalid fsindex: -1"), so
-+ * probe the volume devfs node before falling back to the container device.
++ * a volume, not the container, so try the volume device nodes first and log the
++ * errno of each attempt. Only mount(2) is used here; probing paths with
++ * vnode_lookup deadlocks in this context.
 + */
-+extern void IOSleep(unsigned int usec);
-+
 +static int
-+houji_rd2_device_node(char *path, size_t size)
++houji_rd2_try_mount(proc_t p, user_addr_t scratch, const char *dev)
 +{
-+	static const char *const nodes[] = {"/dev/md1s1", "/dev/md1s2"};
-+	unsigned int tries;
-+	unsigned int index;
-+
-+	for (tries = 0; tries < 20; tries++) {
-+		for (index = 0; index < sizeof(nodes) / sizeof(nodes[0]); index++) {
-+			vnode_t vp = NULLVP;
-+			if (vnode_lookup(nodes[index], 0, &vp, vfs_context_current()) == 0) {
-+				vnode_put(vp);
-+				strlcpy(path, nodes[index], size);
-+				return 1;
-+			}
-+		}
-+		IOSleep(100 * 1000);
-+	}
-+	return 0;
-+}
-+
-+static int
-+houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
-+{
-+	char rd2[64];
-+	char device_path[64];
 +	user64_addr_t spec = scratch + 0x160;
 +	uint8_t payload[0x150] = {0};
 +	uint16_t mode = 1;
@@ -46,21 +22,9 @@ index 6395911..bcddd67 100644
 +	uint64_t mount_flags = MNT_RDONLY;
 +	struct mount_args request = {.type = scratch + 0x100, .path = scratch + 0x120,
 +	    .flags = (int)mount_flags, .data = scratch + 0x200};
-+	user64_addr_t environment_vector[2] = {scratch + 0x400, USER_ADDR_NULL};
-+	const char *environment = "DYLD_SHARED_CACHE_DIR=/private/preboot/System/Library/Caches/com.apple.dyld";
 +	int32_t result = 0;
 +	int error;
 +
-+	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2))) {
-+		return 0;
-+	}
-+	printf("HOUJI-RD2: mount helper entered\n");
-+	if (!houji_rd2_device_node(device_path, sizeof(device_path))) {
-+		printf("HOUJI-RD2: no volume node, falling back to /dev/md1\n");
-+		strlcpy(device_path, "/dev/md1", sizeof(device_path));
-+	} else {
-+		printf("HOUJI-RD2: volume node %s\n", device_path);
-+	}
 +	memcpy(payload, &spec, sizeof(spec));
 +	memcpy(payload + 8, &mount_flags, sizeof(mount_flags));
 +	memcpy(payload + 16, &mode, sizeof(mode));
@@ -68,16 +32,42 @@ index 6395911..bcddd67 100644
 +	memcpy(payload + 0x148, &anonymous_owner, sizeof(anonymous_owner));
 +	if ((error = copyout("apfs", request.type, 5)) != 0 ||
 +	    (error = copyout("/private/preboot", request.path, 16)) != 0 ||
-+	    (error = copyout(device_path, spec, strlen(device_path) + 1)) != 0 ||
++	    (error = copyout(dev, spec, strlen(dev) + 1)) != 0 ||
 +	    (error = copyout(payload, request.data, sizeof(payload))) != 0) {
 +		return error;
 +	}
 +	error = mount(p, &request, &result);
 +	if (error != 0) {
-+		printf("HOUJI-RD2: mount %s at /private/preboot failed: %d\n", device_path, error);
++		printf("HOUJI-RD2: mount %s error %d\n", dev, error);
++	} else {
++		printf("HOUJI-RD2: mounted %s at /private/preboot\n", dev);
++	}
++	return error;
++}
++
++static int
++houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
++{
++	static const char *const devices[] = {"/dev/md1s1", "/dev/md1s2", "/dev/md1"};
++	char rd2[64];
++	user64_addr_t environment_vector[2] = {scratch + 0x400, USER_ADDR_NULL};
++	const char *environment = "DYLD_SHARED_CACHE_DIR=/private/preboot/System/Library/Caches/com.apple.dyld";
++	unsigned int index;
++	int error = EINVAL;
++
++	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2))) {
++		return 0;
++	}
++	printf("HOUJI-RD2: mount helper entered\n");
++	for (index = 0; index < sizeof(devices) / sizeof(devices[0]); index++) {
++		error = houji_rd2_try_mount(p, scratch, devices[index]);
++		if (error == 0) {
++			break;
++		}
++	}
++	if (error != 0) {
 +		return error;
 +	}
-+	printf("HOUJI-RD2: mounted %s at /private/preboot\n", device_path);
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
 +	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
 +		return error;
@@ -89,7 +79,7 @@ index 6395911..bcddd67 100644
  void
  load_init_program(proc_t p)
  {
-@@ -8235,6 +8315,17 @@ load_init_program(proc_t p)
+@@ -8235,6 +8305,17 @@ load_init_program(proc_t p)
  	}
  #endif
  
