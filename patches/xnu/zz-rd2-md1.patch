@@ -1,10 +1,14 @@
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
-@@ -839,4 +839,26 @@
+@@ -30,3 +30,4 @@
+ extern unsigned long gPhysBase, gPhysSize;
+ extern "C" boolean_t native_ufs_fill_ramdisk(vm_offset_t base, vm_size_t size);
++extern "C" boolean_t native_ufs_fill2(vm_offset_t base, vm_size_t size);
+ #endif /* __arm64__ */
+@@ -839,4 +840,24 @@
  					(void)mdevadd(-1, ramdBase >> 12, (unsigned int) (ramdParms[1] >> 12), 0);        /* Initialize it and pass back the device number */
 +					{
 +					char rd2Spec[64];
-+					extern "C" int PE_parse_boot_argn(const char *, void *, int);
 +					if (PE_parse_boot_argn("rd2", rd2Spec, sizeof(rd2Spec))) {
 +					uint64_t rd2Paddr = 0, rd2Size = 0;
 +					const char *rp = rd2Spec;
@@ -16,7 +20,6 @@
 +					while ((*rp >= '0' && *rp <= '9') || (*rp >= 'a' && *rp <= 'f') || (*rp >= 'A' && *rp <= 'F')) { char rc = *rp++; rd2Size <<= 4; rd2Size |= (rc >= '0' && rc <= '9') ? (uint64_t)(rc - '0') : (uint64_t)((rc | 0x20) - 'a' + 10); }
 +					}
 +					if (rd2Paddr && rd2Size) {
-+					extern "C" boolean_t native_ufs_fill2(vm_offset_t, vm_size_t);
 +					vm_offset_t rd2Base = ml_static_ptovirt(rd2Paddr);
 +					if (!native_ufs_fill2(rd2Base, (vm_size_t)rd2Size)) panic("native-ufs: fill2 failed");
 +					(void)mdevadd(-1, rd2Base >> 12, (unsigned int)(rd2Size >> 12), 0);
