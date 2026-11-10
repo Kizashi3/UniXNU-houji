@@ -25,6 +25,14 @@ BINDINGS = {
     '__ZN20IOBlockStorageDevice10gMetaClassE': 0xfffffff006a091d0,
     '__ZN20IOBlockStorageDeviceC2EPK11OSMetaClass': 0xfffffff0045d9d98,
     '__ZN20IOBlockStorageDeviceD2Ev': 0xfffffff0045d9db8,
+    # Concrete base methods the driver inherits (vtable slots it does not override).
+    '__ZN20IOBlockStorageDevice4initEP12OSDictionary': 0xfffffff0045d9e30,
+    '__ZNK20IOBlockStorageDevice11getPropertyEPK8OSSymbol': 0xfffffff0045d9e88,
+    '__ZN20IOBlockStorageDevice13setPropertiesEP8OSObject': 0xfffffff0045d9f38,
+    '__ZN20IOBlockStorageDevice11requestIdleEv': 0xfffffff0045da050,
+    '__ZN20IOBlockStorageDevice7doUnmapEP26IOBlockStorageDeviceExtentjj': 0xfffffff0045da05c,
+    '__ZN20IOBlockStorageDevice13doSetPriorityEP26IOBlockStorageDeviceExtentjh': 0xfffffff0045da068,
+    '__ZN20IOBlockStorageDevice20doGetProvisionStatusEyyPjP35IOBlockStorageProvisionDeviceExtenty': 0xfffffff0045da08c,
 }
 # If a fresh audit JSON is present, prefer it (catches layout drift at link time).
 audit_path = ROOT / 'build/storage-abi/interface-audit.json'
@@ -36,8 +44,9 @@ if audit_path.is_file():
         '__ZN20IOBlockStorageDeviceC2EPK11OSMetaClass': int(audit['original_protected_constructor'], 16),
         '__ZN20IOBlockStorageDeviceD2Ev': int(audit['original_base_destructor'], 16),
     }
-    if fresh != BINDINGS:
-        raise SystemExit(f'Storage ABI drift: pinned {BINDINGS} vs audited {fresh}; re-qualify')
+    drift = {k: (hex(BINDINGS[k]), hex(v)) for k, v in fresh.items() if BINDINGS.get(k) != v}
+    if drift:
+        raise SystemExit(f'Storage ABI drift (pinned, audited): {drift}; re-qualify')
 
 obj_path = out / 'NativeRamBlock.o'
 obj = obj_path.read_bytes()
