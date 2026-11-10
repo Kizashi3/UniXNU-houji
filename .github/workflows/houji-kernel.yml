@@ -853,6 +853,24 @@ jobs:
             fi
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Build APFS Data seed (macOS newfs_apfs)
+        if: always()
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR" out/houji/kernel
+          {
+            set -e
+            hdiutil attach -nomount ram://131072 > /tmp/ramdev.txt
+            DEV=$(head -1 /tmp/ramdev.txt | awk '{print $1}')
+            echo "ramdisk device: $DEV"
+            newfs_apfs -v houjiData -r D "$DEV" || newfs_apfs -v houjiData "$DEV"
+            dd if="$DEV" of=out/houji/kernel/data-seed.raw bs=1048576 2>&1 | tail -2
+            hdiutil detach "$DEV" || true
+            gzip -f out/houji/kernel/data-seed.raw
+            ls -la out/houji/kernel/data-seed.raw.gz
+            shasum -a 256 out/houji/kernel/data-seed.raw.gz
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Check pinned iOS16 prelink inputs
         if: always()
         working-directory: unixnu
@@ -1002,6 +1020,9 @@ jobs:
               p=unixnu/out/houji/kernel/$extra
               if [ -s "$p" ]; then cp "$p" "$stage/diag/kernels/run-${GITHUB_RUN_NUMBER}-${extra}"; fi
             done
+            if [ -s unixnu/out/houji/kernel/data-seed.raw.gz ]; then
+              cp unixnu/out/houji/kernel/data-seed.raw.gz "$stage/diag/kernels/run-${GITHUB_RUN_NUMBER}-data-seed.raw.gz"
+            fi
             if [ -s "$DIAG_DIR/release.log" ]; then
               cp "$DIAG_DIR/release.log" "$stage/diag/kernels/run-${GITHUB_RUN_NUMBER}-release.log"
             fi
