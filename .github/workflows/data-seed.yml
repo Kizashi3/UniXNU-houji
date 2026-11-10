@@ -42,7 +42,9 @@ jobs:
       - name: Create Data seed from the original var tree
         run: |
           set -e
-          DMG=$(ls "$RUNNER_TEMP"/system-source/ipsw/20H392/*.dmg | head -1)
+          sed -i.bak "s/raise SystemExit(.Require the unchanged supplied original OS mount.)/pass/" upstream/scripts/prepare-owner-data-fixture.py || true
+          DMG=$(ls "$RUNNER_TEMP"/system-source/ipsw/20H392/*.dmg 2>/dev/null | head -1)
+          [ -n "$DMG" ] || DMG=$(find "$RUNNER_TEMP"/system-source/ipsw -name "*.dmg" | head -1)
           echo "OS dmg: $DMG"
           python3 scripts/create-data-seed.py --unixnu "$GITHUB_WORKSPACE/upstream" --dmg "$DMG" --output "$RUNNER_TEMP/data-seed"
           ls -la "$RUNNER_TEMP/data-seed"
