@@ -1,0 +1,14 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index 380ec4c..a4ea7d2 100644
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -7435,7 +7435,8 @@ houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
+ 	unsigned int index;
+ 	int error = EINVAL;
+ 
+-	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2))) {
++	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2)) &&
++	    !PE_parse_boot_argn("ufs-md", rd2, (int)sizeof(rd2))) {
+ 		return 0;
+ 	}
+ 	printf("HOUJI-RD2: mount helper entered\n");
