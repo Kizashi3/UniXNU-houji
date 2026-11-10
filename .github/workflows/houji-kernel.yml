@@ -769,6 +769,13 @@ jobs:
           mkdir -p "$DIAG_DIR"
           DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-nativeufs.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Overlay NativeRamBlock
+        working-directory: unixnu
+        run: |
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-nativeramblock.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Build houji kernel
         working-directory: unixnu
         env:
@@ -808,6 +815,24 @@ jobs:
             echo "UniXNU kernel retry exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
           fi
           exit "$build_status"
+
+      - name: Compile NativeRamBlock (diagnostic)
+        if: always()
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            if [ -f out/houji/tree/drivers/NativeRamBlock/NativeRamBlock.cpp ]; then
+              echo "=== compile NativeRamBlock against the XNU record + storage headers ==="
+              python3 out/houji/tree/scripts/build-arm-driver.py NativeRamBlock \
+                && echo "RAMBLOCK_COMPILE_OK" \
+                || echo "RAMBLOCK_COMPILE_FAILED (see compile.log below)"
+              echo "=== compile.log tail ==="
+              tail -n 60 out/houji/tree/build/native-ram-block/compile.log 2>/dev/null || true
+            else
+              echo "NativeRamBlock source not overlaid"
+            fi
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Verify the AES base binding reached the kernel
         working-directory: unixnu
