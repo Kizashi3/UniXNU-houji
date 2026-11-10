@@ -1,8 +1,8 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..0ce2ce8 100644
+index 92142f7..c8be058 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
-@@ -54,6 +54,33 @@ extern "C" {
+@@ -54,6 +54,36 @@ extern "C" {
  #include <corecrypto/ccsha2.h>
  #include <kdp/sk_core.h>
  
@@ -31,12 +31,15 @@ index 92142f7..0ce2ce8 100644
 +extern unsigned long gPhysBase, gPhysSize;
 +extern "C" boolean_t native_ufs_fill_ramdisk(vm_offset_t base, vm_size_t size);
 +extern "C" boolean_t native_ufs_fill2(vm_offset_t base, vm_size_t size);
++extern "C" int native_ufs_md_init(void);
++extern "C" uint64_t native_ufs_md_window_bytes(const char *name);
++extern "C" int mdevadd_ufs(int devid, const char *name, uint64_t bytes);
 +#endif /* __arm64__ */
 +
  // how long to wait for matching root device, secs
  #if DEBUG
  #define ROOTDEVICETIMEOUT       120
-@@ -773,7 +800,66 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +803,90 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -50,8 +53,30 @@ index 92142f7..0ce2ce8 100644
 +					 * map.  Boot allocations are only guaranteed to be hardware-page aligned, so grow
 +					 * the mapping down to a software page and hand mdev the shifted base.
 +					 */
-+					vm_offset_t ramdBase;
-+					if ((ramdParms[0] >= gPhysBase) && ((ramdParms[0] - gPhysBase) < gPhysSize) &&
++					vm_offset_t ramdBase = 0;
++					boolean_t mdFromWindows = FALSE;
++					char ufsmdSpec[32];
++					/*
++					 * HOUJI-UFS-MD: with ufs-md=1 the md devices read straight from the userdata windows
++					 * named in the manifest, so no container has to be resident.  The device size equals
++					 * the window, which is what nx_dev_init checks before it will mount a container.
++					 */
++					if (PE_parse_boot_argn("ufs-md", ufsmdSpec, sizeof(ufsmdSpec)) &&
++						native_ufs_md_init() == 0) {
++						uint64_t mdOS = native_ufs_md_window_bytes("OS");
++						uint64_t mdSys = native_ufs_md_window_bytes("SystemOS");
++						if (!mdOS) {
++							panic("ufs-md: no OS window in the root manifest");
++						}
++						if (mdevadd_ufs(0, "OS", mdOS) < 0) {
++							panic("ufs-md: md0 window device failed");
++						}
++						if (mdSys && mdevadd_ufs(1, "SystemOS", mdSys) < 0) {
++							panic("ufs-md: md1 window device failed");
++						}
++						IOLog("HOUJI-UFS-MD: md0=%#llx md1=%#llx\n", (uint64_t)mdOS, (uint64_t)mdSys);
++					mdFromWindows = TRUE;
++					} else if ((ramdParms[0] >= gPhysBase) && ((ramdParms[0] - gPhysBase) < gPhysSize) &&
 +					    (ramdParms[1] <= (gPhysSize - (ramdParms[0] - gPhysBase)))) {
 +						ramdBase = ml_static_ptovirt(ramdParms[0]);
 +					} else {
@@ -74,11 +99,13 @@ index 92142f7..0ce2ce8 100644
 +						    VM_PROT_READ | VM_PROT_WRITE, VM_WIMG_DEFAULT);
 +						ramdBase = ramdMap + ramdOffset;
 +					}
-+					if (!native_ufs_fill_ramdisk(ramdBase, (vm_size_t)ramdParms[1])) {
++					if (!mdFromWindows && !native_ufs_fill_ramdisk(ramdBase, (vm_size_t)ramdParms[1])) {
 +						panic("native-ufs: ramdisk fill failed");
 +					}
-+					(void)mdevadd(-1, ramdBase >> 12, (unsigned int) (ramdParms[1] >> 12), 0);        /* Initialize it and pass back the device number */
-+					{
++					if (!mdFromWindows) {
++						(void)mdevadd(-1, ramdBase >> 12, (unsigned int) (ramdParms[1] >> 12), 0);        /* Initialize it and pass back the device number */
++					}
++					if (!mdFromWindows) {
 +						char rd2Spec[64];
 +						if (PE_parse_boot_argn("rd2", rd2Spec, sizeof(rd2Spec))) {
 +							uint64_t rd2Paddr = 0, rd2Size = 0;

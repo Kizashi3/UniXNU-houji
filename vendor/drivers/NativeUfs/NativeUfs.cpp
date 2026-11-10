@@ -2018,6 +2018,112 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
   return true;
 }
 
+/*
+ * HOUJI-UFS-MD: serve md block I/O directly from a named userdata window, so an APFS container
+ * no longer has to be resident in RAM. nx_dev_init refuses any device smaller than the container
+ * it describes (error 92), so a truncated ramdisk is not an option on a 12 GB phone with an
+ * 8 GiB window; reading through the same window layout the fill uses is.
+ */
+struct HoujiMdWindow {
+  char name[16];
+  uint64_t firstLba;      /* absolute 4 KiB LBA of the window start */
+  uint64_t size;          /* window length in bytes */
+};
+
+static HoujiMdWindow gMdWindows[4];
+static unsigned gMdWindowCount = 0;
+static IOLock *gMdLock = nullptr;
+static uint8_t *gMdCache = nullptr;
+static int gMdCacheWin = -1;
+static uint64_t gMdCacheOff = 0;
+static uint64_t gMdCacheLen = 0;
+
+extern "C" int native_ufs_md_init (void)
+{
+  const char *why = "";
+  if (gMdWindowCount) return 0;
+  if (!hostBringUp (&why)) { IOLog ("NativeUfs: md bring-up failed: %s\n", why); return -1; }
+  RootLayout *layout = static_cast<RootLayout *> (IOMalloc (sizeof (RootLayout)));
+  if (!layout) return -2;
+  if (!findRootLayout (layout, &why) || layout->manifestStatus != 0) {
+    IOLog ("NativeUfs: md layout failed: %s status=%u\n", why, layout->manifestStatus);
+    IOFree (layout, sizeof (RootLayout));
+    return -3;
+  }
+  unsigned n = layout->windows;
+  if (n > 4) n = 4;
+  for (unsigned i = 0; i < n; i++) {
+    HoujiMdWindow *w = &gMdWindows[i];
+    const char *src = layout->window[i].name;
+    unsigned j = 0;
+    for (; j < 15 && src[j]; j++) w->name[j] = src[j];
+    w->name[j] = 0;
+    w->firstLba = layout->userdataFirst + layout->window[i].offset / 4096;
+    w->size = layout->window[i].size;
+    IOLog ("HOUJI-UFS-MD: window %u %s lba=%llu bytes=%llu\n", i, w->name,
+        (unsigned long long) w->firstLba, (unsigned long long) w->size);
+  }
+  gMdWindowCount = n;
+  gMdLock = IOLockAlloc ();
+  gMdCache = static_cast<uint8_t *> (IOMalloc (kDataMax));
+  if (!gMdLock || !gMdCache) { IOFree (layout, sizeof (RootLayout)); return -4; }
+  IOFree (layout, sizeof (RootLayout));
+  IOLog ("HOUJI-UFS-MD: ready windows=%u cache=%u\n", gMdWindowCount, kDataMax);
+  return 0;
+}
+
+extern "C" uint64_t native_ufs_md_window_bytes (const char *name)
+{
+  for (unsigned i = 0; i < gMdWindowCount; i++)
+    if (!strncmp (gMdWindows[i].name, name, sizeof (gMdWindows[i].name))) return gMdWindows[i].size;
+  return 0;
+}
+
+/* Copy len bytes at window-relative off into dst. len <= kDataMax, dst any kernel VA. */
+static int mdFillCache (int win, uint64_t off)
+{
+  HoujiMdWindow *w = &gMdWindows[win];
+  uint64_t start = off & ~0xFFFULL;
+  if (start >= w->size) return -1;
+  uint64_t len = w->size - start;
+  if (len > kDataMax) len = kDataMax;
+  len &= ~0xFFFULL;
+  if (!len) return -2;
+  uint32_t blocks = (uint32_t) (len / 4096);
+  if (hostRead4k (0, w->firstLba + start / 4096, blocks, gMdCache) != kIOReturnSuccess) {
+    IOLog ("NativeUfs: md read failed win=%s lba=%llu blocks=%u\n", w->name,
+        (unsigned long long) (w->firstLba + start / 4096), blocks);
+    return -3;
+  }
+  gMdCacheWin = win; gMdCacheOff = start; gMdCacheLen = len;
+  return 0;
+}
+
+extern "C" int native_ufs_md_read (const char *name, uint64_t off, void *dst, uint64_t len)
+{
+  if (!gMdWindowCount || !gMdCache) return -10;
+  int win = -1;
+  for (unsigned i = 0; i < gMdWindowCount; i++)
+    if (!strncmp (gMdWindows[i].name, name, sizeof (gMdWindows[i].name))) { win = (int) i; break; }
+  if (win < 0) return -11;
+  if (!len) return 0;
+  if (off + len > gMdWindows[win].size) return -12;
+
+  uint8_t *out = static_cast<uint8_t *> (dst);
+  IOLockLock (gMdLock);
+  while (len) {
+    if (gMdCacheWin != win || off < gMdCacheOff || off + 1 > gMdCacheOff + gMdCacheLen) {
+      if (mdFillCache (win, off) != 0) { IOLockUnlock (gMdLock); return -13; }
+    }
+    uint64_t take = gMdCacheOff + gMdCacheLen - off;
+    if (take > len) take = len;
+    memcpy (out, gMdCache + (off - gMdCacheOff), (size_t) take);
+    off += take; out += take; len -= take;
+  }
+  IOLockUnlock (gMdLock);
+  return 0;
+}
+
 // Step3: fill the second reserved ramdisk (rd2) from the SystemOS window.
 extern "C" boolean_t native_ufs_fill2 (vm_offset_t base, vm_size_t size)
 {
