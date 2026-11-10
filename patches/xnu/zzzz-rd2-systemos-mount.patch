@@ -1,5 +1,5 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index c1b7c62..f2dafa5 100644
+index c1b7c62..46b0fe5 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
 @@ -7386,6 +7386,88 @@ static const char * init_programs[] = {
@@ -75,7 +75,7 @@ index c1b7c62..f2dafa5 100644
 +	 * has nowhere to write state, and a missing or unformatted md2 only costs the mount attempt.
 +	 */
 +	{
-+		int data_error = houji_rd2_try_mount(p, scratch, "/dev/md2", "msdos", "/private/var", 0);
++		int data_error = houji_rd2_try_mount(p, scratch, "/dev/md2", "apfs", "/private/var", 0);
 +		if (data_error != 0) {
 +			printf("HOUJI-DATA: continuing without /private/var (%d)\n", data_error);
 +		}
