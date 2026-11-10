@@ -1,8 +1,22 @@
 diff --git a/bsd/vfs/vfs_lookup.c b/bsd/vfs/vfs_lookup.c
-index c63e30e..de9c1e7 100644
+index c63e30e..c61439c 100644
 --- a/bsd/vfs/vfs_lookup.c
 +++ b/bsd/vfs/vfs_lookup.c
-@@ -110,7 +110,7 @@ native_lookup_note(const char *path, int error)
+@@ -100,17 +100,20 @@
+ #if NAMEDRSRCFORK
+ #include <sys/xattr.h>
+ #endif
++
+ /*
+- * Board bring-up diagnostic: the distinct lookups that failed for MobileSafari (path and errno), read by the boot log.
++ * HOUJI-LOOKUP: record the distinct lookups that failed for launchd (path and errno) and put
++ * them in the kernel log, so a minimal root shows exactly which paths it is missing.
+  */
+ char native_lookup_log[96][112];
+ volatile unsigned native_lookup_count;
++
+ static void
+ native_lookup_note(const char *path, int error)
  {
  	char name[MAXCOMLEN + 1];
  	proc_selfname(name, sizeof(name));
@@ -11,11 +25,14 @@ index c63e30e..de9c1e7 100644
  		return;
  	}
  	char entry[112];
-@@ -124,6 +124,7 @@ native_lookup_note(const char *path, int error)
+@@ -124,9 +127,9 @@ native_lookup_note(const char *path, int error)
  	unsigned slot = os_atomic_inc_orig(&native_lookup_count, relaxed);
  	if (slot < 96) {
  		strlcpy(native_lookup_log[slot], entry, sizeof(native_lookup_log[slot]));
-+		printf("HOUJI-LOOKUP: %s\n", entry);   /* surface the failure in the msgbuf ring */
++		printf("HOUJI-LOOKUP: %s\n", entry);
  	}
  }
- 
+-
+ /*
+  * The minimum volfs-style pathname is 9.
+  * Example:  "/.vol/1/2"
