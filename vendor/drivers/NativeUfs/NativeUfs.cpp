@@ -2064,11 +2064,28 @@ extern "C" int native_ufs_md_init (void)
         (unsigned long long) w->firstLba, (unsigned long long) w->size);
   }
   gMdWindowCount = n;
+  gStoreGeometry.valid = true;
+  gStoreGeometry.first = layout->userdataFirst;
+  gStoreGeometry.last = layout->userdataLast;
+  gStoreGeometry.imageBytes = layout->imageBytes;
+  IOLog ("HOUJI-LOG: geometry first=%llu last=%llu image=%llu\n",
+      (unsigned long long) gStoreGeometry.first, (unsigned long long) gStoreGeometry.last,
+      (unsigned long long) gStoreGeometry.imageBytes);
   gMdLock = IOLockAlloc ();
   gMdCache = static_cast<uint8_t *> (IOMalloc (kDataMax));
   if (!gMdLock || !gMdCache) { IOFree (layout, sizeof (RootLayout)); return -4; }
   IOFree (layout, sizeof (RootLayout));
   IOLog ("HOUJI-UFS-MD: ready windows=%u cache=%u\n", gMdWindowCount, kDataMax);
+  if (logMode ()) {
+    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 20) + 4096));
+    thread_t logthread = NULL;
+    if (logbuf && kernel_thread_start ((thread_continue_t)houjiLogThread, logbuf, &logthread) == KERN_SUCCESS) {
+      thread_deallocate (logthread);
+      IOLog ("HOUJI-LOG: snapshot thread started (md)\n");
+    } else {
+      if (logbuf) IOFree (logbuf, (1 << 20) + 4096);
+    }
+  }
   return 0;
 }
 
