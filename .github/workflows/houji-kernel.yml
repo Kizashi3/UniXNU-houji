@@ -853,19 +853,22 @@ jobs:
             fi
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
-      - name: Build APFS Data seed (macOS newfs_apfs)
+      - name: Build APFS Data seed (hdiutil, sheng method)
         if: always()
         working-directory: unixnu
         run: |
           mkdir -p "$DIAG_DIR" out/houji/kernel
           {
             set -e
-            hdiutil attach -nomount ram://131072 > /tmp/ramdev.txt
-            DEV=$(head -1 /tmp/ramdev.txt | awk '{print $1}')
-            echo "ramdisk device: $DEV"
-            newfs_apfs -v houjiData -r D "$DEV" || newfs_apfs -v houjiData "$DEV"
-            dd if="$DEV" of=out/houji/kernel/data-seed.raw bs=1048576 2>&1 | tail -2
-            hdiutil detach "$DEV" || true
+            rm -f /tmp/houji-data.cdr
+            hdiutil create -size 64m -layout NONE -fs APFS -volname houjiData -type UDTO /tmp/houji-data.cdr
+            rm -rf /tmp/houji-mnt; mkdir -p /tmp/houji-mnt
+            hdiutil attach -nobrowse -owners off -mountpoint /tmp/houji-mnt /tmp/houji-data.cdr > /tmp/houji-att.txt
+            mkdir -p /tmp/houji-mnt/keybags /tmp/houji-mnt/mobile/tmp /tmp/houji-mnt/tmp /tmp/houji-mnt/run
+            chmod 1777 /tmp/houji-mnt/tmp
+            hdiutil detach /tmp/houji-mnt || true
+            cp /tmp/houji-data.cdr out/houji/kernel/data-seed.raw
+            python3 -c "d=open('out/houji/kernel/data-seed.raw','rb').read(); print('seed bytes', len(d), 'magic', d[32:36])"
             gzip -f out/houji/kernel/data-seed.raw
             ls -la out/houji/kernel/data-seed.raw.gz
             shasum -a 256 out/houji/kernel/data-seed.raw.gz
