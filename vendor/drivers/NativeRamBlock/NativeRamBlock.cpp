@@ -1,8 +1,10 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IORegistryEntry.h>
+#include <IOKit/IODeviceTreeSupport.h>
 #include <IOKit/storage/IOBlockStorageDevice.h>
+#include <libkern/c++/OSData.h>
 #include <libkern/c++/OSDictionary.h>
-#include <osfmk/machine/machine_routines.h>
+#include <machine/machine_routines.h>
 
 #define super IOBlockStorageDevice
 
