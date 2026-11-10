@@ -73,6 +73,30 @@ bool NativeRamBlock::start(IOService *provider)
     // The provider must report the size the seed's APFS container declares, not the whole
     // loader window: APFS rejects a device whose size does not match nx_block_count.
     capacity = bytes / 512;
+    // Diagnostic: prove what the loader actually staged in this window. Print the first two
+    // blocks and locate any APFS container (NXSB) header so we can tell an empty reserve
+    // (loader never copied) from a mis-offset or coherency problem.
+    IOLog("NativeRamBlock: head q0..q5 %llx %llx %llx %llx %llx %llx\n",
+          *reinterpret_cast<uint64_t *>(memory + 0), *reinterpret_cast<uint64_t *>(memory + 8),
+          *reinterpret_cast<uint64_t *>(memory + 16), *reinterpret_cast<uint64_t *>(memory + 24),
+          *reinterpret_cast<uint64_t *>(memory + 32), *reinterpret_cast<uint64_t *>(memory + 40));
+    {
+        uint64_t limit = bytes < (16ull << 20) ? bytes : (16ull << 20);
+        uint64_t found = 0;
+        for (uint64_t off = 0; off + 36 <= limit; off += 512)
+            if (memory[off + 32] == 'N' && memory[off + 33] == 'X' &&
+                memory[off + 34] == 'S' && memory[off + 35] == 'B') {
+                IOLog("NativeRamBlock: NXSB candidate at off=0x%llx bs=%u blocks=%llu\n",
+                      (unsigned long long)off,
+                      *reinterpret_cast<uint32_t *>(memory + off + 36),
+                      (unsigned long long)*reinterpret_cast<uint64_t *>(memory + off + 40));
+                found = off;
+                break;
+            }
+        if (!found && !(memory[32] == 'N' && memory[33] == 'X' && memory[34] == 'S' && memory[35] == 'B'))
+            IOLog("NativeRamBlock: no APFS container in first 0x%llx bytes\n",
+                  (unsigned long long)limit);
+    }
     if (bytes >= 72 && memory[32] == 'N' && memory[33] == 'X' && memory[34] == 'S' && memory[35] == 'B') {
         uint32_t blockSize = *reinterpret_cast<uint32_t *>(memory + 36);
         uint64_t blockCount = *reinterpret_cast<uint64_t *>(memory + 40);
