@@ -235,3 +235,48 @@ index 0bb45c5..800edb1 100644
 +	unixnu_srcache_fixinfo(shared_region);
 +	return kr;
 +}
+diff --git a/osfmk/vm/vm_shared_region.c b/osfmk/vm/vm_shared_region.c
+index 800edb1..bf72a49 100644
+--- a/osfmk/vm/vm_shared_region.c
++++ b/osfmk/vm/vm_shared_region.c
+@@ -2258,6 +2258,17 @@ vm_shared_region_trim_and_get(task_t task)
+ 	return shared_region;
+ }
+ 
++/* HOUJI-DYNPAGE: range of the cache's writable dynamic-data page, from the pre-map. */
++uint64_t unixnu_srcache_dyn_off;
++uint64_t unixnu_srcache_dyn_size;
++
++void
++unixnu_srcache_set_dynamic_range(uint64_t off, uint64_t size)
++{
++	unixnu_srcache_dyn_off = off;
++	unixnu_srcache_dyn_size = size;
++}
++
+ /*
+  * Enter the appropriate shared region into "map" for "task".
+  * This involves looking up the shared region (and possibly creating a new
+@@ -2480,6 +2491,22 @@ done:
+ 	if (kr == KERN_SUCCESS) {
+ 		/* let the task use that shared region */
+ 		vm_shared_region_set(task, shared_region);
++#if defined(__arm64__)
++		/*
++		 * HOUJI-DYNPAGE: the pre-mapped cache keeps its writable dynamic page in the private
++		 * task map, so a freshly exec'ed task needs its own copy or the first write faults.
++		 * Tasks that already carry the pre-map entry (launchd) are left alone.
++		 */
++		if ((unixnu_srcache_dyn_size != 0) && (shared_region != NULL)) {
++			vm_map_offset_t dyn_target = (vm_map_offset_t)(shared_region->sr_base_address + unixnu_srcache_dyn_off);
++			vm_map_entry_t dyn_entry = VM_MAP_ENTRY_NULL;
++			extern kern_return_t unixnu_srcache_map_anonymous(void *, uint64_t, uint64_t);
++			if (!vm_map_lookup_entry(map, dyn_target, &dyn_entry) || (dyn_entry == VM_MAP_ENTRY_NULL) ||
++			    (dyn_target < dyn_entry->vme_start) || (dyn_target >= dyn_entry->vme_end)) {
++				unixnu_srcache_map_anonymous(shared_region, unixnu_srcache_dyn_off, unixnu_srcache_dyn_size);
++			}
++		}
++#endif
+ 	} else {
+ 		/* drop our reference since we're not using it */
+ 		vm_shared_region_deallocate(shared_region);

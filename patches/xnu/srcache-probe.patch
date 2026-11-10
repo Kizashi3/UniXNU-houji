@@ -479,3 +479,18 @@ index ccc685a..7a36546 100644
  	}
  
  	free_io_buf(cbp_head);
+diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
+index 76ba85c..228f834 100644
+--- a/bsd/vm/vm_unix.c
++++ b/bsd/vm/vm_unix.c
+@@ -2482,6 +2482,10 @@ unixnu_srcache_map(void)
+ 	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
+ 	if (kr == KERN_SUCCESS) {
+ 		unixnu_srcache_map_anonymous(sr, dyn_off, dyn_size);
++		{
++			extern void unixnu_srcache_set_dynamic_range(uint64_t, uint64_t);
++			unixnu_srcache_set_dynamic_range(dyn_off, dyn_size);
++		}
+ 		/*
+ 		 * HOUJI-SRCACHE-v9: dyld's DyldProcessConfig halts unless the dynamic
+ 		 * config page carries the magic and the cache file's fs identity.
