@@ -40,6 +40,8 @@ archives = [
   "build-arm-driver.py ArmCpu",
   "build-libpthread-kernel.py",
   "build-native-aes-bindings.py",
+  "build-arm-driver.py NativeRamBlock",
+  "build-native-ram-block-bindings.py",
 ]
 
 [kernel.prelink]
