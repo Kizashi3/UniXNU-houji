@@ -1,8 +1,8 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 6395911..34b450e 100644
+index c1b7c62..a4ea7d2 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -8170,6 +8170,77 @@ static const char * init_programs[] = {
+@@ -7386,6 +7386,78 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -55,7 +55,8 @@ index 6395911..34b450e 100644
 +	unsigned int index;
 +	int error = EINVAL;
 +
-+	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2))) {
++	if (!PE_parse_boot_argn("rd2", rd2, (int)sizeof(rd2)) &&
++	    !PE_parse_boot_argn("ufs-md", rd2, (int)sizeof(rd2))) {
 +		return 0;
 +	}
 +	printf("HOUJI-RD2: mount helper entered\n");
@@ -80,7 +81,7 @@ index 6395911..34b450e 100644
  void
  load_init_program(proc_t p)
  {
-@@ -8235,6 +8306,17 @@ load_init_program(proc_t p)
+@@ -7440,6 +7512,17 @@ load_init_program(proc_t p)
  	}
  #endif
  
