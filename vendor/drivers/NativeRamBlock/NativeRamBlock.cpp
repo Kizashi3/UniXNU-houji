@@ -1,10 +1,13 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IORegistryEntry.h>
 #include <IOKit/IODeviceTreeSupport.h>
+#include <IOKit/IOBSD.h>
 #include <IOKit/storage/IOBlockStorageDevice.h>
 #include <libkern/c++/OSData.h>
 #include <libkern/c++/OSDictionary.h>
+#include <libkern/c++/OSNumber.h>
 #include <machine/machine_routines.h>
+#include <sys/param.h>
 
 #define super IOBlockStorageDevice
 
@@ -110,4 +113,62 @@ IOReturn NativeRamBlock::doAsyncReadWrite(IOMemoryDescriptor *buffer, UInt64 blo
     IOReturn status = (done == bytes) ? kIOReturnSuccess : kIOReturnIOError;
     completion->action(completion->target, completion->parameter, status, done);
     return kIOReturnSuccess;
+}
+
+// The IOMedia the storage stack built for this driver is a descendant of our IOService.
+// Walk provider chains to find it and report its BSD device node.
+static bool mediaDeviceFor(IOService *ram, dev_t *device, char *path, size_t size)
+{
+    OSDictionary *matching = IOService::serviceMatching("IOMedia");
+    if (!matching) return false;
+    OSIterator *iterator = IOService::getMatchingServices(matching);
+    matching->release();
+    if (!iterator) return false;
+    bool found = false;
+    while (OSObject *object = iterator->getNextObject()) {
+        IOService *media = OSDynamicCast(IOService, object);
+        if (!media) continue;
+        bool mine = false;
+        unsigned depth = 0;
+        for (IOService *provider = media; provider && depth++ < 64; provider = provider->getProvider())
+            if (provider == ram) { mine = true; break; }
+        if (!mine) continue;
+        OSNumber *major = OSDynamicCast(OSNumber, media->getProperty(kIOBSDMajorKey));
+        OSNumber *minor = OSDynamicCast(OSNumber, media->getProperty(kIOBSDMinorKey));
+        OSString *name = OSDynamicCast(OSString, media->getProperty(kIOBSDNameKey));
+        if (!major || !minor || !name) continue;
+        *device = static_cast<dev_t>(makedev(major->unsigned32BitValue(), minor->unsigned32BitValue()));
+        if (path && size) snprintf(path, size, "/dev/%s", name->getCStringNoCopy());
+        found = true;
+        break;
+    }
+    iterator->release();
+    return found;
+}
+
+extern "C" int native_ram_block_volume_seed(const char *uuid, dev_t *device, char *path, size_t size,
+    uint64_t *seedBase, uint64_t *seedBytes, uint8_t digest[32])
+{
+    (void)uuid;
+    (void)seedBase;
+    (void)seedBytes;
+    (void)digest;
+    if (!device || !path || !size) return 0;
+    *device = NODEV;
+    path[0] = 0;
+    OSDictionary *matching = IOService::serviceMatching("NativeRamBlock");
+    if (!matching) return 0;
+    OSIterator *iterator = IOService::getMatchingServices(matching);
+    matching->release();
+    if (!iterator) return 0;
+    int ok = 0;
+    if (IOService *ram = OSDynamicCast(IOService, iterator->getNextObject()))
+        ok = mediaDeviceFor(ram, device, path, size) ? 1 : 0;
+    iterator->release();
+    return ok;
+}
+
+extern "C" int native_ram_block_volume_device(const char *uuid, dev_t *device, char *path, size_t size)
+{
+    return native_ram_block_volume_seed(uuid, device, path, size, nullptr, nullptr, nullptr);
 }
