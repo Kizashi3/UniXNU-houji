@@ -70,7 +70,18 @@ bool NativeRamBlock::start(IOService *provider)
     memory = reinterpret_cast<uint8_t *>(ml_static_ptovirt(physical));
     gate = IOLockAlloc();
     if (!memory || !gate) { IOLog("NativeRamBlock: map/lock failed\n"); return false; }
+    // The provider must report the size the seed's APFS container declares, not the whole
+    // loader window: APFS rejects a device whose size does not match nx_block_count.
     capacity = bytes / 512;
+    if (bytes >= 72 && memory[32] == 'N' && memory[33] == 'X' && memory[34] == 'S' && memory[35] == 'B') {
+        uint32_t blockSize = *reinterpret_cast<uint32_t *>(memory + 36);
+        uint64_t blockCount = *reinterpret_cast<uint64_t *>(memory + 40);
+        if (blockSize && blockCount && blockSize <= bytes && blockCount <= (bytes / blockSize)) {
+            capacity = (blockCount * blockSize) / 512;
+            IOLog("NativeRamBlock: APFS container bs=%u blocks=%llu -> %llu 512b blocks\n",
+                  blockSize, (unsigned long long)blockCount, (unsigned long long)capacity);
+        }
+    }
     online = true;
     IOLog("NativeRamBlock: online phys=0x%llx bytes=%llu blocks=%llu\n",
           (unsigned long long)physical, (unsigned long long)bytes, (unsigned long long)capacity);
