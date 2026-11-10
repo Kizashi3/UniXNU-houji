@@ -2,6 +2,9 @@ name: houji initial Data volume
 
 on:
   workflow_dispatch:
+  push:
+    branches: [kernel-cs-bypass]
+    paths: [".github/workflows/data-seed.yml"]
 
 permissions:
   contents: write
