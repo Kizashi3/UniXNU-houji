@@ -49,6 +49,21 @@ jobs:
           python3 scripts/create-data-seed.py --unixnu "$GITHUB_WORKSPACE/upstream" --dmg "$DMG" --output "$RUNNER_TEMP/data-seed"
           ls -la "$RUNNER_TEMP/data-seed"
           shasum -a 256 "$RUNNER_TEMP/data-seed/owner-data-32.cdr"
+      - name: Build HFS+ Data image
+        run: |
+          set -e
+          rm -f /tmp/hfs.cdr
+          hdiutil create -size 64m -layout NONE -fs "HFS+" -volname houjiData -type UDTO /tmp/hfs.cdr
+          rm -rf /tmp/hfsmnt; mkdir -p /tmp/hfsmnt
+          hdiutil attach -nobrowse -owners off -mountpoint /tmp/hfsmnt /tmp/hfs.cdr > /dev/null
+          mkdir -p /tmp/hfsmnt/keybags /tmp/hfsmnt/mobile/tmp /tmp/hfsmnt/tmp /tmp/hfsmnt/run /tmp/hfsmnt/db /tmp/hfsmnt/preferences /tmp/hfsmnt/lib
+          chmod 1777 /tmp/hfsmnt/tmp
+          hdiutil detach /tmp/hfsmnt || true
+          python3 -c "d=open('/tmp/hfs.cdr','rb').read(); print('hfs image', len(d), 'bytes, sig', d[1024:1026].hex())"
+          gzip -f /tmp/hfs.cdr
+          cp /tmp/hfs.cdr.gz "$RUNNER_TEMP/hfs.cdr.gz"
+          shasum -a 256 "$RUNNER_TEMP/hfs.cdr.gz"
+
       - name: Publish Data seed to ci-diagnostics
         run: |
           set -e
@@ -58,6 +73,7 @@ jobs:
           git clone -q --depth 1 -b ci-diagnostics "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag
           mkdir -p /tmp/cidiag/data-seed
           cp "$RUNNER_TEMP/data-seed/owner-data-32.cdr.gz" /tmp/cidiag/data-seed/houji-owner-data-32.cdr.gz
+          cp "$RUNNER_TEMP/hfs.cdr.gz" /tmp/cidiag/data-seed/houji-hfs.cdr.gz 2>/dev/null || true
           cp "$RUNNER_TEMP/data-seed/seed.json" /tmp/cidiag/data-seed/seed.json 2>/dev/null || true
           cd /tmp/cidiag
           git add -f data-seed

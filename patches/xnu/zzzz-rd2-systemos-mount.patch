@@ -92,9 +92,9 @@ index c1b7c62..46b0fe5 100644
 +		}
 +#endif
 +		if (data_error != 0) {
-+			data_error = houji_rd2_try_mount(p, scratch, "", "tmpfs", "/private/var", 0);
++			data_error = houji_rd2_try_mount(p, scratch, "", "hfs", "/private/var", 0);
 +			if (data_error != 0) data_error = houji_rd2_try_mount(p, scratch, "/dev/md2", "apfs", "/private/var", 0);
-+			if (data_error == 0) printf("HOUJI-DATA: mounted tmpfs on /private/var\n");
++			if (data_error == 0) printf("HOUJI-DATA: mounted hfs on /private/var\n");
 +			if (data_error != 0) {
 +				printf("HOUJI-DATA: continuing without /private/var (%d)\n", data_error);
 +			}
