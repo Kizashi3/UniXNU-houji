@@ -2,7 +2,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 index c1b7c62..46b0fe5 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7386,6 +7386,108 @@ static const char * init_programs[] = {
+@@ -7386,6 +7386,109 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -87,6 +87,7 @@ index c1b7c62..46b0fe5 100644
 +		    &seedbase, &seedbytes, seedsha)) {
 +			printf("HOUJI-DATA: ram-block %s dev %d\n", rampath, (int)ramdev);
 +			data_error = houji_rd2_try_mount(p, scratch, rampath, "apfs", "/private/var", 0);
++			if (data_error != 0) data_error = houji_rd2_try_mount(p, scratch, rampath, "hfs", "/private/var", 0);
 +		} else {
 +			printf("HOUJI-DATA: no ram-block device\n");
 +		}
@@ -111,7 +112,7 @@ index c1b7c62..46b0fe5 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7440,6 +7542,17 @@ load_init_program(proc_t p)
+@@ -7440,6 +7543,17 @@ load_init_program(proc_t p)
  	}
  #endif
  
