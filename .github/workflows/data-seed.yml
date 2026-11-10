@@ -53,7 +53,7 @@ jobs:
         run: |
           set -e
           rm -f /tmp/hfs.cdr
-          hdiutil create -size 64m -layout NONE -fs "HFS+" -volname houjiData -type UDTO /tmp/hfs.cdr
+          hdiutil create -size 64m -layout NONE -fs "HFSX" -volname houjiData -type UDTO /tmp/hfs.cdr || { dd if=/dev/zero of=/tmp/hfs.cdr bs=1m count=64; newfs_hfs -s -v houjiData /tmp/hfs.cdr; }
           rm -rf /tmp/hfsmnt; mkdir -p /tmp/hfsmnt
           hdiutil attach -nobrowse -owners off -mountpoint /tmp/hfsmnt /tmp/hfs.cdr > /dev/null
           mkdir -p /tmp/hfsmnt/keybags /tmp/hfsmnt/mobile/tmp /tmp/hfsmnt/tmp /tmp/hfsmnt/run /tmp/hfsmnt/db /tmp/hfsmnt/preferences /tmp/hfsmnt/lib
