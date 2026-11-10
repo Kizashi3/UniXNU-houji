@@ -1,8 +1,8 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index c1b7c62..a4ea7d2 100644
+index c1b7c62..f2dafa5 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7386,6 +7386,78 @@ static const char * init_programs[] = {
+@@ -7386,6 +7386,88 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -13,13 +13,13 @@ index c1b7c62..a4ea7d2 100644
 + * vnode_lookup deadlocks in this context.
 + */
 +static int
-+houji_rd2_try_mount(proc_t p, user_addr_t scratch, const char *dev)
++houji_rd2_try_mount(proc_t p, user_addr_t scratch, const char *dev, const char *fstype,
++    const char *mtpath, uint64_t mount_flags)
 +{
 +	user64_addr_t spec = scratch + 0x160;
 +	uint8_t payload[0x150] = {0};
 +	uint16_t mode = 1;
 +	uint32_t anonymous_owner = 99;
-+	uint64_t mount_flags = MNT_RDONLY;
 +	struct mount_args request = {.type = scratch + 0x100, .path = scratch + 0x120,
 +	    .flags = (int)mount_flags, .data = scratch + 0x200};
 +	int32_t result = 0;
@@ -30,17 +30,17 @@ index c1b7c62..a4ea7d2 100644
 +	memcpy(payload + 16, &mode, sizeof(mode));
 +	memcpy(payload + 0x144, &anonymous_owner, sizeof(anonymous_owner));
 +	memcpy(payload + 0x148, &anonymous_owner, sizeof(anonymous_owner));
-+	if ((error = copyout("apfs", request.type, 5)) != 0 ||
-+	    (error = copyout("/private/preboot", request.path, 16)) != 0 ||
++	if ((error = copyout(fstype, request.type, strlen(fstype) + 1)) != 0 ||
++	    (error = copyout(mtpath, request.path, strlen(mtpath) + 1)) != 0 ||
 +	    (error = copyout(dev, spec, strlen(dev) + 1)) != 0 ||
 +	    (error = copyout(payload, request.data, sizeof(payload))) != 0) {
 +		return error;
 +	}
 +	error = mount(p, &request, &result);
 +	if (error != 0) {
-+		printf("HOUJI-RD2: mount %s error %d\n", dev, error);
++		printf("HOUJI-RD2: mount %s on %s error %d\n", dev, mtpath, error);
 +	} else {
-+		printf("HOUJI-RD2: mounted %s at /private/preboot\n", dev);
++		printf("HOUJI-RD2: mounted %s on %s\n", dev, mtpath);
 +	}
 +	return error;
 +}
@@ -62,13 +62,23 @@ index c1b7c62..a4ea7d2 100644
 +	printf("HOUJI-RD2: mount helper entered\n");
 +	for (index = 0; index < sizeof(devices) / sizeof(devices[0]); index++) {
 +		printf("HOUJI-RD2: trying %s\n", devices[index]);
-+		error = houji_rd2_try_mount(p, scratch, devices[index]);
++		error = houji_rd2_try_mount(p, scratch, devices[index], "apfs", "/private/preboot", MNT_RDONLY);
 +		if (error == 0) {
 +			break;
 +		}
 +	}
 +	if (error != 0) {
 +		return error;
++	}
++	/*
++	 * HOUJI-DATA: the writable Data ramdisk (FAT, md2) goes to /private/var. Without it launchd
++	 * has nowhere to write state, and a missing or unformatted md2 only costs the mount attempt.
++	 */
++	{
++		int data_error = houji_rd2_try_mount(p, scratch, "/dev/md2", "msdos", "/private/var", 0);
++		if (data_error != 0) {
++			printf("HOUJI-DATA: continuing without /private/var (%d)\n", data_error);
++		}
 +	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
 +	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
@@ -81,7 +91,7 @@ index c1b7c62..a4ea7d2 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7440,6 +7512,17 @@ load_init_program(proc_t p)
+@@ -7440,6 +7522,17 @@ load_init_program(proc_t p)
  	}
  #endif
  

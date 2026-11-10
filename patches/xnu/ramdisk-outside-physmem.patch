@@ -1,5 +1,5 @@
 diff --git a/iokit/bsddev/IOKitBSDInit.cpp b/iokit/bsddev/IOKitBSDInit.cpp
-index 92142f7..c8be058 100644
+index 92142f7..172a377 100644
 --- a/iokit/bsddev/IOKitBSDInit.cpp
 +++ b/iokit/bsddev/IOKitBSDInit.cpp
 @@ -54,6 +54,36 @@ extern "C" {
@@ -39,7 +39,7 @@ index 92142f7..c8be058 100644
  // how long to wait for matching root device, secs
  #if DEBUG
  #define ROOTDEVICETIMEOUT       120
-@@ -773,7 +803,90 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +803,102 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -75,6 +75,18 @@ index 92142f7..c8be058 100644
 +							panic("ufs-md: md1 window device failed");
 +						}
 +						IOLog("HOUJI-UFS-MD: md0=%#llx md1=%#llx\n", (uint64_t)mdOS, (uint64_t)mdSys);
++					if (ramdParms[1] >= 4096) {
++						/* HOUJI-DATA: the reserve holds the writable Data ramdisk; publish it as md2. */
++						if ((ramdParms[0] >= gPhysBase) && ((ramdParms[0] - gPhysBase) < gPhysSize) &&
++							(ramdParms[1] <= (gPhysSize - (ramdParms[0] - gPhysBase)))) {
++							vm_offset_t dataBase = ml_static_ptovirt(ramdParms[0]);
++							(void)mdevadd(-1, dataBase >> 12, (unsigned int)(ramdParms[1] >> 12), 0);
++							IOLog("HOUJI-DATA: md2 base=%#lx size=%#llx\n",
++								(unsigned long)dataBase, (unsigned long long)ramdParms[1]);
++						} else {
++							IOLog("HOUJI-DATA: reserve outside the aperture\n");
++						}
++					}
 +					mdFromWindows = TRUE;
 +					} else if ((ramdParms[0] >= gPhysBase) && ((ramdParms[0] - gPhysBase) < gPhysSize) &&
 +					    (ramdParms[1] <= (gPhysSize - (ramdParms[0] - gPhysBase)))) {
