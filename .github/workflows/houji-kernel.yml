@@ -826,6 +826,26 @@ jobs:
             echo "warning: AES base constructor symbol not found in the image"
           fi
 
+      - name: Audit IOBlockStorageDevice ABI (diagnostic)
+        if: always()
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR" out/houji/logs
+          {
+            kernel=out/houji/kernel/kernel.macho
+            if [ -f "$kernel" ]; then
+              echo "=== IOBlockStorageDevice symbols in CI candidate ==="
+              nm -a "$kernel" 2>/dev/null | grep -c IOBlockStorageDevice || true
+              nm -a "$kernel" 2>/dev/null | grep IOBlockStorageDevice | head -20 || true
+              echo "=== run storage ABI audit ==="
+              NATIVE_PRELINK_PATH="$PRELINK_KIT" python3 "$DEVICE_DIR/scripts/audit-storage-candidate.py" \
+                "$kernel" out/houji/logs/storage-interface-audit.json \
+                || echo "AUDIT FAILED (candidate may not export IOBlockStorageDevice)"
+            else
+              echo "no kernel candidate to audit"
+            fi
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Check pinned iOS16 prelink inputs
         if: always()
         working-directory: unixnu
