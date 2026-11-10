@@ -1215,6 +1215,44 @@ struct houji_msgbuf {
 };
 extern "C" struct houji_msgbuf *msgbufp;
 
+/* One snapshot of the msgbuf ring into the log window; returns 0 or a negative reason. */
+static int
+houjiLogWriteSnapshot (uint8_t *buf, uint32_t seq)
+{
+	if (!gStoreGeometry.valid || !gLogRegionBlocks || !buf) {
+		return -1;
+	}
+	struct houji_msgbuf *mb = msgbufp;
+	if (!mb || !mb->msg_bufc || mb->msg_magic != 0x063061 ||
+	    mb->msg_size <= 0 || mb->msg_size > (1 << 20)) {
+		return -2;
+	}
+	uint32_t size = (uint32_t)mb->msg_size;
+	uint32_t idx = (uint32_t)mb->msg_bufx % size;
+	uint32_t off = 0;
+	memcpy (buf + off, "HOUJILOG", 8); off += 8;
+	*(uint32_t *)(void *)(buf + off) = 1; off += 4;
+	*(uint32_t *)(void *)(buf + off) = size; off += 4;
+	*(uint32_t *)(void *)(buf + off) = idx; off += 4;
+	*(uint32_t *)(void *)(buf + off) = seq; off += 4;
+	*(uint64_t *)(void *)(buf + off) = 0; off += 8;
+	memcpy (buf + off, mb->msg_bufc, size); off += size;
+	uint32_t blocks = (off + 4095) / 4096;
+	if (blocks > (uint32_t)kLogReserveBlocks) {
+		blocks = (uint32_t)kLogReserveBlocks;
+	}
+	for (uint32_t done = 0; done < blocks; ) {
+		uint32_t chunk = blocks - done;
+		if (chunk > kDataMax / 4096) chunk = kDataMax / 4096;
+		if (hostWrite4k (0, gLogRegionFirst + done, chunk,
+		    buf + (uint64_t)done * 4096, true) != kIOReturnSuccess) {
+			return -3;
+		}
+		done += chunk;
+	}
+	return 0;
+}
+
 static void
 houjiLogThread (void *param, wait_result_t wr)
 {
@@ -2076,6 +2114,24 @@ extern "C" int native_ufs_md_init (void)
   if (!gMdLock || !gMdCache) { IOFree (layout, sizeof (RootLayout)); return -4; }
   IOFree (layout, sizeof (RootLayout));
   IOLog ("HOUJI-UFS-MD: ready windows=%u cache=%u\n", gMdWindowCount, kDataMax);
+	if (logMode ()) {
+		/* Open and prove the log window here: a silent failure left stale windows on device. */
+		uint64_t logFirst = 0, logBlocks = 0;
+		const char *logWhy = "";
+		if (native_ufs_log_open (&logFirst, &logBlocks, &logWhy) == 0) {
+			uint8_t *probeBuf = static_cast<uint8_t *> (IOMalloc ((1 << 20) + 4096));
+			int probeRc = probeBuf ? houjiLogWriteSnapshot (probeBuf, 0) : -4;
+			if (probeBuf) {
+				IOFree (probeBuf, (1 << 20) + 4096);
+			}
+			IOLog ("HOUJI-LOG: md write %s rc=%d scsi=%x sense=%x result=%x\n",
+			    probeRc == 0 ? "ok" : "failed", probeRc,
+			    (unsigned)gRootDiagnostic.scsi, (unsigned)gRootDiagnostic.sense,
+			    (unsigned)gRootDiagnostic.result);
+		} else {
+			IOLog ("HOUJI-LOG: md open refused (%s)\n", logWhy ? logWhy : "?");
+		}
+	}
   if (logMode ()) {
     uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 20) + 4096));
     thread_t logthread = NULL;
