@@ -1,0 +1,68 @@
+name: houji initial Data volume
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  data:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: UniXNU/UniXNU
+          ref: fb2bb310564ce66779e472a021881cf7c5764919
+          path: upstream
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compute OS cache key
+        id: os-key
+        run: python3 scripts/firmware-cache.py key --group os
+      - name: Restore verified OS firmware cache
+        id: os-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/system-source/ipsw
+          key: ${{ steps.os-key.outputs.key }}
+      - name: Fetch and verify original OS
+        run: python3 -u scripts/fetch-system.py --unixnu "$GITHUB_WORKSPACE/upstream" --out "$RUNNER_TEMP/system-source" --components OS
+      - name: Save verified OS before creating Data seed
+        if: steps.os-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/system-source/ipsw
+          key: ${{ steps.os-key.outputs.key }}
+      - name: Create Data seed from the original var tree
+        run: |
+          set -e
+          DMG=$(ls "$RUNNER_TEMP"/system-source/ipsw/20H392/*.dmg | head -1)
+          echo "OS dmg: $DMG"
+          python3 scripts/create-data-seed.py --unixnu "$GITHUB_WORKSPACE/upstream" --dmg "$DMG" --output "$RUNNER_TEMP/data-seed"
+          ls -la "$RUNNER_TEMP/data-seed"
+          shasum -a 256 "$RUNNER_TEMP/data-seed/owner-data-32.cdr"
+      - name: Publish Data seed to ci-diagnostics
+        run: |
+          set -e
+          gzip -f "$RUNNER_TEMP/data-seed/owner-data-32.cdr"
+          git config --global user.email "unixnu@local"
+          git config --global user.name "UniXNU"
+          git clone -q --depth 1 -b ci-diagnostics "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag
+          mkdir -p /tmp/cidiag/data-seed
+          cp "$RUNNER_TEMP/data-seed/owner-data-32.cdr.gz" /tmp/cidiag/data-seed/houji-owner-data-32.cdr.gz
+          cp "$RUNNER_TEMP/data-seed/seed.json" /tmp/cidiag/data-seed/seed.json 2>/dev/null || true
+          cd /tmp/cidiag
+          git add -f data-seed
+          git commit -q -m "initial Data seed (${{ github.run_number }})" || echo "no change"
+          git push -f origin ci-diagnostics || echo "push failed"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: houji-initial-data-seed
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/data-seed/owner-data-32.cdr.gz
+            ${{ runner.temp }}/data-seed/seed.json
+          retention-days: 14
