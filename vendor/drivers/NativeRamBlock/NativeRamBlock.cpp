@@ -57,9 +57,12 @@ bool NativeRamBlock::start(IOService *provider)
 
     IORegistryEntry *map = IORegistryEntry::fromPath("/chosen/memory-map", gIODTPlane);
     if (!map) { IOLog("NativeRamBlock: no /chosen/memory-map\n"); return false; }
-    OSData *window = OSDynamicCast(OSData, map->getProperty("houji-data"));
+    // The loader publishes the Data seed window as the memory-map RAMDisk range (the same
+    // 16-byte {phys,size} property the kernel's ramdisk setup reads). In ufs-md mode the OS
+    // root is read from UFS, so this range carries the writable Data image.
+    OSData *window = OSDynamicCast(OSData, map->getProperty("RAMDisk"));
     map->release();
-    if (!window || window->getLength() < 16) { IOLog("NativeRamBlock: no houji-data window\n"); return false; }
+    if (!window || window->getLength() < 16) { IOLog("NativeRamBlock: no RAMDisk window\n"); return false; }
     const uint64_t *fields = reinterpret_cast<const uint64_t *>(window->getBytesNoCopy());
     uint64_t physical = fields[0], bytes = fields[1];
     if (!physical || !bytes || bytes < 512) { IOLog("NativeRamBlock: bad window\n"); return false; }
