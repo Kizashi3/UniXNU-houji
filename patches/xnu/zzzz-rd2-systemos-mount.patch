@@ -2,7 +2,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 index c1b7c62..46b0fe5 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7386,6 +7386,88 @@ static const char * init_programs[] = {
+@@ -7386,6 +7386,106 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -75,9 +75,27 @@ index c1b7c62..46b0fe5 100644
 +	 * has nowhere to write state, and a missing or unformatted md2 only costs the mount attempt.
 +	 */
 +	{
-+		int data_error = houji_rd2_try_mount(p, scratch, "/dev/md2", "apfs", "/private/var", 0);
++		int data_error = -1;
++#if defined(XNU_NATIVE_RAM_BLOCK) && XNU_NATIVE_RAM_BLOCK
++		extern int native_ram_block_volume_seed(const char *, dev_t *, char *, size_t,
++		    uint64_t *, uint64_t *, uint8_t *);
++		dev_t ramdev = NODEV;
++		char rampath[64] = {0};
++		uint64_t seedbase = 0, seedbytes = 0;
++		uint8_t seedsha[32] = {0};
++		if (native_ram_block_volume_seed("houji-data", &ramdev, rampath, sizeof(rampath),
++		    &seedbase, &seedbytes, seedsha)) {
++			printf("HOUJI-DATA: ram-block %s dev %d\n", rampath, (int)ramdev);
++			data_error = houji_rd2_try_mount(p, scratch, rampath, "apfs", "/private/var", 0);
++		} else {
++			printf("HOUJI-DATA: no ram-block device\n");
++		}
++#endif
 +		if (data_error != 0) {
-+			printf("HOUJI-DATA: continuing without /private/var (%d)\n", data_error);
++			data_error = houji_rd2_try_mount(p, scratch, "/dev/md2", "apfs", "/private/var", 0);
++			if (data_error != 0) {
++				printf("HOUJI-DATA: continuing without /private/var (%d)\n", data_error);
++			}
 +		}
 +	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
@@ -91,7 +109,7 @@ index c1b7c62..46b0fe5 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7440,6 +7522,17 @@ load_init_program(proc_t p)
+@@ -7440,6 +7540,17 @@ load_init_program(proc_t p)
  	}
  #endif
  
