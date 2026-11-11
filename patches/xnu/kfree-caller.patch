@@ -24,8 +24,8 @@ diff --git a/osfmk/kern/kalloc.c b/osfmk/kern/kalloc.c
 +			dbuf[i * 3] = hx[((uintptr_t)ra2 >> (60 - i * 4)) & 0xf];
 +		}
 +		printf("HOUJI-KFREE-RA2 %s\n", dbuf);
-+		panic("kfree: addr %p, size %zd found in heap %s* instead of %s* zone %s elem %zd",
-+		    data, size, zone_heap_name(z), kheap_name, z->z_name, zone_elem_size(z));
++		panic("kfree: addr %p, size %zd found in heap %s* instead of %s* zone %s",
++		    data, size, zone_heap_name(z), kheap_name, z->z_name);
  	}
  }
  
