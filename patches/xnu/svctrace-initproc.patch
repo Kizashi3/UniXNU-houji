@@ -1,6 +1,6 @@
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1881,6 +1881,168 @@
+@@ -1881,6 +1881,172 @@
  	panic_with_thread_kernel_state("Kernel data abort.", state);
  }
  
@@ -21,6 +21,7 @@
 +#define UNIXNU_WRITE_TRAP   4
 +
 +static uint32_t unixnu_svctrace_limit;
++static int unixnu_sysctl_note_on;
 +static uint32_t unixnu_svctrace_seen;
 +static int unixnu_svctrace_parsed;
 +
@@ -130,7 +131,9 @@
 +	}
 +	state64 = saved_state64(state);
 +	if (trap_no == UNIXNU_SYSCTL_TRAP) {
-+		unixnu_sysctl_note(state64);
++		if (unixnu_sysctl_note_on) {
++			unixnu_sysctl_note(state64);
++		}
 +	} else if (trap_no == UNIXNU_WRITE_TRAP) {
 +		unixnu_usrlog(state64);
 +	}
@@ -138,6 +141,7 @@
 +	if (unixnu_svctrace_parsed == 0) {
 +		unixnu_svctrace_parsed = 1;
 +		PE_parse_boot_argn("svctrace", &unixnu_svctrace_limit, sizeof(unixnu_svctrace_limit));
++		PE_parse_boot_argn("svcsysctl", &unixnu_sysctl_note_on, sizeof(unixnu_sysctl_note_on));
 +	}
 +	if ((unixnu_svctrace_limit == 0) ||
 +	    (trap_no == MACH_ARM_TRAP_ABSTIME) || (trap_no == MACH_ARM_TRAP_CONTTIME) ||
