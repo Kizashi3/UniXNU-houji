@@ -1,0 +1,32 @@
+diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
+--- a/iokit/Kernel/IOService.cpp
++++ b/iokit/Kernel/IOService.cpp
+@@ -6738,6 +6738,28 @@
+ IOService::serviceMatching( const char * name,
+     OSDictionary * table )
+ {
++	{
++		static int houji_sm_logged;
++		static unsigned long houji_sm_count;
++		houji_sm_count++;
++		if (houji_sm_logged < 8 ||
++		    (houji_sm_count % 200000UL) == 0) {
++			unsigned long ra = (unsigned long)__builtin_return_address(0);
++			static const char hx[] = "0123456789abcdef";
++			char dbuf[50];
++			for (int i = 0; i < 16; i++) {
++				dbuf[i * 3] = hx[(ra >> (60 - i * 4)) & 0xf];
++				dbuf[i * 3 + 1] = ' ';
++				dbuf[i * 3 + 2] = ' ';
++			}
++			dbuf[48] = 0;
++			if (houji_sm_logged < 8) {
++				houji_sm_logged++;
++			}
++			printf("HOUJI-SM[%lu]: %s\n", houji_sm_count, dbuf);
++		}
++	}
++
+ 	const OSString *    str;
+ 
+ 	str = OSSymbol::withCString( name );
