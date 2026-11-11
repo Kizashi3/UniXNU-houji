@@ -1254,6 +1254,8 @@ houjiLogWriteSnapshot (uint8_t *buf, uint32_t seq)
 }
 
 static void
+extern "C" void houji_zone_top (void);
+
 houjiLogThread (void *param, wait_result_t wr)
 {
 	uint8_t *buf = static_cast<uint8_t *> (param);
@@ -1267,6 +1269,7 @@ houjiLogThread (void *param, wait_result_t wr)
 		if ((++tick % 6) == 0) {
 			extern unsigned int vm_page_free_count;
 			IOLog ("HOUJI-MEM: free_pages=%u\n", vm_page_free_count);
+			houji_zone_top ();
 		}
 		if (!logMode () || !gHost.ready) {
 			continue;

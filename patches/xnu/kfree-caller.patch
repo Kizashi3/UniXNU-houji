@@ -1,7 +1,7 @@
 diff --git a/osfmk/kern/kalloc.c b/osfmk/kern/kalloc.c
 --- a/osfmk/kern/kalloc.c
 +++ b/osfmk/kern/kalloc.c
-@@ -2598,26 +2598,24 @@
+@@ -2598,27 +2598,62 @@
  
  #pragma mark kfree
  
@@ -36,15 +36,54 @@ diff --git a/osfmk/kern/kalloc.c b/osfmk/kern/kalloc.c
 -	} else {
 -		panic("kfree: addr %p, size %zd found in heap %s* instead of %s*",
 -		    data, size, zone_heap_name(z), kheap_name);
+-	}
 +	(void)data;
 +	if (unixnu_kfree_soft_logged < 8) {
 +		unixnu_kfree_soft_logged++;
 +		printf("HOUJI-KFREE-SOFT: %s -> %s size %zd\n",
 +		    kheap_name, z->z_name, size);
- 	}
++	}
++}
++
++/*
++ * HOUJI-ZONE-TOP: the three zones holding the most live bytes, for the
++ * durable log's memory probe. Read-only and racy, diagnostics only.
++ */
++void
++houji_zone_top(void)
++{
++	zone_t top[3] = { ZONE_NULL, ZONE_NULL, ZONE_NULL };
++	uint64_t topb[3] = { 0, 0, 0 };
++	zone_id_t i, n = os_atomic_load(&num_zones, relaxed);
++
++	for (i = 1; i < n; i++) {
++		zone_t z = &zone_array[i];
++		uint64_t bytes;
++
++		if (z->z_elem_size == 0 || z->z_name == NULL) {
++			continue;
++		}
++		bytes = (uint64_t)zone_elem_inner_size(z) *
++		    (uint64_t)zone_count_allocated(z);
++		if (bytes > topb[0]) {
++			topb[2] = topb[1]; top[2] = top[1];
++			topb[1] = topb[0]; top[1] = top[0];
++			topb[0] = bytes; top[0] = z;
++		} else if (bytes > topb[1]) {
++			topb[2] = topb[1]; top[2] = top[1];
++			topb[1] = bytes; top[1] = z;
++		} else if (bytes > topb[2]) {
++			topb[2] = bytes; top[2] = z;
++		}
++	}
++	printf("HOUJI-ZONE: %s=%lluK %s=%lluK %s=%lluK\n",
++	    top[0] ? top[0]->z_name : "-", topb[0] >> 10,
++	    top[1] ? top[1]->z_name : "-", topb[1] >> 10,
++	    top[2] ? top[2]->z_name : "-", topb[2] >> 10);
  }
  
-@@ -2721,12 +2719,12 @@
+ __abortlike
+@@ -2721,12 +2756,12 @@
  	zsflags = zone_security_config(z);
  	if (kheap == KHEAP_DATA_BUFFERS) {
  		if (kheap->kh_heap_id != zsflags.z_kheap_id) {
