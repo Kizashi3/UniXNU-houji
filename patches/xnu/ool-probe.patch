@@ -1,0 +1,18 @@
+diff --git a/osfmk/ipc/ipc_kmsg.c b/osfmk/ipc/ipc_kmsg.c
+--- a/osfmk/ipc/ipc_kmsg.c
++++ b/osfmk/ipc/ipc_kmsg.c
+@@ -2506,6 +2506,14 @@
+ 
+ 	if (count) {
+ 		array = mach_port_array_alloc(count, Z_WAITOK | Z_SPRAYQTN);
++		if (count >= 128) {
++			static int houji_ool_logged;
++			if (houji_ool_logged < 24) {
++				houji_ool_logged++;
++				printf("HOUJI-OOL: task %p count %u\n",
++				    (void *)current_task(), count);
++			}
++		}
+ 
+ 		/* use the end of the array to store names we will copy in */
+ 		names = (mach_port_name_t *)(array + count) - count;
