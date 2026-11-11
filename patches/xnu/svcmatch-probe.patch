@@ -1,7 +1,7 @@
 diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 --- a/iokit/Kernel/IOService.cpp
 +++ b/iokit/Kernel/IOService.cpp
-@@ -6734,10 +6734,71 @@
+@@ -6734,10 +6734,74 @@
  }
  
  
@@ -34,7 +34,9 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 +	 * HOUJI-AMFI-MATCH: AMFI polls for services this platform does not
 +	 * publish (IODTNVRAM, AppleSEPManager); every call allocated a matching
 +	 * dictionary that was never released and exhausted the OSDictionary zone.
-+	 * Reuse one cached dictionary per class name.
++	 * Reuse one cached dictionary per class name, and throttle the cached
++	 * path: the poll loop goes through here on every iteration, so a small
++	 * sleep caps it even when the wait itself returns at once.
 +	 */
 +	static OSDictionary *houji_match_cache[2];
 +	bool houji_is_nvram = houji_name_is (name, "IODTNVRAM");
@@ -43,6 +45,7 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 +
 +	if (houji_slot >= 0 && houji_match_cache[houji_slot] != nullptr) {
 +		houji_sm_hits++;
++		IOSleep(100);
 +		houji_match_cache[houji_slot]->retain ();
 +		return houji_match_cache[houji_slot];
 +	}
@@ -73,7 +76,7 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
  	const OSString *    str;
  
  	str = OSSymbol::withCString( name );
-@@ -6747,6 +6808,10 @@
+@@ -6747,6 +6811,10 @@
  
  	table = serviceMatching( str, table );
  	str->release();

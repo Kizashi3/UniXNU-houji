@@ -1256,6 +1256,56 @@ houjiLogWriteSnapshot (uint8_t *buf, uint32_t seq)
 extern "C" void houji_zone_top (void);
 extern "C" unsigned long houji_sm_cache_hits (void);
 
+static int houji_fb_test_parsed;
+static int houji_fb_test_on;
+
+/* HOUJI-FB-TEST: paint the bottom 48 rows of the firmware framebuffer with a
+ * moving colour bar. Proves CPU scanout from a running kernel (no GPU). */
+static void
+houji_fb_test_step (uint32_t phase)
+{
+	static PE_Video video;
+	static int state;
+	static const uint32_t pal[8] = {
+		0xffffff, 0xffff00, 0x00ffff, 0x00ff00,
+		0xff00ff, 0xff0000, 0x0000ff, 0x111111
+	};
+
+	if (state == 0) {
+		if (!PE_current_console (&video) || video.v_baseAddr == 0 ||
+		    video.v_depth != 32 || video.v_height < 64 ||
+		    video.v_rowBytes < video.v_width * 4 ||
+		    video.v_rowBytes > (1u << 20)) {
+			state = -1;
+			IOLog ("HOUJI-FB: no usable 32bpp console framebuffer\n");
+			return;
+		}
+		state = 1;
+		IOLog ("HOUJI-FB: test on base=0x%llx w=%u h=%u stride=%u\n",
+		    (unsigned long long)video.v_baseAddr,
+		    (unsigned)video.v_width, (unsigned)video.v_height,
+		    (unsigned)video.v_rowBytes);
+	}
+	if (state < 0) {
+		return;
+	}
+
+	uint8_t *base = (uint8_t *)(uintptr_t)video.v_baseAddr;
+	uint32_t w = (uint32_t)video.v_width;
+	uint32_t h = (uint32_t)video.v_height;
+	uint32_t stride = (uint32_t)video.v_rowBytes;
+	uint32_t top = h > 48 ? h - 48 : 0;
+
+	for (uint32_t y = top; y < h; y++) {
+		uint32_t *row = (uint32_t *)(void *)(base + (uint64_t)y * stride);
+		for (uint32_t x = 0; x < w; x++) {
+			row[x] = pal[((x / 96) + phase) & 7];
+		}
+	}
+}
+
+extern "C" unsigned long houji_sm_cache_hits (void);
+
 static void
 houjiLogThread (void *param, wait_result_t wr)
 {
@@ -1267,6 +1317,14 @@ houjiLogThread (void *param, wait_result_t wr)
 	(void) wr;
 	for (;;) {
 		IOSleep (5000);
+		if (houji_fb_test_parsed == 0) {
+			houji_fb_test_parsed = 1;
+			PE_parse_boot_argn ("houji-fb-test", &houji_fb_test_on,
+			    sizeof(houji_fb_test_on));
+		}
+		if (houji_fb_test_on) {
+			houji_fb_test_step ((uint32_t)(tick / 6));
+		}
 		if ((++tick % 6) == 0) {
 			extern unsigned int vm_page_free_count;
 			IOLog ("HOUJI-MEM: free_pages=%u sm_hits=%lu\n",
