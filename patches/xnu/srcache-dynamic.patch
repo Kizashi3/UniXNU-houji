@@ -33,18 +33,18 @@ index 0bb45c5..bf72a49 100644
 +		if ((unixnu_srcache_dyn_size != 0) && (shared_region != NULL)) {
 +			vm_map_offset_t dyn_target = (vm_map_offset_t)(shared_region->sr_base_address + unixnu_srcache_dyn_off);
 +			vm_map_entry_t dyn_entry = VM_MAP_ENTRY_NULL;
-+			extern kern_return_t unixnu_srcache_map_anonymous(void *, uint64_t, uint64_t);
++			extern kern_return_t unixnu_srcache_map_anonymous_in_map(void *, void *, uint64_t, uint64_t);
 +			if (!vm_map_lookup_entry(map, dyn_target, &dyn_entry) || (dyn_entry == VM_MAP_ENTRY_NULL) ||
 +			    (dyn_target < dyn_entry->vme_start) || (dyn_target >= dyn_entry->vme_end) ||
 +			    (dyn_entry->is_sub_map)) {
-+				unixnu_srcache_map_anonymous(shared_region, unixnu_srcache_dyn_off, unixnu_srcache_dyn_size);
++				unixnu_srcache_map_anonymous_in_map(map, shared_region, unixnu_srcache_dyn_off, unixnu_srcache_dyn_size);
 +			}
 +		}
 +#endif
  	} else {
  		/* drop our reference since we're not using it */
  		vm_shared_region_deallocate(shared_region);
-@@ -4040,3 +4067,241 @@ vm_shared_region_root_dir(
+@@ -4040,3 +4067,251 @@ vm_shared_region_root_dir(
  	vm_shared_region_unlock();
  	return vnode;
  }
@@ -227,8 +227,9 @@ index 0bb45c5..bf72a49 100644
 +}
 +
 +kern_return_t
-+unixnu_srcache_map_anonymous(void *sr_cookie, uint64_t offset, uint64_t size)
++unixnu_srcache_map_anonymous_in_map(void *map_cookie, void *sr_cookie, uint64_t offset, uint64_t size)
 +{
++	vm_map_t map = (vm_map_t)map_cookie;
 +	struct vm_shared_region *shared_region = (struct vm_shared_region *)sr_cookie;
 +	vm_object_t object;
 +	vm_map_offset_t kaddr = 0;
@@ -271,18 +272,27 @@ index 0bb45c5..bf72a49 100644
 +	}
 +	vm_map_remove(kernel_map, kaddr, kaddr + map_size);
 +
++	if (map == VM_MAP_NULL) {
++		map = current_task()->map;
++	}
 +	task = current_task();
 +	target = (vm_map_offset_t)(shared_region->sr_base_address + offset);
 +	vmk_flags = VM_MAP_KERNEL_FLAGS_FIXED(.vmf_overwrite = true);
 +	vmk_flags.vmkf_overwrite_immutable = true;
 +	vmk_flags.vmkf_no_copy_on_read = 1;
-+	kr = vm_map_enter(task->map, &target, map_size, 0, vmk_flags, object, 0, TRUE,
++	kr = vm_map_enter(map, &target, map_size, 0, vmk_flags, object, 0, TRUE,
 +	    VM_PROT_READ | VM_PROT_WRITE, VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_DEFAULT);
-+	printf("HOUJI-SRCACHE: dynamic page task %#llx+%#llx kr=%d\n",
-+	    (unsigned long long)target, (unsigned long long)size, kr);
++	printf("HOUJI-SRCACHE: dynamic page task %#llx+%#llx kr=%d map %p cur %p\n",
++	    (unsigned long long)target, (unsigned long long)size, kr, (void *)map, (void *)current_task()->map);
 +	if (kr != KERN_SUCCESS) {
 +		vm_object_deallocate(object);
 +	}
 +	unixnu_srcache_fixinfo(shared_region);
 +	return kr;
++}
++
++kern_return_t
++unixnu_srcache_map_anonymous(void *sr_cookie, uint64_t offset, uint64_t size)
++{
++	return unixnu_srcache_map_anonymous_in_map(VM_MAP_NULL, sr_cookie, offset, size);
 +}
