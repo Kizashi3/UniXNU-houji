@@ -68,7 +68,7 @@
 +			kprintf("SVCTRACE: name2oid [%s]\n", needle);
 +		}
 +	}
-+	kprintf("SVCTRACE: sysctl name=%d", name[0]);
++	kprintf("SVCTRACE: pid=%d sysctl name=%d", task_pid(current_task()), name[0]);
 +	for (i = 1; i < (unsigned int) namelen; i++) {
 +		kprintf(".%d", name[i]);
 +	}
