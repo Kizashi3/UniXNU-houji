@@ -1,10 +1,33 @@
 diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 --- a/iokit/Kernel/IOService.cpp
 +++ b/iokit/Kernel/IOService.cpp
-@@ -6738,6 +6738,28 @@
+@@ -6738,6 +6738,52 @@
  IOService::serviceMatching( const char * name,
      OSDictionary * table )
  {
++	/*
++	 * HOUJI-SEPMATCH: AMFI polls for AppleSEPManager (absent on this
++	 * platform) in a tight loop; every call allocated a matching dictionary
++	 * that was never released and exhausted the OSDictionary zone. Reuse a
++	 * single cached dictionary for that class name.
++	 */
++	static OSDictionary *houji_sep_cache;
++	bool houji_is_sep = false;
++
++	if (name) {
++		const char *p = "AppleSEPManager";
++		const char *q = name;
++		while (*p && *q == *p) {
++			p++;
++			q++;
++		}
++		houji_is_sep = (*p == 0 && *q == 0);
++	}
++	if (houji_is_sep && houji_sep_cache != nullptr) {
++		houji_sep_cache->retain();
++		return houji_sep_cache;
++	}
++
 +	{
 +		static int houji_sm_logged;
 +		static unsigned long houji_sm_count;
@@ -23,10 +46,22 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 +			if (houji_sm_logged < 8) {
 +				houji_sm_logged++;
 +			}
-+			printf("HOUJI-SM[%lu]: %s\n", houji_sm_count, dbuf);
++			printf("HOUJI-SM[%lu]: %s name=%s\n", houji_sm_count, dbuf,
++			    name ? name : "-");
 +		}
 +	}
 +
  	const OSString *    str;
  
  	str = OSSymbol::withCString( name );
+@@ -6747,6 +6793,10 @@
+ 
+ 	table = serviceMatching( str, table );
+ 	str->release();
++	if (houji_is_sep && houji_sep_cache == nullptr && table) {
++		houji_sep_cache = table;
++		table->retain();
++	}
+ 	return table;
+ }
+ 
