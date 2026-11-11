@@ -1,10 +1,18 @@
 diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 --- a/iokit/Kernel/IOService.cpp
 +++ b/iokit/Kernel/IOService.cpp
-@@ -6734,10 +6734,62 @@
+@@ -6734,10 +6734,71 @@
  }
  
  
++static unsigned long houji_sm_hits;
++
++extern "C" unsigned long
++houji_sm_cache_hits(void)
++{
++	return houji_sm_hits;
++}
++
 +static bool
 +houji_name_is(const char *n, const char *want)
 +{
@@ -24,9 +32,9 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
  {
 +	/*
 +	 * HOUJI-AMFI-MATCH: AMFI polls for services this platform does not
-+	 * publish (IODTNVRAM, AppleSEPManager) in a tight loop; every call
-+	 * allocated a matching dictionary that was never released and exhausted
-+	 * the OSDictionary zone. Reuse one cached dictionary per class name.
++	 * publish (IODTNVRAM, AppleSEPManager); every call allocated a matching
++	 * dictionary that was never released and exhausted the OSDictionary zone.
++	 * Reuse one cached dictionary per class name.
 +	 */
 +	static OSDictionary *houji_match_cache[2];
 +	bool houji_is_nvram = houji_name_is (name, "IODTNVRAM");
@@ -34,6 +42,7 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 +	int  houji_slot     = houji_is_nvram ? 0 : (houji_is_sep ? 1 : -1);
 +
 +	if (houji_slot >= 0 && houji_match_cache[houji_slot] != nullptr) {
++		houji_sm_hits++;
 +		houji_match_cache[houji_slot]->retain ();
 +		return houji_match_cache[houji_slot];
 +	}
@@ -64,7 +73,7 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
  	const OSString *    str;
  
  	str = OSSymbol::withCString( name );
-@@ -6747,6 +6799,10 @@
+@@ -6747,6 +6808,10 @@
  
  	table = serviceMatching( str, table );
  	str->release();

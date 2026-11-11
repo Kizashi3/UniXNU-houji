@@ -1254,6 +1254,7 @@ houjiLogWriteSnapshot (uint8_t *buf, uint32_t seq)
 }
 
 extern "C" void houji_zone_top (void);
+extern "C" unsigned long houji_sm_cache_hits (void);
 
 static void
 houjiLogThread (void *param, wait_result_t wr)
@@ -1268,7 +1269,8 @@ houjiLogThread (void *param, wait_result_t wr)
 		IOSleep (5000);
 		if ((++tick % 6) == 0) {
 			extern unsigned int vm_page_free_count;
-			IOLog ("HOUJI-MEM: free_pages=%u\n", vm_page_free_count);
+			IOLog ("HOUJI-MEM: free_pages=%u sm_hits=%lu\n",
+			    vm_page_free_count, houji_sm_cache_hits ());
 			houji_zone_top ();
 		}
 		if (!logMode () || !gHost.ready) {
