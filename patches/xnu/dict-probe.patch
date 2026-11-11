@@ -1,0 +1,31 @@
+diff --git a/libkern/c++/OSDictionary.cpp b/libkern/c++/OSDictionary.cpp
+--- a/libkern/c++/OSDictionary.cpp
++++ b/libkern/c++/OSDictionary.cpp
+@@ -83,6 +83,27 @@
+ bool
+ OSDictionary::initWithCapacity(unsigned int inCapacity)
+ {
++	{
++		static int houji_dict_logged;
++		if (houji_dict_logged < 8) {
++			houji_dict_logged++;
++			unsigned long *fp = (unsigned long *)__builtin_frame_address(0);
++			static const char hx[] = "0123456789abcdef";
++			for (int lvl = 0; lvl < 3; lvl++) {
++				unsigned long ra = fp[1];
++				char dbuf[50];
++				for (int i = 0; i < 16; i++) {
++					dbuf[i * 3] = hx[(ra >> (60 - i * 4)) & 0xf];
++					dbuf[i * 3 + 1] = ' ';
++					dbuf[i * 3 + 2] = ' ';
++				}
++				dbuf[48] = 0;
++				printf("HOUJI-DICT%d: %s\n", lvl, dbuf);
++				fp = (unsigned long *)fp[0];
++			}
++		}
++	}
++
+ 	if (!super::init()) {
+ 		return false;
+ 	}
