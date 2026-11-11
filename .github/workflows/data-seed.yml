@@ -49,6 +49,15 @@ jobs:
           python3 scripts/create-data-seed.py --unixnu "$GITHUB_WORKSPACE/upstream" --dmg "$DMG" --output "$RUNNER_TEMP/data-seed"
           ls -la "$RUNNER_TEMP/data-seed"
           shasum -a 256 "$RUNNER_TEMP/data-seed/owner-data-32.cdr"
+      - name: Seed skip-setup state into the Data seed
+        run: |
+          set -e
+          python3 scripts/seed-skip-setup.py \
+            "$RUNNER_TEMP/data-seed/owner-data-32.cdr" \
+            "$RUNNER_TEMP/data-seed/owner-data-32-skip.cdr"
+          gzip -f -1 "$RUNNER_TEMP/data-seed/owner-data-32-skip.cdr"
+          shasum -a 256 "$RUNNER_TEMP/data-seed/owner-data-32-skip.cdr.gz"
+
       - name: Build HFS+ Data image
         run: |
           set -e
@@ -73,6 +82,7 @@ jobs:
           git clone -q --depth 1 -b ci-diagnostics "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag
           mkdir -p /tmp/cidiag/data-seed
           cp "$RUNNER_TEMP/data-seed/owner-data-32.cdr.gz" /tmp/cidiag/data-seed/houji-owner-data-32.cdr.gz
+          cp "$RUNNER_TEMP/data-seed/owner-data-32-skip.cdr.gz" /tmp/cidiag/data-seed/houji-owner-data-skip.cdr.gz 2>/dev/null || true
           cp "$RUNNER_TEMP/hfs.cdr.gz" /tmp/cidiag/data-seed/houji-hfs.cdr.gz 2>/dev/null || true
           cp "$RUNNER_TEMP/data-seed/seed.json" /tmp/cidiag/data-seed/seed.json 2>/dev/null || true
           cd /tmp/cidiag
