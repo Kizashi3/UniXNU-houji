@@ -1,0 +1,25 @@
+diff --git a/bsd/netinet/in_pcblist.c b/bsd/netinet/in_pcblist.c
+--- a/bsd/netinet/in_pcblist.c
++++ b/bsd/netinet/in_pcblist.c
+@@ -373,7 +373,9 @@
+ 		goto done;
+ 	}
+ 
+-	inp_list = kalloc_type(struct inpcb *, n, Z_WAITOK);
++	/* HOUJI-PCB: the per-callsite kalloc_type views for this array do not
++	 * resolve to one zone in this prelinked kernel; use the data heap. */
++	inp_list = kalloc_data((vm_size_t)n * sizeof(*inp_list), Z_WAITOK);
+ 	if (inp_list == NULL) {
+ 		error = ENOMEM;
+ 		goto done;
+@@ -473,7 +475,9 @@
+ 	nstat_userland_release_snapshot(userlandsnapshot, nuserland);
+ #endif /* SKYWALK */
+ 
+-	kfree_type(struct inpcb *, sz, inp_list);
++	if (inp_list != NULL) {
++		kfree_data(inp_list, (vm_size_t)sz * sizeof(*inp_list));
++	}
+ 	if (buf != NULL) {
+ 		kfree_data(buf, item_size);
+ 	}
