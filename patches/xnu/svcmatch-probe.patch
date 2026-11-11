@@ -1,31 +1,41 @@
 diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
 --- a/iokit/Kernel/IOService.cpp
 +++ b/iokit/Kernel/IOService.cpp
-@@ -6738,6 +6738,52 @@
+@@ -6734,10 +6734,62 @@
+ }
+ 
+ 
++static bool
++houji_name_is(const char *n, const char *want)
++{
++	if (!n) {
++		return false;
++	}
++	while (*want && *n == *want) {
++		n++;
++		want++;
++	}
++	return *want == 0 && *n == 0;
++}
++
+ OSDictionary *
  IOService::serviceMatching( const char * name,
      OSDictionary * table )
  {
 +	/*
-+	 * HOUJI-SEPMATCH: AMFI polls for AppleSEPManager (absent on this
-+	 * platform) in a tight loop; every call allocated a matching dictionary
-+	 * that was never released and exhausted the OSDictionary zone. Reuse a
-+	 * single cached dictionary for that class name.
++	 * HOUJI-AMFI-MATCH: AMFI polls for services this platform does not
++	 * publish (IODTNVRAM, AppleSEPManager) in a tight loop; every call
++	 * allocated a matching dictionary that was never released and exhausted
++	 * the OSDictionary zone. Reuse one cached dictionary per class name.
 +	 */
-+	static OSDictionary *houji_sep_cache;
-+	bool houji_is_sep = false;
++	static OSDictionary *houji_match_cache[2];
++	bool houji_is_nvram = houji_name_is (name, "IODTNVRAM");
++	bool houji_is_sep   = houji_name_is (name, "AppleSEPManager");
++	int  houji_slot     = houji_is_nvram ? 0 : (houji_is_sep ? 1 : -1);
 +
-+	if (name) {
-+		const char *p = "AppleSEPManager";
-+		const char *q = name;
-+		while (*p && *q == *p) {
-+			p++;
-+			q++;
-+		}
-+		houji_is_sep = (*p == 0 && *q == 0);
-+	}
-+	if (houji_is_sep && houji_sep_cache != nullptr) {
-+		houji_sep_cache->retain();
-+		return houji_sep_cache;
++	if (houji_slot >= 0 && houji_match_cache[houji_slot] != nullptr) {
++		houji_match_cache[houji_slot]->retain ();
++		return houji_match_cache[houji_slot];
 +	}
 +
 +	{
@@ -54,13 +64,13 @@ diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
  	const OSString *    str;
  
  	str = OSSymbol::withCString( name );
-@@ -6747,6 +6793,10 @@
+@@ -6747,6 +6799,10 @@
  
  	table = serviceMatching( str, table );
  	str->release();
-+	if (houji_is_sep && houji_sep_cache == nullptr && table) {
-+		houji_sep_cache = table;
-+		table->retain();
++	if (houji_slot >= 0 && houji_match_cache[houji_slot] == nullptr && table) {
++		houji_match_cache[houji_slot] = table;
++		table->retain ();
 +	}
  	return table;
  }
