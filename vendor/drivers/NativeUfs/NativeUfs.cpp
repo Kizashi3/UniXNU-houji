@@ -1253,9 +1253,9 @@ houjiLogWriteSnapshot (uint8_t *buf, uint32_t seq)
 	return 0;
 }
 
-static void
 extern "C" void houji_zone_top (void);
 
+static void
 houjiLogThread (void *param, wait_result_t wr)
 {
 	uint8_t *buf = static_cast<uint8_t *> (param);
