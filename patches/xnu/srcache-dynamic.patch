@@ -20,7 +20,7 @@ index 0bb45c5..bf72a49 100644
  /*
   * Enter the appropriate shared region into "map" for "task".
   * This involves looking up the shared region (and possibly creating a new
-@@ -2480,6 +2491,22 @@ done:
+@@ -2480,6 +2491,23 @@ done:
  	if (kr == KERN_SUCCESS) {
  		/* let the task use that shared region */
  		vm_shared_region_set(task, shared_region);
@@ -35,7 +35,8 @@ index 0bb45c5..bf72a49 100644
 +			vm_map_entry_t dyn_entry = VM_MAP_ENTRY_NULL;
 +			extern kern_return_t unixnu_srcache_map_anonymous(void *, uint64_t, uint64_t);
 +			if (!vm_map_lookup_entry(map, dyn_target, &dyn_entry) || (dyn_entry == VM_MAP_ENTRY_NULL) ||
-+			    (dyn_target < dyn_entry->vme_start) || (dyn_target >= dyn_entry->vme_end)) {
++			    (dyn_target < dyn_entry->vme_start) || (dyn_target >= dyn_entry->vme_end) ||
++			    (dyn_entry->is_sub_map)) {
 +				unixnu_srcache_map_anonymous(shared_region, unixnu_srcache_dyn_off, unixnu_srcache_dyn_size);
 +			}
 +		}
@@ -43,7 +44,7 @@ index 0bb45c5..bf72a49 100644
  	} else {
  		/* drop our reference since we're not using it */
  		vm_shared_region_deallocate(shared_region);
-@@ -4040,3 +4067,232 @@ vm_shared_region_root_dir(
+@@ -4040,3 +4067,241 @@ vm_shared_region_root_dir(
  	vm_shared_region_unlock();
  	return vnode;
  }
@@ -259,6 +260,15 @@ index 0bb45c5..bf72a49 100644
 +	}
 +	vm_object_reference(object);
 +	bzero((void *)kaddr, map_size);
++	{
++		/* HOUJI-DYNPAGE-CHILD: each task's dynamic page must carry the dyld_data
++		 * config or DyldProcessConfig halts; match the pre-map ids (1/1). */
++		struct { char magic[16]; uint64_t fsid; uint64_t objid; } cfg;
++		bzero(&cfg, sizeof(cfg));
++		memcpy(cfg.magic, "dyld_data    v0", 16);
++		cfg.fsid = 1; cfg.objid = 1;
++		memcpy((void *)kaddr, &cfg, sizeof(cfg));
++	}
 +	vm_map_remove(kernel_map, kaddr, kaddr + map_size);
 +
 +	task = current_task();
