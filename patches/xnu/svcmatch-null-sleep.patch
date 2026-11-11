@@ -1,0 +1,20 @@
+diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
+--- a/iokit/Kernel/IOService.cpp
++++ b/iokit/Kernel/IOService.cpp
+@@ -6603,6 +6603,16 @@
+ 	}
+ 
+ 	OSSafeReleaseNULL(cancellationHandler);
++
++	if (result == nullptr) {
++		/*
++		 * HOUJI-WAIT-THROTTLE: callers that poll this in a loop (AMFI waits
++		 * for the absent IODTNVRAM) spin at full speed when the matched
++		 * notification cannot be set up or the sleep returns at once. Cap
++		 * the retry rate instead of burning a CPU.
++		 */
++		IOSleep(100);
++	}
+ 
+ 	return result;
+ }
