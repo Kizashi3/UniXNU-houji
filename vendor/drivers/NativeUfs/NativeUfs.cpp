@@ -1258,11 +1258,16 @@ houjiLogThread (void *param, wait_result_t wr)
 {
 	uint8_t *buf = static_cast<uint8_t *> (param);
 	uint32_t seq = 0;
+	uint32_t tick = 0;
 	int warned = 0;
 
 	(void) wr;
 	for (;;) {
 		IOSleep (5000);
+		if ((++tick % 6) == 0) {
+			extern unsigned int vm_page_free_count;
+			IOLog ("HOUJI-MEM: free_pages=%u\n", vm_page_free_count);
+		}
 		if (!logMode () || !gHost.ready) {
 			continue;
 		}
