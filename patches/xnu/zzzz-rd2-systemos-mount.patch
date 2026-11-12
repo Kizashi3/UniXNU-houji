@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,319 @@
+@@ -7138,6 +7139,329 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -53,6 +53,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +}
 +
 +extern volatile int native_bindfs_boot_mount __attribute__((weak));
++struct mount *houji_usrlib_mount = NULL;
 +
 +static int
 +houji_rd2_mkdir(proc_t p, user_addr_t scratch, const char *path)
@@ -144,6 +145,15 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	error = mount(p, &request, &result);
 +	if (&native_bindfs_boot_mount) {
 +		native_bindfs_boot_mount = 0;
++	}
++	if (error == 0 && strcmp(point, "/usr/lib") == 0) {
++		vnode_t mv = NULLVP;
++
++		if (vnode_lookup("/usr/lib", 0, &mv, vfs_context_current()) == 0) {
++			houji_usrlib_mount = vnode_mount(mv);
++			vnode_put(mv);
++			printf("HOUJI-CRYPTEX: overlay mount recorded\n");
++		}
 +	}
 +	return error;
 +}
@@ -329,7 +339,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7496,17 @@
+@@ -7182,6 +7506,17 @@
  		}
  	}
  #endif

@@ -1,0 +1,20 @@
+diff --git a/bsd/kern/ubc_subr.c b/bsd/kern/ubc_subr.c
+--- a/bsd/kern/ubc_subr.c
++++ b/bsd/kern/ubc_subr.c
+@@ -4776,6 +4776,16 @@
+ #endif
+ 
+ 	tmp_blob.csb_flags = cs_flags;
++	/* HOUJI: the /usr/lib overlay is not MNT_ROOTFS, so AMFI grants it only
++	 * CS_SIGNED and the kernel rejects its dyld as BAD_MACHO. Treat the
++	 * overlay mount as platform binaries (upstream patch 0036 does this by
++	 * requiring MNT_ROOTFS; we extend it to our bind mount). */
++	{
++		extern struct mount *houji_usrlib_mount;
++		if (houji_usrlib_mount != NULL && vnode_mount(vp) == houji_usrlib_mount) {
++			tmp_blob.csb_flags |= CS_SIGNED | CS_PLATFORM_BINARY;
++		}
++	}
+ 	tmp_blob.csb_signer_type = signer_type;
+ 
+ 	if (tmp_blob.csb_flags & CS_PLATFORM_BINARY) {
