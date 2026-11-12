@@ -45,11 +45,14 @@ jobs:
           echo "OS at $OSMNT"; ls "$OSMNT" | head
           echo "SystemOS at $SYSMNT"; ls "$SYSMNT" | head
           rm -f /tmp/root.dmg
-          hdiutil create -size 9g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
+          hdiutil create -size 9.5g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
           hdiutil attach -nobrowse /tmp/root.sparseimage | tee /tmp/att_root.txt
           ROOTMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_root.txt | tail -1)
           echo "merged at $ROOTMNT"; df -h "$ROOTMNT"
-          sudo rsync -aH --numeric-ids --exclude '.file' "$OSMNT/" "$ROOTMNT/"
+          if ! sudo ditto "$OSMNT/" "$ROOTMNT/"; then
+            echo "ditto failed, falling back to rsync"
+            sudo rsync -aH --numeric-ids --exclude '.file' "$OSMNT/" "$ROOTMNT/"
+          fi
           for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld; do
             if [ -d "$SYSMNT/$sub" ]; then
               mkdir -p "$ROOTMNT/$sub"
