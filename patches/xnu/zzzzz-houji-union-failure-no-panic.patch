@@ -1,10 +1,10 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -8029,7 +8029,14 @@
- 	boot_progress_stage("SystemOS mount enter");
+@@ -8030,6 +8030,13 @@
+ 	user_addr_t init_envp = USER_ADDR_NULL;
+ #if defined(XNU_OWNER_CACHE_MOUNT) && XNU_OWNER_CACHE_MOUNT
  	int cache_error = native_owner_cache_prepare(p, (user_addr_t)scratch_addr, &init_envp);
- 	boot_progress_stage("SystemOS mount returned");
 -	if (cache_error) panic("offline owner SystemOS mount failed: %d", cache_error);
 +	if (cache_error) {
 +		/* HOUJI: keep the original root instead of panicking. The union mount
@@ -16,4 +16,4 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	}
  #endif
  #if defined(XNU_OWNER_DATA_MOUNT) && XNU_OWNER_DATA_MOUNT
- 	boot_progress_stage("Data mount enter");
+ 	int data_error = native_owner_data_prepare(p, (user_addr_t)scratch_addr);
