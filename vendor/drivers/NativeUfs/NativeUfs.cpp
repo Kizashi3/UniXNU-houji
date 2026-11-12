@@ -2803,6 +2803,16 @@ void NativeUfs::stop (IOService *provider)
   IOService::stop (provider);
 }
 
+extern "C" dev_t mdevlookup (int devid);
+extern "C" void native_ufs_dump_media (const char *tag);
+
+// HOUJI: the SystemOS window is a single-volume memdev disk. APFS mounts the root
+// window straight from /dev/md0, so the same container mount works for /dev/md1.
+// memdev registers no IOMedia, so the volume-UUID lookup below can only succeed
+// on a provider that publishes volume media (virtio/native RAM block do; UFS
+// windows do not).
+static const char kHoujiSystemOsVolume[] = "96096B28-B6DC-4BC7-9D3A-2632A0FE53F1";
+
 // HOUJI: resolve an APFS volume's IOMedia by its volume UUID. The kernel mounts a
 // volume device, not the container: apfs_vfsop_mount on the whole container ends in
 // "invalid fsindex: -1". APFS publishes one IOMedia per volume with the volume UUID
@@ -2846,7 +2856,19 @@ extern "C" int native_verified_block_volume_device (const char *uuid, dev_t *dev
     found++;
   }
   iterator->release ();
-  if (!found) return 0;
+  if (!found) {
+    native_ufs_dump_media ("volume-miss");
+    if (!strcasecmp (uuid, kHoujiSystemOsVolume)) {
+      dev_t window = mdevlookup (1);
+      if (window != NODEV && size > sizeof ("/dev/md1")) {
+        *device = window;
+        strlcpy (path, "/dev/md1", size);
+        IOLog ("NativeUfs: SystemOS window %s dev=%d (no volume media)\n", path, (int) window);
+        return 1;
+      }
+    }
+    return 0;
+  }
   *device = candidate;
   strlcpy (path, candidatePath, size);
   IOLog ("NativeUfs: volume device %s at %s dev=%d (matches %d)\n", uuid, path, (int) candidate, found);
