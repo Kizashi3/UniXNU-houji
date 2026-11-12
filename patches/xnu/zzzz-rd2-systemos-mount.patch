@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,269 @@
+@@ -7138,6 +7139,310 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -181,6 +181,26 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	return 0;
 +}
 +
++extern struct vnode *rootvnode;
++
++static int
++houji_rd2_rootfix(proc_t p, user_addr_t scratch)
++{
++	vfs_context_t ctx = vfs_context_current();
++	uint64_t bytes = 0;
++	uint32_t magic = 0;
++	int error;
++
++	(void)p;
++	(void)scratch;
++	error = houji_rd2_copy(ctx,
++	    "/private/preboot/usr/lib/libobjc-trampolines.dylib",
++	    "/usr/lib/libobjc-trampolines.dylib", &bytes, &magic);
++	printf("HOUJI-ROOTFIX: copy bytes=%llu magic=%08x err=%d\n",
++	    (unsigned long long)bytes, magic, error);
++	return error;
++}
++
 +static int
 +houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
 +{
@@ -267,6 +287,27 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			printf("HOUJI-CRYPTEX: usrlib bind disabled\n");
 +		}
 +	}
++	/*
++	 * HOUJI-ROOTFIX (off by default): when the root volume itself is writable,
++	 * copy the one SystemOS library that dyld cannot find into the real
++	 * /usr/lib path. That satisfies the sandbox without any mount or bind.
++	 */
++	{
++		int rootfix = 0;
++
++		PE_parse_boot_argn("houji-rootfix", &rootfix, sizeof(rootfix));
++		if (rootfix) {
++			mount_t rootfs = vnode_mount(rootvnode);
++			uint64_t rootflags = rootfs ? vfs_flags(rootfs) : 0;
++
++			printf("HOUJI-ROOTFIX: root flags=0x%llx ro=%d\n",
++			    (unsigned long long)rootflags,
++			    (rootflags & MNT_RDONLY) != 0);
++			if (!(rootflags & MNT_RDONLY)) {
++				printf("HOUJI-ROOTFIX: result=%d\n", houji_rd2_rootfix(p, scratch));
++			}
++		}
++	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
 +	    (error = copyout(fallback, scratch + 0x480, strlen(fallback) + 1)) != 0 ||
 +	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
@@ -279,7 +320,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7446,17 @@
+@@ -7182,6 +7487,17 @@
  		}
  	}
  #endif
