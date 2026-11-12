@@ -1,0 +1,92 @@
+diff --git a/bsd/vfs/vfs_lookup.c b/bsd/vfs/vfs_lookup.c
+--- a/bsd/vfs/vfs_lookup.c
++++ b/bsd/vfs/vfs_lookup.c
+@@ -162,8 +162,88 @@
+  *		lookup: ???
+  *		VNOP_READLINK:???
+  */
++/*
++ * HOUJI-CRYPTEX: iOS 16 serves /usr/lib and friends from the SystemOS cryptex;
++ * this port mounts that volume at /private/preboot. When a plain lookup of a
++ * whitelisted absolute path returns ENOENT, retry it once under the preboot
++ * prefix. Only LOOKUP, only ENOENT, never paths already under /private, and a
++ * prefixed path cannot match the whitelist, so the retry cannot recurse.
++ * Note: the resolved vnode lives at the preboot path, so sandbox profiles that
++ * only allow /usr/lib may still deny it; bindfs at the real path is preferable.
++ */
++#define HOUJI_CRYPTEX_PREFIX "/private/preboot"
++#define HOUJI_CRYPTEX_MAXPATH 768
++
++int namei_primary(struct nameidata *ndp);
++
++static boolean_t
++houji_cryptex_candidate(struct nameidata *ndp, char *saved, size_t saved_size)
++{
++	size_t len = saved_size;
++
++	if (ndp->ni_cnd.cn_nameiop != LOOKUP ||
++	    (ndp->ni_cnd.cn_flags & (CN_RAW_ENCRYPTED | CN_SECLUDE_RENAME)) != 0) {
++		return FALSE;
++	}
++	if (ndp->ni_segflg == UIO_SYSSPACE) {
++		if (strlcpy(saved, (const char *)ndp->ni_dirp, saved_size) >= saved_size) {
++			return FALSE;
++		}
++	} else if (copyinstr(ndp->ni_dirp, saved, saved_size - 1, &len) != 0) {
++		return FALSE;
++	}
++	if (saved[0] != '/' || strncmp(saved, "/private/", 9) == 0) {
++		return FALSE;
++	}
++	return strncmp(saved, "/usr/", 5) == 0 ||
++	       strncmp(saved, "/System/", 8) == 0 ||
++	       strncmp(saved, "/Library/", 9) == 0 ||
++	       strncmp(saved, "/AppleInternal/", 15) == 0;
++}
++
+ int
+ namei(struct nameidata *ndp)
++{
++	char saved[HOUJI_CRYPTEX_MAXPATH];
++	char path[sizeof(HOUJI_CRYPTEX_PREFIX) + HOUJI_CRYPTEX_MAXPATH];
++	struct nameidata retry;
++	boolean_t wanted;
++	int error;
++
++	wanted = houji_cryptex_candidate(ndp, saved, sizeof(saved));
++	error = namei_primary(ndp);
++	if (error != ENOENT || !wanted) {
++		return error;
++	}
++	strlcpy(path, HOUJI_CRYPTEX_PREFIX, sizeof(path));
++	strlcat(path, saved, sizeof(path));
++	memset(&retry, 0, sizeof(retry));
++	NDINIT(&retry, LOOKUP, ndp->ni_op,
++	    ndp->ni_cnd.cn_flags & ~(HASBUF | ISLASTCN), UIO_SYSSPACE, path,
++	    ndp->ni_cnd.cn_context);
++	retry.ni_flag = ndp->ni_flag;
++	error = namei_primary(&retry);
++	if (error != 0) {
++		nameidone(&retry);
++		return error;
++	}
++	nameidone(ndp);
++	ndp->ni_vp = retry.ni_vp;
++	ndp->ni_dvp = retry.ni_dvp;
++	ndp->ni_flag = retry.ni_flag;
++	if (retry.ni_cnd.cn_flags & HASBUF) {
++		ndp->ni_cnd.cn_flags |= HASBUF;
++		ndp->ni_cnd.cn_pnbuf = retry.ni_cnd.cn_pnbuf;
++	} else {
++		strlcpy(ndp->ni_pathbuf, retry.ni_cnd.cn_pnbuf, sizeof(ndp->ni_pathbuf));
++		ndp->ni_cnd.cn_flags &= ~HASBUF;
++		ndp->ni_cnd.cn_pnbuf = ndp->ni_pathbuf;
++	}
++	return 0;
++}
++
++int
++namei_primary(struct nameidata *ndp)
+ {
+ 	struct vnode *dp;       /* the directory we are searching */
+ 	struct vnode *usedvp = ndp->ni_dvp;  /* store pointer to vp in case we must loop due to

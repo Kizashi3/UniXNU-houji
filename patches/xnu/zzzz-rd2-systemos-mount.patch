@@ -1,7 +1,7 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7138,6 +7138,153 @@
+@@ -7138,6 +7138,116 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -44,27 +44,6 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	return error;
 +}
 +
-+extern volatile int native_bindfs_boot_mount;
-+
-+static int
-+houji_rd2_bind(proc_t p, user_addr_t scratch, const char *source, const char *point)
-+{
-+	struct mount_args request = {.type = scratch + 0x900, .path = scratch + 0x920,
-+	    .flags = MNT_RDONLY, .data = scratch + 0xA00};
-+	int32_t result = 0;
-+	int error;
-+
-+	if ((error = copyout("bindfs", request.type, 7)) != 0 ||
-+	    (error = copyout(point, request.path, strlen(point) + 1)) != 0 ||
-+	    (error = copyout(source, request.data, strlen(source) + 1)) != 0) {
-+		return error;
-+	}
-+	native_bindfs_boot_mount = 1;
-+	error = mount(p, &request, &result);
-+	native_bindfs_boot_mount = 0;
-+	return error;
-+}
-+
 +static int
 +houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
 +{
@@ -95,22 +74,6 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	}
 +	if (error != 0) {
 +		return error;
-+	}
-+	/*
-+	 * HOUJI-CRYPTEX: the root's /usr/lib is served from the SystemOS cryptex in
-+	 * this iOS version; nothing is mounted there, so every /usr/lib lookup fails
-+	 * (libobjc-trampolines among them). Bind the SystemOS copy (already mounted
-+	 * at /private/preboot) over the root's directory, like upstream's bindfs
-+	 * cryptex view does for its union layout.
-+	 */
-+	{
-+		int bind_error = houji_rd2_bind(p, scratch, "/private/preboot/usr/lib", "/usr/lib");
-+
-+		printf("HOUJI-CRYPTEX: bind usr/lib -> %d\n", bind_error);
-+		if (bind_error != 0) {
-+			bind_error = houji_rd2_bind(p, scratch, "/private/preboot/usr", "/usr");
-+			printf("HOUJI-CRYPTEX: bind usr -> %d\n", bind_error);
-+		}
 +	}
 +	/*
 +	 * HOUJI-DATA: the writable Data ramdisk (FAT, md2) goes to /private/var. Without it launchd
@@ -155,7 +118,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7329,17 @@
+@@ -7182,6 +7292,17 @@
  		}
  	}
  #endif
