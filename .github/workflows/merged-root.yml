@@ -35,6 +35,7 @@ jobs:
       - name: Merge into a writable root volume
         run: |
           set -eux
+          exec > >(tee /tmp/merge_step.log) 2>&1
           OS_DMG=$(sed -n 1p "$RUNNER_TEMP/dmgs.txt")
           SYS_DMG=$(sed -n 2p "$RUNNER_TEMP/dmgs.txt")
           hdiutil attach -readonly -nobrowse "$OS_DMG" | tee /tmp/att_os.txt
@@ -100,7 +101,7 @@ jobs:
           git clone -q --depth 1 -b ci-diagnostics \
             "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag2 || exit 0
           mkdir -p /tmp/cidiag2/merged-root
-          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/cidiag2/merged-root/ 2>/dev/null || true
+          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/merge_step.log /tmp/cidiag2/merged-root/ 2>/dev/null || true
           cd /tmp/cidiag2
           git add -f merged-root
           git commit -q -m "merged root logs ${{ github.run_number }}" || exit 0
