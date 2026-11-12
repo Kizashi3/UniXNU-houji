@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,234 @@
+@@ -7138,6 +7139,262 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -71,9 +71,11 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +}
 +
 +static int
-+houji_rd2_copy(vfs_context_t ctx, const char *src, const char *dst)
++houji_rd2_copy(vfs_context_t ctx, const char *src, const char *dst,
++    uint64_t *bytes_out, uint32_t *magic_out)
 +{
 +	static uint8_t houji_copy_buf[65536];
++	uint32_t houji_copy_magic = 0;
 +	vnode_t svp = NULLVP, dvp = NULLVP;
 +	off_t offset = 0;
 +	int resid = 0;
@@ -101,6 +103,9 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		if (got <= 0) {
 +			break;
 +		}
++		if (offset == 0 && got >= 4) {
++			memcpy(&houji_copy_magic, houji_copy_buf, sizeof(houji_copy_magic));
++		}
 +		resid = 0;
 +		error = vn_rdwr(UIO_WRITE, dvp, (caddr_t)houji_copy_buf, got, offset,
 +		    UIO_SYSSPACE, IO_UNIT, vfs_context_ucred(ctx), &resid, vfs_context_proc(ctx));
@@ -111,6 +116,12 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	}
 +	vnode_close(dvp, 0, ctx);
 +	vnode_put(svp);
++	if (bytes_out) {
++		*bytes_out = (uint64_t)offset;
++	}
++	if (magic_out) {
++		*magic_out = houji_copy_magic;
++	}
 +	return error;
 +}
 +
@@ -148,11 +159,26 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		printf("HOUJI-CRYPTEX: usrlib mkdir -> %d\n", mk);
 +		return mk;
 +	}
-+	e1 = houji_rd2_copy(ctx, "/usr/lib/dyld", "/private/var/usrlib/dyld");
++	uint64_t dyld_bytes = 0, tramp_bytes = 0;
++	uint32_t dyld_magic = 0, tramp_magic = 0;
++
++	e1 = houji_rd2_copy(ctx, "/usr/lib/dyld", "/private/var/usrlib/dyld",
++	    &dyld_bytes, &dyld_magic);
 +	e2 = houji_rd2_copy(ctx, "/private/preboot/usr/lib/libobjc-trampolines.dylib",
-+	    "/private/var/usrlib/libobjc-trampolines.dylib");
-+	printf("HOUJI-CRYPTEX: copy dyld=%d trampolines=%d\n", e1, e2);
-+	return (e1 != 0 || e2 != 0) ? (e1 ? e1 : e2) : 0;
++	    "/private/var/usrlib/libobjc-trampolines.dylib", &tramp_bytes, &tramp_magic);
++	printf("HOUJI-CRYPTEX: copy dyld=%d bytes=%llu magic=%08x trampolines=%d bytes=%llu magic=%08x\n",
++	    e1, (unsigned long long)dyld_bytes, dyld_magic, e2,
++	    (unsigned long long)tramp_bytes, tramp_magic);
++	if (e1 != 0 || e2 != 0) {
++		return e1 ? e1 : e2;
++	}
++	/* Only a plausible Mach-O dyld may replace /usr/lib/dyld. */
++	if (dyld_bytes < 65536 || (dyld_magic != 0xfeedfacf && dyld_magic != 0xfeedface &&
++	    dyld_magic != 0xcafebabe && dyld_magic != 0xbebafeca)) {
++		printf("HOUJI-CRYPTEX: dyld copy rejected\n");
++		return -4096;
++	}
++	return 0;
 +}
 +
 +static int
@@ -230,6 +256,8 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		if (stage_error == 0) {
 +			printf("HOUJI-CRYPTEX: bind usrlib -> %d\n",
 +			    houji_rd2_bind(p, scratch, "/private/var/usrlib", "/usr/lib"));
++		} else {
++			printf("HOUJI-CRYPTEX: bind skipped (%d)\n", stage_error);
 +		}
 +	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
@@ -244,7 +272,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7411,17 @@
+@@ -7182,6 +7439,17 @@
  		}
  	}
  #endif
