@@ -1,19 +1,10 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7101,7 +7101,7 @@
- 	    native_verified_block_root_authorized(root_device);
- 	if (!root_authorized) goto done;
- 	native_owner_cache_stage = 1;
--	if (!native_verified_block_volume_device(volume, &selected, device_path,
-+	if (!houji_systemos_resolve(p, scratch, volume, &selected, device_path,
- 	    sizeof(device_path))) goto done;
- 	strlcpy(native_owner_cache_device_path, device_path, sizeof(native_owner_cache_device_path));
- 	native_owner_cache_selected_device = selected;
-@@ -8011,6 +8011,66 @@
-  * 1		1		NA		/usr/appleinternal/sbin/launchd.$LAUNCHDSUFFIX
-  * 2		NA		NA		/usr/appleinternal/sbin/launchd.debug
-  * 3		2		NA		/usr/appleinternal/sbin/launchd.development
+@@ -7021,6 +7021,66 @@
+ #error The offline owner cache mount is a development instrument
+ #endif
+ extern int native_verified_block_volume_device(const char *, dev_t *, char *, size_t);
 +/*
 + * HOUJI: APFS publishes one IOMedia per volume, but only for a container it has
 + * probed. The UFS windows are raw memdev block devices that never go through the
@@ -74,6 +65,15 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	return 0;
 +}
 +
-  * 4		3		1		/sbin/launchd
-  */
- void
+ #if defined(XNU_OWNER_BOOT_MANIFEST) && XNU_OWNER_BOOT_MANIFEST
+ extern int native_owner_publish_boot_manifest(dev_t, const char *, dev_t, const char *);
+ #endif
+@@ -7101,7 +7161,7 @@
+ 	    native_verified_block_root_authorized(root_device);
+ 	if (!root_authorized) goto done;
+ 	native_owner_cache_stage = 1;
+-	if (!native_verified_block_volume_device(volume, &selected, device_path,
++	if (!houji_systemos_resolve(p, scratch, volume, &selected, device_path,
+ 	    sizeof(device_path))) goto done;
+ 	strlcpy(native_owner_cache_device_path, device_path, sizeof(native_owner_cache_device_path));
+ 	native_owner_cache_selected_device = selected;
