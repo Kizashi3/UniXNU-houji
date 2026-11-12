@@ -44,8 +44,8 @@ jobs:
           echo "OS at $OSMNT"; ls "$OSMNT" | head
           echo "SystemOS at $SYSMNT"; ls "$SYSMNT" | head
           rm -f /tmp/root.dmg
-          hdiutil create -size 8g -volname houjiRoot -fs APFS -type UDRW /tmp/root.dmg
-          hdiutil attach -nobrowse /tmp/root.dmg | tee /tmp/att_root.txt
+          hdiutil create -size 8g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
+          hdiutil attach -nobrowse /tmp/root.sparseimage | tee /tmp/att_root.txt
           ROOTMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_root.txt | tail -1)
           echo "merged at $ROOTMNT"; df -h "$ROOTMNT"
           ditto "$OSMNT/" "$ROOTMNT/"
@@ -53,6 +53,7 @@ jobs:
           if [ -f "$OSMNT/usr/lib/dyld" ]; then cp -p "$OSMNT/usr/lib/dyld" "$ROOTMNT/usr/lib/dyld"; fi
           sync
           hdiutil detach "$ROOTMNT"
+          hdiutil convert -format UDRW -o /tmp/root /tmp/root.sparseimage | tee /tmp/conv.txt
           hdiutil detach "$OSMNT" || true
           hdiutil detach "$SYSMNT" || true
           python3 scripts/merged-root-extract.py /tmp/root.dmg "$RUNNER_TEMP/merged-root.raw"
