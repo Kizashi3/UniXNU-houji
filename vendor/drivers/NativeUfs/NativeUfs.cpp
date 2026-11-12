@@ -16,6 +16,7 @@ extern const struct vr_crypto vr_xnu_crypto;
 extern const uint8_t verified_root_key[];
 }
 #endif
+#include <libkern/c++/OSMetaClass.h>
 #include <libkern/c++/OSNumber.h>
 #include <libkern/c++/OSIterator.h>
 #include <IOKit/IOBSD.h>
@@ -1258,6 +1259,8 @@ extern "C" unsigned long houji_sm_cache_hits (void);
 
 static int houji_fb_test_parsed;
 static int houji_fb_test_on;
+static int houji_fb_probe_on;
+static int houji_fb_probed;
 
 /* HOUJI-FB-TEST: paint the bottom 48 rows of the firmware framebuffer with a
  * moving colour bar. Proves CPU scanout from a running kernel (no GPU). */
@@ -1305,6 +1308,64 @@ houji_fb_test_step (uint32_t phase)
 }
 
 extern "C" unsigned long houji_sm_cache_hits (void);
+
+/* HOUJI-FB-PROBE: recover the prelinked IOMobileFramebufferLegacy vtable.
+ * The family ships without symbols, so the only trustworthy source is a real
+ * instance: allocate one through its metaclass (no init/start) and report the
+ * vptr plus every slot as a signed offset from it. The instance is leaked on
+ * purpose; its destruction chain is unproven. Boot argument: houji-fb-probe=1. */
+static void
+houjiFbProbe (void)
+{
+	static char report[8192];
+	OSObject *obj;
+	const OSMetaClass *mc;
+	uintptr_t vptr;
+	unsigned at = 0;
+
+	static const char *names[4] = {
+		"IOMobileFramebufferLegacy",
+		"IOMobileFramebuffer",
+		"IOMobileFramebufferService",
+		"IOMobileFramebufferUserClient"
+	};
+
+	for (unsigned n = 0; n < 4; n++) {
+		obj = OSMetaClass::allocClassWithName (names[n]);
+		IOLog ("HOUJI-FB: alloc %s -> %p\n", names[n], obj);
+		if (obj) {
+			break;
+		}
+	}
+	if (!obj) {
+		return;
+	}
+	mc = obj->getMetaClass ();
+	vptr = *(uintptr_t *)(void *)obj;
+	at += snprintf (report + at, sizeof (report) - at,
+	    "HOUJI-FB: class_size=%u class=%s super=%s\n",
+	    mc ? mc->getClassSize () : 0,
+	    mc ? mc->getClassName () : "?",
+	    mc && mc->getSuperClass () ? mc->getSuperClass ()->getClassName () : "?");
+	at += snprintf (report + at, sizeof (report) - at,
+	    "HOUJI-FB: obj=%p vptr=0x%llx legacy=%d fb=%d svc=%d\n", obj,
+	    (unsigned long long)vptr,
+	    obj->metaCast ("IOMobileFramebufferLegacy") != nullptr,
+	    obj->metaCast ("IOMobileFramebuffer") != nullptr,
+	    obj->metaCast ("IOMobileFramebufferService") != nullptr);
+	for (unsigned i = 0; i < 360 && at + 24 < sizeof (report); i++) {
+		uintptr_t target = ((uintptr_t *)(void *)vptr)[i];
+		if (i % 6 == 0) {
+			at += snprintf (report + at, sizeof (report) - at, "HOUJI-FBV%u:", i);
+		}
+		at += snprintf (report + at, sizeof (report) - at, " %x",
+		    (unsigned)(int32_t)(target - vptr));
+		if (i % 6 == 5) {
+			at += snprintf (report + at, sizeof (report) - at, "\n");
+		}
+	}
+	IOLog ("%s\n", report);
+}
 
 /* HOUJI: kernel console ring (osfmk/console/video_console.c) into the log window. */
 #define HOUJI_CON_BLOCK 512
@@ -1372,9 +1433,15 @@ houjiLogThread (void *param, wait_result_t wr)
 			houji_fb_test_parsed = 1;
 			PE_parse_boot_argn ("houji-fb-test", &houji_fb_test_on,
 			    sizeof(houji_fb_test_on));
+			PE_parse_boot_argn ("houji-fb-probe", &houji_fb_probe_on,
+			    sizeof(houji_fb_probe_on));
 		}
 		if (houji_fb_test_on) {
 			houji_fb_test_step ((uint32_t)(tick / 6));
+		}
+		if (houji_fb_probe_on && !houji_fb_probed && tick >= 6) {
+			houji_fb_probed = 1;
+			houjiFbProbe ();
 		}
 		if ((++tick % 6) == 0) {
 			extern unsigned int vm_page_free_count;
