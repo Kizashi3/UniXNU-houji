@@ -1,7 +1,7 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7138,6 +7138,121 @@
+@@ -7138,6 +7138,133 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -82,6 +82,18 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		return error;
 +	}
 +	/*
++	 * HOUJI-CRYPTEX: the same SystemOS volume also carries /usr/lib (libobjc-trampolines
++	 * and friends). dyld resolves those only under the cryptex prefix, so expose the
++	 * volume there as well. A refusal is not fatal: the cache mapping above still works.
++	 */
++	{
++		int cryptex_error = houji_rd2_try_mount(p, scratch, devices[index],
++		    "apfs", "/System/Cryptexes/OS", MNT_RDONLY);
++		printf("HOUJI-CRYPTEX: %s on /System/Cryptexes/OS -> %d\n",
++		    devices[index], cryptex_error);
++	}
++
++	/*
 +	 * HOUJI-DATA: the writable Data ramdisk (FAT, md2) goes to /private/var. Without it launchd
 +	 * has nowhere to write state, and a missing or unformatted md2 only costs the mount attempt.
 +	 */
@@ -123,7 +135,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7297,17 @@
+@@ -7182,6 +7309,17 @@
  		}
  	}
  #endif
