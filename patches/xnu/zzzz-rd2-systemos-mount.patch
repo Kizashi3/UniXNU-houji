@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,310 @@
+@@ -7138,6 +7139,328 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -288,9 +288,10 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		}
 +	}
 +	/*
-+	 * HOUJI-ROOTFIX (off by default): when the root volume itself is writable,
-+	 * copy the one SystemOS library that dyld cannot find into the real
-+	 * /usr/lib path. That satisfies the sandbox without any mount or bind.
++	 * HOUJI-ROOTFIX (off by default): the root is a RAM window mounted read-only
++	 * by policy. Try an MNT_UPDATE remount to rw; when it succeeds, copy the one
++	 * SystemOS library that dyld cannot find into the real /usr/lib path, which
++	 * keeps APFS and satisfies the sandbox without any mount or bind.
 +	 */
 +	{
 +		int rootfix = 0;
@@ -303,6 +304,23 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			printf("HOUJI-ROOTFIX: root flags=0x%llx ro=%d\n",
 +			    (unsigned long long)rootflags,
 +			    (rootflags & MNT_RDONLY) != 0);
++			if (rootflags & MNT_RDONLY) {
++				struct mount_args request = {.type = scratch + 0x900,
++				    .path = scratch + 0x920, .flags = MNT_UPDATE, .data = 0};
++				int32_t result = 0;
++				int uerr = copyout("apfs", request.type, 5);
++
++				if (uerr == 0) {
++					uerr = copyout("/", request.path, 2);
++				}
++				if (uerr == 0) {
++					uerr = mount(p, &request, &result);
++				}
++				rootflags = rootfs ? vfs_flags(rootfs) : 0;
++				printf("HOUJI-ROOTFIX: remount err=%d flags=0x%llx ro=%d\n",
++				    uerr, (unsigned long long)rootflags,
++				    (rootflags & MNT_RDONLY) != 0);
++			}
 +			if (!(rootflags & MNT_RDONLY)) {
 +				printf("HOUJI-ROOTFIX: result=%d\n", houji_rd2_rootfix(p, scratch));
 +			}
@@ -320,7 +338,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7487,17 @@
+@@ -7182,6 +7505,17 @@
  		}
  	}
  #endif
