@@ -17,6 +17,7 @@ extern const uint8_t verified_root_key[];
 }
 #endif
 #include <libkern/c++/OSMetaClass.h>
+#include <libkern/c++/OSSymbol.h>
 #include <libkern/c++/OSNumber.h>
 #include <libkern/c++/OSIterator.h>
 #include <IOKit/IOBSD.h>
@@ -1225,7 +1226,7 @@ houjiLogWriteSnapshot (uint8_t *buf, uint32_t seq)
 	}
 	struct houji_msgbuf *mb = msgbufp;
 	if (!mb || !mb->msg_bufc || mb->msg_magic != 0x063061 ||
-	    mb->msg_size <= 0 || mb->msg_size > (1 << 20)) {
+	    mb->msg_size <= 0 || mb->msg_size > (1 << 22)) {
 		return -2;
 	}
 	uint32_t size = (uint32_t)mb->msg_size;
@@ -1308,6 +1309,7 @@ houji_fb_test_step (uint32_t phase)
 }
 
 extern "C" unsigned long houji_sm_cache_hits (void);
+extern "C" unsigned long vm_kernel_slide;
 
 /* HOUJI-FB-PROBE: recover the prelinked IOMobileFramebufferLegacy vtable.
  * The family ships without symbols, so the only trustworthy source is a real
@@ -1338,6 +1340,37 @@ houjiFbProbe (void)
 		}
 	}
 	if (!obj) {
+		const OSSymbol *sym =
+		    OSSymbol::withCString ("IOMobileFramebufferLegacy");
+		const OSMetaClass *legacy =
+		    OSMetaClass::getMetaClassWithName (sym);
+		IOLog ("HOUJI-FB: no instance; legacy meta=%p size=%u class=%s\n",
+		    legacy, legacy ? legacy->getClassSize () : 0,
+		    legacy ? legacy->getClassName () : "?");
+		/* The prelinked family has no symbols; its Legacy vtable sits at
+		 * file VA 0xfffffff005def8e0 (recovered from the prelink extents),
+		 * and the whole collection runs at link + vm_kernel_slide. */
+		uint64_t slide = (uint64_t)(uintptr_t)vm_kernel_slide;
+		uintptr_t vt = (uintptr_t)(0xfffffff005def8e0ULL + slide);
+		IOLog ("HOUJI-FB: slide=0x%llx vt=0x%llx\n",
+		    (unsigned long long)slide, (unsigned long long)vt);
+		if (slide < (1ULL << 30) && (slide & 7) == 0) {
+			at += snprintf (report + at, sizeof (report) - at,
+			    "HOUJI-FB: static vtable\n");
+			for (unsigned i = 0; i < 360 && at + 24 < sizeof (report); i++) {
+				uintptr_t t = ((uintptr_t *)(void *)vt)[i];
+				if (i % 6 == 0) {
+					at += snprintf (report + at, sizeof (report) - at,
+					    "HOUJI-FBV%u:", i);
+				}
+				at += snprintf (report + at, sizeof (report) - at, " %x",
+				    (unsigned)(int32_t)(t - vt));
+				if (i % 6 == 5) {
+					at += snprintf (report + at, sizeof (report) - at, "\n");
+				}
+			}
+			IOLog ("%s\n", report);
+		}
 		return;
 	}
 	mc = obj->getMetaClass ();
@@ -1368,7 +1401,7 @@ houjiFbProbe (void)
 }
 
 /* HOUJI: kernel console ring (osfmk/console/video_console.c) into the log window. */
-#define HOUJI_CON_BLOCK 512
+#define HOUJI_CON_BLOCK 1536
 extern "C" void houji_con_ring_info (char **buf, uint32_t *size,
     uint32_t *pos, uint64_t *total);
 
@@ -1439,7 +1472,7 @@ houjiLogThread (void *param, wait_result_t wr)
 		if (houji_fb_test_on) {
 			houji_fb_test_step ((uint32_t)(tick / 6));
 		}
-		if (houji_fb_probe_on && !houji_fb_probed && tick >= 6) {
+		if (houji_fb_probe_on && !houji_fb_probed && tick >= 2) {
 			houji_fb_probed = 1;
 			houjiFbProbe ();
 		}
@@ -1477,7 +1510,7 @@ houjiLogThread (void *param, wait_result_t wr)
 		}
 		struct houji_msgbuf *mb = msgbufp;
 		if (!mb || !mb->msg_bufc || mb->msg_magic != 0x063061 ||
-		    mb->msg_size <= 0 || mb->msg_size > (1 << 20)) {
+		    mb->msg_size <= 0 || mb->msg_size > (1 << 22)) {
 			continue;
 		}
 		uint32_t size = (uint32_t)mb->msg_size;
@@ -2233,7 +2266,7 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     }
   }
   if (logMode ()) {
-    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 20) + 4096));
+    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 22) + 4096));
     thread_t logthread = NULL;
     if (logbuf && kernel_thread_start ((thread_continue_t)houjiLogThread, logbuf, &logthread) == KERN_SUCCESS) {
       thread_deallocate (logthread);
@@ -2308,7 +2341,7 @@ extern "C" int native_ufs_md_init (void)
 		uint64_t logFirst = 0, logBlocks = 0;
 		const char *logWhy = "";
 		if (native_ufs_log_open (&logFirst, &logBlocks, &logWhy) == 0) {
-			uint8_t *probeBuf = static_cast<uint8_t *> (IOMalloc ((1 << 20) + 4096));
+			uint8_t *probeBuf = static_cast<uint8_t *> (IOMalloc ((1 << 22) + 4096));
 			int probeRc = probeBuf ? houjiLogWriteSnapshot (probeBuf, 0) : -4;
 			if (probeBuf) {
 				IOFree (probeBuf, (1 << 20) + 4096);
@@ -2322,7 +2355,7 @@ extern "C" int native_ufs_md_init (void)
 		}
 	}
   if (logMode ()) {
-    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 20) + 4096));
+    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 22) + 4096));
     thread_t logthread = NULL;
     if (logbuf && kernel_thread_start ((thread_continue_t)houjiLogThread, logbuf, &logthread) == KERN_SUCCESS) {
       thread_deallocate (logthread);

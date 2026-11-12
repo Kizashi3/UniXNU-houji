@@ -1,8 +1,7 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index c1b7c62..46b0fe5 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7386,6 +7386,109 @@ static const char * init_programs[] = {
+@@ -7138,6 +7138,121 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -67,6 +66,18 @@ index c1b7c62..46b0fe5 100644
 +			break;
 +		}
 +	}
++	/*
++	 * HOUJI-CRYPTEX: the same SystemOS volume also carries /usr/lib (libobjc-trampolines
++	 * and friends). dyld resolves those only under the cryptex prefix, so expose the
++	 * volume there as well. A refusal is not fatal: the cache mapping above still works.
++	 */
++	{
++		int cryptex_error = houji_rd2_try_mount(p, scratch, devices[index],
++		    "apfs", "/System/Cryptexes/OS", MNT_RDONLY);
++		printf("HOUJI-CRYPTEX: %s on /System/Cryptexes/OS -> %d\n",
++		    devices[index], cryptex_error);
++	}
++
 +	if (error != 0) {
 +		return error;
 +	}
@@ -112,10 +123,11 @@ index c1b7c62..46b0fe5 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7440,6 +7543,17 @@ load_init_program(proc_t p)
+@@ -7182,6 +7297,17 @@
+ 		}
  	}
  #endif
- 
++
 +	{
 +		user_addr_t rd2_envp = USER_ADDR_NULL;
 +		if (houji_rd2_mount(p, (user_addr_t)scratch_addr, &rd2_envp) == 0) {
@@ -126,7 +138,6 @@ index c1b7c62..46b0fe5 100644
 +			printf("HOUJI-RD2: continuing without the SystemOS mount\n");
 +		}
 +	}
-+
+ 
  	error = ENOENT;
  	for (i = 0; i < sizeof(init_programs) / sizeof(init_programs[0]); i++) {
- 		printf("load_init_program: attempting to load %s\n", init_programs[i]);
