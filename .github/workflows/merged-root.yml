@@ -3,7 +3,7 @@ name: houji merged root
 on:
   workflow_dispatch:
   push:
-    branches: [kernel-cs-bypass]
+    branches: [kernel-cs-bypass, merged-root-ci]
     paths:
       - ".github/workflows/merged-root.yml"
       - "scripts/merged-root-*.py"
@@ -12,7 +12,24 @@ permissions:
   contents: write
 
 jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe release write capability
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          TAG="ci-probe-${{ github.run_number }}"
+          echo "probe $(date -u)" > probe.txt
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --title "transport probe" --notes "release write probe" probe.txt
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json tagName,assets
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
+          echo RELEASE_PROBE_OK
+
   merge:
+    needs: probe
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
