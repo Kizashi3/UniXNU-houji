@@ -1,0 +1,79 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -7101,7 +7101,7 @@
+ 	    native_verified_block_root_authorized(root_device);
+ 	if (!root_authorized) goto done;
+ 	native_owner_cache_stage = 1;
+-	if (!native_verified_block_volume_device(volume, &selected, device_path,
++	if (!houji_systemos_resolve(p, scratch, volume, &selected, device_path,
+ 	    sizeof(device_path))) goto done;
+ 	strlcpy(native_owner_cache_device_path, device_path, sizeof(native_owner_cache_device_path));
+ 	native_owner_cache_selected_device = selected;
+@@ -8011,6 +8011,66 @@
+  * 1		1		NA		/usr/appleinternal/sbin/launchd.$LAUNCHDSUFFIX
+  * 2		NA		NA		/usr/appleinternal/sbin/launchd.debug
+  * 3		2		NA		/usr/appleinternal/sbin/launchd.development
++/*
++ * HOUJI: APFS publishes one IOMedia per volume, but only for a container it has
++ * probed. The UFS windows are raw memdev block devices that never go through the
++ * IOMedia probe, so md0s1 exists only because something mounted /dev/md0. The
++ * SystemOS window (md1) is never opened, so its volume has no device node and the
++ * volume UUID lookup in native_verified_block_volume_device() finds nothing.
++ * Mounting the bare container forces that scan; APFS then rejects the mount with
++ * "invalid fsindex" because a container is not a volume, which is fine here.
++ */
++static int
++houji_systemos_container_scan(proc_t p, user_addr_t scratch, const char *dev)
++{
++	user64_addr_t spec = scratch + 0x160;
++	uint8_t payload[0x150] = {0};
++	uint16_t mode = 1;
++	uint32_t anonymous_owner = 99;
++	uint64_t mount_flags = MNT_RDONLY;
++	struct mount_args request = {.type = scratch + 0x100, .path = scratch + 0x120,
++	    .flags = MNT_RDONLY, .data = scratch + 0x200};
++	int32_t result = 0;
++	int error;
++
++	memcpy(payload, &spec, sizeof(spec));
++	memcpy(payload + 8, &mount_flags, sizeof(mount_flags));
++	memcpy(payload + 16, &mode, sizeof(mode));
++	memcpy(payload + 0x144, &anonymous_owner, sizeof(anonymous_owner));
++	memcpy(payload + 0x148, &anonymous_owner, sizeof(anonymous_owner));
++	if ((error = copyout("apfs", request.type, 5)) != 0 ||
++	    (error = copyout("/", request.path, 2)) != 0 ||
++	    (error = copyout(dev, spec, strlen(dev) + 1)) != 0 ||
++	    (error = copyout(payload, request.data, sizeof(payload))) != 0) {
++		printf("HOUJI-SCAN: %s copyout error %d\n", dev, error);
++		return error;
++	}
++	error = mount(p, &request, &result);
++	printf("HOUJI-SCAN: mount %s on / -> %d\n", dev, error);
++	return error;
++}
++
++static int
++houji_systemos_resolve(proc_t p, user_addr_t scratch, const char *volume,
++    dev_t *device, char *path, size_t size)
++{
++	extern void native_ufs_dump_media(const char *);
++	const char *container = "/dev/md1";
++
++	if (native_verified_block_volume_device(volume, device, path, size)) {
++		return 1;
++	}
++	printf("HOUJI-SCAN: volume %s has no media, scanning %s\n", volume, container);
++	native_ufs_dump_media("before");
++	houji_systemos_container_scan(p, scratch, container);
++	if (native_verified_block_volume_device(volume, device, path, size)) {
++		printf("HOUJI-SCAN: volume appeared after container scan\n");
++		return 1;
++	}
++	native_ufs_dump_media("after");
++	return 0;
++}
++
+  * 4		3		1		/sbin/launchd
+  */
+ void

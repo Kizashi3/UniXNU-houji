@@ -2853,6 +2853,31 @@ extern "C" int native_verified_block_volume_device (const char *uuid, dev_t *dev
   return 1;
 }
 
+// HOUJI: dump every IOMedia with its BSD name and UUID. APFS publishes a volume
+// media only for a container it has probed, so this list shows whether the
+// SystemOS volume ever got a device node and which UUID it carries.
+extern "C" void native_ufs_dump_media (const char *tag)
+{
+  OSDictionary *matching = IOService::serviceMatching ("IOMedia");
+  if (!matching) return;
+  OSIterator *iterator = IOService::getMatchingServices (matching);
+  matching->release ();
+  if (!iterator) return;
+  int index = 0;
+  while (OSObject *object = iterator->getNextObject ()) {
+    IOService *media = OSDynamicCast (IOService, object);
+    if (!media || index >= 32) continue;
+    OSString *name = OSDynamicCast (OSString, media->getProperty (kIOBSDNameKey));
+    OSString *uuid = OSDynamicCast (OSString, media->getProperty ("UUID"));
+    IOLog ("HOUJI-MEDIA[%s]: bsd=%s uuid=%s\n", tag,
+        name ? name->getCStringNoCopy () : "-",
+        uuid ? uuid->getCStringNoCopy () : "-");
+    index++;
+  }
+  IOLog ("HOUJI-MEDIA[%s]: %d media\n", tag, index);
+  iterator->release ();
+}
+
 // HOUJI: root authorization entry point for the owner cache mount.
 // kern_exec.c (offline-owner-systemos-mount.patch) and bsd_init.c reference this
 // symbol, which upstream implements in NativeVirtioBlock.cpp. This build disables
