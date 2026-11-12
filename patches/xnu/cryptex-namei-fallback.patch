@@ -62,7 +62,7 @@ diff --git a/bsd/vfs/vfs_lookup.c b/bsd/vfs/vfs_lookup.c
 +	strlcat(path, saved, sizeof(path));
 +	memset(&retry, 0, sizeof(retry));
 +	NDINIT(&retry, LOOKUP, ndp->ni_op,
-+	    ndp->ni_cnd.cn_flags & ~(HASBUF | ISLASTCN), UIO_SYSSPACE, path,
++	    ndp->ni_cnd.cn_flags & ~(HASBUF | ISLASTCN), UIO_SYSSPACE, (user_addr_t)path,
 +	    ndp->ni_cnd.cn_context);
 +	retry.ni_flag = ndp->ni_flag;
 +	error = namei_primary(&retry);
