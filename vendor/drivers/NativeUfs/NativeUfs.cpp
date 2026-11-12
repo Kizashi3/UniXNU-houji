@@ -1309,7 +1309,6 @@ houji_fb_test_step (uint32_t phase)
 }
 
 extern "C" unsigned long houji_sm_cache_hits (void);
-extern "C" unsigned long vm_kernel_slide;
 
 /* HOUJI-FB-PROBE: recover the prelinked IOMobileFramebufferLegacy vtable.
  * The family ships without symbols, so the only trustworthy source is a real
