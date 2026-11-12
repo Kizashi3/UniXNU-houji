@@ -1,0 +1,19 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -8029,7 +8029,14 @@
+ 	boot_progress_stage("SystemOS mount enter");
+ 	int cache_error = native_owner_cache_prepare(p, (user_addr_t)scratch_addr, &init_envp);
+ 	boot_progress_stage("SystemOS mount returned");
+-	if (cache_error) panic("offline owner SystemOS mount failed: %d", cache_error);
++	if (cache_error) {
++		/* HOUJI: keep the original root instead of panicking. The union mount
++		 * needs the SystemOS volume resolvable by UUID and accepted as a union
++		 * over "/"; on this board that volume arrives as a memdev disk, so a
++		 * failure here must cost the union, not the boot. */
++		printf("HOUJI-UNION: SystemOS root union failed: %d; continuing on the original root\n",
++		    cache_error);
++	}
+ #endif
+ #if defined(XNU_OWNER_DATA_MOUNT) && XNU_OWNER_DATA_MOUNT
+ 	boot_progress_stage("Data mount enter");
