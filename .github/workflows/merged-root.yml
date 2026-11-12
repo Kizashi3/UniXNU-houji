@@ -6,6 +6,7 @@ on:
     branches: [kernel-cs-bypass]
     paths:
       - ".github/workflows/merged-root.yml"
+      - "scripts/merged-root-*.py"
 
 permissions:
   contents: write
@@ -29,71 +30,37 @@ jobs:
           set -e
           python3 -u scripts/fetch-system.py --unixnu "$GITHUB_WORKSPACE/upstream" \
             --out "$RUNNER_TEMP/system-source" --components OS "Cryptex1,SystemOS"
-          python3 - <<'PY'
-          import json, os, pathlib
-          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "system-source"
-          cache = root / "ipsw" / "20H392"
-          recs = json.loads((root / "system-inputs.json").read_text())
-          os_dmg = sys_dmg = None
-          for r in recs:
-              name = pathlib.Path(r["member"]).name
-              if r["component"] == "OS":
-                  os_dmg = cache / name
-              elif str(r["component"]).startswith("Cryptex1,SystemOS"):
-                  sys_dmg = cache / name
-          assert os_dmg and os_dmg.is_file(), os_dmg
-          assert sys_dmg and sys_dmg.is_file(), sys_dmg
-          pathlib.Path(os.environ["RUNNER_TEMP"] + "/dmgs.txt").write_text(f"{os_dmg}\n{sys_dmg}\n")
-          print("OS dmg:", os_dmg)
-          print("SystemOS dmg:", sys_dmg)
-          PY
+          python3 scripts/merged-root-prep.py "$RUNNER_TEMP/system-source" "$RUNNER_TEMP/dmgs.txt"
 
       - name: Merge into a writable root volume
         run: |
-          set -e
+          set -eux
           OS_DMG=$(sed -n 1p "$RUNNER_TEMP/dmgs.txt")
           SYS_DMG=$(sed -n 2p "$RUNNER_TEMP/dmgs.txt")
-          rm -rf /tmp/osmnt /tmp/sysmnt /tmp/rootmnt
-          mkdir -p /tmp/osmnt /tmp/sysmnt /tmp/rootmnt
-          hdiutil attach -readonly -nobrowse -owners off -mountpoint /tmp/osmnt "$OS_DMG"
-          hdiutil attach -readonly -nobrowse -owners off -mountpoint /tmp/sysmnt "$SYS_DMG"
-          echo "OS root:"; ls /tmp/osmnt | head
-          echo "SystemOS root:"; ls /tmp/sysmnt | head
+          hdiutil attach -readonly -nobrowse "$OS_DMG" | tee /tmp/att_os.txt
+          OSMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_os.txt | tail -1)
+          hdiutil attach -readonly -nobrowse "$SYS_DMG" | tee /tmp/att_sys.txt
+          SYSMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_sys.txt | tail -1)
+          echo "OS at $OSMNT"; ls "$OSMNT" | head
+          echo "SystemOS at $SYSMNT"; ls "$SYSMNT" | head
           rm -f /tmp/root.dmg
-          hdiutil create -size 12g -layout NONE -fs APFS -volname houjiRoot -type UDRW /tmp/root.dmg
-          hdiutil attach -nobrowse -owners off -mountpoint /tmp/rootmnt /tmp/root.dmg
-          ditto /tmp/osmnt/ /tmp/rootmnt/
-          ditto /tmp/sysmnt/ /tmp/rootmnt/
-          if [ -f /tmp/osmnt/usr/lib/dyld ]; then
-            cp -p /tmp/osmnt/usr/lib/dyld /tmp/rootmnt/usr/lib/dyld
-          fi
+          hdiutil create -size 12g -volname houjiRoot -fs APFS -type UDRW /tmp/root.dmg
+          hdiutil attach -nobrowse /tmp/root.dmg | tee /tmp/att_root.txt
+          ROOTMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_root.txt | tail -1)
+          echo "merged at $ROOTMNT"; df -h "$ROOTMNT"
+          ditto "$OSMNT/" "$ROOTMNT/"
+          ditto "$SYSMNT/" "$ROOTMNT/"
+          if [ -f "$OSMNT/usr/lib/dyld" ]; then cp -p "$OSMNT/usr/lib/dyld" "$ROOTMNT/usr/lib/dyld"; fi
           sync
-          hdiutil detach /tmp/rootmnt
-          hdiutil detach /tmp/osmnt || true
-          hdiutil detach /tmp/sysmnt || true
-          python3 - <<'PY'
-          import os, pathlib
-          src = pathlib.Path("/tmp/root.dmg")
-          dst = pathlib.Path(os.environ["RUNNER_TEMP"]) / "merged-root.raw"
-          size = src.stat().st_size - 512
-          with src.open("rb") as fi, dst.open("wb") as fo:
-              left = size
-              while left:
-                  b = fi.read(min(8 << 20, left))
-                  if not b:
-            break
-                  fo.write(b)
-                  left -= len(b)
-          with dst.open("rb") as f:
-              f.seek(32)
-              magic = f.read(4)
-          print("raw", dst.stat().st_size, "magic", magic)
-          assert magic == b"NXSB", magic
-          PY
+          hdiutil detach "$ROOTMNT"
+          hdiutil detach "$OSMNT" || true
+          hdiutil detach "$SYSMNT" || true
+          python3 scripts/merged-root-extract.py /tmp/root.dmg "$RUNNER_TEMP/merged-root.raw"
           gzip -1 -f "$RUNNER_TEMP/merged-root.raw"
           shasum -a 256 "$RUNNER_TEMP/merged-root.raw.gz"
 
       - name: Publish merged root to ci-diagnostics
+        if: success()
         run: |
           set -e
           git config --global user.email "unixnu@local"
@@ -102,29 +69,23 @@ jobs:
             "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag
           mkdir -p /tmp/cidiag/merged-root
           cp "$RUNNER_TEMP/merged-root.raw.gz" /tmp/cidiag/merged-root/houji-merged-root.raw.gz
-          python3 - <<'PY'
-          import hashlib, json, os, pathlib
-          p = pathlib.Path(os.environ["RUNNER_TEMP"]) / "merged-root.raw.gz"
-          report = pathlib.Path("/tmp/cidiag/merged-root/report.json")
-          d = json.loads(report.read_text()) if report.exists() else {}
-          d.update({
-              "bytes": p.stat().st_size,
-              "sha256": hashlib.file_digest(p.open("rb"), "sha256").hexdigest(),
-              "run": os.environ.get("GITHUB_RUN_NUMBER", ""),
-          })
-          report.write_text(json.dumps(d, indent=1) + "\n")
-          print(d)
-          PY
+          python3 scripts/merged-root-report.py "$RUNNER_TEMP/merged-root.raw.gz" \
+            /tmp/cidiag/merged-root/report.json "${{ github.run_number }}"
           cd /tmp/cidiag
           git add -f merged-root
           git commit -q -m "merged root ${{ github.run_number }}" || echo "no change"
           git push -f origin ci-diagnostics || echo "push failed"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: houji-merged-root
-          if-no-files-found: error
-          path: |
-            ${{ runner.temp }}/merged-root.raw.gz
-            /tmp/cidiag/merged-root/report.json
-          retention-days: 14
+      - name: Publish merge logs
+        if: always()
+        run: |
+          git config --global user.email "unixnu@local"
+          git config --global user.name "UniXNU"
+          git clone -q --depth 1 -b ci-diagnostics \
+            "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag2 || exit 0
+          mkdir -p /tmp/cidiag2/merged-root
+          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/cidiag2/merged-root/ 2>/dev/null || true
+          cd /tmp/cidiag2
+          git add -f merged-root
+          git commit -q -m "merged root logs ${{ github.run_number }}" || exit 0
+          git push -f origin ci-diagnostics || exit 0
