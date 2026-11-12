@@ -43,11 +43,25 @@ jobs:
           python-version: '3.12'
 
       - name: Fetch OS and SystemOS components
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -e
-          python3 -u scripts/fetch-system.py --unixnu "$GITHUB_WORKSPACE/upstream" \
-            --out "$RUNNER_TEMP/system-source" --components OS "Cryptex1,SystemOS"
-          python3 scripts/merged-root-prep.py "$RUNNER_TEMP/system-source" "$RUNNER_TEMP/dmgs.txt"
+          set -eux
+          SRC="$RUNNER_TEMP/system-source"
+          FW_TAG=fw-cache-20H392
+          mkdir -p "$SRC/ipsw/20H392"
+          if gh release view "$FW_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "firmware from release $FW_TAG"
+            STAGE="$RUNNER_TEMP/fwstage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
+            gh release download "$FW_TAG" --repo "$GITHUB_REPOSITORY" --dir "$STAGE"
+            python3 scripts/merged-root-fwcache.py unpack "$STAGE" "$SRC"
+            rm -rf "$STAGE"
+          else
+            echo "firmware from Apple (first run, cached afterwards)"
+            python3 -u scripts/fetch-system.py --unixnu "$GITHUB_WORKSPACE/upstream" \
+              --out "$SRC" --components OS "Cryptex1,SystemOS"
+          fi
+          python3 scripts/merged-root-prep.py "$SRC" "$RUNNER_TEMP/dmgs.txt"
 
       - name: Merge into a writable root volume
         run: |
@@ -85,17 +99,16 @@ jobs:
           hdiutil detach "$ROOTMNT"
           hdiutil detach "$OSMNT" || true
           hdiutil detach "$SYSMNT" || true
-          rm -f "$OS_DMG" "$SYS_DMG"
           df -h / "$RUNNER_TEMP" || true
           hdiutil attach -nomount -nobrowse /tmp/root.sparseimage | tee /tmp/att_root2.txt
+          APFS=$(awk '$2=="Apple_APFS" {print $1}' /tmp/att_root2.txt | head -1)
+          REST=$(awk 'NF>=2 {print $1}' /tmp/att_root2.txt | grep -v "^$APFS$" | paste -sd, -)
+          CANDS="${APFS:-}${REST:+,$REST}"
           WHOLE=$(awk 'NF>=2 {print $1}' /tmp/att_root2.txt | head -1)
-          SLICE=$(awk 'NF>=2 {print $1}' /tmp/att_root2.txt | tail -1)
-          echo "whole=$WHOLE slice=$SLICE"
-          test -b "$SLICE"
+          echo "candidates=$CANDS whole=$WHOLE"
           rm -f "$RUNNER_TEMP"/part-*
-          sudo dd if="$SLICE" bs=8m 2>/tmp/dd.txt | python3 scripts/merged-root-extract.py - "$RUNNER_TEMP" 1900 \
+          sudo /usr/bin/python3 scripts/merged-root-extract.py --devices "$CANDS" "$RUNNER_TEMP" 1900 \
             "$RUNNER_TEMP/merged-root.report.json" "${{ github.run_number }}"
-          tail -3 /tmp/dd.txt || true
           hdiutil detach "$WHOLE" || true
           rm -f /tmp/root.sparseimage
           ls -la "$RUNNER_TEMP"/part-*
@@ -114,6 +127,26 @@ jobs:
           gh release upload "$TAG" "$RUNNER_TEMP"/part-* "$RUNNER_TEMP/merged-root.report.json" /tmp/merge_step.log \
             --repo "$GITHUB_REPOSITORY" --clobber
 
+      - name: Cache firmware for the next run
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          FW_TAG=fw-cache-20H392
+          if gh release view "$FW_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "firmware cache already present"
+            exit 0
+          fi
+          SRC="$RUNNER_TEMP/system-source"
+          STAGE="$RUNNER_TEMP/fwstage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
+          python3 scripts/merged-root-fwcache.py pack "$SRC" "$STAGE"
+          gh release create "$FW_TAG" --repo "$GITHUB_REPOSITORY" \
+            --title "iOS 20H392 OS + SystemOS firmware" \
+            --notes "chunked firmware cache for the merged-root workflow" || true
+          gh release upload "$FW_TAG" "$STAGE"/* --repo "$GITHUB_REPOSITORY" --clobber || true
+          rm -rf "$STAGE"
+
       - name: Publish merge logs
         if: always()
         run: |
@@ -127,7 +160,7 @@ jobs:
           git checkout -q --orphan ci-merged || exit 0
           git rm -rfq . 2>/dev/null || true
           mkdir -p merged-root
-          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/att_root2.txt /tmp/dd.txt /tmp/merge_step.log merged-root/ 2>/dev/null || true
+          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/att_root2.txt /tmp/merge_step.log merged-root/ 2>/dev/null || true
           cp "$RUNNER_TEMP/merged-root.report.json" merged-root/report.json 2>/dev/null || true
           git add -f merged-root
           git commit -q -m "merged root logs ${{ github.run_number }}" || true
@@ -136,7 +169,7 @@ jobs:
           rm -rf /tmp/cidiag2
           git clone -q --depth 1 -b ci-diagnostics "$AUTH" /tmp/cidiag2 || exit 0
           mkdir -p /tmp/cidiag2/merged-root
-          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/att_root2.txt /tmp/dd.txt /tmp/merge_step.log /tmp/cidiag2/merged-root/ 2>/dev/null || true
+          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/att_root2.txt /tmp/merge_step.log /tmp/cidiag2/merged-root/ 2>/dev/null || true
           cd /tmp/cidiag2
           git add -f merged-root
           git commit -q -m "merged root logs ${{ github.run_number }}" || exit 0
