@@ -1,7 +1,7 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7138,6 +7138,191 @@
+@@ -7138,6 +7138,116 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -45,45 +45,18 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +}
 +
 +static int
-+houji_rd2_mkdir(proc_t p, user_addr_t scratch, const char *path)
-+{
-+	struct mkdirat_args args;
-+	int32_t retval = 0;
-+	int error;
-+
-+	if ((error = copyout(path, scratch + 0x360, strlen(path) + 1)) != 0) {
-+		return error;
-+	}
-+	args.fd = AT_FDCWD;
-+	args.path = scratch + 0x360;
-+	args.mode = 0755;
-+	return mkdirat(p, &args, &retval);
-+}
-+
-+static int
-+houji_rd2_symlink(proc_t p, user_addr_t scratch, const char *target, const char *link)
-+{
-+	struct symlinkat_args args;
-+	int32_t retval = 0;
-+	int error;
-+
-+	if ((error = copyout(target, scratch + 0x3A0, strlen(target) + 1)) != 0 ||
-+	    (error = copyout(link, scratch + 0x3C0, strlen(link) + 1)) != 0) {
-+		return error;
-+	}
-+	args.path1 = scratch + 0x3A0;
-+	args.fd = AT_FDCWD;
-+	args.path2 = scratch + 0x3C0;
-+	return symlinkat(p, &args, &retval);
-+}
-+
-+static int
 +houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
 +{
 +	static const char *const devices[] = {"/dev/md1s1", "/dev/md1s2", "/dev/md1"};
 +	char rd2[64];
-+	user64_addr_t environment_vector[2] = {scratch + 0x400, USER_ADDR_NULL};
++	user64_addr_t environment_vector[3] = {scratch + 0x400, scratch + 0x480, USER_ADDR_NULL};
 +	const char *environment = "DYLD_SHARED_CACHE_DIR=/private/preboot/System/Library/Caches/com.apple.dyld";
++	/*
++	 * HOUJI-CRYPTEX: /usr/lib lives on the SystemOS volume mounted at
++	 * /private/preboot; dyld resolves missing absolute paths through this
++	 * fallback (upstream XNU_OWNER_CRYPTEX_FILES sets the same variable).
++	 */
++	const char *fallback = "DYLD_FALLBACK_LIBRARY_PATH=/private/preboot/usr/lib";
 +	unsigned int index;
 +	int error = EINVAL;
 +
@@ -92,60 +65,11 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		return 0;
 +	}
 +	printf("HOUJI-RD2: mount helper entered\n");
-+	/*
-+	 * HOUJI-CRYPTEX: /System/Cryptexes/OS is a symlink to
-+	 * /private/preboot/Cryptexes/OS, which this layout never creates, so dyld
-+	 * cannot resolve /usr/lib/libobjc-trampolines.dylib. Back /private/preboot
-+	 * with a writable tmpfs, create the cryptex mountpoint in it, mount the
-+	 * SystemOS volume there, and alias /private/preboot/System so the existing
-+	 * cache path keeps working.
-+	 */
-+	{
-+		int cryptex_ready = 0;
-+		int tmpfs_error = houji_rd2_try_mount(p, scratch, "", "tmpfs",
-+		    "/private/preboot", 0);
-+
-+		printf("HOUJI-CRYPTEX: tmpfs on /private/preboot -> %d\n", tmpfs_error);
-+		if (tmpfs_error == 0) {
-+			int mk1 = houji_rd2_mkdir(p, scratch, "/private/preboot/Cryptexes");
-+			int mk2 = houji_rd2_mkdir(p, scratch, "/private/preboot/Cryptexes/OS");
-+
-+			printf("HOUJI-CRYPTEX: mkdir -> %d/%d\n", mk1, mk2);
-+			if ((mk1 == 0 || mk1 == EEXIST) && (mk2 == 0 || mk2 == EEXIST)) {
-+				for (index = 0; index < sizeof(devices) / sizeof(devices[0]); index++) {
-+					error = houji_rd2_try_mount(p, scratch, devices[index],
-+					    "apfs", "/private/preboot/Cryptexes/OS", MNT_RDONLY);
-+					if (error == 0) {
-+						break;
-+					}
-+				}
-+				if (error == 0) {
-+					int alias = houji_rd2_symlink(p, scratch,
-+					    "/private/preboot/Cryptexes/OS/System",
-+					    "/private/preboot/System");
-+
-+					printf("HOUJI-CRYPTEX: System alias -> %d\n", alias);
-+					cryptex_ready = 1;
-+				} else {
-+					printf("HOUJI-CRYPTEX: cryptex mount -> %d\n", error);
-+				}
-+			}
-+		}
-+		if (!cryptex_ready) {
-+			if (tmpfs_error != 0) {
-+				/* tmpfs failed: keep the old direct preboot mount for the caches. */
-+				for (index = 0; index < sizeof(devices) / sizeof(devices[0]); index++) {
-+					error = houji_rd2_try_mount(p, scratch, devices[index],
-+					    "apfs", "/private/preboot", MNT_RDONLY);
-+					if (error == 0) {
-+						break;
-+					}
-+				}
-+			} else {
-+				error = 0;
-+			}
-+		} else {
-+			error = 0;
++	for (index = 0; index < sizeof(devices) / sizeof(devices[0]); index++) {
++		printf("HOUJI-RD2: trying %s\n", devices[index]);
++		error = houji_rd2_try_mount(p, scratch, devices[index], "apfs", "/private/preboot", MNT_RDONLY);
++		if (error == 0) {
++			break;
 +		}
 +	}
 +	if (error != 0) {
@@ -183,6 +107,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		}
 +	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
++	    (error = copyout(fallback, scratch + 0x480, strlen(fallback) + 1)) != 0 ||
 +	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
 +		return error;
 +	}
@@ -193,7 +118,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7367,17 @@
+@@ -7182,6 +7292,17 @@
  		}
  	}
  #endif
