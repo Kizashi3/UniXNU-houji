@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,329 @@
+@@ -7138,6 +7139,333 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -240,7 +240,11 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		}
 +	}
 +	if (error != 0) {
-+		return error;
++		/* HOUJI: single-window merged roots have no SystemOS device; keep going
++		 * so the Data mount below still runs. */
++		printf("HOUJI-RD2: no SystemOS device (%d), continuing
++", error);
++		error = 0;
 +	}
 +	/*
 +	 * HOUJI-DATA: the writable Data ramdisk (FAT, md2) goes to /private/var. Without it launchd
@@ -339,7 +343,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7506,17 @@
+@@ -7182,6 +7510,17 @@
  		}
  	}
  #endif
