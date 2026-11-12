@@ -17,6 +17,8 @@ extern const uint8_t verified_root_key[];
 }
 #endif
 #include <libkern/c++/OSMetaClass.h>
+#include <libkern/c++/OSKext.h>
+#include <sys/vnode.h>
 #include <libkern/c++/OSSymbol.h>
 #include <libkern/c++/OSNumber.h>
 #include <libkern/c++/OSIterator.h>
@@ -1262,6 +1264,7 @@ static int houji_fb_test_parsed;
 static int houji_fb_test_on;
 static int houji_fb_probe_on;
 static int houji_fb_probed;
+static int houji_vfs_probed;
 
 /* HOUJI-FB-TEST: paint the bottom 48 rows of the firmware framebuffer with a
  * moving colour bar. Proves CPU scanout from a running kernel (no GPU). */
@@ -1309,6 +1312,59 @@ houji_fb_test_step (uint32_t phase)
 }
 
 extern "C" unsigned long houji_sm_cache_hits (void);
+
+/* HOUJI-VFS-PROBE: which of the paths userspace needs actually resolve. */
+static void
+houjiVfsProbe (void)
+{
+	static const char *paths[] = {
+		"/usr/lib/libobjc-trampolines.dylib",
+		"/private/preboot/usr/lib/libobjc-trampolines.dylib",
+		"/System/Cryptexes",
+		"/System/Cryptexes/OS",
+		"/private/preboot/Cryptexes",
+		"/private/preboot/Cryptexes/OS",
+		"/usr/lib/libobjc.A.dylib",
+	};
+	vfs_context_t ctx = vfs_context_kernel ();
+
+	for (unsigned i = 0; i < sizeof (paths) / sizeof (paths[0]); i++) {
+		vnode_t vp = NULL;
+		errno_t err = vnode_lookup (paths[i], 0, &vp, ctx);
+		IOLog ("HOUJI-VFS: %s -> %d%s\n", paths[i], err,
+		    vp ? " (found)" : "");
+		if (vp) {
+			vnode_put (vp);
+		}
+	}
+}
+
+/* HOUJI-KEXT-PROBE: the graphics family ships prelinked but unstarted; start it. */
+static void
+houjiKextProbe (void)
+{
+	static const char *families[] = {
+		"com.apple.iokit.IOMobileGraphicsFamily",
+		"com.apple.iokit.IOSurface",
+		"com.apple.iokit.IOGPUFamily",
+	};
+
+	for (unsigned i = 0; i < 3; i++) {
+		bool loaded = OSKext::isKextWithIdentifierLoaded (families[i]);
+		OSReturn rc = kOSReturnSuccess;
+		if (!loaded) {
+			rc = OSKext::loadKextWithIdentifier (families[i]);
+		}
+		IOLog ("HOUJI-KEXT: %s loaded=%d load=%d now=%d\n", families[i],
+		    loaded, (int)rc,
+		    OSKext::isKextWithIdentifierLoaded (families[i]));
+	}
+	const OSSymbol *sym = OSSymbol::withCString ("IOMobileFramebufferLegacy");
+	const OSMetaClass *legacy = OSMetaClass::getMetaClassWithName (sym);
+	IOLog ("HOUJI-KEXT: legacy meta=%p size=%u class=%s\n", legacy,
+	    legacy ? legacy->getClassSize () : 0,
+	    legacy ? legacy->getClassName () : "?");
+}
 
 /* HOUJI-FB-PROBE: recover the prelinked IOMobileFramebufferLegacy vtable.
  * The family ships without symbols, so the only trustworthy source is a real
@@ -1470,6 +1526,11 @@ houjiLogThread (void *param, wait_result_t wr)
 		}
 		if (houji_fb_test_on) {
 			houji_fb_test_step ((uint32_t)(tick / 6));
+		}
+		if (houji_fb_probe_on && !houji_vfs_probed && tick >= 1) {
+			houji_vfs_probed = 1;
+			houjiVfsProbe ();
+			houjiKextProbe ();
 		}
 		if (houji_fb_probe_on && !houji_fb_probed && tick >= 2) {
 			houji_fb_probed = 1;
