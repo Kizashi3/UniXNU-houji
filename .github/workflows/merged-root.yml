@@ -25,12 +25,27 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Compute OS cache key
+        id: os-key
+        run: python3 scripts/firmware-cache.py key --group os
+      - name: Restore verified OS firmware cache
+        id: os-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/system-source/ipsw
+          key: ${{ steps.os-key.outputs.key }}
       - name: Fetch OS and SystemOS components
         run: |
           set -e
           python3 -u scripts/fetch-system.py --unixnu "$GITHUB_WORKSPACE/upstream" \
             --out "$RUNNER_TEMP/system-source" --components OS "Cryptex1,SystemOS"
           python3 scripts/merged-root-prep.py "$RUNNER_TEMP/system-source" "$RUNNER_TEMP/dmgs.txt"
+      - name: Save verified OS firmware cache
+        if: steps.os-cache.outputs.cache-hit != true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/system-source/ipsw
+          key: ${{ steps.os-key.outputs.key }}
 
       - name: Merge into a writable root volume
         run: |

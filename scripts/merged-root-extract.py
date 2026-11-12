@@ -1,27 +1,61 @@
+"""Slice the raw APFS volume out of a GPT disk image (or a bare volume).
+
+Locate the Apple_APFS partition through the GPT, fall back to scanning the
+first 64 MiB for the NXSB superblock, then stream the volume out.
+"""
 import pathlib
 import struct
 import sys
 
 src = pathlib.Path(sys.argv[1])
 dst = pathlib.Path(sys.argv[2])
+APFS_TYPE = bytes.fromhex("ef57347c0000aa11aa1100306543ecac")
 
 with src.open("rb") as f:
-    head = f.read(2 << 20)
+    head = f.read(1 << 20)
 
 base = total = None
-at = head.find(b"NXSB", 32)
-if at > 0:
-    base = at - 32
-    block_size, = struct.unpack_from("<I", head, base + 36)
-    block_count, = struct.unpack_from("<Q", head, base + 40)
-    total = block_size * block_count
-    print("APFS volume", total, "bytes; block", block_size, "count", block_count, "base", base)
-elif head[1024:1026] in (b"H+", b"HX"):
-    base = 0
-    block_size, = struct.unpack_from(">I", head, 1024 + 40)
-    total_blocks, = struct.unpack_from(">I", head, 1024 + 44)
-    total = block_size * total_blocks
-    print("HFS volume", total, "bytes; block", block_size, "count", total_blocks, "base", base)
+
+# GPT: protective MBR at LBA0, header at LBA1.
+if head[512:520] == b"EFI PART":
+    entry_lba, = struct.unpack_from("<Q", head, 512 + 0x48)
+    count, = struct.unpack_from("<I", head, 512 + 0x50)
+    esize, = struct.unpack_from("<I", head, 512 + 0x58)
+    with src.open("rb") as f:
+        f.seek(entry_lba * 512)
+        table = f.read(count * esize)
+    for i in range(count):
+        e = table[i * esize:(i + 1) * esize]
+        if e[:16] == APFS_TYPE:
+            start_lba, = struct.unpack_from("<Q", e, 0x20)
+            blocks, = struct.unpack_from("<Q", e, 0x28)
+            cand = start_lba * 512
+            with src.open("rb") as f:
+                f.seek(cand + 32)
+                if f.read(4) == b"NXSB":
+                    base = cand
+                    f.seek(cand + 36)
+                    block_size, = struct.unpack("<I", f.read(4))
+                    f.seek(cand + 40)
+                    block_count, = struct.unpack("<Q", f.read(8))
+                    total = block_size * block_count
+                    print("GPT APFS partition", cand, total, "blocks", blocks * 512)
+                    break
+
+if base is None:
+    with src.open("rb") as f:
+        blob = f.read(64 << 20)
+    at = blob.find(b"NXSB", 32)
+    while at > 0:
+        cand = at - 32
+        if cand % 4096 == 0:
+            block_size, = struct.unpack_from("<I", blob, cand + 36)
+            block_count, = struct.unpack_from("<Q", blob, cand + 40)
+            if block_size == 4096 and block_count:
+                base, total = cand, block_size * block_count
+                print("scanned APFS volume", cand, total)
+                break
+        at = blob.find(b"NXSB", at + 4)
 
 assert base is not None and total and 0 < total <= src.stat().st_size - base, (base, total)
 
