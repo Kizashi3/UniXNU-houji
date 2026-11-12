@@ -571,7 +571,7 @@ jobs:
           mkdir -p "$DIAG_DIR"
           {
             xnu=out/houji/tree/refer/xnu
-            for patch in "$DEVICE_DIR/patches/xnu/con-ring.patch" "$DEVICE_DIR/patches/xnu/corpse-limit.patch"; do
+            for patch in "$DEVICE_DIR/patches/xnu/con-ring.patch" "$DEVICE_DIR/patches/xnu/corpse-limit.patch" "$DEVICE_DIR/patches/xnu/msgbuf-16m.patch"; do
               test -f "$patch"
               if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
                 git -C "$xnu" apply "$patch"

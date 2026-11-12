@@ -1228,7 +1228,7 @@ houjiLogWriteSnapshot (uint8_t *buf, uint32_t seq)
 	}
 	struct houji_msgbuf *mb = msgbufp;
 	if (!mb || !mb->msg_bufc || mb->msg_magic != 0x063061 ||
-	    mb->msg_size <= 0 || mb->msg_size > (1 << 22)) {
+	    mb->msg_size <= 0 || mb->msg_size > (1 << 23)) {
 		return -2;
 	}
 	uint32_t size = (uint32_t)mb->msg_size;
@@ -1265,6 +1265,7 @@ static int houji_fb_test_on;
 static int houji_fb_probe_on;
 static int houji_fb_probed;
 static int houji_vfs_probed;
+static int houji_vfs_probed_late;
 
 /* HOUJI-FB-TEST: paint the bottom 48 rows of the firmware framebuffer with a
  * moving colour bar. Proves CPU scanout from a running kernel (no GPU). */
@@ -1456,7 +1457,7 @@ houjiFbProbe (void)
 }
 
 /* HOUJI: kernel console ring (osfmk/console/video_console.c) into the log window. */
-#define HOUJI_CON_BLOCK 1536
+#define HOUJI_CON_BLOCK 2560
 extern "C" void houji_con_ring_info (char **buf, uint32_t *size,
     uint32_t *pos, uint64_t *total);
 
@@ -1532,6 +1533,11 @@ houjiLogThread (void *param, wait_result_t wr)
 			houjiVfsProbe ();
 			houjiKextProbe ();
 		}
+		if (houji_fb_probe_on && !houji_vfs_probed_late && tick >= 12) {
+			houji_vfs_probed_late = 1;
+			IOLog ("HOUJI-VFS: late pass\n");
+			houjiVfsProbe ();
+		}
 		if (houji_fb_probe_on && !houji_fb_probed && tick >= 2) {
 			houji_fb_probed = 1;
 			houjiFbProbe ();
@@ -1570,7 +1576,7 @@ houjiLogThread (void *param, wait_result_t wr)
 		}
 		struct houji_msgbuf *mb = msgbufp;
 		if (!mb || !mb->msg_bufc || mb->msg_magic != 0x063061 ||
-		    mb->msg_size <= 0 || mb->msg_size > (1 << 22)) {
+		    mb->msg_size <= 0 || mb->msg_size > (1 << 23)) {
 			continue;
 		}
 		uint32_t size = (uint32_t)mb->msg_size;
@@ -2326,7 +2332,7 @@ extern "C" boolean_t native_ufs_fill_ramdisk (vm_offset_t base, vm_size_t size)
     }
   }
   if (logMode ()) {
-    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 22) + 4096));
+    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 23) + 4096));
     thread_t logthread = NULL;
     if (logbuf && kernel_thread_start ((thread_continue_t)houjiLogThread, logbuf, &logthread) == KERN_SUCCESS) {
       thread_deallocate (logthread);
@@ -2401,7 +2407,7 @@ extern "C" int native_ufs_md_init (void)
 		uint64_t logFirst = 0, logBlocks = 0;
 		const char *logWhy = "";
 		if (native_ufs_log_open (&logFirst, &logBlocks, &logWhy) == 0) {
-			uint8_t *probeBuf = static_cast<uint8_t *> (IOMalloc ((1 << 22) + 4096));
+			uint8_t *probeBuf = static_cast<uint8_t *> (IOMalloc ((1 << 23) + 4096));
 			int probeRc = probeBuf ? houjiLogWriteSnapshot (probeBuf, 0) : -4;
 			if (probeBuf) {
 				IOFree (probeBuf, (1 << 20) + 4096);
@@ -2415,7 +2421,7 @@ extern "C" int native_ufs_md_init (void)
 		}
 	}
   if (logMode ()) {
-    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 22) + 4096));
+    uint8_t *logbuf = static_cast<uint8_t *> (IOMalloc ((1 << 23) + 4096));
     thread_t logthread = NULL;
     if (logbuf && kernel_thread_start ((thread_continue_t)houjiLogThread, logbuf, &logthread) == KERN_SUCCESS) {
       thread_deallocate (logthread);
