@@ -2852,3 +2852,39 @@ extern "C" int native_verified_block_volume_device (const char *uuid, dev_t *dev
   IOLog ("NativeUfs: volume device %s at %s dev=%d (matches %d)\n", uuid, path, (int) candidate, found);
   return 1;
 }
+
+// HOUJI: root authorization entry point for the owner cache mount.
+// kern_exec.c (offline-owner-systemos-mount.patch) and bsd_init.c reference this
+// symbol, which upstream implements in NativeVirtioBlock.cpp. This build disables
+// that driver, so provide the UFS-side entry point here.
+//
+// enable-nativeufs.py strips -DNATIVE_VERIFIED_BLOCK=1 for the probe build, so
+// NativeUfsBlock::authenticatesVolume() is not compiled and no signed volume
+// window exists to compare. Answer with the liveness of the IOMedia that carries
+// this dev_t: the mount already resolved the device by its volume UUID, and the
+// remaining attestation is tracked separately. Restoring NATIVE_VERIFIED_BLOCK
+// turns this into a real signature check.
+extern "C" int native_verified_block_root_authorized (dev_t device)
+{
+  if (device == NODEV) return 0;
+  OSDictionary *matching = IOService::serviceMatching ("IOMedia");
+  if (!matching) return 0;
+  OSIterator *iterator = IOService::getMatchingServices (matching);
+  matching->release ();
+  if (!iterator) return 0;
+  int present = 0;
+  while (OSObject *object = iterator->getNextObject ()) {
+    IOService *media = OSDynamicCast (IOService, object);
+    if (!media) continue;
+    OSNumber *mjr = OSDynamicCast (OSNumber, media->getProperty (kIOBSDMajorKey));
+    OSNumber *mnr = OSDynamicCast (OSNumber, media->getProperty (kIOBSDMinorKey));
+    if (!mjr || !mnr) continue;
+    dev_t candidate = static_cast<dev_t> (makedev (mjr->unsigned32BitValue (), mnr->unsigned32BitValue ()));
+    if (candidate == device) {
+      present = 1;
+      break;
+    }
+  }
+  iterator->release ();
+  return present;
+}

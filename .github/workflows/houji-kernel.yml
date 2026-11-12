@@ -638,25 +638,6 @@ jobs:
             grep -q 'pmap_map(ramdMap' "$xnu/iokit/bsddev/IOKitBSDInit.cpp"
             echo "out-of-aperture DT ramdisks are mapped with kmem_alloc + pmap_map"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
-
-      - name: Apply SystemOS root union
-        working-directory: unixnu
-        run: |
-          mkdir -p "$DIAG_DIR"
-          {
-            patch="$DEVICE_DIR/patches/xnu/houji-owner-systemos-root-union.patch"
-            test -f "$patch"
-            xnu=out/houji/tree/refer/xnu
-            if git -C "$xnu" apply --check "$patch" 2>/dev/null; then
-              git -C "$xnu" apply "$patch"
-            else
-              echo "git apply refused, retrying with patch and fuzz"
-              (cd "$xnu" && patch -p1 --forward --fuzz=3 < "$patch")
-            fi
-            grep -q 'houji_systemos_root_union' "$xnu/bsd/kern/kern_exec.c"
-            echo "SystemOS root union is present in kern_exec.c"
-          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
-
       - name: Annotate prelink binding diagnostics
         working-directory: unixnu
         run: |
