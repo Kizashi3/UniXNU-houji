@@ -44,7 +44,7 @@ jobs:
           echo "OS at $OSMNT"; ls "$OSMNT" | head
           echo "SystemOS at $SYSMNT"; ls "$SYSMNT" | head
           rm -f /tmp/root.dmg
-          hdiutil create -size 12g -layout NONE -volname houjiRoot -fs HFSX -type UDRW /tmp/root.dmg
+          hdiutil create -size 8g -volname houjiRoot -fs APFS -type UDRW /tmp/root.dmg
           hdiutil attach -nobrowse /tmp/root.dmg | tee /tmp/att_root.txt
           ROOTMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_root.txt | tail -1)
           echo "merged at $ROOTMNT"; df -h "$ROOTMNT"
@@ -56,25 +56,35 @@ jobs:
           hdiutil detach "$OSMNT" || true
           hdiutil detach "$SYSMNT" || true
           python3 scripts/merged-root-extract.py /tmp/root.dmg "$RUNNER_TEMP/merged-root.raw"
-          gzip -1 -f "$RUNNER_TEMP/merged-root.raw"
-          shasum -a 256 "$RUNNER_TEMP/merged-root.raw.gz"
+          sync
+          shasum -a 256 "$RUNNER_TEMP/merged-root.raw"
+          rm -f "$RUNNER_TEMP"/part-*
+          split -b 1900m -d "$RUNNER_TEMP/merged-root.raw" "$RUNNER_TEMP/part-"
+          ls -la "$RUNNER_TEMP"/part-*
 
-      - name: Publish merged root to ci-diagnostics
+      - name: Publish raw parts to a release
         if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
+          TAG="merged-root-${{ github.run_number }}"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --title "merged root ${{ github.run_number }}" \
+            --notes "merged root raw volume, split into <2 GiB parts" || true
+          gh release upload "$TAG" "$RUNNER_TEMP"/part-* --repo "$GITHUB_REPOSITORY" --clobber
+          python3 scripts/merged-root-report.py "$RUNNER_TEMP/merged-root.raw" \
+            "$RUNNER_TEMP/merged-root.report.json" "$TAG"
           git config --global user.email "unixnu@local"
           git config --global user.name "UniXNU"
           git clone -q --depth 1 -b ci-diagnostics \
-            "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag
+            "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag || exit 0
           mkdir -p /tmp/cidiag/merged-root
-          cp "$RUNNER_TEMP/merged-root.raw.gz" /tmp/cidiag/merged-root/houji-merged-root.raw.gz
-          python3 scripts/merged-root-report.py "$RUNNER_TEMP/merged-root.raw.gz" \
-            /tmp/cidiag/merged-root/report.json "${{ github.run_number }}"
+          cp "$RUNNER_TEMP/merged-root.report.json" /tmp/cidiag/merged-root/report.json
           cd /tmp/cidiag
           git add -f merged-root
-          git commit -q -m "merged root ${{ github.run_number }}" || echo "no change"
-          git push -f origin ci-diagnostics || echo "push failed"
+          git commit -q -m "merged root report ${{ github.run_number }}" || exit 0
+          git push -f origin ci-diagnostics || exit 0
 
       - name: Publish merge logs
         if: always()
