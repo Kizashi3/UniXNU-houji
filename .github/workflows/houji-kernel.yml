@@ -795,6 +795,13 @@ jobs:
           mkdir -p "$DIAG_DIR"
           DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-nativeramblock.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Relax the owner cache mount guard for the probe build
+        working-directory: unixnu
+        run: |
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/scripts/relax-owner-guard.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Build houji kernel
         working-directory: unixnu
         env:
