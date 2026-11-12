@@ -2858,7 +2858,7 @@ extern "C" int native_verified_block_volume_device (const char *uuid, dev_t *dev
   iterator->release ();
   if (!found) {
     native_ufs_dump_media ("volume-miss");
-    if (!strcasecmp (uuid, kHoujiSystemOsVolume)) {
+    if (!strcmp (uuid, kHoujiSystemOsVolume)) {
       dev_t window = mdevlookup (1);
       if (window != NODEV && size > sizeof ("/dev/md1")) {
         *device = window;
