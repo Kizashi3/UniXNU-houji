@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - kernel-cs-bypass
+      - merged-root-ci
   workflow_dispatch:
     inputs:
       xcode:
