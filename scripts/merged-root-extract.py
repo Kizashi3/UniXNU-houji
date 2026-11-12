@@ -6,18 +6,25 @@ src = pathlib.Path(sys.argv[1])
 dst = pathlib.Path(sys.argv[2])
 
 with src.open("rb") as f:
-    head = f.read(1 << 20)
+    head = f.read(2 << 20)
+
+base = total = None
 at = head.find(b"NXSB", 32)
-assert at > 0, "NXSB not found in the first MiB"
-base = at - 32
-with src.open("rb") as f:
-    f.seek(base + 36)
-    block_size, = struct.unpack("<I", f.read(4))
-    f.seek(base + 40)
-    block_count, = struct.unpack("<Q", f.read(8))
-total = block_size * block_count
-assert 0 < total <= src.stat().st_size - base, (total, base)
-print("APFS volume", total, "bytes; block", block_size, "count", block_count, "base", base)
+if at > 0:
+    base = at - 32
+    block_size, = struct.unpack_from("<I", head, base + 36)
+    block_count, = struct.unpack_from("<Q", head, base + 40)
+    total = block_size * block_count
+    print("APFS volume", total, "bytes; block", block_size, "count", block_count, "base", base)
+elif head[1024:1026] in (b"H+", b"HX"):
+    base = 0
+    block_size, = struct.unpack_from(">I", head, 1024 + 40)
+    total_blocks, = struct.unpack_from(">I", head, 1024 + 44)
+    total = block_size * total_blocks
+    print("HFS volume", total, "bytes; block", block_size, "count", total_blocks, "base", base)
+
+assert base is not None and total and 0 < total <= src.stat().st_size - base, (base, total)
+
 with src.open("rb") as fi, dst.open("wb") as fo:
     fi.seek(base)
     left = total

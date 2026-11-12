@@ -44,7 +44,7 @@ jobs:
           echo "OS at $OSMNT"; ls "$OSMNT" | head
           echo "SystemOS at $SYSMNT"; ls "$SYSMNT" | head
           rm -f /tmp/root.dmg
-          hdiutil create -size 12g -volname houjiRoot -fs APFS -type UDRW /tmp/root.dmg
+          hdiutil create -size 12g -layout NONE -volname houjiRoot -fs HFSX -type UDRW /tmp/root.dmg
           hdiutil attach -nobrowse /tmp/root.dmg | tee /tmp/att_root.txt
           ROOTMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_root.txt | tail -1)
           echo "merged at $ROOTMNT"; df -h "$ROOTMNT"
