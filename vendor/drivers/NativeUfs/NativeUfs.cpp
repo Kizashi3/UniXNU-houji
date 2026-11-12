@@ -1306,6 +1306,56 @@ houji_fb_test_step (uint32_t phase)
 
 extern "C" unsigned long houji_sm_cache_hits (void);
 
+/* HOUJI: kernel console ring (osfmk/console/video_console.c) into the log window. */
+#define HOUJI_CON_BLOCK 512
+extern "C" void houji_con_ring_info (char **buf, uint32_t *size,
+    uint32_t *pos, uint64_t *total);
+
+static void
+houjiConRingWrite (uint8_t *buf)
+{
+	static uint64_t lastTotal;
+	static int announced;
+	char *ring = nullptr;
+	uint32_t size = 0, pos = 0;
+	uint64_t total = 0;
+	uint32_t off = 0, blocks;
+
+	houji_con_ring_info (&ring, &size, &pos, &total);
+	if (!ring || size == 0 || size > (1u << 20) || pos >= size) {
+		return;
+	}
+	if (!announced) {
+		announced = 1;
+		IOLog ("HOUJI-CON: ring size=%u total=%llu\n", size,
+		    (unsigned long long)total);
+	}
+	if (total == lastTotal) {
+		return;
+	}
+	lastTotal = total;
+	memcpy (buf + off, "HOUJICON", 8); off += 8;
+	*(uint32_t *)(void *)(buf + off) = 1; off += 4;
+	*(uint32_t *)(void *)(buf + off) = size; off += 4;
+	*(uint32_t *)(void *)(buf + off) = pos; off += 4;
+	*(uint32_t *)(void *)(buf + off) = 0; off += 4;
+	*(uint64_t *)(void *)(buf + off) = total; off += 8;
+	memcpy (buf + off, ring, size); off += size;
+	blocks = (off + 4095) / 4096;
+	if (HOUJI_CON_BLOCK + blocks > (uint32_t)kLogReserveBlocks) {
+		blocks = (uint32_t)kLogReserveBlocks - HOUJI_CON_BLOCK;
+	}
+	for (uint32_t done = 0; done < blocks; ) {
+		uint32_t chunk = blocks - done;
+		if (chunk > kDataMax / 4096) chunk = kDataMax / 4096;
+		if (hostWrite4k (0, gLogRegionFirst + HOUJI_CON_BLOCK + done,
+		    chunk, buf + (uint64_t)done * 4096, true) != kIOReturnSuccess) {
+			return;
+		}
+		done += chunk;
+	}
+}
+
 static void
 houjiLogThread (void *param, wait_result_t wr)
 {
@@ -1315,6 +1365,7 @@ houjiLogThread (void *param, wait_result_t wr)
 	int warned = 0;
 
 	(void) wr;
+	IOLog ("HOUJI-ARGS: %.400s\n", PE_boot_args ());
 	for (;;) {
 		IOSleep (5000);
 		if (houji_fb_test_parsed == 0) {
@@ -1398,6 +1449,9 @@ houjiLogThread (void *param, wait_result_t wr)
 			IOLog ("HOUJI-LOG: write failed scsi=%x sense=%x result=%x\n",
 			    (unsigned)gRootDiagnostic.scsi, (unsigned)gRootDiagnostic.sense,
 			    (unsigned)gRootDiagnostic.result);
+		}
+		if (writeOk) {
+			houjiConRingWrite (buf);
 		}
 	}
 }

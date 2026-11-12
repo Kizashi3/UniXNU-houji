@@ -1,0 +1,16 @@
+diff --git a/osfmk/corpses/task_corpse.h b/osfmk/corpses/task_corpse.h
+--- a/osfmk/corpses/task_corpse.h
++++ b/osfmk/corpses/task_corpse.h
+@@ -64,10 +64,10 @@
+ #if XNU_TARGET_OS_WATCH
+ #define TOTAL_CORPSES_ALLOWED 4
+ #else /* XNU_TARGET_OS_WATCH */
+-#define TOTAL_CORPSES_ALLOWED 5
++#define TOTAL_CORPSES_ALLOWED 64
+ #endif /* XNU_TARGET_OS_WATCH */
+ 
+-#define TOTAL_USER_FAULTS_ALLOWED 1
++#define TOTAL_USER_FAULTS_ALLOWED 64
+ 
+ #if DEBUG || DEVELOPMENT
+ extern bool corpse_threshold_system_limit;

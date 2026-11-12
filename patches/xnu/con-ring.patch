@@ -1,0 +1,47 @@
+diff --git a/osfmk/console/video_console.c b/osfmk/console/video_console.c
+--- a/osfmk/console/video_console.c
++++ b/osfmk/console/video_console.c
+@@ -1227,9 +1227,43 @@
+ 	gc_ops.update_color(color, fore);
+ }
+ 
++/*
++ * HOUJI: capture every video-console byte into a fixed ring. Userspace
++ * /dev/console output (launchd, SpringBoard) reaches this function, so the
++ * ring is the only durable record of a userspace crash after reboot.
++ */
++#define HOUJI_CON_RING_SIZE (256 * 1024)
++char unixnu_con_ring_buf[HOUJI_CON_RING_SIZE];
++volatile uint32_t unixnu_con_ring_pos;
++volatile uint64_t unixnu_con_ring_total;
++
++void houji_con_ring_info(char **buf, uint32_t *size, uint32_t *pos,
++    uint64_t *total);
++
++void
++houji_con_ring_info(char **buf, uint32_t *size, uint32_t *pos, uint64_t *total)
++{
++	if (buf) *buf = unixnu_con_ring_buf;
++	if (size) *size = HOUJI_CON_RING_SIZE;
++	if (pos) *pos = unixnu_con_ring_pos;
++	if (total) *total = unixnu_con_ring_total;
++}
++
++static inline void
++houji_con_ring_putc(char c)
++{
++	uint32_t pos = unixnu_con_ring_pos;
++
++	unixnu_con_ring_buf[pos] = c;
++	unixnu_con_ring_pos = (pos + 1) & (HOUJI_CON_RING_SIZE - 1);
++	unixnu_con_ring_total++;
++}
++
+ void
+ vcputc_options(char c, __unused bool poll)
+ {
++	houji_con_ring_putc(c);
++
+ 	if (gc_initialized && gc_enabled) {
+ 		VCPUTC_LOCK_LOCK();
+ 		if (gc_enabled) {
