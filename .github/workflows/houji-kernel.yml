@@ -821,6 +821,20 @@ jobs:
             echo "=== first bootstrap compiler errors ===" | tee -a out/houji/logs/github-build.log
             grep -n -E 'fatal error:|error: ' out/houji/logs/kernel-bootstrap.log | head -n 30 | tee -a out/houji/logs/github-build.log || true
           fi
+          if [ "$build_status" -ne 0 ] && [ -d out/houji/tree/.cache/xnu-work ]; then
+            echo "=== patch state after failure ===" | tee -a out/houji/logs/github-build.log
+            for P in out/houji/tree/patches/xnu/*.patch; do
+              if git -C out/houji/tree/.cache/xnu-work apply --reverse --check "$P" >/dev/null 2>&1; then
+                st=applied
+              elif git -C out/houji/tree/.cache/xnu-work apply --check "$P" >/dev/null 2>&1; then
+                st=pending
+              else
+                st=BROKEN
+              fi
+              echo "$st $(basename "$P")"
+            done 2>&1 | grep -v '^applied' | tee -a out/houji/logs/github-build.log
+            echo "=== end patch state ===" | tee -a out/houji/logs/github-build.log
+          fi
           # A bootstrap pass can succeed while the archive phase is skipped by an
           # older driver tree. Build the declared archives once and retry only when
           # the final kernel reports the namespaced corecrypto archive is missing.
