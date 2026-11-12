@@ -1326,6 +1326,8 @@ houjiVfsProbe (void)
 		"/private/preboot/Cryptexes",
 		"/private/preboot/Cryptexes/OS",
 		"/usr/lib/libobjc.A.dylib",
+		"/usr/lib",
+		"/usr",
 	};
 	vfs_context_t ctx = vfs_context_kernel ();
 
