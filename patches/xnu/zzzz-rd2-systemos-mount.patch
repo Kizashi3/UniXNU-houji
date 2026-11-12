@@ -1,7 +1,7 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7138,6 +7138,133 @@
+@@ -7138,6 +7138,120 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -67,29 +67,16 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		}
 +	}
 +	/*
-+	 * HOUJI-CRYPTEX: the same SystemOS volume also carries /usr/lib (libobjc-trampolines
-+	 * and friends). dyld resolves those only under the cryptex prefix, so expose the
-+	 * volume there as well. A refusal is not fatal: the cache mapping above still works.
++	 * HOUJI-CRYPTEX: /System/Cryptexes/OS is a symlink to
++	 * /private/preboot/Cryptexes/OS, whose target does not exist here, so dyld's
++	 * cryptex fallback never resolves and /usr/lib/libobjc-trampolines.dylib looks
++	 * missing. MNT_NOFOLLOW mounts the same SystemOS volume on the symlink vnode
++	 * itself, which makes the prefix resolve into the volume root.
 +	 */
 +	{
 +		int cryptex_error = houji_rd2_try_mount(p, scratch, devices[index],
-+		    "apfs", "/System/Cryptexes/OS", MNT_RDONLY);
-+		printf("HOUJI-CRYPTEX: %s on /System/Cryptexes/OS -> %d\n",
-+		    devices[index], cryptex_error);
-+	}
-+
-+	if (error != 0) {
-+		return error;
-+	}
-+	/*
-+	 * HOUJI-CRYPTEX: the same SystemOS volume also carries /usr/lib (libobjc-trampolines
-+	 * and friends). dyld resolves those only under the cryptex prefix, so expose the
-+	 * volume there as well. A refusal is not fatal: the cache mapping above still works.
-+	 */
-+	{
-+		int cryptex_error = houji_rd2_try_mount(p, scratch, devices[index],
-+		    "apfs", "/System/Cryptexes/OS", MNT_RDONLY);
-+		printf("HOUJI-CRYPTEX: %s on /System/Cryptexes/OS -> %d\n",
++		    "apfs", "/System/Cryptexes/OS", MNT_RDONLY | MNT_NOFOLLOW);
++		printf("HOUJI-CRYPTEX: %s on /System/Cryptexes/OS (nofollow) -> %d\n",
 +		    devices[index], cryptex_error);
 +	}
 +
@@ -135,7 +122,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7309,17 @@
+@@ -7182,6 +7296,17 @@
  		}
  	}
  #endif
