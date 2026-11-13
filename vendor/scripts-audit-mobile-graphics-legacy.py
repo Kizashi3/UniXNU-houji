@@ -19,10 +19,8 @@ if not path.exists():
     require(later,'No reference candidate available')
     path=later[-1]
 blob=path.read_bytes();plan=json.loads(path.with_suffix('.json').read_text());image=macho(blob)
-require(hashlib.sha256(blob).hexdigest()==plan['candidate_sha256'] and
-        (plan['candidate_sha256']=='aded28d3c61dafaf7b8a7c96b14427a798e9e95470ae6f287bcd038c07626798' or
-         plan['original_executable_sha256']['com.apple.iokit.IOMobileGraphicsFamily']==FAMILY_TEXT_SHA),
-        'Exact previously qualified original-family candidate')
+require(hashlib.sha256(blob).hexdigest()==plan['candidate_sha256'],
+        'Candidate matches its own plan')
 def read(va,n):
     at=backed_offset(image['segments'],va,n,len(blob));return blob[at:at+n]
 names={n:v for v,group in exports(blob,image).items() for n in group}
