@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,349 @@
+@@ -7138,6 +7139,354 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -346,6 +346,11 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			printf("HOUJI-OWN: root flags 0x%x (ignore-ownership not set)\n",
 +			    rootfs ? vfs_flags(rootfs) : 0);
 +		}
++	}
++	/* HOUJI-DISP: publish the display nub once the platform is up. */
++	{
++		extern void houji_display_bootstrap(void);
++		houji_display_bootstrap();
 +	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
 +	    (error = copyout(fallback, scratch + 0x480, strlen(fallback) + 1)) != 0 ||

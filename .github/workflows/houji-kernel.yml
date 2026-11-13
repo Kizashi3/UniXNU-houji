@@ -804,6 +804,13 @@ jobs:
           mkdir -p "$DIAG_DIR"
           DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-native-legacy-display.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Overlay houji display stack
+        working-directory: unixnu
+        run: |
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-houji-display.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Build houji kernel
         working-directory: unixnu
         env:
