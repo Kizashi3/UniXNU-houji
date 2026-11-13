@@ -1,0 +1,30 @@
+diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
+--- a/bsd/dev/arm/systemcalls.c
++++ b/bsd/dev/arm/systemcalls.c
+@@ -103,5 +103,26 @@
+ 	code = arm_get_syscall_number(state);
+ 
++	/* HOUJI-SYS: sample one process's syscall sites (boot arg houji-sys-pid). */
++	{
++		extern boolean_t PE_parse_boot_argn(const char *, void *, int);
++		static int houji_sys_pid = -1;
++		static unsigned houji_sys_count;
++		if (houji_sys_pid < 0) {
++			int v = 0;
++			PE_parse_boot_argn("houji-sys-pid", &v, sizeof(v));
++			houji_sys_pid = v;
++		}
++		if (houji_sys_pid > 0 && houji_sys_count < 400 &&
++		    proc_getpid(proc) == houji_sys_pid && is_saved_state64(state)) {
++			houji_sys_count++;
++			printf("HOUJI-SYS: pid %d code %u pc=%#llx lr=%#llx x0=%#llx\n",
++			    houji_sys_pid, (unsigned)code,
++			    (unsigned long long)saved_state64(state)->pc,
++			    (unsigned long long)saved_state64(state)->lr,
++			    (unsigned long long)saved_state64(state)->x[0]);
++		}
++	}
++
+ #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
+ 
+ 	if (kdebug_enable && !code_is_kdebug_trace(code)) {

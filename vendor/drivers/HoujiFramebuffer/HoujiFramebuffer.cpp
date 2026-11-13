@@ -22,6 +22,7 @@
 #include <kern/clock.h>
 #include <mach/mach_time.h>
 #include <kern/task.h>
+#include <libkern/c++/OSKext.h>
 
 #define HOUJI_FB_LOG(fmt, ...) IOLog("HOUJI-FB: " fmt "\n", ##__VA_ARGS__)
 
@@ -339,6 +340,34 @@ houji_fb_bootstrap(void)
 			}
 			m->release();
 			HOUJI_FB_LOG("self-match name=%u", n);
+		}
+	}
+	{
+		bool loaded = OSKext::isKextWithIdentifierLoaded("com.apple.iokit.IOHIDFamily");
+		int rc = 0;
+		if (!loaded) {
+			rc = (int)OSKext::loadKextWithIdentifier("com.apple.iokit.IOHIDFamily");
+		}
+		HOUJI_FB_LOG("IOHIDFamily loaded=%d rc=%d now=%d", loaded, rc,
+		    OSKext::isKextWithIdentifierLoaded("com.apple.iokit.IOHIDFamily"));
+	}
+	{
+		OSDictionary *m = OSDictionary::withCapacity(1);
+		if (m != nullptr) {
+			OSString *s = OSString::withCString("IOHIDSystem");
+			unsigned n = 0;
+			if (s != nullptr) {
+				m->setObject(kIOProviderClassKey, s);
+				auto it = IOService::getMatchingServices(m);
+				if (it) {
+					while (it->getNextObject() != nullptr) {
+						n++;
+					}
+				}
+				s->release();
+			}
+			m->release();
+			HOUJI_FB_LOG("IOHIDSystem services=%u", n);
 		}
 	}
 	HOUJI_FB_LOG("IOMobileFramebuffer registered: %s", fb->getName());

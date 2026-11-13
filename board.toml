@@ -82,6 +82,7 @@ roots = [
   "com.apple.kext.CoreTrust",
   "com.apple.security.AppleImage4",
   "com.apple.security.sandbox",
+  "com.apple.iokit.IOHIDFamily",
 ]
 
 [payload]
