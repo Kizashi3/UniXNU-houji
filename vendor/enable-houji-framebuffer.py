@@ -2,7 +2,7 @@
 
 The device build compiles drivers as archives (build-arm-driver.py) and links
 them with force_load, so the driver lives under tree/drivers and is wired
-through board.toml and the device defconfig instead of bsd/conf.
+through board.toml and the kernel build script.
 """
 import os
 import pathlib
@@ -39,10 +39,24 @@ if "build-arm-driver.py HoujiFramebuffer" not in text:
 
 conf = DEVICE / "configs" / "houji_defconfig"
 text = conf.read_text()
-archive = 'CONFIG_XNU_EXTRA_LD_ARCHIVES="-Wl,-force_load,{tree}/build/houji-framebuffer/libHoujiFramebuffer.a"'
-if 'CONFIG_XNU_EXTRA_LD_ARCHIVES' in text:
-    text = re.sub(r'CONFIG_XNU_EXTRA_LD_ARCHIVES=.*', archive, text)
-else:
-    text = text.rstrip("\n") + "\n" + archive + "\n"
-conf.write_text(text)
-print("defconfig: extra archive set")
+if "CONFIG_XNU_EXTRA_LD_ARCHIVES" in text:
+    text = re.sub(r"CONFIG_XNU_EXTRA_LD_ARCHIVES=.*", 'CONFIG_XNU_EXTRA_LD_ARCHIVES=""', text)
+    conf.write_text(text)
+    print("defconfig: extra archives cleared")
+
+anchor = '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES ${XNU_EXTRA_LD_ARCHIVES:-}"\n'
+insert = anchor + (
+    '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n'
+    '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n')
+for script in (DEVICE.parent / "unixnu" / "scripts" / "build-xnu-4k-baseline.sh",
+               TREE / "scripts" / "build-xnu-4k-baseline.sh"):
+    if not script.is_file():
+        continue
+    t = script.read_text()
+    if "libHoujiFramebuffer.a" in t:
+        print(script, ": framebuffer archive already linked")
+        continue
+    if anchor not in t:
+        raise SystemExit("archive anchor missing in %s" % script)
+    script.write_text(t.replace(anchor, insert, 1))
+    print(script, ": framebuffer archive linked")
