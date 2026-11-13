@@ -1,7 +1,7 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1228,6 +1228,68 @@
+@@ -1228,6 +1228,105 @@
  	exception_type_t           exception = EXC_BREAKPOINT;
  	mach_exception_data_type_t codes[2]  = {EXC_ARM_BREAKPOINT};
  	mach_msg_type_number_t     numcodes  = 2;
@@ -14,21 +14,39 @@ diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 +		arm_saved_state64_t *bp_ss = saved_state64(state);
 +		if (houji_bp_count < 40) {
 +			houji_bp_count++;
-+			printf("HOUJI-BP: pid %d pc=%#llx lr=%#llx esr=%#x x0=%#llx x1=%#llx\n",
++			printf("HOUJI-BP: pid %d pc=%#llx lr=%#llx esr=%#x x0=%#llx x1=%#llx x2=%#llx x3=%#llx x4=%#llx x5=%#llx x6=%#llx x7=%#llx\n",
 +			    proc_getpid(current_proc()),
 +			    (unsigned long long)get_saved_state_pc(state),
 +			    (unsigned long long)bp_ss->lr,
 +			    esr,
 +			    (unsigned long long)bp_ss->x[0],
-+			    (unsigned long long)bp_ss->x[1]);
-+			/* HOUJI-BPS: dump what x0 points at (string / object). */
++			    (unsigned long long)bp_ss->x[1],
++			    (unsigned long long)bp_ss->x[2],
++			    (unsigned long long)bp_ss->x[3],
++			    (unsigned long long)bp_ss->x[4],
++			    (unsigned long long)bp_ss->x[5],
++			    (unsigned long long)bp_ss->x[6],
++			    (unsigned long long)bp_ss->x[7]);
++			/* HOUJI-BPS: dump what x0 points at; retry with the tag bits off. */
 +			{
 +				uint64_t a = bp_ss->x[0];
++				uint64_t cand[2];
++				unsigned nc = 0, k;
 +				unsigned char b[64];
 +				int err = -1;
 +
-+				if ((a & 1) == 0 && a >= 0x10000) {
-+					err = COPYIN((user_addr_t)a, b, sizeof(b));
++				cand[nc++] = a;
++				if ((a & 7) != 0) {
++					cand[nc++] = a & ~7ULL;
++				}
++				for (k = 0; k < nc; k++) {
++					if (cand[k] < 0x10000) {
++						continue;
++					}
++					err = COPYIN((user_addr_t)cand[k], b, sizeof(b));
++					if (err == 0) {
++						break;
++					}
 +				}
 +				if (err == 0) {
 +					static const char hx[] = "0123456789abcdef";
@@ -44,10 +62,29 @@ diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 +						txt[i] = (b[i] >= 0x20 && b[i] < 0x7f) ? (char)b[i] : '.';
 +					}
 +					txt[64] = 0;
-+					printf("HOUJI-BPS: %s | %s\n", hex, txt);
++					printf("HOUJI-BPS: [%#llx] %s | %s\n",
++					    (unsigned long long)cand[k], hex, txt);
 +				} else {
 +					printf("HOUJI-BPS: x0=%#llx unreadable err=%d\n",
 +					    (unsigned long long)a, err);
++				}
++			}
++			/* HOUJI-BPC: dump the 32 bytes of code before the trap. */
++			{
++				uint64_t pc = get_saved_state_pc(state);
++				unsigned char cb[32];
++				if (pc >= 32 &&
++				    COPYIN((user_addr_t)(pc - 32), cb, sizeof(cb)) == 0) {
++					static const char hx[] = "0123456789abcdef";
++					char hex[65];
++					unsigned i;
++
++					for (i = 0; i < 32; i++) {
++						hex[i * 2] = hx[cb[i] >> 4];
++						hex[i * 2 + 1] = hx[cb[i] & 15];
++					}
++					hex[64] = 0;
++					printf("HOUJI-BPC: %s\n", hex);
 +				}
 +			}
 +			/* HOUJI-BPF: walk the user frame-pointer chain. */
