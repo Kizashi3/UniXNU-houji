@@ -1,7 +1,16 @@
 diff --git a/iokit/Kernel/IOUserClient.cpp b/iokit/Kernel/IOUserClient.cpp
 --- a/iokit/Kernel/IOUserClient.cpp
 +++ b/iokit/Kernel/IOUserClient.cpp
-@@ -1618,7 +1618,16 @@
+@@ -69,6 +69,8 @@
+ #include <IOKit/assert.h>
+ 
+ #include "IOServicePrivate.h"
+ #include "IOKitKernelInternal.h"
+ 
++extern "C" int proc_getpid(struct proc *);
++
+ #define SCALAR64(x) ((io_user_scalar_t)((unsigned int)x))
+@@ -1618,7 +1620,16 @@
  IOUserClient::initWithTask(task_t owningTask,
      void * securityID,
      UInt32 type )
