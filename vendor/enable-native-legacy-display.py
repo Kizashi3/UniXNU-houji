@@ -9,7 +9,7 @@ import pathlib
 import shutil
 
 DEVICE = pathlib.Path(os.environ["DEVICE_DIR"])
-TREE = DEVICE / "unixnu" / "out" / "houji" / "tree"
+TREE = DEVICE.parent / "unixnu" / "out" / "houji" / "tree"
 
 drivers = TREE / "drivers" / "NativeMobileDisplay"
 drivers.mkdir(parents=True, exist_ok=True)
