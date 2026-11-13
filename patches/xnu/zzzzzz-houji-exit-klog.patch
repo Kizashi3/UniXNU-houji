@@ -1,0 +1,23 @@
+diff --git a/bsd/kern/kern_exit.c b/bsd/kern/kern_exit.c
+--- a/bsd/kern/kern_exit.c
++++ b/bsd/kern/kern_exit.c
+@@ -1843,6 +1843,19 @@
+ 		    p->p_exit_reason->osr_namespace, p->p_exit_reason->osr_code, exit_reason_desc ?
+ 		    exit_reason_desc : "none");
+ 	}
++	{
++		/* HOUJI-EXIT: mirror the exit reason into the persisted kernel log. */
++		char *houji_desc = exit_reason_get_string_desc(p->p_exit_reason);
++		if (p->p_exit_reason == OS_REASON_NULL) {
++			IOLog("HOUJI-EXIT: pid %d %s no exit reason (signal %d, exit %d)\n",
++			    proc_getpid(p), p->p_comm, WTERMSIG(rv), WEXITSTATUS(rv));
++		} else {
++			IOLog("HOUJI-EXIT: pid %d %s ns %d code 0x%llx %s\n",
++			    proc_getpid(p), p->p_comm, p->p_exit_reason->osr_namespace,
++			    (unsigned long long)p->p_exit_reason->osr_code,
++			    houji_desc ? houji_desc : "none");
++		}
++	}
+ 
+ 	const char *prefix_str;
+ 	char prefix_str_buf[128];
