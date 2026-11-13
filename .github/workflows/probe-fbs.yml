@@ -1,0 +1,79 @@
+name: probe FBS trap site
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [merged-root-kernel]
+    paths:
+      - ".github/workflows/probe-fbs.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch the SystemOS firmware from the cache release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          SRC="$RUNNER_TEMP/system-source"
+          mkdir -p "$SRC/ipsw/20H392"
+          STAGE="$RUNNER_TEMP/fwstage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
+          gh release download fw-cache-20H392 --repo "$GITHUB_REPOSITORY" --dir "$STAGE"
+          python3 scripts/merged-root-fwcache.py unpack "$STAGE" "$SRC"
+          rm -rf "$STAGE"
+          python3 scripts/merged-root-prep.py "$SRC" "$RUNNER_TEMP/dmgs.txt"
+          sed -n 2p "$RUNNER_TEMP/dmgs.txt"
+
+      - name: Inspect cache tooling and the FrontBoardServices image
+        run: |
+          set -x
+          exec > >(tee /tmp/probe-fbs.log) 2>&1
+          DMG=$(sed -n 2p "$RUNNER_TEMP/dmgs.txt")
+          MNT="$RUNNER_TEMP/sysos"
+          mkdir -p "$MNT"
+          hdiutil attach -readonly -nobrowse -mountpoint "$MNT" "$DMG"
+          CACHEDIR="$MNT/System/Library/Caches/com.apple.dyld"
+          ls -la "$CACHEDIR" | head -40
+          C=$(ls "$CACHEDIR"/dyld_shared_cache_arm64 2>/dev/null | head -1)
+          echo "cache=$C"
+          echo "== which"
+          which dyld_shared_cache_util || true
+          ls /usr/bin | grep -i dyld || true
+          xcrun --find dyld_shared_cache_util || true
+          echo "== help"
+          dyld_shared_cache_util -help 2>&1 | head -60 || true
+          echo "== list frontboard"
+          dyld_shared_cache_util -list "$C" 2>&1 | grep -i "frontboard\|iomobileframebuffer" | head -20 || true
+          echo "== standalone files"
+          ls -la "$MNT/System/Library/PrivateFrameworks/FrontBoardServices.framework" 2>&1 | head -10 || true
+          ls -la "$MNT/System/Library/PrivateFrameworks/IOMobileFramebuffer.framework" 2>&1 | head -10 || true
+          echo "== symbols files"
+          ls -la "$MNT"/System/Library/dyld/* 2>&1 | head -10 || true
+          hdiutil detach "$MNT" || true
+
+      - name: Publish the probe log
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -x
+          stage=$(mktemp -d)
+          git init -q "$stage/p"
+          git -C "$stage/p" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$stage/p" config user.name houji-ci
+          git -C "$stage/p" config user.email houji-ci@users.noreply.github.com
+          git -C "$stage/p" checkout -q -B ci-fbs
+          mkdir -p "$stage/p/fbs"
+          cp /tmp/probe-fbs.log "$stage/p/fbs/run-${GITHUB_RUN_NUMBER}.log" 2>/dev/null || echo "no log" > "$stage/p/fbs/run-${GITHUB_RUN_NUMBER}.log"
+          git -C "$stage/p" add -f -A
+          git -C "$stage/p" commit -q -m "fbs probe run ${GITHUB_RUN_NUMBER}" || true
+          git -C "$stage/p" push -f origin ci-fbs || echo FBS_PUSH_FAILED
