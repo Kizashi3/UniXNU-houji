@@ -1,40 +1,48 @@
-"""Overlay our own HoujiFramebuffer driver into the XNU tree.
+"""Overlay our own HoujiFramebuffer driver and link it into the kernel.
 
-Installs iokit/Kernel/arm/HoujiFramebuffer.cpp, adds the build entry and the
-built-in personality that matches the display nub we publish at runtime.
+The device build compiles drivers as archives (build-arm-driver.py) and links
+them with force_load, so the driver lives under tree/drivers and is wired
+through board.toml and the device defconfig instead of bsd/conf.
 """
 import os
 import pathlib
+import re
 import shutil
 
 DEVICE = pathlib.Path(os.environ["DEVICE_DIR"])
 TREE = DEVICE.parent / "unixnu" / "out" / "houji" / "tree"
 SRC = DEVICE / "vendor" / "drivers" / "HoujiFramebuffer"
 
-arm = TREE / "iokit" / "Kernel" / "arm"
-arm.mkdir(parents=True, exist_ok=True)
-shutil.copyfile(SRC / "HoujiFramebuffer.cpp", arm / "HoujiFramebuffer.cpp")
+dst = TREE / "drivers" / "HoujiFramebuffer"
+dst.mkdir(parents=True, exist_ok=True)
+shutil.copyfile(SRC / "HoujiFramebuffer.cpp", dst / "HoujiFramebuffer.cpp")
 
-conf = TREE / "iokit" / "conf" / "files"
+for script in (DEVICE / "scripts" / "build-arm-driver.py", TREE / "scripts" / "build-arm-driver.py"):
+    if not script.is_file():
+        continue
+    text = script.read_text()
+    if "'HoujiFramebuffer'" not in text:
+        text = text.replace("'NativeRamBlock', ", "'NativeRamBlock', 'HoujiFramebuffer', ", 1)
+        text = text.replace("'NativeUfs':'native-ufs',", "'NativeUfs':'native-ufs', 'HoujiFramebuffer':'houji-framebuffer',", 1)
+        script.write_text(text)
+        print(script, ": HoujiFramebuffer added")
+
+board = DEVICE / "board.toml"
+text = board.read_text()
+if "build-arm-driver.py HoujiFramebuffer" not in text:
+    match = re.search(r"archives = \[\n", text)
+    if not match:
+        raise SystemExit("board.toml has no archives array")
+    text = text[:match.end()] + '  "build-arm-driver.py HoujiFramebuffer",\n' + text[match.end():]
+    board.write_text(text)
+    print("board.toml: HoujiFramebuffer archive added")
+
+conf = DEVICE / "configs" / "houji_defconfig"
 text = conf.read_text()
-entry = "iokit/Kernel/arm/HoujiFramebuffer.cpp                     optional iokitcpp\n"
-if "HoujiFramebuffer.cpp" not in text:
-    text = entry + text
+archive = 'CONFIG_XNU_EXTRA_LD_ARCHIVES="-Wl,-force_load,{tree}/build/houji-framebuffer/libHoujiFramebuffer.a"'
+if 'CONFIG_XNU_EXTRA_LD_ARCHIVES' in text:
+    text = re.sub(r'CONFIG_XNU_EXTRA_LD_ARCHIVES=.*', archive, text)
+else:
+    text = text.rstrip("\n") + "\n" + archive + "\n"
 conf.write_text(text)
-
-tables = TREE / "iokit" / "KernelConfigTables.cpp"
-t = tables.read_text()
-marker = 'const char * gIOKernelConfigTables =\n    "("\n'
-personality = (
-    '    "   {"\n'
-    '    "     \'IOClass\'         = HoujiFramebuffer;"\n'
-    '    "     \'IOProviderClass\' = IOPlatformDevice;"\n'
-    '    "     \'IONameMatch\'     = \'houji,display\';"\n'
-    '    "   },"\n'
-)
-if "HoujiFramebuffer" not in t:
-    if marker not in t:
-        raise SystemExit("KernelConfigTables marker missing")
-    t = t.replace(marker, marker + personality)
-    tables.write_text(t)
-print("houji framebuffer overlaid")
+print("defconfig: extra archive set")
