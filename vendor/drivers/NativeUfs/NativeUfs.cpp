@@ -1519,7 +1519,6 @@ houjiLogThread (void *param, wait_result_t wr)
 	(void) wr;
 	IOLog ("HOUJI-ARGS: %.400s\n", PE_boot_args ());
 	for (;;) {
-		IOSleep (5000);
 		if (houji_fb_test_parsed == 0) {
 			houji_fb_test_parsed = 1;
 			PE_parse_boot_argn ("houji-fb-test", &houji_fb_test_on,
@@ -1621,6 +1620,7 @@ houjiLogThread (void *param, wait_result_t wr)
 		if (writeOk) {
 			houjiConRingWrite (buf);
 		}
+		IOSleep (5000);
 	}
 }
 
