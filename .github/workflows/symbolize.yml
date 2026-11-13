@@ -3,7 +3,7 @@ name: symbolize dyld cache PCs
 on:
   workflow_dispatch:
   push:
-    branches: [merged-root-kernel]
+    branches: [merged-root-kernel, fb-sym]
     paths:
       - ".github/workflows/symbolize.yml"
       - "scripts/dyld-cache-image.py"
@@ -47,7 +47,7 @@ jobs:
             echo "cache file not found; listing"; find "$MNT/System/Library/Caches" -maxdepth 3 | head -20; exit 1
           fi
           python3 scripts/dyld-cache-image.py "$CACHE" \
-            0x19b968ca8 0x1005c11d8 0x1011ea1d8 0x1ae4068c0 0x1c2626b08
+            0x19b968ca8 0x1a2690438 0x18db98780 0x18db68ddc 0x1a2641a30 0x1a269c1b4 0x1c58655c8 0x1ae3f6608 0x1a0435b34 0x1a0435ac0 0x1a03fd6a8 0x1ae4068c0 0x1c2626b08
           hdiutil detach "$MNT" || true
 
       - name: Publish the result
