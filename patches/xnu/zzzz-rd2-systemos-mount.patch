@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,3 +7139,331 @@
+@@ -7138,3 +7139,334 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -340,8 +340,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +
 +		if (rootfs && (vfs_flags(rootfs) & MNT_IGNORE_OWNERSHIP)) {
 +			vfs_clearflags(rootfs, MNT_IGNORE_OWNERSHIP);
-+			printf("HOUJI-OWN: cleared MNT_IGNORE_OWNERSHIP, flags now 0x%x
-",
++			printf("HOUJI-OWN: cleared MNT_IGNORE_OWNERSHIP, flags now 0x%x\n",
 +			    vfs_flags(rootfs));
 +		} else {
 +			printf("HOUJI-OWN: root flags 0x%x (ignore-ownership not set)
