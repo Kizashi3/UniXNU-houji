@@ -95,7 +95,7 @@ jobs:
           fi
           for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld; do
             if [ -d "$SYSMNT/$sub" ]; then
-              mkdir -p "$ROOTMNT/$sub"
+              sudo mkdir -p "$ROOTMNT/$sub"
               sudo rsync -aH --numeric-ids "$SYSMNT/$sub/" "$ROOTMNT/$sub/"
             fi
           done
