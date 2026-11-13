@@ -86,7 +86,7 @@ jobs:
           echo "SystemOS at $SYSMNT"; ls "$SYSMNT" | head
           rm -f /tmp/root.dmg /tmp/root.sparseimage
           hdiutil create -size 9.5g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
-          hdiutil attach -nobrowse /tmp/root.sparseimage | tee /tmp/att_root.txt
+          hdiutil attach -owners on -nobrowse /tmp/root.sparseimage | tee /tmp/att_root.txt
           ROOTMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_root.txt | tail -1)
           echo "merged at $ROOTMNT"; df -h "$ROOTMNT"
           if ! sudo ditto "$OSMNT/" "$ROOTMNT/"; then
@@ -103,6 +103,8 @@ jobs:
           # launchd rejects plists whose uid/gid is not 0:0 or that are group/other writable.
           sudo chown -R 0:0 "$ROOTMNT"
           sudo chmod -R go-w "$ROOTMNT"
+          stat -f "HOUJI-OWN-CHECK %u:%g %m %N" "$ROOTMNT/System/Library/LaunchDaemons/com.apple.SpringBoard.plist" || true
+          stat -f "HOUJI-OWN-CHECK %u:%g %m %N" "$ROOTMNT/usr/lib/libobjc-trampolines.dylib" || true
           sync
           du -sh "$ROOTMNT" || true
           df -h "$ROOTMNT"
