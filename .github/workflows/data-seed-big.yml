@@ -25,7 +25,9 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Build the 512 MiB Data seed
+      - name: Build the 176 MiB Data seed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eux
           exec > >(tee /tmp/seed.log) 2>&1
