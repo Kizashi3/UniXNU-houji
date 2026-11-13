@@ -364,7 +364,7 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	IOService *provider = platform;
-	auto armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
+	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
 		HoujiDisplayNub *nub = new HoujiDisplayNub;
 		if (nub != nullptr) {
@@ -372,7 +372,7 @@ houji_fb_bootstrap(void)
 				nub->release();
 			} else if (!nub->attach(platform)) {
 				nub->release();
-			} else if (!nub->attachToParent(armIO.get(), gIODTPlane)) {
+			} else if (!nub->attachToParent(armIO, gIODTPlane)) {
 				nub->detach(platform);
 				nub->release();
 			} else {
@@ -387,7 +387,7 @@ houji_fb_bootstrap(void)
 				    memcmp(compatible->getBytesNoCopy(), "houji,display", sizeof("houji,display")) == 0 &&
 				    width != nullptr && width->getLength() == sizeof(uint32_t) &&
 				    height != nullptr && height->getLength() == sizeof(uint32_t) &&
-				    nub->getParentEntry(gIODTPlane) == armIO.get() &&
+				    nub->getParentEntry(gIODTPlane) == armIO &&
 				    nub->getProvider() == platform;
 				if (valid && nub->start(platform)) {
 					nub->registerService();
@@ -399,13 +399,14 @@ houji_fb_bootstrap(void)
 						    path, nub->getProvider()->getName());
 					}
 				} else {
-					nub->detachFromParent(armIO.get(), gIODTPlane);
+					nub->detachFromParent(armIO, gIODTPlane);
 					nub->detach(platform);
 					nub->release();
 				}
 			}
 		}
 	}
+	if (armIO != nullptr) armIO->release();
 	if (provider == platform) {
 		HOUJI_FB_LOG("enumeration precondition failed; retaining platform-provider service");
 	}
