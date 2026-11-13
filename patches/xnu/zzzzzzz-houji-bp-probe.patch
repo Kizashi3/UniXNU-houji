@@ -1,7 +1,7 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1228,6 +1228,24 @@
+@@ -1228,6 +1228,68 @@
  	exception_type_t           exception = EXC_BREAKPOINT;
  	mach_exception_data_type_t codes[2]  = {EXC_ARM_BREAKPOINT};
  	mach_msg_type_number_t     numcodes  = 2;
@@ -21,6 +21,50 @@ diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 +			    esr,
 +			    (unsigned long long)bp_ss->x[0],
 +			    (unsigned long long)bp_ss->x[1]);
++			/* HOUJI-BPS: dump what x0 points at (string / object). */
++			{
++				uint64_t a = bp_ss->x[0];
++				unsigned char b[64];
++				int err = -1;
++
++				if ((a & 1) == 0 && a >= 0x10000) {
++					err = COPYIN((user_addr_t)a, b, sizeof(b));
++				}
++				if (err == 0) {
++					static const char hx[] = "0123456789abcdef";
++					char hex[65], txt[65];
++					unsigned i;
++
++					for (i = 0; i < 32; i++) {
++						hex[i * 2] = hx[b[i] >> 4];
++						hex[i * 2 + 1] = hx[b[i] & 15];
++					}
++					hex[64] = 0;
++					for (i = 0; i < 64; i++) {
++						txt[i] = (b[i] >= 0x20 && b[i] < 0x7f) ? (char)b[i] : '.';
++					}
++					txt[64] = 0;
++					printf("HOUJI-BPS: %s | %s\n", hex, txt);
++				} else {
++					printf("HOUJI-BPS: x0=%#llx unreadable err=%d\n",
++					    (unsigned long long)a, err);
++				}
++			}
++			/* HOUJI-BPF: walk the user frame-pointer chain. */
++			{
++				uint64_t fp = bp_ss->x[29];
++				unsigned f;
++
++				for (f = 0; f < 6 && (fp & 7) == 0 && fp >= 0x10000; f++) {
++					uint64_t rec[2];
++					if (COPYIN((user_addr_t)fp, rec, sizeof(rec)) != 0) {
++						break;
++					}
++					printf("HOUJI-BPF: %u lr=%#llx\n", f,
++					    (unsigned long long)rec[1]);
++					fp = rec[0];
++				}
++			}
 +		}
 +	}
  
