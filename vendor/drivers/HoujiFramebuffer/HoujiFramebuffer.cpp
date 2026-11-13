@@ -24,6 +24,9 @@
 #include <kern/task.h>
 #include <libkern/c++/OSKext.h>
 
+extern "C" struct proc *current_proc(void);
+extern "C" int proc_getpid(struct proc *);
+
 #define HOUJI_FB_LOG(fmt, ...) IOLog("HOUJI-FB: " fmt "\n", ##__VA_ARGS__)
 
 static unsigned houjiCountServices(const char *cls);
@@ -43,8 +46,8 @@ enum {
 
 class IOMobileFramebuffer;
 
-class HoujiFramebufferClient : public IOUserClient {
-	OSDeclareDefaultStructors(HoujiFramebufferClient);
+class IOMobileFramebufferUserClient : public IOUserClient {
+	OSDeclareDefaultStructors(IOMobileFramebufferUserClient);
 public:
 	IOMobileFramebuffer *fOwner = nullptr;
 	task_t            fTask = TASK_NULL;
@@ -81,7 +84,7 @@ public:
 };
 
 OSDefineMetaClassAndStructors(IOMobileFramebuffer, IOService);
-OSDefineMetaClassAndStructors(HoujiFramebufferClient, IOUserClient);
+OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
 
 bool
 IOMobileFramebuffer::start(IOService *provider)
@@ -103,7 +106,7 @@ IOMobileFramebuffer::start(IOService *provider)
 		return false;
 	}
 
-	setProperty(kIOUserClientClassKey, "HoujiFramebufferClient");
+	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
 	setProperty("IOMFBDisplayRefresh", true);
 	setProperty("compatible", "houji,display");
 	uint32_t hz = 60;
@@ -172,7 +175,7 @@ IOReturn
 IOMobileFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 type,
     OSDictionary *properties, IOUserClient **handler)
 {
-	HoujiFramebufferClient *client = new HoujiFramebufferClient;
+	IOMobileFramebufferUserClient *client = new IOMobileFramebufferUserClient;
 	if (client == nullptr) {
 		return kIOReturnNoMemory;
 	}
@@ -184,12 +187,12 @@ IOMobileFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 t
 	}
 	client->fOwner = this;
 	*handler = client;
-	HOUJI_FB_LOG("user client opened type %u", type);
+	HOUJI_FB_LOG("user client opened pid %d type %u", proc_getpid(current_proc()), type);
 	return kIOReturnSuccess;
 }
 
 bool
-HoujiFramebufferClient::initWithTask(task_t owningTask, void *securityID, UInt32 type)
+IOMobileFramebufferUserClient::initWithTask(task_t owningTask, void *securityID, UInt32 type)
 {
 	if (!IOUserClient::initWithTask(owningTask, securityID, type)) {
 		return false;
@@ -199,20 +202,20 @@ HoujiFramebufferClient::initWithTask(task_t owningTask, void *securityID, UInt32
 }
 
 bool
-HoujiFramebufferClient::start(IOService *provider)
+IOMobileFramebufferUserClient::start(IOService *provider)
 {
 	return IOUserClient::start(provider);
 }
 
 IOReturn
-HoujiFramebufferClient::clientClose(void)
+IOMobileFramebufferUserClient::clientClose(void)
 {
 	terminate();
 	return kIOReturnSuccess;
 }
 
 IOReturn
-HoujiFramebufferClient::registerNotificationPort(mach_port_t port, UInt32 type, io_user_reference_t refCon)
+IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, UInt32 type, io_user_reference_t refCon)
 {
 	fPort = port;
 	HOUJI_FB_LOG("notification port type %u", type);
@@ -220,7 +223,7 @@ HoujiFramebufferClient::registerNotificationPort(mach_port_t port, UInt32 type, 
 }
 
 IOReturn
-HoujiFramebufferClient::externalMethod(uint32_t selector, IOExternalMethodArguments *args,
+IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments *args,
     IOExternalMethodDispatch *dispatch, OSObject *target, void *reference)
 {
 	uint64_t out0 = 0, out1 = 0;
