@@ -271,7 +271,7 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	HoujiDisplayNub *nub = new HoujiDisplayNub;
-	if (nub == nullptr || !nub->init() ||
+	if (nub == nullptr || !nub->init(nullptr) ||
 	    !nub->attachToParent(platform, gIODTPlane)) {
 		HOUJI_FB_LOG("nub alloc/attach failed");
 		if (nub != nullptr) nub->release();
@@ -281,7 +281,7 @@ houji_fb_bootstrap(void)
 	HOUJI_FB_LOG("display nub published");
 
 	IOMobileFramebuffer *fb = new IOMobileFramebuffer;
-	if (fb == nullptr || !fb->init() || !fb->attach(nub) || !fb->start(nub)) {
+	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(nub) || !fb->start(nub)) {
 		HOUJI_FB_LOG("framebuffer service start failed");
 		if (fb != nullptr) fb->release();
 		return;
