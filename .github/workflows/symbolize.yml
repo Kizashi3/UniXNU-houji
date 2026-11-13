@@ -37,6 +37,7 @@ jobs:
       - name: Mount SystemOS and resolve the trap PCs
         run: |
           set -eux
+          exec > >(tee /tmp/symbolize.txt) 2>&1
           DMG=$(sed -n 2p "$RUNNER_TEMP/dmgs.txt")
           MNT="$RUNNER_TEMP/sysos"
           mkdir -p "$MNT"
@@ -46,7 +47,7 @@ jobs:
             echo "cache file not found; listing"; find "$MNT/System/Library/Caches" -maxdepth 3 | head -20; exit 1
           fi
           python3 scripts/dyld-cache-image.py "$CACHE" \
-            0x19b968ca8 0x1005c11d8 0x1011ea1d8 0x1ae4068c0 0x1c2626b08 | tee /tmp/symbolize.txt
+            0x19b968ca8 0x1005c11d8 0x1011ea1d8 0x1ae4068c0 0x1c2626b08
           hdiutil detach "$MNT" || true
 
       - name: Publish the result
