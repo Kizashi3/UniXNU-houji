@@ -1,0 +1,70 @@
+name: symbolize dyld cache PCs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [merged-root-kernel]
+    paths:
+      - ".github/workflows/symbolize.yml"
+      - "scripts/dyld-cache-image.py"
+
+permissions:
+  contents: write
+
+jobs:
+  symbolize:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch the SystemOS firmware from the cache release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          SRC="$RUNNER_TEMP/system-source"
+          mkdir -p "$SRC/ipsw/20H392"
+          STAGE="$RUNNER_TEMP/fwstage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
+          gh release download fw-cache-20H392 --repo "$GITHUB_REPOSITORY" --dir "$STAGE"
+          python3 scripts/merged-root-fwcache.py unpack "$STAGE" "$SRC"
+          rm -rf "$STAGE"
+          python3 scripts/merged-root-prep.py "$SRC" "$RUNNER_TEMP/dmgs.txt"
+          sed -n 2p "$RUNNER_TEMP/dmgs.txt"
+
+      - name: Mount SystemOS and resolve the trap PCs
+        run: |
+          set -eux
+          DMG=$(sed -n 2p "$RUNNER_TEMP/dmgs.txt")
+          MNT="$RUNNER_TEMP/sysos"
+          mkdir -p "$MNT"
+          hdiutil attach -readonly -nobrowse -mountpoint "$MNT" "$DMG"
+          CACHE=$(ls "$MNT"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2>/dev/null || true)
+          if [ -z "$CACHE" ]; then
+            echo "cache file not found; listing"; find "$MNT/System/Library/Caches" -maxdepth 3 | head -20; exit 1
+          fi
+          python3 scripts/dyld-cache-image.py "$CACHE" \
+            0x19b968ca8 0x1005c11d8 0x1011ea1d8 0x1ae4068c0 0x1c2626b08 | tee /tmp/symbolize.txt
+          hdiutil detach "$MNT" || true
+
+      - name: Publish the result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          git config --global user.email "unixnu@local"
+          git config --global user.name "UniXNU"
+          AUTH="https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git"
+          rm -rf /tmp/sym
+          git clone -q --depth 1 "$AUTH" /tmp/sym
+          cd /tmp/sym
+          git checkout -q --orphan ci-symbolize || true
+          git rm -rfq . 2>/dev/null || true
+          mkdir -p symbolize
+          cp /tmp/symbolize.txt symbolize/ 2>/dev/null || true
+          git add -f symbolize
+          git commit -q -m "symbolize ${{ github.run_number }}" || true
+          git push -f origin ci-symbolize || true

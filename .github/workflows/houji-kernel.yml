@@ -797,6 +797,13 @@ jobs:
           mkdir -p "$DIAG_DIR"
           DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-nativeramblock.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Overlay NativeMobileDisplay
+        working-directory: unixnu
+        run: |
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-native-legacy-display.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Build houji kernel
         working-directory: unixnu
         env:
@@ -836,6 +843,35 @@ jobs:
             echo "UniXNU kernel retry exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
           fi
           exit "$build_status"
+
+      - name: Build NativeLegacyDisplay and relink the kernel
+        continue-on-error: true
+        working-directory: unixnu
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ env.DEVICE_DIR }}/ci-hooks
+        run: |
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          {
+            set -x
+            T=out/houji/tree
+            mkdir -p "$T/build/native-prelink"
+            cp out/houji/kernel/kernel.macho "$T/build/native-prelink/native-owner-mobile-graphics-candidate.macho"
+            cp out/houji/kernel/kernel.json "$T/build/native-prelink/native-owner-mobile-graphics-candidate.json"
+            cp out/houji/kernel/kernel.macho "$T/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.macho"
+            cp out/houji/kernel/kernel.json "$T/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.json"
+            cd "$T"
+            python3 scripts/audit-mobile-graphics-legacy.py
+            python3 scripts/build-native-legacy-display.py
+            ls -la build/native-legacy-display
+            cd "$GITHUB_WORKSPACE/unixnu"
+            sed -i 's/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y/' "$DEVICE_DIR/configs/houji_defconfig"
+            grep LEGACY_DISPLAY "$DEVICE_DIR/configs/houji_defconfig"
+            ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build-display.log
+            ls -la out/houji/kernel/kernel.macho
+          } 2>&1 | tee "$DIAG_DIR/display.log"
+          exit "${PIPESTATUS[0]}"
 
       - name: Verify the AES base binding reached the kernel
         working-directory: unixnu
