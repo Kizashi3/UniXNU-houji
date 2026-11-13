@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - kernel-cs-bypass
+      - merged-root-kernel
   workflow_dispatch:
     inputs:
       xcode:
@@ -975,7 +976,7 @@ jobs:
 
       # Console logs are only readable with an API token, which this workspace
       # does not have, so publish the collected logs and the kernel image on
-      # paths that anonymous HTTP can read: the ci-diagnostics branch for text
+      # paths that anonymous HTTP can read: the ci-kernel-mrk branch for text
       # and a release for the binaries.
       - name: Publish CI diagnostics
         if: always()
@@ -1005,15 +1006,15 @@ jobs:
           git -C "$stage/diag" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git -C "$stage/diag" config user.name houji-ci
           git -C "$stage/diag" config user.email houji-ci@users.noreply.github.com
-          git -C "$stage/diag" checkout -q -B ci-diagnostics
+          git -C "$stage/diag" checkout -q -B ci-kernel-mrk
           dest="$stage/diag/run-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:7}"
           mkdir -p "$dest"
           cp "$DIAG_DIR"/*.log "$dest/" 2>/dev/null || true
           cp "$DIAG_DIR/latest.log" "$stage/diag/run-latest.log" 2>/dev/null || true
           git -C "$stage/diag" add -f -A
           git -C "$stage/diag" commit -q -m "diagnostics for run ${GITHUB_RUN_NUMBER} ($(echo "$GITHUB_REF_NAME" | cut -c1-20) ${GITHUB_SHA:0:7})" || echo "nothing new to publish"
-          if GIT_TERMINAL_PROMPT=0 git -C "$stage/diag" push -f origin ci-diagnostics; then
-            echo "diagnostics branch: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/ci-diagnostics/run-latest.log"
+          if GIT_TERMINAL_PROMPT=0 git -C "$stage/diag" push -f origin ci-kernel-mrk; then
+            echo "diagnostics branch: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/ci-kernel-mrk/run-latest.log"
           else
             echo "DIAG_BRANCH_PUSH_FAILED"
           fi
@@ -1052,7 +1053,7 @@ jobs:
             git -C "$stage/diag" add -f kernels
             git -C "$stage/diag" commit -q -m "kernel for run ${GITHUB_RUN_NUMBER} (${GITHUB_SHA:0:7})" \
               || echo "kernel already on the branch"
-            if GIT_TERMINAL_PROMPT=0 git -C "$stage/diag" push -f origin ci-diagnostics; then
+            if GIT_TERMINAL_PROMPT=0 git -C "$stage/diag" push -f origin ci-kernel-mrk; then
               echo "KERNEL_BRANCH_PUSHED kernels/run-${GITHUB_RUN_NUMBER}-kernel.macho"
             else
               echo "KERNEL_BRANCH_PUSH_FAILED"
