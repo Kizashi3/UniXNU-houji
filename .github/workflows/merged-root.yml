@@ -100,6 +100,9 @@ jobs:
             fi
           done
           if [ -f "$OSMNT/usr/lib/dyld" ]; then sudo cp -p "$OSMNT/usr/lib/dyld" "$ROOTMNT/usr/lib/dyld"; fi
+          # launchd rejects plists whose uid/gid is not 0:0 or that are group/other writable.
+          sudo chown -R 0:0 "$ROOTMNT"
+          sudo chmod -R go-w "$ROOTMNT"
           sync
           du -sh "$ROOTMNT" || true
           df -h "$ROOTMNT"
