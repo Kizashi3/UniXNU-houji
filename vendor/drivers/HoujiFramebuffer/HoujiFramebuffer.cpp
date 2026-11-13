@@ -162,9 +162,10 @@ IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 	if ((fVsyncCount % 600) == 0) {
 		HOUJI_FB_LOG("vsync %llu swaps %u", fVsyncCount, fSwapCount);
 		if (fVsyncCount <= 3600) {
-			HOUJI_FB_LOG("services fb=%u hid=%u res=%u",
+			HOUJI_FB_LOG("services fb=%u hid=%u surf=%u res=%u",
 			    houjiCountServices("IOMobileFramebuffer"),
 			    houjiCountServices("IOHIDSystem"),
+			    houjiCountServices("IOSurfaceRoot"),
 			    houjiCountServices("IOResources"));
 		}
 	}
@@ -210,6 +211,8 @@ IOMobileFramebufferUserClient::start(IOService *provider)
 IOReturn
 IOMobileFramebufferUserClient::clientClose(void)
 {
+	HOUJI_FB_LOG("user client closed pid %d swaps %u",
+	    proc_getpid(current_proc()), fOwner ? fOwner->fSwapCount : 0);
 	terminate();
 	return kIOReturnSuccess;
 }
@@ -406,4 +409,26 @@ houji_fb_bootstrap(void)
 		}
 	}
 	HOUJI_FB_LOG("IOMobileFramebuffer registered: %s", fb->getName());
+	{
+		int on = 0;
+		PE_parse_boot_argn("houji_hid", &on, sizeof(on));
+		if (on) {
+			IOService *resources = IOService::getResourceService();
+			IOService *hid = OSDynamicCast(IOService,
+			    OSMetaClass::allocClassWithName("IOHIDSystem"));
+			if (resources == nullptr) {
+				HOUJI_FB_LOG("no IOResources for IOHIDSystem");
+			} else if (hid == nullptr) {
+				HOUJI_FB_LOG("IOHIDSystem alloc failed");
+			} else if (!hid->init(nullptr) || !hid->attach(resources)) {
+				HOUJI_FB_LOG("IOHIDSystem attach failed");
+				hid->release();
+			} else if (!hid->start(resources)) {
+				HOUJI_FB_LOG("IOHIDSystem start failed");
+			} else {
+				hid->registerService();
+				HOUJI_FB_LOG("IOHIDSystem published");
+			}
+		}
+	}
 }
