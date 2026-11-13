@@ -23,6 +23,7 @@
 #include <mach/mach_time.h>
 #include <kern/task.h>
 #include <libkern/c++/OSKext.h>
+#include <libkern/c++/OSData.h>
 
 extern "C" struct proc *current_proc(void);
 extern "C" int proc_getpid(struct proc *);
@@ -52,6 +53,7 @@ public:
 	IOMobileFramebuffer *fOwner = nullptr;
 	task_t            fTask = TASK_NULL;
 	mach_port_t       fPort = MACH_PORT_NULL;
+	uint32_t          fMethodLogCount = 0;
 
 	bool initWithTask(task_t owningTask, void *securityID, UInt32 type) override;
 	bool start(IOService *provider) override;
@@ -230,20 +232,35 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
     IOExternalMethodDispatch *dispatch, OSObject *target, void *reference)
 {
 	uint64_t out0 = 0, out1 = 0;
+	uint32_t outputCount = 0;
+	bool logMethod = fMethodLogCount < 96;
+	if (logMethod) {
+		fMethodLogCount++;
+		HOUJI_FB_LOG("method pid=%d selector=%u in=%u out=%u structIn=%llu structOut=%llu values=%llu,%llu",
+		    proc_getpid(current_proc()), selector, args->scalarInputCount,
+		    args->scalarOutputCount, (unsigned long long)args->structureInputSize,
+		    (unsigned long long)args->structureOutputSize,
+		    (unsigned long long)(args->scalarInputCount > 0 ? args->scalarInput[0] : 0),
+		    (unsigned long long)(args->scalarInputCount > 1 ? args->scalarInput[1] : 0));
+	}
 
 	switch (selector) {
 	case kSelGetDisplaySize:
 		out0 = fOwner->fWidth;
 		out1 = fOwner->fHeight;
+		outputCount = 2;
 		break;
 	case kSelIsMainDisplay:
 		out0 = 1;
+		outputCount = 1;
 		break;
 	case kSelGetDotPitch:
 		out0 = 0x10000;   /* 1.0 in 16.16, not measured */
+		outputCount = 1;
 		break;
 	case kSelGetID:
 		out0 = 1;
+		outputCount = 1;
 		break;
 	case kSelSwapBegin:
 		fOwner->fSwapCount++;
@@ -262,13 +279,29 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
 	case kSelGetLayerDefaultSurface:
 		/* Phase 2 returns a real surface port here. */
 		HOUJI_FB_LOG("default surface request (not bridged yet)");
+		if (logMethod) HOUJI_FB_LOG("method result selector=%u rc=%#x", selector, kIOReturnUnsupported);
 		return kIOReturnUnsupported;
 	default:
-		HOUJI_FB_LOG("selector %u accepted", selector);
+		if (logMethod) HOUJI_FB_LOG("selector %u accepted", selector);
 		break;
 	}
-	if (args->scalarOutputCount >= 1) args->scalarOutput[0] = out0;
-	if (args->scalarOutputCount >= 2) args->scalarOutput[1] = out1;
+	if (outputCount != 0) {
+		if (args->scalarOutput == nullptr || args->scalarOutputCount < outputCount) {
+			HOUJI_FB_LOG("method selector=%u needs %u scalar outputs", selector, outputCount);
+			return kIOReturnBadArgument;
+		}
+		args->scalarOutput[0] = out0;
+		if (outputCount == 2) args->scalarOutput[1] = out1;
+		args->scalarOutputCount = outputCount;
+	} else {
+		if (args->scalarOutputCount >= 1) args->scalarOutput[0] = out0;
+		if (args->scalarOutputCount >= 2) args->scalarOutput[1] = out1;
+	}
+	if (logMethod) {
+		HOUJI_FB_LOG("method result selector=%u rc=0 count=%u values=%llu,%llu",
+		    selector, args->scalarOutputCount,
+		    (unsigned long long)out0, (unsigned long long)out1);
+	}
 	return kIOReturnSuccess;
 }
 
@@ -296,21 +329,24 @@ houjiCountServices(const char *cls)
 	return n;
 }
 
-/*
- * Publish the display-subsystem nub under the platform expert and attach the
- * framebuffer service to it. Nothing matches it automatically: this kernel
- * has no personalities, so the service is started by hand.
- */
 class HoujiDisplayNub : public IOPlatformDevice {
 	OSDeclareDefaultStructors(HoujiDisplayNub);
 public:
 	bool init(OSDictionary *dict) override {
 		if (!IOPlatformDevice::init(dict)) return false;
-		setProperty("compatible", "houji,display");
-		setProperty("device_type", "display-subsystem");
-		setProperty("canvas-width", 1200, 32);
-		setProperty("canvas-height", 2670, 32);
-		return true;
+		static char compatible[] = "houji,display";
+		static char deviceType[] = "display-subsystem";
+		PE_Video video = {};
+		if (PE_current_console(&video) != 0 || video.v_width == 0 || video.v_height == 0) {
+			return false;
+		}
+		uint32_t width = (uint32_t)video.v_width;
+		uint32_t height = (uint32_t)video.v_height;
+		setName("display0");
+		return setProperty("compatible", compatible, sizeof(compatible)) &&
+		       setProperty("device_type", deviceType, sizeof(deviceType)) &&
+		       setProperty("canvas-width", &width, sizeof(width)) &&
+		       setProperty("canvas-height", &height, sizeof(height));
 	}
 };
 OSDefineMetaClassAndStructors(HoujiDisplayNub, IOPlatformDevice);
@@ -327,18 +363,55 @@ houji_fb_bootstrap(void)
 		HOUJI_FB_LOG("no platform expert");
 		return;
 	}
-	HoujiDisplayNub *nub = new HoujiDisplayNub;
-	if (nub == nullptr || !nub->init(nullptr) ||
-	    !nub->attachToParent(platform, gIODTPlane)) {
-		HOUJI_FB_LOG("nub alloc/attach failed");
-		if (nub != nullptr) nub->release();
-		return;
+	IOService *provider = platform;
+	auto armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
+	if (armIO) {
+		HoujiDisplayNub *nub = new HoujiDisplayNub;
+		if (nub != nullptr) {
+			if (!nub->init(nullptr)) {
+				nub->release();
+			} else if (!nub->attach(platform)) {
+				nub->release();
+			} else if (!nub->attachToParent(armIO.get(), gIODTPlane)) {
+				nub->detach(platform);
+				nub->release();
+			} else {
+				OSData *type = OSDynamicCast(OSData, nub->getProperty("device_type"));
+				OSData *compatible = OSDynamicCast(OSData, nub->getProperty("compatible"));
+				OSData *width = OSDynamicCast(OSData, nub->getProperty("canvas-width"));
+				OSData *height = OSDynamicCast(OSData, nub->getProperty("canvas-height"));
+				bool valid = type != nullptr &&
+				    type->getLength() == sizeof("display-subsystem") &&
+				    memcmp(type->getBytesNoCopy(), "display-subsystem", sizeof("display-subsystem")) == 0 &&
+				    compatible != nullptr && compatible->getLength() == sizeof("houji,display") &&
+				    memcmp(compatible->getBytesNoCopy(), "houji,display", sizeof("houji,display")) == 0 &&
+				    width != nullptr && width->getLength() == sizeof(uint32_t) &&
+				    height != nullptr && height->getLength() == sizeof(uint32_t) &&
+				    nub->getParentEntry(gIODTPlane) == armIO.get() &&
+				    nub->getProvider() == platform;
+				if (valid && nub->start(platform)) {
+					nub->registerService();
+					provider = nub;
+					char path[256];
+					int pathSize = sizeof(path);
+					if (nub->getPath(path, &pathSize, gIODTPlane)) {
+						HOUJI_FB_LOG("enumeration DT=%s type=OSData canvas=4,4 service-parent=%s",
+						    path, nub->getProvider()->getName());
+					}
+				} else {
+					nub->detachFromParent(armIO.get(), gIODTPlane);
+					nub->detach(platform);
+					nub->release();
+				}
+			}
+		}
 	}
-	nub->registerService();
-	HOUJI_FB_LOG("display nub published");
+	if (provider == platform) {
+		HOUJI_FB_LOG("enumeration precondition failed; retaining platform-provider service");
+	}
 
 	IOMobileFramebuffer *fb = new IOMobileFramebuffer;
-	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(platform) || !fb->start(platform)) {
+	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(provider) || !fb->start(provider)) {
 		HOUJI_FB_LOG("framebuffer service start failed");
 		if (fb != nullptr) fb->release();
 		return;
