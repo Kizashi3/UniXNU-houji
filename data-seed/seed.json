@@ -1,0 +1,9 @@
+{
+  "volume_uuid": "504B25A9-ABCE-4199-B88D-2C1721D66CB7",
+  "bytes": 100663296,
+  "sha256": "3330ee538afea7048a9da90bc2ef3884d47c34214eeba3e2c7ad2bcb6a0aa6bd",
+  "source_regular_files": 36,
+  "source_regular_bytes": 589907,
+  "guest_mutable": true,
+  "seed": "Original private/var excluding staged_system_apps; owners preserved; runtime skeleton added"
+}

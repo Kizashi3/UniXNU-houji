@@ -1,0 +1,79 @@
++ SRC=/Users/runner/work/_temp/system-source
++ mkdir -p /Users/runner/work/_temp/system-source/ipsw/20H392
++ STAGE=/Users/runner/work/_temp/fwstage
++ rm -rf /Users/runner/work/_temp/fwstage
++ mkdir -p /Users/runner/work/_temp/fwstage
++ gh release download fw-cache-20H392 --repo Kizashi3/UniXNU-houji --dir /Users/runner/work/_temp/fwstage
++ python3 scripts/merged-root-fwcache.py unpack /Users/runner/work/_temp/fwstage /Users/runner/work/_temp/system-source
+rebuilt 087-86593-047.dmg 2743074816
+rebuilt 087-86698-044.dmg 4730814044
++ rm -rf /Users/runner/work/_temp/fwstage
++ python3 scripts/merged-root-prep.py /Users/runner/work/_temp/system-source /Users/runner/work/_temp/dmgs.txt
+OS dmg: /Users/runner/work/_temp/system-source/ipsw/20H392/087-86698-044.dmg
+SystemOS dmg: /Users/runner/work/_temp/system-source/ipsw/20H392/087-86593-047.dmg
+++ sed -n 1p /Users/runner/work/_temp/dmgs.txt
++ DMG=/Users/runner/work/_temp/system-source/ipsw/20H392/087-86698-044.dmg
++ echo 'OS dmg: /Users/runner/work/_temp/system-source/ipsw/20H392/087-86698-044.dmg'
+OS dmg: /Users/runner/work/_temp/system-source/ipsw/20H392/087-86698-044.dmg
++ MNT=/Users/runner/work/UniXNU-houji/UniXNU-houji/upstream/.cache/firmware/target-volumes/os-mount
++ mkdir -p /Users/runner/work/UniXNU-houji/UniXNU-houji/upstream/.cache/firmware/target-volumes/os-mount
++ hdiutil attach -readonly -nobrowse -mountpoint /Users/runner/work/UniXNU-houji/UniXNU-houji/upstream/.cache/firmware/target-volumes/os-mount /Users/runner/work/_temp/system-source/ipsw/20H392/087-86698-044.dmg
+Checksumming MBR…
+                                 MBR: verified   CRC32 $20D15F3C
+Checksumming Primary GPT Header…
+                  Primary GPT Header: verified   CRC32 $FC615BAB
+Checksumming Primary GPT Table…
+                   Primary GPT Table: verified   CRC32 $E17058DA
+Checksumming Apple_APFS…
+                          Apple_APFS: verified   CRC32 $DEE926A4
+Checksumming Backup GPT Table…
+                    Backup GPT Table: verified   CRC32 $E17058DA
+Checksumming Backup GPT Header…
+                   Backup GPT Header: verified   CRC32 $F0B6535E
+verified   CRC32 $9C9A19FD
+/dev/disk5          	GUID_partition_scheme          	
+/dev/disk5s1        	Apple_APFS                     	
+/dev/disk6          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk6s1        	41504653-0000-11AA-AA11-0030654	/Users/runner/work/UniXNU-houji/UniXNU-houji/upstream/.cache/firmware/target-volumes/os-mount
++ cd /Users/runner/work/UniXNU-houji/UniXNU-houji/upstream
++ sudo python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/scripts/make-data-seed.py --output /Users/runner/work/_temp/data-seed
+created: /Users/runner/work/_temp/data-seed/owner-data-96.cdr
+"disk7" ejected.
+source launchd sha256 12370e5ee35bf28ae479b6c4b4455f4f4693ab803e37c5eb3032537c18cac61c
+{
+  "volume_uuid": "504B25A9-ABCE-4199-B88D-2C1721D66CB7",
+  "bytes": 100663296,
+  "sha256": "3330ee538afea7048a9da90bc2ef3884d47c34214eeba3e2c7ad2bcb6a0aa6bd",
+  "source_regular_files": 36,
+  "source_regular_bytes": 589907,
+  "guest_mutable": true,
+  "seed": "Original private/var excluding staged_system_apps; owners preserved; runtime skeleton added"
+}
++ hdiutil detach /Users/runner/work/UniXNU-houji/UniXNU-houji/upstream/.cache/firmware/target-volumes/os-mount
+"disk5" ejected.
++ ls -la /Users/runner/work/_temp/data-seed
+total 196616
+drwxr-xr-x  5 root    staff        160 Nov 13 09:21 .
+drwxr-xr-x  8 runner  staff        256 Nov 13 09:21 ..
+drwxr-xr-x  2 root    staff         64 Nov 13 09:21 mount
+-rw-r--r--  1 root    staff  100663296 Nov 13 09:21 owner-data-96.cdr
+-rw-r--r--  1 root    staff        356 Nov 13 09:21 seed.json
++ cd /Users/runner/work/UniXNU-houji/UniXNU-houji
++ sudo python3 scripts/seed-skip-setup.py /Users/runner/work/_temp/data-seed/owner-data-96.cdr /Users/runner/work/_temp/data-seed/owner-data-96-skip.cdr
+"disk5" ejected.
+pref com.apple.purplebuddy ['SetupDone', 'SetupFinishedAllSteps', 'SetupVersion', 'daemonizeNeedsToRun']
+pref com.apple.purplebuddy.notbackedup ['ShouldRunDiagnosticsMiniBuddy', 'ShouldRunHSA2MiniBuddy', 'ShouldRunKeychainSyncMiniBuddy', 'ShouldRunMesaMiniBuddy', 'ShouldRunPaymentMiniBuddy', 'ShouldRunStandardMiniBuddy', 'SilentICDPUpgrade']
+pref com.apple.managedconfiguration.notbackedup ['LockdownActivationIndicatesCloudConfigurationAvailable']
+pref com.apple.springboard ['BKNoWatchdogs', 'FBLaunchWatchdogExceptions', 'MCForceShowCloudConfigurationUI', 'SBDisableAutoDim', 'SBDisableIdleSleep', 'SBDontDimOrLockOnAC']
+pref com.apple.migration ['DMUserDataDisposition', 'LastSystemVersion']
+disabled ['com.apple.identityservicesd', 'com.apple.locationd', 'com.apple.CommCenter', 'com.apple.iconservices.iconservicesagent']
+wrote /Users/runner/work/_temp/data-seed/owner-data-96-skip.cdr 100663296
++ sudo gzip -f -1 /Users/runner/work/_temp/data-seed/owner-data-96-skip.cdr
++ ls -la /Users/runner/work/_temp/data-seed
+total 198616
+drwxr-xr-x  6 root    staff        192 Nov 13 09:21 .
+drwxr-xr-x  8 runner  staff        256 Nov 13 09:21 ..
+drwxr-xr-x  2 root    staff         64 Nov 13 09:21 mount
+-rw-r--r--  1 root    staff    1021228 Nov 13 09:21 owner-data-96-skip.cdr.gz
+-rw-r--r--  1 root    staff  100663296 Nov 13 09:21 owner-data-96.cdr
+-rw-r--r--  1 root    staff        356 Nov 13 09:21 seed.json
