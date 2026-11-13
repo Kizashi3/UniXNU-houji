@@ -2822,6 +2822,22 @@ extern "C" int native_verified_block_volume_device (const char *uuid, dev_t *dev
   if (!uuid || !device || !path || size < 6 || strlen (uuid) != 36) return 0;
   *device = NODEV;
   path[0] = 0;
+  IOLog ("HOUJI-VOL: lookup %s\n", uuid);
+  // HOUJI: the memdev windows publish no IOMedia, and the IOKit match below
+  // returns nothing when this runs from load_init_program. The SystemOS window
+  // is a single-volume container, and APFS resolves the volume out of the
+  // container device exactly as it does for the root window (md0s1 out of
+  // /dev/md0), so hand back /dev/md1 without asking IOKit.
+  if (!strcmp (uuid, kHoujiSystemOsVolume)) {
+    dev_t window = mdevlookup (1);
+    if (window != NODEV && size > sizeof ("/dev/md1")) {
+      *device = window;
+      strlcpy (path, "/dev/md1", size);
+      IOLog ("HOUJI-VOL: SystemOS -> %s dev=%d\n", path, (int) window);
+      return 1;
+    }
+    IOLog ("HOUJI-VOL: SystemOS window missing dev=%d\n", (int) window);
+  }
   OSDictionary *matching = IOService::serviceMatching ("IOMedia");
   OSDictionary *properties = OSDictionary::withCapacity (1);
   OSString *wanted = OSString::withCString (uuid);
