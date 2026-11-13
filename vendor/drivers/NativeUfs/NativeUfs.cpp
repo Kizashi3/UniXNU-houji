@@ -1342,6 +1342,45 @@ houjiVfsProbe (void)
 	}
 }
 
+/* HOUJI-OWN-PROBE: launchd rejects plists whose uid/gid/mode is wrong; print the truth. */
+static int houji_own_probed;
+
+static void
+houjiOwnershipProbe (void)
+{
+	static const char *paths[] = {
+		"/System/Library/LaunchDaemons/com.apple.SpringBoard.plist",
+		"/System/Library/LaunchDaemons/com.apple.backboardd.plist",
+		"/System/Library/LaunchDaemons",
+		"/usr/lib/libobjc-trampolines.dylib",
+	};
+	vfs_context_t ctx = vfs_context_kernel ();
+
+	for (unsigned i = 0; i < sizeof (paths) / sizeof (paths[0]); i++) {
+		vnode_t vp = NULL;
+		struct vnode_attr va;
+		errno_t err = vnode_lookup (paths[i], 0, &vp, ctx);
+		if (err != 0) {
+			IOLog ("HOUJI-OWN: %s lookup err %d\n", paths[i], err);
+			continue;
+		}
+		VATTR_INIT (&va);
+		VATTR_WANTED (&va, va_uid);
+		VATTR_WANTED (&va, va_gid);
+		VATTR_WANTED (&va, va_mode);
+		VATTR_WANTED (&va, va_type);
+		err = vnode_getattr (vp, &va, ctx);
+		if (err == 0) {
+			IOLog ("HOUJI-OWN: %s uid=%u gid=%u mode=0%o type=%u\n",
+			    paths[i], (unsigned)va.va_uid, (unsigned)va.va_gid,
+			    (unsigned)va.va_mode, (unsigned)va.va_type);
+		} else {
+			IOLog ("HOUJI-OWN: %s getattr err %d\n", paths[i], err);
+		}
+		vnode_put (vp);
+	}
+}
+
 /* HOUJI-KEXT-PROBE: the graphics family ships prelinked but unstarted; start it. */
 static void
 houjiKextProbe (void)
@@ -1533,6 +1572,10 @@ houjiLogThread (void *param, wait_result_t wr)
 			houji_vfs_probed = 1;
 			houjiVfsProbe ();
 			houjiKextProbe ();
+		}
+		if (!houji_own_probed && tick >= 1) {
+			houji_own_probed = 1;
+			houjiOwnershipProbe ();
 		}
 		if (houji_fb_probe_on && !houji_vfs_probed_late && tick >= 12) {
 			houji_vfs_probed_late = 1;
