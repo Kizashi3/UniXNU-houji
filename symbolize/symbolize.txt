@@ -1,0 +1,183 @@
+++ sed -n 2p /Users/runner/work/_temp/dmgs.txt
++ DMG=/Users/runner/work/_temp/system-source/ipsw/20H392/087-86593-047.dmg
++ MNT=/Users/runner/work/_temp/sysos
++ mkdir -p /Users/runner/work/_temp/sysos
++ hdiutil attach -readonly -nobrowse -mountpoint /Users/runner/work/_temp/sysos /Users/runner/work/_temp/system-source/ipsw/20H392/087-86593-047.dmg
+/dev/disk5          	                               	
+/dev/disk6          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk6s1        	41504653-0000-11AA-AA11-0030654	/Users/runner/work/_temp/sysos
+++ ls /Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
++ CACHE=/Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
++ '[' -z /Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 ']'
++ python3 scripts/dyld-cache-image.py /Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 0x19b968ca8 0x1a2690438 0x18db98780 0x18db68ddc 0x1a2641a30 0x1a269c1b4 0x1c58655c8 0x1ae3f6608 0x1a0435b34 0x1a0435ac0 0x1a03fd6a8 0x1ae4068c0 0x1c2626b08
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 2710 entries, 0 plausible
+candidate images@0x1C0: 2710 entries, 569 plausible
+candidate images@0x18: 0 entries, 0 plausible
+using images@0x1C0 (569 plausible)
+candidate text@0x88: 0 entries, 0 plausible
+candidate images@0x1C0: 0 entries, 0 plausible
+candidate images@0x18: 0 entries, 0 plausible
+VA 0x19b968ca8 -> /System/Library/PrivateFrameworks/FrontBoardServices.framework/FrontBoardServices (dyld_shared_cache_arm64) + 0x58ca8
+VA 0x1a2690438 -> /System/Library/PrivateFrameworks/FrontBoard.framework/FrontBoard (dyld_shared_cache_arm64) + 0x50438
+VA 0x18db98780 -> /usr/lib/system/libdispatch.dylib (dyld_shared_cache_arm64) + 0x64780
+VA 0x18db68ddc -> /usr/lib/system/libdispatch.dylib (dyld_shared_cache_arm64) + 0x34ddc
+VA 0x1a2641a30 -> /System/Library/PrivateFrameworks/FrontBoard.framework/FrontBoard (dyld_shared_cache_arm64) + 0x1a30
+VA 0x1a269c1b4 -> /System/Library/PrivateFrameworks/FrontBoard.framework/FrontBoard (dyld_shared_cache_arm64) + 0x5c1b4
+VA 0x1c58655c8 -> /System/Library/PrivateFrameworks/SpringBoard.framework/SpringBoard (dyld_shared_cache_arm64) + 0x9b5c8
+VA 0x1ae3f6608 -> /System/Library/PrivateFrameworks/MobileKeyBag.framework/MobileKeyBag (dyld_shared_cache_arm64) + 0x18608
+VA 0x1a0435b34 -> /System/Library/PrivateFrameworks/ProactiveSupport.framework/ProactiveSupport (dyld_shared_cache_arm64) + 0x48b34
+VA 0x1a0435ac0 -> /System/Library/PrivateFrameworks/ProactiveSupport.framework/ProactiveSupport (dyld_shared_cache_arm64) + 0x48ac0
+VA 0x1a03fd6a8 -> /System/Library/PrivateFrameworks/ProactiveSupport.framework/ProactiveSupport (dyld_shared_cache_arm64) + 0x106a8
+VA 0x1ae4068c0 -> /System/Library/PrivateFrameworks/MobileKeyBag.framework/MobileKeyBag (dyld_shared_cache_arm64) + 0x288c0
+VA 0x1c2626b08 -> /usr/lib/system/libsystem_kernel.dylib (dyld_shared_cache_arm64) + 0x16b08
++ hdiutil detach /Users/runner/work/_temp/sysos
+"disk5" ejected.
