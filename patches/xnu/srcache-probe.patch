@@ -1,8 +1,8 @@
 diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
-index 8696353..76ba85c 100644
+index 8696353..40b91d1 100644
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,434 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
+@@ -2089,6 +2089,468 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -217,6 +217,18 @@ index 8696353..76ba85c 100644
 +	    ".41.dylddata",
 +	    ".42.dyldlinkedit"
 +	};
++	/*
++	 * HOUJI-SRCACHE-v10: the cache set can arrive through the /private/preboot
++	 * mount or, when SystemOS is the union root, directly under /System. Try each
++	 * directory in turn and keep the first that yields the base cache file.
++	 */
++	static const char *const dirs[] = {
++	    UNIXNU_SRCACHE_DIR,
++	    "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64",
++	    "/System/Cryptexes/OS/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
++	};
++	const char *dir = NULL;
++	unsigned int d;
 +	struct shared_file_mapping_slide_np *maps;
 +	struct _sr_file_mappings *srms;
 +	vm_size_t maps_size = (vm_size_t)(UNIXNU_SRCACHE_MAX_MAPS * sizeof(*maps));
@@ -264,6 +276,24 @@ index 8696353..76ba85c 100644
 +	bzero(maps, maps_size);
 +	bzero(srms, srms_size);
 +
++	for (d = 0; (d < sizeof(dirs) / sizeof(dirs[0])) && (dir == NULL); d++) {
++		char probe[192];
++		vnode_t pvp = NULL;
++		int perr;
++
++		snprintf(probe, sizeof(probe), "%s%s", dirs[d], suffixes[0]);
++		perr = vnode_lookup(probe, 0, &pvp, vfs_context_current());
++		printf("HOUJI-SRCACHE: probe %s -> %d\n", probe, perr);
++		if (perr == 0) {
++			vnode_put(pvp);
++			dir = dirs[d];
++		}
++	}
++	if (dir == NULL) {
++		/* Let the loop below report "no cache files found" after cleanup. */
++		dir = dirs[0];
++	}
++
 +	for (i = 0; (i < sizeof(suffixes) / sizeof(suffixes[0])) &&
 +	    (nfiles < UNIXNU_SRCACHE_MAX_FILES); i++) {
 +		char path[160];
@@ -279,7 +309,7 @@ index 8696353..76ba85c 100644
 +		unsigned int m;
 +		int error;
 +
-+		snprintf(path, sizeof(path), "%s%s", UNIXNU_SRCACHE_DIR, suffixes[i]);
++		snprintf(path, sizeof(path), "%s%s", dir, suffixes[i]);
 +		error = vnode_lookup(path, 0, &vp, vfs_context_current());
 +		if (error != 0) {
 +			continue;
@@ -399,6 +429,10 @@ index 8696353..76ba85c 100644
 +	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
 +	if (kr == KERN_SUCCESS) {
 +		unixnu_srcache_map_anonymous(sr, dyn_off, dyn_size);
++		{
++			extern void unixnu_srcache_set_dynamic_range(uint64_t, uint64_t);
++			unixnu_srcache_set_dynamic_range(dyn_off, dyn_size);
++		}
 +		/*
 +		 * HOUJI-SRCACHE-v9: dyld's DyldProcessConfig halts unless the dynamic
 +		 * config page carries the magic and the cache file's fs identity.
@@ -437,7 +471,7 @@ index 8696353..76ba85c 100644
  int
  shared_region_check_np(
  	__unused struct proc                    *p,
-@@ -2097,6 +2525,9 @@ shared_region_check_np(
+@@ -2097,6 +2559,9 @@ shared_region_check_np(
  {
  	vm_shared_region_t      shared_region;
  	mach_vm_offset_t        start_address = 0;
@@ -447,7 +481,7 @@ index 8696353..76ba85c 100644
  	int                     error = 0;
  	kern_return_t           kr;
  	task_t                  task = current_task();
-@@ -2976,6 +3407,9 @@ shared_region_map_and_slide_2_np(
+@@ -2976,6 +3441,9 @@ shared_region_map_and_slide_2_np(
  		slide_amount = 0;
  	}
  #endif /* DEVELOPMENT || DEBUG */
@@ -457,40 +491,3 @@ index 8696353..76ba85c 100644
  
  	/*
  	 * Fix up the mappings to reflect the desired slide.
-diff --git a/bsd/vfs/vfs_cluster.c b/bsd/vfs/vfs_cluster.c
-index ccc685a..7a36546 100644
---- a/bsd/vfs/vfs_cluster.c
-+++ b/bsd/vfs/vfs_cluster.c
-@@ -918,13 +918,16 @@ cluster_iodone(buf_t bp, void *callback_arg)
- 		}
- 
- 		error = VNOP_VERIFY(vp, start_off, (uint8_t *)verify_buf, verify_length, 0, &verify_ctx, verify_flags, NULL);
-+		/* HOUJI: a cryptex cache page cannot verify before its CS blob is installed. */
-+		error = 0;
- 
- 		if (verify_buf) {
- 			(void)ubc_upl_unmap_range(upl, upl_offset, round_page(transaction_size));
- 			verify_buf = NULL;
- 		}
- 	} else if (cbp_head->b_attr.ba_flags & BA_WILL_VERIFY) {
--		error = EBADMSG;
-+		/* HOUJI: cryptex cache files cannot verify before their CS blob is installed. */
-+		error = 0;
- 	}
- 
- 	free_io_buf(cbp_head);
-diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
-index 76ba85c..228f834 100644
---- a/bsd/vm/vm_unix.c
-+++ b/bsd/vm/vm_unix.c
-@@ -2482,6 +2482,10 @@ unixnu_srcache_map(void)
- 	printf("HOUJI-SRCACHE: vm_shared_region_map_file kr=%d\n", kr);
- 	if (kr == KERN_SUCCESS) {
- 		unixnu_srcache_map_anonymous(sr, dyn_off, dyn_size);
-+		{
-+			extern void unixnu_srcache_set_dynamic_range(uint64_t, uint64_t);
-+			unixnu_srcache_set_dynamic_range(dyn_off, dyn_size);
-+		}
- 		/*
- 		 * HOUJI-SRCACHE-v9: dyld's DyldProcessConfig halts unless the dynamic
- 		 * config page carries the magic and the cache file's fs identity.
