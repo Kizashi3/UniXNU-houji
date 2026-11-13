@@ -1,0 +1,94 @@
+++ sed -n 2p /Users/runner/work/_temp/dmgs.txt
++ DMG=/Users/runner/work/_temp/system-source/ipsw/20H392/087-86593-047.dmg
++ MNT=/Users/runner/work/_temp/sysos
++ mkdir -p /Users/runner/work/_temp/sysos
++ hdiutil attach -readonly -nobrowse -mountpoint /Users/runner/work/_temp/sysos /Users/runner/work/_temp/system-source/ipsw/20H392/087-86593-047.dmg
+/dev/disk5          	                               	
+/dev/disk6          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk6s1        	41504653-0000-11AA-AA11-0030654	/Users/runner/work/_temp/sysos
++ CACHEDIR=/Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld
++ ls -la /Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld
++ head -40
+total 5088472
+drwxr-xr-x  46 runner  staff       1472 Apr 30  2026 .
+drwxr-xr-x   3 runner  staff         96 Apr 30  2026 ..
+-rwxr-xr-x   1 runner  staff     393216 Apr 30  2026 dyld_shared_cache_arm64
+-rwxr-xr-x   1 runner  staff  114638848 Apr 30  2026 dyld_shared_cache_arm64.01
+-rwxr-xr-x   1 runner  staff      98304 Apr 30  2026 dyld_shared_cache_arm64.02
+-rwxr-xr-x   1 runner  staff  115769344 Apr 30  2026 dyld_shared_cache_arm64.03
+-rwxr-xr-x   1 runner  staff     180224 Apr 30  2026 dyld_shared_cache_arm64.04
+-rwxr-xr-x   1 runner  staff  114540544 Apr 30  2026 dyld_shared_cache_arm64.05
+-rwxr-xr-x   1 runner  staff     376832 Apr 30  2026 dyld_shared_cache_arm64.06
+-rwxr-xr-x   1 runner  staff  115408896 Apr 30  2026 dyld_shared_cache_arm64.07
+-rwxr-xr-x   1 runner  staff     278528 Apr 30  2026 dyld_shared_cache_arm64.08
+-rwxr-xr-x   1 runner  staff  115752960 Apr 30  2026 dyld_shared_cache_arm64.09
+-rwxr-xr-x   1 runner  staff     409600 Apr 30  2026 dyld_shared_cache_arm64.10
+-rwxr-xr-x   1 runner  staff  115818496 Apr 30  2026 dyld_shared_cache_arm64.11
+-rwxr-xr-x   1 runner  staff     393216 Apr 30  2026 dyld_shared_cache_arm64.12
+-rwxr-xr-x   1 runner  staff  107970560 Apr 30  2026 dyld_shared_cache_arm64.13
+-rwxr-xr-x   1 runner  staff     409600 Apr 30  2026 dyld_shared_cache_arm64.14
+-rwxr-xr-x   1 runner  staff  115097600 Apr 30  2026 dyld_shared_cache_arm64.15
+-rwxr-xr-x   1 runner  staff     458752 Apr 30  2026 dyld_shared_cache_arm64.16
+-rwxr-xr-x   1 runner  staff   97419264 Apr 30  2026 dyld_shared_cache_arm64.17
+-rwxr-xr-x   1 runner  staff     376832 Apr 30  2026 dyld_shared_cache_arm64.18
+-rwxr-xr-x   1 runner  staff  107610112 Apr 30  2026 dyld_shared_cache_arm64.19
+-rwxr-xr-x   1 runner  staff     262144 Apr 30  2026 dyld_shared_cache_arm64.20
+-rwxr-xr-x   1 runner  staff  115130368 Apr 30  2026 dyld_shared_cache_arm64.21
+-rwxr-xr-x   1 runner  staff     442368 Apr 30  2026 dyld_shared_cache_arm64.22
+-rwxr-xr-x   1 runner  staff  115015680 Apr 30  2026 dyld_shared_cache_arm64.23
+-rwxr-xr-x   1 runner  staff     507904 Apr 30  2026 dyld_shared_cache_arm64.24
+-rwxr-xr-x   1 runner  staff   83607552 Apr 30  2026 dyld_shared_cache_arm64.25
+-rwxr-xr-x   1 runner  staff     245760 Apr 30  2026 dyld_shared_cache_arm64.26
+-rwxr-xr-x   1 runner  staff  187105280 Apr 30  2026 dyld_shared_cache_arm64.27.dylddata
+-rwxr-xr-x   1 runner  staff   19922944 Apr 30  2026 dyld_shared_cache_arm64.28.dyldlinkedit
+-rwxr-xr-x   1 runner  staff  115539968 Apr 30  2026 dyld_shared_cache_arm64.29
+-rwxr-xr-x   1 runner  staff     507904 Apr 30  2026 dyld_shared_cache_arm64.30
+-rwxr-xr-x   1 runner  staff  103677952 Apr 30  2026 dyld_shared_cache_arm64.31
+-rwxr-xr-x   1 runner  staff     573440 Apr 30  2026 dyld_shared_cache_arm64.32
+-rwxr-xr-x   1 runner  staff  115785728 Apr 30  2026 dyld_shared_cache_arm64.33
+-rwxr-xr-x   1 runner  staff     638976 Apr 30  2026 dyld_shared_cache_arm64.34
+-rwxr-xr-x   1 runner  staff  115769344 Apr 30  2026 dyld_shared_cache_arm64.35
+-rwxr-xr-x   1 runner  staff     491520 Apr 30  2026 dyld_shared_cache_arm64.36
+++ ls /Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
+++ head -1
++ C=/Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
++ echo cache=/Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
+cache=/Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
++ echo '== which'
+== which
++ which dyld_shared_cache_util
++ true
++ ls /usr/bin
++ grep -i dyld
+dyld_info
+dyld_usage
+update_dyld_shared_cache
++ xcrun --find dyld_shared_cache_util
+xcrun: error: sh -c '/Applications/Xcode_16.4.app/Contents/Developer/usr/bin/xcodebuild -sdk /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -find dyld_shared_cache_util 2> /dev/null' failed with exit code 17664: (null) (errno=Invalid argument)
+xcrun: error: unable to find utility "dyld_shared_cache_util", not a developer tool or in PATH
++ true
++ echo '== help'
+== help
++ dyld_shared_cache_util -help
++ head -60
+/Users/runner/work/_temp/1529c881-0be5-4d3a-8346-da4a38bf8f28.sh: line 16: dyld_shared_cache_util: command not found
++ echo '== list frontboard'
+== list frontboard
++ grep -i 'frontboard\|iomobileframebuffer'
++ dyld_shared_cache_util -list /Users/runner/work/_temp/sysos/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
++ head -20
++ echo '== standalone files'
+== standalone files
++ ls -la /Users/runner/work/_temp/sysos/System/Library/PrivateFrameworks/FrontBoardServices.framework
++ head -10
+ls: /Users/runner/work/_temp/sysos/System/Library/PrivateFrameworks/FrontBoardServices.framework: No such file or directory
++ ls -la /Users/runner/work/_temp/sysos/System/Library/PrivateFrameworks/IOMobileFramebuffer.framework
++ head -10
+ls: /Users/runner/work/_temp/sysos/System/Library/PrivateFrameworks/IOMobileFramebuffer.framework: No such file or directory
++ echo '== symbols files'
+== symbols files
++ ls -la '/Users/runner/work/_temp/sysos/System/Library/dyld/*'
++ head -10
+ls: /Users/runner/work/_temp/sysos/System/Library/dyld/*: No such file or directory
++ hdiutil detach /Users/runner/work/_temp/sysos
+"disk5" ejected.
