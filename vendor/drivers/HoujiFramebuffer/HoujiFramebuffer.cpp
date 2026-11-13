@@ -26,6 +26,8 @@
 
 #define HOUJI_FB_LOG(fmt, ...) IOLog("HOUJI-FB: " fmt "\n", ##__VA_ARGS__)
 
+static unsigned houjiCountServices(const char *cls);
+
 /* User-client selectors observed from the framework's call sites. */
 enum {
 	kSelGetLayerDefaultSurface = 3,
@@ -156,6 +158,12 @@ IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 	fVsyncCount++;
 	if ((fVsyncCount % 600) == 0) {
 		HOUJI_FB_LOG("vsync %llu swaps %u", fVsyncCount, fSwapCount);
+		if (fVsyncCount <= 3600) {
+			HOUJI_FB_LOG("services fb=%u hid=%u res=%u",
+			    houjiCountServices("IOMobileFramebuffer"),
+			    houjiCountServices("IOHIDSystem"),
+			    houjiCountServices("IOResources"));
+		}
 	}
 	sender->wakeAtTime(mach_absolute_time() + fPeriod);
 }
@@ -258,6 +266,30 @@ HoujiFramebufferClient::externalMethod(uint32_t selector, IOExternalMethodArgume
 	return kIOReturnSuccess;
 }
 
+static unsigned
+houjiCountServices(const char *cls)
+{
+	unsigned n = 0;
+	OSDictionary *m = OSDictionary::withCapacity(1);
+
+	if (m == nullptr) {
+		return 0;
+	}
+	OSString *s = OSString::withCString(cls);
+	if (s != nullptr) {
+		m->setObject(kIOProviderClassKey, s);
+		auto it = IOService::getMatchingServices(m);
+		if (it) {
+			while (it->getNextObject() != nullptr) {
+				n++;
+			}
+		}
+		s->release();
+	}
+	m->release();
+	return n;
+}
+
 /*
  * Publish the display-subsystem nub under the platform expert and attach the
  * framebuffer service to it. Nothing matches it automatically: this kernel
@@ -300,7 +332,7 @@ houji_fb_bootstrap(void)
 	HOUJI_FB_LOG("display nub published");
 
 	IOMobileFramebuffer *fb = new IOMobileFramebuffer;
-	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(nub) || !fb->start(nub)) {
+	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(platform) || !fb->start(platform)) {
 		HOUJI_FB_LOG("framebuffer service start failed");
 		if (fb != nullptr) fb->release();
 		return;
