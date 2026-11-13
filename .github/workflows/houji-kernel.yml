@@ -862,6 +862,9 @@ jobs:
             cp out/houji/kernel/kernel.macho "$T/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.macho"
             cp out/houji/kernel/kernel.json "$T/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.json"
             cd "$T"
+            pwd
+            ls -la build/native-prelink | head -10
+            python3 -c "from pathlib import Path; r=Path('scripts/audit-mobile-graphics-legacy.py').resolve().parents[1]; print('audit ROOT', r); print('exists', (r/'build/native-prelink/native-owner-mobile-graphics-candidate.macho').exists())"
             python3 scripts/audit-mobile-graphics-legacy.py
             python3 scripts/build-native-legacy-display.py
             ls -la build/native-legacy-display
