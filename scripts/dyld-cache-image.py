@@ -73,6 +73,21 @@ def tables_of(path):
         cands.append(("images@0x1C0", parse_image_array(f, new_off, new_cnt, fsize)))
         old_off, old_cnt = struct.unpack_from("<II", head, 0x18)
         cands.append(("images@0x18", parse_image_array(f, old_off, old_cnt, fsize)))
+        fixed = []
+        for tag, entries in cands:
+            if tag.startswith('images@') and entries:
+                entries = sorted(entries)
+                out = []
+                for i, (load, size, name) in enumerate(entries):
+                    nxt = entries[i + 1][0] if i + 1 < len(entries) else load + 0x800000
+                    span = nxt - load
+                    if 0 < span < 0x10000000:
+                        size = span
+                    out.append((load, size, name))
+                fixed.append((tag, out))
+            else:
+                fixed.append((tag, entries))
+        cands = fixed
         best = None
         for tag, entries in cands:
             score = valid_images(entries)
