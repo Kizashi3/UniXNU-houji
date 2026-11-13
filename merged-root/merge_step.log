@@ -1,5 +1,5 @@
 + date
-Fri Nov 13 02:37:46 UTC 2026
+Fri Nov 13 06:39:03 UTC 2026
 + df -h / /Users/runner/work/_temp
 Filesystem        Size    Used   Avail Capacity iused ifree %iused  Mounted on
 /dev/disk2s1s1   320Gi    10Gi    39Gi    22%    426k  409M    0%   /
@@ -61,7 +61,7 @@ usr
 + rm -f /tmp/root.dmg /tmp/root.sparseimage
 + hdiutil create -size 9.5g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
 created: /tmp/root.sparseimage
-+ hdiutil attach -nobrowse /tmp/root.sparseimage
++ hdiutil attach -owners on -nobrowse /tmp/root.sparseimage
 + tee /tmp/att_root.txt
 /dev/disk10         	EF57347C-0000-11AA-AA11-0030654	
 /dev/disk10s1       	41504653-0000-11AA-AA11-0030654	/Volumes/houjiRoot
@@ -96,98 +96,4 @@ Filesystem       Size    Used   Avail Capacity iused ifree %iused  Mounted on
 + for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
 + '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/System/Library/Caches/com.apple.dyld ']'
 + mkdir -p /Volumes/houjiRoot/System/Library/Caches/com.apple.dyld
-+ sudo rsync -aH --numeric-ids /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/System/Library/Caches/com.apple.dyld/ /Volumes/houjiRoot/System/Library/Caches/com.apple.dyld/
-+ '[' -f /Volumes/SydneyUpdate20H392.D22D221OS/usr/lib/dyld ']'
-+ sudo cp -p /Volumes/SydneyUpdate20H392.D22D221OS/usr/lib/dyld /Volumes/houjiRoot/usr/lib/dyld
-+ sudo chown -R 0:0 /Volumes/houjiRoot
-+ sudo chmod -R go-w /Volumes/houjiRoot
-+ sync
-+ du -sh /Volumes/houjiRoot
-8.2G	/Volumes/houjiRoot
-+ df -h /Volumes/houjiRoot
-Filesystem       Size    Used   Avail Capacity iused ifree %iused  Mounted on
-/dev/disk10s1   9.3Gi   8.3Gi   987Mi    90%    281k   10M    3%   /Volumes/houjiRoot
-++ awk 'NF>=2 {print $1}' /tmp/att_root.txt
-++ grep '^/dev/disk'
-++ paste -sd, -
-+ CANDS=/dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2
-+ echo candidates=/dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2
-candidates=/dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2
-+ rm -f '/Users/runner/work/_temp/part-*'
-+ sudo /usr/bin/python3 scripts/merged-root-extract.py --devices /dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2 /Users/runner/work/_temp 1900 /Users/runner/work/_temp/merged-root.report.json 18
-candidate /dev/disk10 open failed: [Errno 16] Resource busy: '/dev/disk10'
-candidate /dev/disk10s1 open failed: [Errno 16] Resource busy: '/dev/disk10s1'
-candidate /dev/disk9 no NXSB, first bytes 0000000000000000
-candidate /dev/disk9s1 no NXSB, first bytes eb58904253442020
-using /dev/disk9s2 bare base 0 container 9990791168
-streamed 1073741824
-closed /Users/runner/work/_temp/part-00 1992294400
-streamed 2147483648
-streamed 3221225472
-closed /Users/runner/work/_temp/part-01 1992294400
-streamed 4294967296
-streamed 5368709120
-closed /Users/runner/work/_temp/part-02 1992294400
-streamed 6442450944
-streamed 7516192768
-closed /Users/runner/work/_temp/part-03 1992294400
-streamed 8589934592
-streamed 9663676416
-closed /Users/runner/work/_temp/part-04 1992294400
-closed /Users/runner/work/_temp/part-05 29319168
-{
- "bytes": 9990791168,
- "sha256": "fe86551717e6df43bab3abc04bfd65c2ebdadb9ab8aac0ddc160273aecb2dadd",
- "run": "18",
- "part_mib": 1900,
- "parts": [
-  {
-   "name": "part-00",
-   "bytes": 1992294400,
-   "sha256": "02902f18ef97fda367905b524f281f44fdc4783c6bc673fb4f267236363a3440"
-  },
-  {
-   "name": "part-01",
-   "bytes": 1992294400,
-   "sha256": "ddcce8f3816f249f948803dacf6203d3897c89605ea7e8c4ee2b7c12333cf1cf"
-  },
-  {
-   "name": "part-02",
-   "bytes": 1992294400,
-   "sha256": "16d4851a896786a5bc76564319231de8fd8b4c6347f95884cb2749c94af63930"
-  },
-  {
-   "name": "part-03",
-   "bytes": 1992294400,
-   "sha256": "a249f612b95f179daa083e8063360f9cd637c2089b8fbc8a26dfc5bfdf12f4c3"
-  },
-  {
-   "name": "part-04",
-   "bytes": 1992294400,
-   "sha256": "9088f6679efa52a43b3be02de0ca59ab9b3fbe998da788d405947e14e0a69151"
-  },
-  {
-   "name": "part-05",
-   "bytes": 29319168,
-   "sha256": "48d2dfcbb059268a7660607f829418a45c2f63092e539882633c36b552fa766c"
-  }
- ]
-}
-SPLIT_DONE 9990791168
-+ hdiutil detach -force /Volumes/houjiRoot
-"disk9" ejected.
-+ hdiutil detach /Volumes/SydneyUpdate20H392.D22D221OS
-"disk5" ejected.
-+ hdiutil detach /Volumes/SydneyUpdate20H392.D22D221SystemCryptex
-"disk7" ejected.
-+ rm -f /tmp/root.sparseimage
-+ ls -la /Users/runner/work/_temp/part-00 /Users/runner/work/_temp/part-01 /Users/runner/work/_temp/part-02 /Users/runner/work/_temp/part-03 /Users/runner/work/_temp/part-04 /Users/runner/work/_temp/part-05
--rw-r--r--  1 root  staff  1992294400 Nov 13 02:51 /Users/runner/work/_temp/part-00
--rw-r--r--  1 root  staff  1992294400 Nov 13 02:52 /Users/runner/work/_temp/part-01
--rw-r--r--  1 root  staff  1992294400 Nov 13 02:52 /Users/runner/work/_temp/part-02
--rw-r--r--  1 root  staff  1992294400 Nov 13 02:53 /Users/runner/work/_temp/part-03
--rw-r--r--  1 root  staff  1992294400 Nov 13 02:53 /Users/runner/work/_temp/part-04
--rw-r--r--  1 root  staff    29319168 Nov 13 02:53 /Users/runner/work/_temp/part-05
-+ df -h /Users/runner/work/_temp
-Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
-/dev/disk2s5   320Gi   272Gi    29Gi    91%    2.2M  309M    1%   /System/Volumes/Data
+mkdir: /Volumes/houjiRoot/System/Library/Caches/com.apple.dyld: Permission denied
