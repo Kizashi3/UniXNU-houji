@@ -2,7 +2,7 @@ diff --git a/bsd/vm/vm_unix.c b/bsd/vm/vm_unix.c
 index 8696353..76ba85c 100644
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2089,6 +2089,434 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
+@@ -2089,6 +2089,445 @@ SYSCTL_INT(_vm, OID_AUTO, shared_region_persistence, CTLFLAG_RW | CTLFLAG_LOCKED
   * ENOMEM	shared region is empty
   * EFAULT	bad address for "start_address"
   */
@@ -104,6 +104,7 @@ index 8696353..76ba85c 100644
 +extern boolean_t PE_parse_boot_argn(const char *arg_string, void *arg_ptr, int arg_len);
 +
 +#define UNIXNU_SRCACHE_DIR       "/private/preboot/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
++#define UNIXNU_SRCACHE_DIR_ROOT  "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64"
 +#define UNIXNU_SRCACHE_MAX_FILES 48
 +/* The 44-file iOS 16 cache set needs ~51 mappings; keep the kernel stack out of it. */
 +#define UNIXNU_SRCACHE_MAX_MAPS  256 /* HOUJI-SRCACHE-v7 */
@@ -279,8 +280,18 @@ index 8696353..76ba85c 100644
 +		unsigned int m;
 +		int error;
 +
-+		snprintf(path, sizeof(path), "%s%s", UNIXNU_SRCACHE_DIR, suffixes[i]);
-+		error = vnode_lookup(path, 0, &vp, vfs_context_current());
++		{
++			const char *dirs[2] = { UNIXNU_SRCACHE_DIR_ROOT, UNIXNU_SRCACHE_DIR };
++			int di;
++			error = -1;
++			for (di = 0; di < 2; di++) {
++				snprintf(path, sizeof(path), "%s%s", dirs[di], suffixes[i]);
++				error = vnode_lookup(path, 0, &vp, vfs_context_current());
++				if (error == 0) {
++					break;
++				}
++			}
++		}
 +		if (error != 0) {
 +			continue;
 +		}
