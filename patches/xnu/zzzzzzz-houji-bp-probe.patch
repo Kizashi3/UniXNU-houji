@@ -1,0 +1,28 @@
+diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
+--- a/osfmk/arm64/sleh.c
++++ b/osfmk/arm64/sleh.c
+@@ -1228,6 +1228,24 @@
+ 	exception_type_t           exception = EXC_BREAKPOINT;
+ 	mach_exception_data_type_t codes[2]  = {EXC_ARM_BREAKPOINT};
+ 	mach_msg_type_number_t     numcodes  = 2;
++
++	/* HOUJI-BP: log the user breakpoint site so a SIGTRAP death names itself. */
++	{
++		static unsigned houji_bp_count;
++		extern struct proc *current_proc(void);
++		extern int proc_getpid(struct proc *);
++		arm_saved_state64_t *bp_ss = saved_state64(state);
++		if (houji_bp_count < 40) {
++			houji_bp_count++;
++			printf("HOUJI-BP: pid %d pc=%#llx lr=%#llx esr=%#x x0=%#llx x1=%#llx\n",
++			    proc_getpid(current_proc()),
++			    (unsigned long long)get_saved_state_pc(state),
++			    (unsigned long long)bp_ss->lr,
++			    esr,
++			    (unsigned long long)bp_ss->x[0],
++			    (unsigned long long)bp_ss->x[1]);
++		}
++	}
+ 
+ #if __has_feature(ptrauth_calls)
+ 	if (ESR_EC(esr) == ESR_EC_BRK_AARCH64 &&
