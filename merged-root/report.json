@@ -1,0 +1,38 @@
+{
+ "bytes": 9990791168,
+ "sha256": "523f2967d88e5c8ea0e748a3e4dfc7ecfb9ca4b0ae0ac0472a1a1ddaf70c2a48",
+ "run": "20",
+ "part_mib": 1900,
+ "parts": [
+  {
+   "name": "part-00",
+   "bytes": 1992294400,
+   "sha256": "4cdede547d6f978b8ad4f8d5016d387e99948619973a091a7174a927e5b99570"
+  },
+  {
+   "name": "part-01",
+   "bytes": 1992294400,
+   "sha256": "7fd762c4905b86edaba87fc55241129777d975d0ae8523cadd62437f1cd0fa36"
+  },
+  {
+   "name": "part-02",
+   "bytes": 1992294400,
+   "sha256": "6f1ca1e6e1ca3eae332b1809dee01e33f2fb9df45d3960544cf3bbfc740938bc"
+  },
+  {
+   "name": "part-03",
+   "bytes": 1992294400,
+   "sha256": "22f538574fb3b25a7ec711f9bc535cef3451360e127b27900bd9db796d140f95"
+  },
+  {
+   "name": "part-04",
+   "bytes": 1992294400,
+   "sha256": "29600c0ab8fdf1f76c5718e9f535bdc23f708799cbae8cc8f4b8c7a7df390d5f"
+  },
+  {
+   "name": "part-05",
+   "bytes": 29319168,
+   "sha256": "48d2dfcbb059268a7660607f829418a45c2f63092e539882633c36b552fa766c"
+  }
+ ]
+}

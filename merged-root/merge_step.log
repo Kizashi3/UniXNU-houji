@@ -1,0 +1,224 @@
++ date
+Fri Nov 13 06:58:05 UTC 2026
++ df -h / /Users/runner/work/_temp
+Filesystem        Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk2s1s1   320Gi    10Gi    39Gi    22%    426k  408M    0%   /
+/dev/disk2s5     320Gi   263Gi    39Gi    88%    2.2M  408M    1%   /System/Volumes/Data
+++ sed -n 1p /Users/runner/work/_temp/dmgs.txt
++ OS_DMG=/Users/runner/work/_temp/system-source/ipsw/20H392/087-86698-044.dmg
+++ sed -n 2p /Users/runner/work/_temp/dmgs.txt
++ SYS_DMG=/Users/runner/work/_temp/system-source/ipsw/20H392/087-86593-047.dmg
++ hdiutil attach -readonly -nobrowse /Users/runner/work/_temp/system-source/ipsw/20H392/087-86698-044.dmg
++ tee /tmp/att_os.txt
+Checksumming MBR…
+                                 MBR: verified   CRC32 $20D15F3C
+Checksumming Primary GPT Header…
+                  Primary GPT Header: verified   CRC32 $FC615BAB
+Checksumming Primary GPT Table…
+                   Primary GPT Table: verified   CRC32 $E17058DA
+Checksumming Apple_APFS…
+                          Apple_APFS: verified   CRC32 $DEE926A4
+Checksumming Backup GPT Table…
+                    Backup GPT Table: verified   CRC32 $E17058DA
+Checksumming Backup GPT Header…
+                   Backup GPT Header: verified   CRC32 $F0B6535E
+verified   CRC32 $9C9A19FD
+/dev/disk5          	GUID_partition_scheme          	
+/dev/disk5s1        	Apple_APFS                     	
+/dev/disk6          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk6s1        	41504653-0000-11AA-AA11-0030654	/Volumes/SydneyUpdate20H392.D22D221OS
+++ awk 'NF>=3 {print $NF}' /tmp/att_os.txt
+++ tail -1
++ OSMNT=/Volumes/SydneyUpdate20H392.D22D221OS
++ hdiutil attach -readonly -nobrowse /Users/runner/work/_temp/system-source/ipsw/20H392/087-86593-047.dmg
++ tee /tmp/att_sys.txt
+/dev/disk7          	                               	
+/dev/disk8          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk8s1        	41504653-0000-11AA-AA11-0030654	/Volumes/SydneyUpdate20H392.D22D221SystemCryptex
+++ awk 'NF>=3 {print $NF}' /tmp/att_sys.txt
+++ tail -1
++ SYSMNT=/Volumes/SydneyUpdate20H392.D22D221SystemCryptex
++ echo 'OS at /Volumes/SydneyUpdate20H392.D22D221OS'
+OS at /Volumes/SydneyUpdate20H392.D22D221OS
++ ls /Volumes/SydneyUpdate20H392.D22D221OS
++ head
+Applications
+bin
+cores
+dev
+Developer
+etc
+Library
+private
+sbin
+System
++ echo 'SystemOS at /Volumes/SydneyUpdate20H392.D22D221SystemCryptex'
+SystemOS at /Volumes/SydneyUpdate20H392.D22D221SystemCryptex
++ ls /Volumes/SydneyUpdate20H392.D22D221SystemCryptex
++ head
+System
+usr
++ rm -f /tmp/root.dmg /tmp/root.sparseimage
++ hdiutil create -size 9.5g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
+created: /tmp/root.sparseimage
++ hdiutil attach -owners on -nobrowse /tmp/root.sparseimage
++ tee /tmp/att_root.txt
+/dev/disk10         	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk10s1       	41504653-0000-11AA-AA11-0030654	/Volumes/houjiRoot
+/dev/disk9          	GUID_partition_scheme          	
+/dev/disk9s1        	EFI                            	
+/dev/disk9s2        	Apple_APFS                     	
+++ awk 'NF>=3 {print $NF}' /tmp/att_root.txt
+++ tail -1
++ ROOTMNT=/Volumes/houjiRoot
++ echo 'merged at /Volumes/houjiRoot'
+merged at /Volumes/houjiRoot
++ df -h /Volumes/houjiRoot
+Filesystem       Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk10s1   9.3Gi    20Ki   9.3Gi     1%       0   97M    0%   /Volumes/houjiRoot
++ sudo ditto /Volumes/SydneyUpdate20H392.D22D221OS/ /Volumes/houjiRoot/
++ for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
++ '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/usr/lib ']'
++ sudo mkdir -p /Volumes/houjiRoot/usr/lib
++ sudo rsync -aH --numeric-ids /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/usr/lib/ /Volumes/houjiRoot/usr/lib/
++ for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
++ '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/usr/libexec ']'
++ for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
++ '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/usr/bin ']'
++ for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
++ '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/usr/sbin ']'
++ for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
++ '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/usr/share ']'
++ for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
++ '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/System/Library/CoreServices ']'
++ sudo mkdir -p /Volumes/houjiRoot/System/Library/CoreServices
++ sudo rsync -aH --numeric-ids /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/System/Library/CoreServices/ /Volumes/houjiRoot/System/Library/CoreServices/
++ for sub in usr/lib usr/libexec usr/bin usr/sbin usr/share System/Library/CoreServices System/Library/Caches/com.apple.dyld
++ '[' -d /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/System/Library/Caches/com.apple.dyld ']'
++ sudo mkdir -p /Volumes/houjiRoot/System/Library/Caches/com.apple.dyld
++ sudo rsync -aH --numeric-ids /Volumes/SydneyUpdate20H392.D22D221SystemCryptex/System/Library/Caches/com.apple.dyld/ /Volumes/houjiRoot/System/Library/Caches/com.apple.dyld/
++ '[' -f /Volumes/SydneyUpdate20H392.D22D221OS/usr/lib/dyld ']'
++ sudo cp -p /Volumes/SydneyUpdate20H392.D22D221OS/usr/lib/dyld /Volumes/houjiRoot/usr/lib/dyld
++ sudo chown -R 0:0 /Volumes/houjiRoot
++ sudo chmod -R go-w /Volumes/houjiRoot
++ stat -f 'HOUJI-OWN-CHECK %u:%g %m %N' /Volumes/houjiRoot/System/Library/LaunchDaemons/com.apple.SpringBoard.plist
+HOUJI-OWN-CHECK 0:0 1777518794 /Volumes/houjiRoot/System/Library/LaunchDaemons/com.apple.SpringBoard.plist
++ stat -f 'HOUJI-OWN-CHECK %u:%g %m %N' /Volumes/houjiRoot/usr/lib/libobjc-trampolines.dylib
+HOUJI-OWN-CHECK 0:0 1777522394 /Volumes/houjiRoot/usr/lib/libobjc-trampolines.dylib
++ sync
++ du -sh /Volumes/houjiRoot
+du: /Volumes/houjiRoot/private/var/buddy: Permission denied
+du: /Volumes/houjiRoot/private/var/audit: Permission denied
+du: /Volumes/houjiRoot/private/var/mobile: Permission denied
+du: /Volumes/houjiRoot/private/var/root: Permission denied
+du: /Volumes/houjiRoot/private/var/db/diskimagesiod: Permission denied
+du: /Volumes/houjiRoot/private/var/db/sysdiagnose/com.apple.sysdiagnose: Permission denied
+du: /Volumes/houjiRoot/private/var/db/analyticsd: Permission denied
+du: /Volumes/houjiRoot/private/var/db/rmd: Permission denied
+du: /Volumes/houjiRoot/private/var/db/knowledgegraphd: Permission denied
+du: /Volumes/houjiRoot/private/var/db/coreml: Permission denied
+du: /Volumes/houjiRoot/private/var/db/fpsd: Permission denied
+du: /Volumes/houjiRoot/private/var/db/reportmemoryexception: Permission denied
+du: /Volumes/houjiRoot/private/var/db/Sandbox: Permission denied
+du: /Volumes/houjiRoot/private/var/db/lockdown: Permission denied
+du: /Volumes/houjiRoot/private/var/db/gpsd: Permission denied
+du: /Volumes/houjiRoot/private/var/db/biome: Permission denied
+du: /Volumes/houjiRoot/private/var/db/diagnostics: Permission denied
+du: /Volumes/houjiRoot/private/var/db/datadetectors: Permission denied
+du: /Volumes/houjiRoot/private/var/db/com.apple.xpc.roleaccountd.staging: Permission denied
+du: /Volumes/houjiRoot/private/var/db/nearbyd: Permission denied
+du: /Volumes/houjiRoot/private/var/db/mmaintenanced: Permission denied
+du: /Volumes/houjiRoot/private/var/db/timed: Permission denied
+du: /Volumes/houjiRoot/private/var/db/darwindaemon: Permission denied
+du: /Volumes/houjiRoot/private/var/db/accessoryupdater: Permission denied
+du: /Volumes/houjiRoot/.ba: Permission denied
+du: /Volumes/houjiRoot/.mb: Permission denied
+8.2G	/Volumes/houjiRoot
++ true
++ df -h /Volumes/houjiRoot
+Filesystem       Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk10s1   9.3Gi   8.3Gi   986Mi    90%    281k   10M    3%   /Volumes/houjiRoot
+++ awk 'NF>=2 {print $1}' /tmp/att_root.txt
+++ paste -sd, -
+++ grep '^/dev/disk'
++ CANDS=/dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2
++ echo candidates=/dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2
+candidates=/dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2
++ rm -f '/Users/runner/work/_temp/part-*'
++ sudo /usr/bin/python3 scripts/merged-root-extract.py --devices /dev/disk10,/dev/disk10s1,/dev/disk9,/dev/disk9s1,/dev/disk9s2 /Users/runner/work/_temp 1900 /Users/runner/work/_temp/merged-root.report.json 20
+candidate /dev/disk10 open failed: [Errno 16] Resource busy: '/dev/disk10'
+candidate /dev/disk10s1 open failed: [Errno 16] Resource busy: '/dev/disk10s1'
+candidate /dev/disk9 no NXSB, first bytes 0000000000000000
+candidate /dev/disk9s1 no NXSB, first bytes eb58904253442020
+using /dev/disk9s2 bare base 0 container 9990791168
+streamed 1073741824
+closed /Users/runner/work/_temp/part-00 1992294400
+streamed 2147483648
+streamed 3221225472
+closed /Users/runner/work/_temp/part-01 1992294400
+streamed 4294967296
+streamed 5368709120
+closed /Users/runner/work/_temp/part-02 1992294400
+streamed 6442450944
+streamed 7516192768
+closed /Users/runner/work/_temp/part-03 1992294400
+streamed 8589934592
+streamed 9663676416
+closed /Users/runner/work/_temp/part-04 1992294400
+closed /Users/runner/work/_temp/part-05 29319168
+{
+ "bytes": 9990791168,
+ "sha256": "523f2967d88e5c8ea0e748a3e4dfc7ecfb9ca4b0ae0ac0472a1a1ddaf70c2a48",
+ "run": "20",
+ "part_mib": 1900,
+ "parts": [
+  {
+   "name": "part-00",
+   "bytes": 1992294400,
+   "sha256": "4cdede547d6f978b8ad4f8d5016d387e99948619973a091a7174a927e5b99570"
+  },
+  {
+   "name": "part-01",
+   "bytes": 1992294400,
+   "sha256": "7fd762c4905b86edaba87fc55241129777d975d0ae8523cadd62437f1cd0fa36"
+  },
+  {
+   "name": "part-02",
+   "bytes": 1992294400,
+   "sha256": "6f1ca1e6e1ca3eae332b1809dee01e33f2fb9df45d3960544cf3bbfc740938bc"
+  },
+  {
+   "name": "part-03",
+   "bytes": 1992294400,
+   "sha256": "22f538574fb3b25a7ec711f9bc535cef3451360e127b27900bd9db796d140f95"
+  },
+  {
+   "name": "part-04",
+   "bytes": 1992294400,
+   "sha256": "29600c0ab8fdf1f76c5718e9f535bdc23f708799cbae8cc8f4b8c7a7df390d5f"
+  },
+  {
+   "name": "part-05",
+   "bytes": 29319168,
+   "sha256": "48d2dfcbb059268a7660607f829418a45c2f63092e539882633c36b552fa766c"
+  }
+ ]
+}
+SPLIT_DONE 9990791168
++ hdiutil detach -force /Volumes/houjiRoot
+"disk9" ejected.
++ hdiutil detach /Volumes/SydneyUpdate20H392.D22D221OS
+"disk5" ejected.
++ hdiutil detach /Volumes/SydneyUpdate20H392.D22D221SystemCryptex
+"disk7" ejected.
++ rm -f /tmp/root.sparseimage
++ ls -la /Users/runner/work/_temp/part-00 /Users/runner/work/_temp/part-01 /Users/runner/work/_temp/part-02 /Users/runner/work/_temp/part-03 /Users/runner/work/_temp/part-04 /Users/runner/work/_temp/part-05
+-rw-r--r--  1 root  staff  1992294400 Nov 13 07:07 /Users/runner/work/_temp/part-00
+-rw-r--r--  1 root  staff  1992294400 Nov 13 07:07 /Users/runner/work/_temp/part-01
+-rw-r--r--  1 root  staff  1992294400 Nov 13 07:08 /Users/runner/work/_temp/part-02
+-rw-r--r--  1 root  staff  1992294400 Nov 13 07:08 /Users/runner/work/_temp/part-03
+-rw-r--r--  1 root  staff  1992294400 Nov 13 07:08 /Users/runner/work/_temp/part-04
+-rw-r--r--  1 root  staff    29319168 Nov 13 07:08 /Users/runner/work/_temp/part-05
++ df -h /Users/runner/work/_temp
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk2s5   320Gi   273Gi    29Gi    91%    2.2M  308M    1%   /System/Volumes/Data
