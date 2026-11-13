@@ -25,11 +25,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Fetch OS from the firmware cache release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Build the 512 MiB Data seed
         run: |
           set -eux
+          exec > >(tee /tmp/seed.log) 2>&1
           SRC="$RUNNER_TEMP/system-source"
           mkdir -p "$SRC/ipsw/20H392"
           STAGE="$RUNNER_TEMP/fwstage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
@@ -37,12 +36,8 @@ jobs:
           python3 scripts/merged-root-fwcache.py unpack "$STAGE" "$SRC"
           rm -rf "$STAGE"
           python3 scripts/merged-root-prep.py "$SRC" "$RUNNER_TEMP/dmgs.txt"
-          sed -n 1p "$RUNNER_TEMP/dmgs.txt"
-
-      - name: Mount the OS and build the 512 MiB seed
-        run: |
-          set -eux
           DMG=$(sed -n 1p "$RUNNER_TEMP/dmgs.txt")
+          echo "OS dmg: $DMG"
           MNT="$GITHUB_WORKSPACE/upstream/.cache/firmware/target-volumes/os-mount"
           mkdir -p "$MNT"
           hdiutil attach -readonly -nobrowse -mountpoint "$MNT" "$DMG"
@@ -50,17 +45,15 @@ jobs:
           sudo python3 "$GITHUB_WORKSPACE/scripts/make-data-seed.py" --output "$RUNNER_TEMP/data-seed"
           hdiutil detach "$MNT" || true
           ls -la "$RUNNER_TEMP/data-seed"
-
-      - name: Seed skip-setup state
-        run: |
-          set -eux
+          cd "$GITHUB_WORKSPACE"
           sudo python3 scripts/seed-skip-setup.py \
             "$RUNNER_TEMP/data-seed/owner-data-512.cdr" \
             "$RUNNER_TEMP/data-seed/owner-data-512-skip.cdr"
           gzip -f -1 "$RUNNER_TEMP/data-seed/owner-data-512-skip.cdr"
           ls -la "$RUNNER_TEMP/data-seed"
 
-      - name: Publish the seed to ci-data-seed
+      - name: Publish the seed and the log
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -71,11 +64,12 @@ jobs:
           rm -rf /tmp/seedbranch
           git clone -q --depth 1 "$AUTH" /tmp/seedbranch
           cd /tmp/seedbranch
-          git checkout -q --orphan ci-data-seed
+          git checkout -q --orphan ci-data-seed || true
           git rm -rfq . 2>/dev/null || true
           mkdir -p data-seed
-          cp "$RUNNER_TEMP/data-seed/"*.gz data-seed/
+          cp /tmp/seed.log data-seed/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/data-seed/"*.gz data-seed/ 2>/dev/null || true
           cp "$RUNNER_TEMP/data-seed/seed.json" data-seed/ 2>/dev/null || true
           git add -f data-seed
-          git commit -q -m "big data seed ${{ github.run_number }}"
-          git push -f origin ci-data-seed
+          git commit -q -m "big data seed ${{ github.run_number }}" || true
+          git push -f origin ci-data-seed || true
