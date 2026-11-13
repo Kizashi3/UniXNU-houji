@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,332 @@
+@@ -7138,3 +7139,331 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -328,6 +328,25 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			if (!(rootflags & MNT_RDONLY)) {
 +				printf("HOUJI-ROOTFIX: result=%d\n", houji_rd2_rootfix(p, scratch));
 +			}
++		}
++	}
++	/*
++	 * HOUJI-OWN: the merged root is mounted with MNT_IGNORE_OWNERSHIP, so every
++	 * vnode reports uid/gid 99 and launchd rejects every plist with error 122.
++	 * The volume carries real ownership, so clear the flag on the root mount.
++	 */
++	{
++		mount_t rootfs = vnode_mount(rootvnode);
++
++		if (rootfs && (vfs_flags(rootfs) & MNT_IGNORE_OWNERSHIP)) {
++			vfs_clearflags(rootfs, MNT_IGNORE_OWNERSHIP);
++			printf("HOUJI-OWN: cleared MNT_IGNORE_OWNERSHIP, flags now 0x%x
+",
++			    vfs_flags(rootfs));
++		} else {
++			printf("HOUJI-OWN: root flags 0x%x (ignore-ownership not set)
+",
++			    rootfs ? vfs_flags(rootfs) : 0);
 +		}
 +	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
