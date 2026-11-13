@@ -49,7 +49,7 @@ jobs:
           sudo python3 scripts/seed-skip-setup.py \
             "$RUNNER_TEMP/data-seed/owner-data-512.cdr" \
             "$RUNNER_TEMP/data-seed/owner-data-512-skip.cdr"
-          gzip -f -1 "$RUNNER_TEMP/data-seed/owner-data-512-skip.cdr"
+          sudo gzip -f -1 "$RUNNER_TEMP/data-seed/owner-data-512-skip.cdr"
           ls -la "$RUNNER_TEMP/data-seed"
 
       - name: Publish the seed and the log
