@@ -16,7 +16,7 @@ import shutil
 import stat
 import subprocess
 
-SIZE_MIB = 176
+SIZE_MIB = 96
 SIZE = SIZE_MIB << 20
 
 p = argparse.ArgumentParser()
