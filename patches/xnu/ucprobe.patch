@@ -1,0 +1,22 @@
+diff --git a/iokit/Kernel/IOUserClient.cpp b/iokit/Kernel/IOUserClient.cpp
+--- a/iokit/Kernel/IOUserClient.cpp
++++ b/iokit/Kernel/IOUserClient.cpp
+@@ -1618,6 +1618,17 @@
+ IOUserClient::initWithTask(task_t owningTask,
+     void * securityID,
+     UInt32 type )
+ {
++	{
++		extern struct proc *current_proc(void);
++		extern int proc_getpid(struct proc *);
++		static unsigned houji_uc_count;
++		if (houji_uc_count < 240) {
++			houji_uc_count++;
++			printf("HOUJI-UC: pid %d client %s type %u\n",
++			    proc_getpid(current_proc()),
++			    getMetaClass()->getClassName(), (unsigned)type);
++		}
++	}
+ 	if (getPropertyTable() || super::init()) {
+ 		return reserve();
+ 	}

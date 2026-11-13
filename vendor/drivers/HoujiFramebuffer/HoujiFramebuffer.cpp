@@ -72,6 +72,7 @@ public:
 	bool start(IOService *provider) override;
 	void stop(IOService *provider) override;
 	void vsyncFired(OSObject *owner, IOTimerEventSource *sender);
+	bool matchPropertyTable(OSDictionary *table, SInt32 *score) override;
 	IOReturn newUserClient(task_t owningTask, void *securityID, UInt32 type,
 	    OSDictionary *properties, IOUserClient **handler) override;
 };
@@ -120,6 +121,23 @@ IOMobileFramebuffer::start(IOService *provider)
 	fVsync->wakeAtTime(mach_absolute_time() + fPeriod);
 	HOUJI_FB_LOG("started %ux%u, vsync %u Hz", fWidth, fHeight, hz);
 	return true;
+}
+
+bool
+IOMobileFramebuffer::matchPropertyTable(OSDictionary *table, SInt32 *score)
+{
+	static unsigned seen;
+	bool r = IOService::matchPropertyTable(table, score);
+
+	if (seen < 32) {
+		seen++;
+		OSString *pc = OSDynamicCast(OSString, table ? table->getObject(kIOProviderClassKey) : nullptr);
+		OSString *nm = OSDynamicCast(OSString, table ? table->getObject(kIONameMatchKey) : nullptr);
+		HOUJI_FB_LOG("match: provider=%s name=%s -> %d",
+		    pc ? pc->getCStringNoCopy() : "?",
+		    nm ? nm->getCStringNoCopy() : "?", (int)r);
+	}
+	return r;
 }
 
 void
@@ -287,5 +305,41 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	fb->registerService();
+	{
+		OSDictionary *m = OSDictionary::withCapacity(1);
+		if (m != nullptr) {
+			OSString *s = OSString::withCString("IOMobileFramebuffer");
+			unsigned n = 0;
+			if (s != nullptr) {
+				m->setObject(kIOProviderClassKey, s);
+				auto it = IOService::getMatchingServices(m);
+				if (it) {
+					while (it->getNextObject() != nullptr) {
+						n++;
+					}
+				}
+				s->release();
+			}
+			m->release();
+			HOUJI_FB_LOG("self-match class=%u", n);
+		}
+		m = OSDictionary::withCapacity(1);
+		if (m != nullptr) {
+			OSString *s = OSString::withCString("IOMobileFramebuffer");
+			unsigned n = 0;
+			if (s != nullptr) {
+				m->setObject(kIONameMatchKey, s);
+				auto it = IOService::getMatchingServices(m);
+				if (it) {
+					while (it->getNextObject() != nullptr) {
+						n++;
+					}
+				}
+				s->release();
+			}
+			m->release();
+			HOUJI_FB_LOG("self-match name=%u", n);
+		}
+	}
 	HOUJI_FB_LOG("IOMobileFramebuffer registered: %s", fb->getName());
 }
