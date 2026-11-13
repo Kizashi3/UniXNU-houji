@@ -1,11 +1,14 @@
 /*
  * HOUJI-FB: minimal IOMobileFramebuffer service, written for this port.
  *
- * Registers a service whose class name is IOMobileFramebuffer so the iOS
- * IOMobileFramebuffer.framework can find it, implements the user-client
- * selectors CoreAnimation uses, and drives a software vsync timer. The first
- * phase only proves the service path: swaps are parsed and logged, and the
- * presentation step is added once the surface bridge exists.
+ * The service class is literally named IOMobileFramebuffer: IOService falls
+ * back to the metaclass name when a service has no IOName, so both class
+ * matching (IOProviderClass) and name matching (IONameMatch) find it.
+ *
+ * Phase 1 proves the service path: the user client answers the framework's
+ * selectors, swaps are parsed and logged, and a 60 Hz timer drives vsync.
+ * Presentation (swap -> boot framebuffer copy) is added with the surface
+ * bridge in phase 2.
  */
 #include <IOKit/IOService.h>
 #include <IOKit/IOUserClient.h>
@@ -13,6 +16,8 @@
 #include <IOKit/IOTimerEventSource.h>
 #include <IOKit/IOLib.h>
 #include <IOKit/IOKitKeys.h>
+#include <IOKit/IOPlatformExpert.h>
+#include <IOKit/IODeviceTreeSupport.h>
 #include <pexpert/pexpert.h>
 #include <kern/clock.h>
 #include <mach/mach_time.h>
@@ -33,26 +38,12 @@ enum {
 	kSelEnableNotifications    = 72,
 };
 
-class IOMobileFramebuffer : public IOService {
-	OSDeclareDefaultStructors(IOMobileFramebuffer);
-public:
-	virtual IOReturn getDisplaySize(uint32_t *w, uint32_t *h) = 0;
-};
-
-OSDefineMetaClassAndStructors(IOMobileFramebuffer, IOService);
-
-bool
-IOMobileFramebuffer::init(OSDictionary *dict)
-{
-	return IOService::init(dict);
-}
-
-class HoujiFramebuffer;
+class IOMobileFramebuffer;
 
 class HoujiFramebufferClient : public IOUserClient {
 	OSDeclareDefaultStructors(HoujiFramebufferClient);
 public:
-	HoujiFramebuffer *fOwner = nullptr;
+	IOMobileFramebuffer *fOwner = nullptr;
 	task_t            fTask = TASK_NULL;
 	mach_port_t       fPort = MACH_PORT_NULL;
 
@@ -64,8 +55,8 @@ public:
 	    IOExternalMethodDispatch *dispatch, OSObject *target, void *reference) override;
 };
 
-class HoujiFramebuffer : public IOMobileFramebuffer {
-	OSDeclareDefaultStructors(HoujiFramebuffer);
+class IOMobileFramebuffer : public IOService {
+	OSDeclareDefaultStructors(IOMobileFramebuffer);
 public:
 	IOService        *fProvider = nullptr;
 	IOWorkLoop       *fWorkLoop = nullptr;
@@ -80,20 +71,20 @@ public:
 
 	bool start(IOService *provider) override;
 	void stop(IOService *provider) override;
-	IOReturn getDisplaySize(uint32_t *w, uint32_t *h) override;
 	void vsyncFired(OSObject *owner, IOTimerEventSource *sender);
 	IOReturn newUserClient(task_t owningTask, void *securityID, UInt32 type,
 	    OSDictionary *properties, IOUserClient **handler) override;
 };
 
-OSDefineMetaClassAndStructors(HoujiFramebuffer, IOMobileFramebuffer);
+OSDefineMetaClassAndStructors(IOMobileFramebuffer, IOService);
+OSDefineMetaClassAndStructors(HoujiFramebufferClient, IOUserClient);
 
 bool
-HoujiFramebuffer::start(IOService *provider)
+IOMobileFramebuffer::start(IOService *provider)
 {
 	PE_Video video;
 
-	if (!IOMobileFramebuffer::start(provider)) {
+	if (!IOService::start(provider)) {
 		return false;
 	}
 	fProvider = provider;
@@ -110,6 +101,7 @@ HoujiFramebuffer::start(IOService *provider)
 
 	setProperty(kIOUserClientClassKey, "HoujiFramebufferClient");
 	setProperty("IOMFBDisplayRefresh", true);
+	setProperty("compatible", "houji,display");
 	uint32_t hz = 60;
 	PE_parse_boot_argn("houji_fb_hz", &hz, sizeof(hz));
 	if (hz != 120) {
@@ -119,37 +111,28 @@ HoujiFramebuffer::start(IOService *provider)
 
 	fWorkLoop = IOWorkLoop::workLoop();
 	fVsync = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(
-	    IOTimerEventSource::Action, this, &HoujiFramebuffer::vsyncFired));
+	    IOTimerEventSource::Action, this, &IOMobileFramebuffer::vsyncFired));
 	if (fWorkLoop == nullptr || fVsync == nullptr ||
 	    fWorkLoop->addEventSource(fVsync) != kIOReturnSuccess) {
 		HOUJI_FB_LOG("work loop setup failed");
 		return false;
 	}
 	fVsync->wakeAtTime(mach_absolute_time() + fPeriod);
-	registerService();
-	HOUJI_FB_LOG("registered %ux%u, vsync %u Hz", fWidth, fHeight, hz);
+	HOUJI_FB_LOG("started %ux%u, vsync %u Hz", fWidth, fHeight, hz);
 	return true;
 }
 
 void
-HoujiFramebuffer::stop(IOService *provider)
+IOMobileFramebuffer::stop(IOService *provider)
 {
 	if (fVsync != nullptr) {
 		fVsync->cancelTimeout();
 	}
-	IOMobileFramebuffer::stop(provider);
-}
-
-IOReturn
-HoujiFramebuffer::getDisplaySize(uint32_t *w, uint32_t *h)
-{
-	*w = fWidth;
-	*h = fHeight;
-	return kIOReturnSuccess;
+	IOService::stop(provider);
 }
 
 void
-HoujiFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 {
 	fVsyncCount++;
 	if ((fVsyncCount % 600) == 0) {
@@ -159,7 +142,7 @@ HoujiFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 }
 
 IOReturn
-HoujiFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 type,
+IOMobileFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 type,
     OSDictionary *properties, IOUserClient **handler)
 {
 	HoujiFramebufferClient *client = new HoujiFramebufferClient;
@@ -177,8 +160,6 @@ HoujiFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 type
 	HOUJI_FB_LOG("user client opened type %u", type);
 	return kIOReturnSuccess;
 }
-
-OSDefineMetaClassAndStructors(HoujiFramebufferClient, IOUserClient);
 
 bool
 HoujiFramebufferClient::initWithTask(task_t owningTask, void *securityID, UInt32 type)
@@ -215,26 +196,21 @@ IOReturn
 HoujiFramebufferClient::externalMethod(uint32_t selector, IOExternalMethodArguments *args,
     IOExternalMethodDispatch *dispatch, OSObject *target, void *reference)
 {
-	uint64_t out0 = 0, out1 = 0, out2 = 0, out3 = 0;
-	uint32_t count = 0;
+	uint64_t out0 = 0, out1 = 0;
 
 	switch (selector) {
 	case kSelGetDisplaySize:
 		out0 = fOwner->fWidth;
 		out1 = fOwner->fHeight;
-		count = 2;
 		break;
 	case kSelIsMainDisplay:
 		out0 = 1;
-		count = 1;
 		break;
 	case kSelGetDotPitch:
 		out0 = 0x10000;   /* 1.0 in 16.16, not measured */
-		count = 1;
 		break;
 	case kSelGetID:
 		out0 = 1;
-		count = 1;
 		break;
 	case kSelSwapBegin:
 		fOwner->fSwapCount++;
@@ -260,16 +236,13 @@ HoujiFramebufferClient::externalMethod(uint32_t selector, IOExternalMethodArgume
 	}
 	if (args->scalarOutputCount >= 1) args->scalarOutput[0] = out0;
 	if (args->scalarOutputCount >= 2) args->scalarOutput[1] = out1;
-	if (args->scalarOutputCount >= 3) args->scalarOutput[2] = out2;
-	if (args->scalarOutputCount >= 4) args->scalarOutput[3] = out3;
-	(void)count;
 	return kIOReturnSuccess;
 }
 
 /*
- * Publish the display-subsystem nub. The iOS IOMobileFramebuffer.framework
- * counts /arm-io children with device_type display-subsystem and reads
- * canvas-width/canvas-height from the service's provider.
+ * Publish the display-subsystem nub under the platform expert and attach the
+ * framebuffer service to it. Nothing matches it automatically: this kernel
+ * has no personalities, so the service is started by hand.
  */
 class HoujiDisplayNub : public IOPlatformDevice {
 	OSDeclareDefaultStructors(HoujiDisplayNub);
@@ -291,21 +264,28 @@ houji_fb_bootstrap(void)
 	static int done;
 	if (done) return;
 	done = 1;
-	IOService *platform = IOPlatformExpert::getPlatform();
+
+	IOService *platform = IOService::getPlatform();
 	if (platform == nullptr) {
 		HOUJI_FB_LOG("no platform expert");
 		return;
 	}
 	HoujiDisplayNub *nub = new HoujiDisplayNub;
-	if (nub == nullptr || !nub->init()) {
-		HOUJI_FB_LOG("nub alloc failed");
-		return;
-	}
-	if (!nub->attachToParent(platform, gIODTPlane)) {
-		HOUJI_FB_LOG("nub attach failed");
-		nub->release();
+	if (nub == nullptr || !nub->init() ||
+	    !nub->attachToParent(platform, gIODTPlane)) {
+		HOUJI_FB_LOG("nub alloc/attach failed");
+		if (nub != nullptr) nub->release();
 		return;
 	}
 	nub->registerService();
 	HOUJI_FB_LOG("display nub published");
+
+	IOMobileFramebuffer *fb = new IOMobileFramebuffer;
+	if (fb == nullptr || !fb->init() || !fb->attach(nub) || !fb->start(nub)) {
+		HOUJI_FB_LOG("framebuffer service start failed");
+		if (fb != nullptr) fb->release();
+		return;
+	}
+	fb->registerService();
+	HOUJI_FB_LOG("IOMobileFramebuffer registered: %s", fb->getName());
 }
