@@ -276,6 +276,12 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
 		HOUJI_FB_LOG("notifications %llu", (unsigned long long)
 		    (args->scalarInputCount > 0 ? args->scalarInput[0] : 0));
 		break;
+	case 57:
+	case 74:
+	case 79:
+	case 84:
+		HOUJI_FB_LOG("known-unimplemented selector=%u", selector);
+		return kIOReturnUnsupported;
 	case kSelGetLayerDefaultSurface:
 		/* Phase 2 returns a real surface port here. */
 		HOUJI_FB_LOG("default surface request (not bridged yet)");
