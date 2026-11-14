@@ -1,0 +1,55 @@
+name: extract applelogo
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [logo-probe]
+    paths:
+      - ".github/workflows/extract-applelogo.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the IPSW and extract applelogo
+        run: |
+          set -x
+          exec > >(tee /tmp/applelogo.log) 2>&1
+          URL="https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw"
+          mkdir -p "$RUNNER_TEMP/out"
+          curl -L --retry 3 --fail -o "$RUNNER_TEMP/fw.ipsw" "$URL"
+          ls -la "$RUNNER_TEMP/fw.ipsw"
+          unzip -l "$RUNNER_TEMP/fw.ipsw" | grep -i "applelogo" || true
+          unzip -o "$RUNNER_TEMP/fw.ipsw" 'Firmware/all_flash/applelogo*' -d "$RUNNER_TEMP/out" || true
+          find "$RUNNER_TEMP/out" -type f | while read f; do
+            echo "== $f"
+            ls -la "$f"
+            xxd -l 128 "$f"
+          done
+
+      - name: Publish the extracted images
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -x
+          stage=$(mktemp -d)
+          git init -q "$stage/p"
+          git -C "$stage/p" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$stage/p" config user.name houji-ci
+          git -C "$stage/p" config user.email houji-ci@users.noreply.github.com
+          git -C "$stage/p" checkout -q -B ci-applelogo
+          mkdir -p "$stage/p/applelogo"
+          cp /tmp/applelogo.log "$stage/p/applelogo/run-${GITHUB_RUN_NUMBER}.log" 2>/dev/null || true
+          if [ -d "$RUNNER_TEMP/out" ]; then
+            find "$RUNNER_TEMP/out" -type f -exec cp {} "$stage/p/applelogo/" \; 2>/dev/null || true
+          fi
+          ls -la "$stage/p/applelogo"
+          git -C "$stage/p" add -f -A
+          git -C "$stage/p" commit -q -m "applelogo run ${GITHUB_RUN_NUMBER}" || true
+          git -C "$stage/p" push -f origin ci-applelogo || echo PUBLISH_FAILED
