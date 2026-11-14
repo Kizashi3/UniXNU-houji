@@ -879,7 +879,8 @@ jobs:
             python3 scripts/build-native-legacy-display.py
             ls -la build/native-legacy-display
             cd "$GITHUB_WORKSPACE/unixnu"
-            python3 -c "import pathlib,sys;p=pathlib.Path(sys.argv[1]);t=p.read_text();p.write_text(t.replace('CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n','CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y'))" "$DEVICE_DIR/configs/houji_defconfig"
+            sed -i '' -e 's/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y/' out/houji/.config
+            sed -i '' -e 's/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y/' "$DEVICE_DIR/configs/houji_defconfig"
             grep LEGACY_DISPLAY "$DEVICE_DIR/configs/houji_defconfig"
             ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build-display.log
             ls -la out/houji/kernel/kernel.macho
