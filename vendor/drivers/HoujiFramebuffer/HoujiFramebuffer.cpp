@@ -519,27 +519,57 @@ houjiCountServices(const char *cls)
 	return n;
 }
 
+// Use the native provider's actual metaclass when Legacy publication is requested.
+// The pinned 20H392 AppleARMIODevice uses IOService init/start/stop/free.
+static bool
+houjiDisplayProperties(IOService *nub)
+{
+    static char compatible[] = "houji,display";
+    static char deviceType[] = "display-subsystem";
+    PE_Video video = {};
+    if (PE_current_console(&video) != 0 || video.v_width == 0 || video.v_height == 0)
+        return false;
+    uint32_t width = (uint32_t)video.v_width;
+    uint32_t height = (uint32_t)video.v_height;
+    nub->setName("display0");
+    return nub->setProperty("compatible", compatible, sizeof(compatible)) &&
+        nub->setProperty("device_type", deviceType, sizeof(deviceType)) &&
+        nub->setProperty("canvas-width", &width, sizeof(width)) &&
+        nub->setProperty("canvas-height", &height, sizeof(height));
+}
+
 class HoujiDisplayNub : public IOPlatformDevice {
-	OSDeclareDefaultStructors(HoujiDisplayNub);
-public:
-	bool init(OSDictionary *dict) override {
-		if (!IOPlatformDevice::init(dict)) return false;
-		static char compatible[] = "houji,display";
-		static char deviceType[] = "display-subsystem";
-		PE_Video video = {};
-		if (PE_current_console(&video) != 0 || video.v_width == 0 || video.v_height == 0) {
-			return false;
-		}
-		uint32_t width = (uint32_t)video.v_width;
-		uint32_t height = (uint32_t)video.v_height;
-		setName("display0");
-		return setProperty("compatible", compatible, sizeof(compatible)) &&
-		       setProperty("device_type", deviceType, sizeof(deviceType)) &&
-		       setProperty("canvas-width", &width, sizeof(width)) &&
-		       setProperty("canvas-height", &height, sizeof(height));
-	}
+    OSDeclareDefaultStructors(HoujiDisplayNub);
 };
 OSDefineMetaClassAndStructors(HoujiDisplayNub, IOPlatformDevice);
+
+static IOService *
+houjiAllocateDisplayNub()
+{
+    uint32_t enabled = 0, publish = 0;
+    PE_parse_boot_argn("houji-legacy-display", &enabled, sizeof(enabled));
+    PE_parse_boot_argn("houji-legacy-publish", &publish, sizeof(publish));
+    if (enabled == 1 && publish == 1) {
+        OSObject *object = OSMetaClass::allocClassWithName("AppleARMIODevice");
+        static const char family[] = "com.apple.driver.AppleARMPlatform";
+        if (object == nullptr && !OSKext::isKextWithIdentifierLoaded(family)) {
+            OSReturn status = OSKext::loadKextWithIdentifier(family);
+            HOUJI_FB_LOG("provider family load rc=%#x", status);
+            object = OSMetaClass::allocClassWithName("AppleARMIODevice");
+        }
+        IOService *native = OSDynamicCast(IOService, object);
+        if (native != nullptr && native->metaCast("AppleARMIODevice") != nullptr) {
+            HOUJI_FB_LOG("provider allocated class=%s size=%u",
+                native->getMetaClass()->getClassName(),
+                native->getMetaClass()->getClassSize());
+            return native;
+        }
+        if (object != nullptr)
+            object->release();
+        HOUJI_FB_LOG("native provider unavailable; using generic nub");
+    }
+    return new HoujiDisplayNub;
+}
 
 extern "C" void
 houji_fb_bootstrap(void)
@@ -556,9 +586,9 @@ houji_fb_bootstrap(void)
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
-		HoujiDisplayNub *nub = new HoujiDisplayNub;
+		IOService *nub = houjiAllocateDisplayNub();
 		if (nub != nullptr) {
-			if (!nub->init(nullptr)) {
+			if (!nub->init(nullptr) || !houjiDisplayProperties(nub)) {
 				nub->release();
 			} else if (!nub->attach(platform)) {
 				nub->release();

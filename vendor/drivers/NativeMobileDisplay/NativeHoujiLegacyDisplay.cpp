@@ -60,6 +60,16 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     }
 
 public:
+    IOReturn newUserClient(task_t task, void *security, UInt32 type,
+        IOUserClient **client) override
+    {
+        houji_legacy_bootstrap_checkpoint();
+        IOReturn status = IOMobileFramebufferLegacy::newUserClient(task, security, type, client);
+        IOLog("HOUJI-LEGACY: stage=client-open rc=%#x type=%u publish-stage=%s\n",
+            status, type, houjiProbeStage);
+        return status;
+    }
+
     bool startHardware() override
     {
         PE_Video video = {};
@@ -381,6 +391,14 @@ houjiLegacyPublish(IOService *provider)
         strcmp(houjiProbeStage, "registered-not-published") != 0)
         return false;
     attempted = true;
+    if (provider->metaCast("AppleARMIODevice") == nullptr) {
+        houjiProbeStage = "publish-provider-incompatible";
+        IOLog("HOUJI-LEGACY: stage=%s class=%s old-service-retained=1\n",
+            houjiProbeStage, provider->getMetaClass()->getClassName());
+        return false;
+    }
+    IOLog("HOUJI-LEGACY: stage=provider-validated class=%s\n",
+        provider->getMetaClass()->getClassName());
 
     houjiProbeStage = "publish-allocate";
     IOLog("HOUJI-LEGACY: stage=%s\n", houjiProbeStage);
@@ -403,6 +421,20 @@ houjiLegacyPublish(IOService *provider)
             display->detach(provider);
             display->release();
         } else {
+            // 20H392 start stores safeMetaCast(provider, AppleARMIODevice) here.
+            // It only logs a failed cast and can still return true (run392).
+            IOService *originalProvider = nullptr;
+            __builtin_memcpy(&originalProvider,
+                reinterpret_cast<unsigned char *>(display) + 5096,
+                sizeof(originalProvider));
+            if (originalProvider != provider) {
+                houjiProbeStage = "publish-provider-not-initialized";
+                display->stop(provider);
+                display->detach(provider);
+                display->release();
+                IOLog("HOUJI-LEGACY: stage=%s old-service-retained=1\n", houjiProbeStage);
+                return false;
+            }
             // The original start may set its own registry name.
             display->setName("IOMobileFramebuffer");
             // No fallible setup remains once clients can match the service.
