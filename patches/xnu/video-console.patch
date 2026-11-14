@@ -1,27 +1,6 @@
 diff --git a/osfmk/console/video_console.c b/osfmk/console/video_console.c
 --- a/osfmk/console/video_console.c
 +++ b/osfmk/console/video_console.c
-@@ -1264,6 +1264,20 @@
- {
- 	houji_con_ring_putc(c);
- 
-+	/* HOUJI: while the boot UI owns the panel, keep kernel text in msgbuf only. */
-+	{
-+		extern boolean_t PE_parse_boot_argn(const char *, void *, int);
-+		static int hb = -1;
-+		if (hb < 0) {
-+			uint32_t v = 0;
-+			PE_parse_boot_argn("houji-bootui", &v, sizeof(v));
-+			hb = v;
-+		}
-+		if (hb) {
-+			return;
-+		}
-+	}
-+
- 	if (gc_initialized && gc_enabled) {
- 		VCPUTC_LOCK_LOCK();
- 		if (gc_enabled) {
 @@ -3057,6 +3070,14 @@ vcattach(void)
  {
  	vm_initialized = TRUE;
