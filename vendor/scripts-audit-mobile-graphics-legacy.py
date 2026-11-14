@@ -91,6 +91,16 @@ def inspect(kernel, plan):
         if struct.unpack('<Q', read(ptr, 8))[0] != names[name]:
             raise ValueError('Wrong imported symbol: ' + name)
 
+    # Run393 stopped at the derived slot-212 trap. Qualify the ABI from
+    # the original user-client thunk, dispatch entry, and scalar widening.
+    check(0xfffffff005ded248, [0x04c00c04, 0xfffffff0, 1, 0, 1, 64],
+          'Slot 212 UC entry: one scalar input/output and 64-byte structure output')
+    check(0xfffffff004c00c30, [0xf94007e8, 0xf9402502, 0xf94007e8, 0xf9402d03],
+          'Slot 212 thunk forwards scalar output and structure output pointers')
+    check(0xfffffff004bfec54, [0xf9400008, 0xf9435108, 0xd63f0100],
+          'Slot 212 virtual dispatch at offset 1696')
+    check(0xfffffff004bfec60, [0xb9000be0, 0xb9400fe8, 0xf9400fe9, 0xf9000128, 0xb9400be0],
+          'Slot 212 returns IOReturn and widens a 32-bit output count to scalar output')
     check(0xfffffff004c0bb48, [0xd000f1c0, 0x91150000], 'Original Legacy metaclass global address')
     check(0xfffffff004c0bbc8, [0x90008f28, 0x91234108, 0x91004108],
           'Protected Legacy constructor selects actual original vtable')

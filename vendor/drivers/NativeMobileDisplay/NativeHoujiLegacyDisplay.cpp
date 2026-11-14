@@ -142,6 +142,20 @@ public:
         return true;
     }
 
+    // 20H392 UC thunk 0x4c00c04 -> wrapper 0x4bfec14 -> slot 212.
+    // One scalar query, one scalar output (32-bit local widened by wrapper),
+    // and a 64-byte structure output. Semantics are not yet qualified.
+    IOReturn queryBackendCapability(uint32_t query, uint32_t *count, void *output) override
+    {
+        if (count == nullptr || output == nullptr)
+            return kIOReturnBadArgument;
+        *count = 0;
+        static unsigned reports;
+        if (reports++ < 8)
+            IOLog("HOUJI-LEGACY: stage=backend-query slot=212 query=%u rc=unsupported\n", query);
+        return kIOReturnUnsupported;
+    }
+
     IOReturn collectCompletionReports(uint32_t, void *, uint32_t *count, uint32_t) override
     {
         if (count != nullptr)
@@ -246,7 +260,6 @@ public:
 #define HOUJI_LEGACY_LEAF(slot) \
     void opaque##slot() override { __builtin_trap(); }
     HOUJI_LEGACY_LEAF(211)
-    HOUJI_LEGACY_LEAF(212)
     HOUJI_LEGACY_LEAF(242)
     HOUJI_LEGACY_LEAF(243)
     HOUJI_LEGACY_LEAF(292)
