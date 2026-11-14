@@ -14,7 +14,7 @@ TREE = DEVICE.parent / "unixnu" / "out" / "houji" / "tree"
 drivers = TREE / "drivers" / "NativeMobileDisplay"
 drivers.mkdir(parents=True, exist_ok=True)
 for name in ("NativeLegacyDisplay.cpp", "NativeGOPPresenter.cpp", "NativeMobileDisplay.cpp",
-             "NativeGOPWire.h", "NativeLegacyRequest.h", "OriginalMobileFramebufferABI.h", "LICENSE"):
+             "NativeGOPWire.h", "NativeLegacyRequest.h", "OriginalMobileFramebufferABI.h", "NativeHoujiLegacyDisplay.cpp", "LICENSE"):
     shutil.copyfile(DEVICE / "vendor" / "drivers" / "NativeMobileDisplay" / name, drivers / name)
 
 scripts = TREE / "scripts"
