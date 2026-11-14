@@ -1,25 +1,27 @@
 diff --git a/osfmk/console/video_console.c b/osfmk/console/video_console.c
-index 4c1edf1..daccb90 100644
 --- a/osfmk/console/video_console.c
 +++ b/osfmk/console/video_console.c
-@@ -1230,4 +1230,17 @@
- void
- vcputc_options(char c, __unused bool poll)
+@@ -1264,6 +1264,20 @@
  {
-+	/* HOUJI: the boot UI owns the panel; keep kernel text in msgbuf only. */
+ 	houji_con_ring_putc(c);
+ 
++	/* HOUJI: while the boot UI owns the panel, keep kernel text in msgbuf only. */
 +	{
 +		extern boolean_t PE_parse_boot_argn(const char *, void *, int);
-+		static int houji_bootui = -1;
-+		if (houji_bootui < 0) {
-+			uint32_t on = 0;
-+			PE_parse_boot_argn("houji-bootui", &on, sizeof(on));
-+			houji_bootui = (on != 0);
++		static int hb = -1;
++		if (hb < 0) {
++			uint32_t v = 0;
++			PE_parse_boot_argn("houji-bootui", &v, sizeof(v));
++			hb = v;
 +		}
-+		if (houji_bootui) {
++		if (hb) {
 +			return;
 +		}
 +	}
++
  	if (gc_initialized && gc_enabled) {
+ 		VCPUTC_LOCK_LOCK();
+ 		if (gc_enabled) {
 @@ -3057,6 +3070,14 @@ vcattach(void)
  {
  	vm_initialized = TRUE;
