@@ -14,10 +14,13 @@ TREE = DEVICE.parent / "unixnu" / "out" / "houji" / "tree"
 drivers = TREE / "drivers" / "NativeMobileDisplay"
 drivers.mkdir(parents=True, exist_ok=True)
 for name in ("NativeLegacyDisplay.cpp", "NativeGOPPresenter.cpp", "NativeMobileDisplay.cpp",
-             "NativeGOPWire.h", "NativeLegacyRequest.h", "OriginalMobileFramebufferABI.h", "NativeHoujiLegacyDisplay.cpp", "LICENSE"):
+             "NativeGOPWire.h", "NativeLegacyRequest.h", "OriginalMobileFramebufferABI.h", "NativeHoujiLegacyDisplay.cpp", "HoujiLegacyQueue.h", "HoujiLegacyPixels.h",
+             "houji-legacy-queue-test.cpp", "houji-legacy-pixels-test.cpp", "LICENSE"):
     shutil.copyfile(DEVICE / "vendor" / "drivers" / "NativeMobileDisplay" / name, drivers / name)
 
 scripts = TREE / "scripts"
+shutil.copyfile(DEVICE / "vendor" / "validate-houji-late-object.py",
+                scripts / "validate-houji-late-object.py")
 shutil.copyfile(DEVICE / "vendor" / "scripts-audit-mobile-graphics-legacy.py",
                 scripts / "audit-mobile-graphics-legacy.py")
 shutil.copyfile(DEVICE / "vendor" / "build-native-legacy-display.py",

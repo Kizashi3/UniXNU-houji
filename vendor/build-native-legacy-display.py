@@ -172,9 +172,31 @@ result = subprocess.run(['xcrun', 'clang', '-target', 'arm64-apple-ios16.0', '-c
                          str(asm), '-o', str(bindings_obj)], capture_output=True, text=True)
 require(result.returncode == 0, result.stderr[-2000:])
 
+llvm = Path(run(['brew', '--prefix', 'llvm'], text=True).strip()) / 'bin'
+initializer = '__GLOBAL__sub_I_NativeHoujiLegacyDisplay.cpp'
+late_obj = OUT / 'NativeHoujiLegacyDisplay.late.o'
+run([llvm / 'llvm-objcopy', '--remove-section=__DATA,__mod_init_func',
+     '--remove-section=__DATA,__mod_term_func', '--globalize-symbol=' + initializer,
+     driver_obj, late_obj])
+print(run(['python3', ROOT / 'scripts/validate-houji-late-object.py', driver_obj, late_obj],
+          text=True), end='')
+symbols = run([llvm / 'llvm-nm', str(late_obj)], text=True)
+require(any(line.split()[-1] == initializer and line.split()[-2].isupper()
+            for line in symbols.splitlines() if len(line.split()) >= 2),
+        'Deferred initializer is not global')
+sections = run([llvm / 'llvm-objdump', '--section-headers', str(late_obj)], text=True)
+require('__mod_init_func' not in sections and '__mod_term_func' not in sections,
+        'Late object still has automatic initializer/finalizer sections')
+late_asm = OUT / 'late-registration.S'
+late_asm.write_text('.text\n.globl _houji_legacy_initialize_class\n'
+                    '.p2align 2\n_houji_legacy_initialize_class:\n'
+                    'b ' + initializer + '\n')
+late_registration = OUT / 'late-registration.o'
+run(['xcrun', 'clang', '-target', 'arm64-apple-ios16.0', '-c',
+     late_asm, '-o', late_registration])
 archive = OUT / 'libNativeLegacyDisplay.late.a'
 archive.unlink(missing_ok=True)
-run(['xcrun', 'ar', 'rcs', archive, driver_obj, bindings_obj])
+run(['xcrun', 'ar', 'rcs', archive, late_obj, bindings_obj, late_registration])
 
 
 def sha(path):
@@ -182,10 +204,22 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-sources = [DRIVER, OUT / 'OriginalHoujiLegacyABI.h', asm, AUDIT]
+for test in ('houji-legacy-queue-test', 'houji-legacy-pixels-test'):
+    test_source = DRIVER.parent / (test + '.cpp')
+    test_binary = OUT / test
+    run(['xcrun', 'clang++', '-std=c++17', '-Wall', '-Wextra', '-Werror',
+         '-fsanitize=address,undefined', test_source, '-o', test_binary])
+    run([test_binary])
+    print('PASS: ' + test)
+sources = [DRIVER, OUT / 'OriginalHoujiLegacyABI.h', asm, late_asm, AUDIT,
+           ROOT / 'scripts/validate-houji-late-object.py',
+           DRIVER.parent / 'HoujiLegacyQueue.h', DRIVER.parent / 'HoujiLegacyPixels.h',
+           DRIVER.parent / 'houji-legacy-queue-test.cpp',
+           DRIVER.parent / 'houji-legacy-pixels-test.cpp']
 (OUT / 'build-report.json').write_text(json.dumps({
     'archive_sha256': sha(archive),
     'source_sha256': {os.path.relpath(str(p), str(ROOT)): sha(p) for p in sources},
     'bound_symbols': len(bindings), 'virtual_entries': 338,
+    'automatic_class_registration': False,
     'runtime_instantiation': False}, indent=2) + '\n')
-print('HOUJI-LEGACY build: 338-slot archive with %d original bindings; probe gated off' % len(bindings))
+print('HOUJI-LEGACY build: 338-slot archive with %d original bindings; automatic registration removed; runtime activation gated' % len(bindings))
