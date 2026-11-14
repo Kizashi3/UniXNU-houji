@@ -112,15 +112,36 @@ result = subprocess.run(recipe(DRIVER, driver_obj, []), cwd=record['directory'],
 require(result.returncode == 0, (result.stdout + result.stderr)[-4000:])
 
 # ---- map every undefined original symbol to its original address ---------
-nm = run(['llvm-nm', '-u', str(driver_obj)], text=True)
-undefined = sorted({ln.split()[-1] for ln in nm.splitlines() if 'IOMobileFramebufferLegacy' in ln})
-filt = subprocess.run(['llvm-cxxfilt'], input='\n'.join(undefined), text=True,
-                      capture_output=True, check=True)
-demangled = [ln.strip() for ln in filt.stdout.splitlines()]
+def nm_undefined(obj):
+    for tool in (['llvm-nm', '-u'], ['xcrun', 'llvm-nm', '-u'], ['nm', '-u']):
+        r = subprocess.run([str(x) for x in tool + [str(obj)]], capture_output=True, text=True)
+        if r.returncode == 0:
+            return r.stdout
+    raise SystemExit('no nm tool could read the driver object')
+
+
+def method_name(sym):
+    token = '25IOMobileFramebufferLegacy'
+    at = sym.find(token)
+    if at < 0:
+        return None
+    i = at + len(token)
+    if i < len(sym) and sym[i].isdigit():
+        n = 0
+        while i < len(sym) and sym[i].isdigit():
+            n = n * 10 + int(sym[i])
+            i += 1
+        return sym[i:i + n]
+    return None
+
+
+undefined = sorted({ln.split()[-1] for ln in nm_undefined(driver_obj).splitlines()
+                    if 'IOMobileFramebufferLegacy' in ln})
 
 bindings = {}
 unmapped = []
-for sym, dem in zip(undefined, demangled):
+for sym in undefined:
+    dem = method_name(sym)
     if sym in SPECIAL:
         kind, delta = SPECIAL[sym]
         base = {'vtable': vptr, 'ctor': int(lifecycle['protected_constructor'], 16),
@@ -132,8 +153,7 @@ for sym, dem in zip(undefined, demangled):
     if m:
         bindings[sym] = methods[int(m.group(1))]
         continue
-    match = re.search(r'IOMobileFramebufferLegacy::([A-Za-z_]\w*)\(', dem)
-    slot = NAME_SLOT.get(match.group(1)) if match else None
+    slot = NAME_SLOT.get(dem) if dem else None
     if slot is None:
         unmapped.append((sym, dem))
     else:
