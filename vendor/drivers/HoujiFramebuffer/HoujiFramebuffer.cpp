@@ -33,6 +33,71 @@ extern "C" int proc_getpid(struct proc *);
 
 static unsigned houjiCountServices(const char *cls);
 
+/*
+ * HOUJI-DUMP: the display-mode contract lives entirely in structured buffers
+ * whose layouts only the Apple driver knows. Dumping what the caller hands us
+ * (input buffer, and the output buffer as the caller pre-filled it) is the only
+ * way to learn those layouts instead of guessing at them.
+ */
+static void
+houjiDumpHex(const char *tag, const void *data, uint64_t len)
+{
+	static const char hexd[] = "0123456789abcdef";
+	static unsigned houjiDumpCount;
+	const unsigned char *bytes = (const unsigned char *)data;
+	char line[3 * 32 + 1];
+
+	if (data == nullptr || len == 0)
+		return;
+	if (houjiDumpCount >= 40)
+		return;
+
+	for (uint64_t off = 0; off < len && off < 256; off += 32) {
+		uint64_t n = (len - off < 32) ? (len - off) : 32;
+
+		houjiDumpCount++;
+		for (uint64_t i = 0; i < n; i++) {
+			line[i * 3] = hexd[bytes[off + i] >> 4];
+			line[i * 3 + 1] = hexd[bytes[off + i] & 15];
+			line[i * 3 + 2] = ' ';
+		}
+		line[n * 3] = 0;
+		HOUJI_FB_LOG("dump %s +%llu: %s", tag, (unsigned long long)off, line);
+	}
+}
+
+static void
+houjiDumpCall(IOExternalMethodArguments *args)
+{
+	const void *in = args->structureInput;
+	uint64_t inLen = args->structureInputSize;
+	IOMemoryMap *inMap = nullptr;
+	void *out = args->structureOutput;
+	uint64_t outLen = args->structureOutputSize;
+	IOMemoryMap *outMap = nullptr;
+
+	if (in == nullptr && args->structureInputDescriptor != nullptr) {
+		inMap = args->structureInputDescriptor->map();
+		if (inMap != nullptr) {
+			in = (const void *)inMap->getAddress();
+			inLen = args->structureInputDescriptor->getLength();
+		}
+	}
+	if (out == nullptr && args->structureOutputDescriptor != nullptr) {
+		outMap = args->structureOutputDescriptor->map();
+		if (outMap != nullptr) {
+			out = (void *)outMap->getAddress();
+			outLen = args->structureOutputDescriptor->getLength();
+		}
+	}
+	houjiDumpHex("in", in, inLen);
+	houjiDumpHex("out", out, outLen);
+	if (inMap != nullptr)
+		inMap->free();
+	if (outMap != nullptr)
+		outMap->free();
+}
+
 /* User-client selectors observed from the framework's call sites. */
 enum {
 	kSelGetLayerDefaultSurface = 3,
@@ -343,6 +408,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
 		    (unsigned long long)args->structureOutputSize,
 		    (unsigned long long)(args->scalarInputCount > 0 ? args->scalarInput[0] : 0),
 		    (unsigned long long)(args->scalarInputCount > 1 ? args->scalarInput[1] : 0));
+		houjiDumpCall(args);
 	}
 
 	switch (selector) {
