@@ -1,7 +1,7 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1228,6 +1228,105 @@
+@@ -1228,6 +1228,127 @@
  	exception_type_t           exception = EXC_BREAKPOINT;
  	mach_exception_data_type_t codes[2]  = {EXC_ARM_BREAKPOINT};
  	mach_msg_type_number_t     numcodes  = 2;
@@ -69,7 +69,29 @@ diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 +					    (unsigned long long)a, err);
 +				}
 +			}
-+			/* HOUJI-BPC: dump the 32 bytes of code before the trap. */
++			/* HOUJI-BPO: dump the object behind a display-mode failure. */
++			{
++				uint64_t object = bp_ss->x[5];
++				unsigned char ob[96];
++				if (object >= 0x10000 &&
++				    COPYIN((user_addr_t)object, ob, sizeof(ob)) == 0) {
++					static const char hx[] = "0123456789abcdef";
++					char hex[193];
++					unsigned i;
++
++					for (i = 0; i < sizeof(ob); i++) {
++						hex[i * 2] = hx[ob[i] >> 4];
++						hex[i * 2 + 1] = hx[ob[i] & 15];
++					}
++					hex[192] = 0;
++					printf("HOUJI-BPO: [%#llx] %s\n",
++					    (unsigned long long)object, hex);
++				} else {
++					printf("HOUJI-BPO: x5=%#llx unreadable\n",
++					    (unsigned long long)object);
++				}
++			}
+++			/* HOUJI-BPC: dump the 32 bytes of code before the trap. */
 +			{
 +				uint64_t pc = get_saved_state_pc(state);
 +				unsigned char cb[32];
