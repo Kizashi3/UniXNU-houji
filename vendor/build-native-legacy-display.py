@@ -50,7 +50,8 @@ named = {246: 'virtual void getDisplayDimensions(uint32_t *, uint32_t *);',
          281: 'virtual void completeCurrentSwap();',
          282: 'virtual bool validateSwap(const void *);',
          283: 'virtual bool prepareSwap(const void *);',
-         287: 'virtual bool getRefreshAttributes(uint64_t *, bool);'}
+         287: 'virtual bool getRefreshAttributes(uint64_t *, bool);',
+         321: 'virtual IOReturn collectCompletionReports(uint32_t, void *, uint32_t *, uint32_t) = 0;'}
 header = '''#pragma once
 #include <IOKit/IOService.h>
 class IOMobileFramebufferLegacy : public IOService {
@@ -164,6 +165,9 @@ for sym in undefined:
     else:
         bindings[sym] = methods[slot]
 require(not unmapped, 'unmapped original symbols: ' + repr(unmapped[:6]))
+bindings['_houji_legacy_vsync_notify'] = int(audit['externals']['vsync_notify'], 16)
+for getter in ('descriptor', 'width', 'height', 'stride', 'offset', 'allocation', 'format', 'planes'):
+    bindings['_houji_legacy_surface_' + getter] = int(audit['iosurface']['getters'][getter]['address'], 16)
 
 asm = OUT / 'original-bindings.S'
 asm.write_text(''.join('.globl %s\n.set %s, %#x\n' % (n, n, a) for n, a in sorted(bindings.items())))
@@ -204,7 +208,7 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-for test in ('houji-legacy-queue-test', 'houji-legacy-pixels-test'):
+for test in ('houji-legacy-queue-test', 'houji-legacy-pixels-test', 'houji-legacy-request-test'):
     test_source = DRIVER.parent / (test + '.cpp')
     test_binary = OUT / test
     run(['xcrun', 'clang++', '-std=c++17', '-Wall', '-Wextra', '-Werror',
@@ -215,7 +219,9 @@ sources = [DRIVER, OUT / 'OriginalHoujiLegacyABI.h', asm, late_asm, AUDIT,
            ROOT / 'scripts/validate-houji-late-object.py',
            DRIVER.parent / 'HoujiLegacyQueue.h', DRIVER.parent / 'HoujiLegacyPixels.h',
            DRIVER.parent / 'houji-legacy-queue-test.cpp',
-           DRIVER.parent / 'houji-legacy-pixels-test.cpp']
+           DRIVER.parent / 'houji-legacy-pixels-test.cpp',
+           DRIVER.parent / 'HoujiLegacyRequest.h',
+           DRIVER.parent / 'houji-legacy-request-test.cpp']
 (OUT / 'build-report.json').write_text(json.dumps({
     'archive_sha256': sha(archive),
     'source_sha256': {os.path.relpath(str(p), str(ROOT)): sha(p) for p in sources},

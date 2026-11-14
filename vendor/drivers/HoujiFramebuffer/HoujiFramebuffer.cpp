@@ -28,7 +28,12 @@
 
 extern "C" struct proc *current_proc(void);
 extern "C" int proc_getpid(struct proc *);
-extern "C" void houji_legacy_bootstrap_checkpoint(void) __attribute__((weak_import));
+static void (*houjiLegacyCheckpoint)(void);
+extern "C" void
+houji_fb_set_legacy_checkpoint(void (*checkpoint)(void))
+{
+	houjiLegacyCheckpoint = checkpoint;
+}
 
 #define HOUJI_FB_LOG(fmt, ...) IOLog("HOUJI-FB: " fmt "\n", ##__VA_ARGS__)
 
@@ -323,8 +328,8 @@ IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 	fVsyncCount++;
 	if ((fVsyncCount % 600) == 0) {
 		HOUJI_FB_LOG("vsync %llu swaps %u", fVsyncCount, fSwapCount);
-		if (houji_legacy_bootstrap_checkpoint != nullptr)
-			houji_legacy_bootstrap_checkpoint();
+		if (houjiLegacyCheckpoint != nullptr)
+			houjiLegacyCheckpoint();
 		if (fVsyncCount <= 3600) {
 			HOUJI_FB_LOG("services fb=%u hid=%u surf=%u res=%u",
 			    houjiCountServices("IOMobileFramebuffer"),
@@ -586,8 +591,8 @@ houji_fb_bootstrap(void)
 	if (provider == platform) {
 		HOUJI_FB_LOG("enumeration precondition failed; retaining platform-provider service");
 	}
-	if (houji_legacy_bootstrap_checkpoint != nullptr)
-		houji_legacy_bootstrap_checkpoint();
+	if (houjiLegacyCheckpoint != nullptr)
+		houjiLegacyCheckpoint();
 
 	IOMobileFramebuffer *fb = new IOMobileFramebuffer;
 	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(provider) || !fb->start(provider)) {

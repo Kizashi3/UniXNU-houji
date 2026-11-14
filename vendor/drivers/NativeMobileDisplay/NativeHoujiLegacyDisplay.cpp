@@ -1,18 +1,220 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 #include "OriginalHoujiLegacyABI.h"
+#include "HoujiLegacyQueue.h"
+#include "HoujiLegacyPixels.h"
+#include "HoujiLegacyRequest.h"
 #include <IOKit/IOLib.h>
 #include <IOKit/IOMemoryDescriptor.h>
+#include <IOKit/IOWorkLoop.h>
+#include <IOKit/IOTimerEventSource.h>
+#include <libkern/c++/OSData.h>
+#include <kern/clock.h>
+#include <mach/mach_time.h>
 #include <libkern/c++/OSKext.h>
 #include <libkern/c++/OSMetaClass.h>
 #include <libkern/c++/OSSymbol.h>
 #include <pexpert/pexpert.h>
 
 extern "C" void houji_legacy_initialize_class(void);
+extern "C" void houji_legacy_bootstrap_checkpoint(void);
+extern "C" void houji_fb_set_legacy_checkpoint(void (*)(void));
+extern "C" void houji_legacy_vsync_notify(void *, uint64_t, uint64_t, uint64_t);
+extern "C" uint64_t mach_continuous_time(void);
+extern "C" IOMemoryDescriptor *houji_legacy_surface_descriptor(OSObject *);
+extern "C" uint32_t houji_legacy_surface_width(OSObject *);
+extern "C" uint32_t houji_legacy_surface_height(OSObject *);
+extern "C" uint32_t houji_legacy_surface_stride(OSObject *);
+extern "C" uint32_t houji_legacy_surface_offset(OSObject *);
+extern "C" uint32_t houji_legacy_surface_allocation(OSObject *);
+extern "C" uint32_t houji_legacy_surface_format(OSObject *);
+extern "C" uint32_t houji_legacy_surface_planes(OSObject *);
 static const char *houjiProbeStage = "not-inspected";
 
 class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     OSDeclareDefaultStructors(NativeHoujiLegacyDisplay)
+    IOMemoryMap *scanout = nullptr;
+    IOTimerEventSource *timer = nullptr;
+    uint64_t period = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t rowBytes = 0;
+    bool copying = false;
+    unsigned presented = 0;
+
+    static void vsyncFired(OSObject *owner, IOTimerEventSource *)
+    {
+        auto display = static_cast<NativeHoujiLegacyDisplay *>(owner);
+        const void *head = nullptr;
+        __builtin_memcpy(&head, reinterpret_cast<unsigned char *>(display) + 4992, sizeof(head));
+        if (head != nullptr)
+            houji_legacy_vsync_notify(display, mach_absolute_time(), mach_continuous_time(), display->period);
+        display->kickSwapQueue();
+        if (display->timer != nullptr)
+            display->timer->wakeAtTime(mach_absolute_time() + display->period);
+    }
+
 public:
+    bool startHardware() override
+    {
+        PE_Video video = {};
+        if (scanout != nullptr || PE_current_console(&video) != 0 ||
+            !video.v_baseAddr || !video.v_width || !video.v_height ||
+            video.v_width > 16384 || video.v_height > 16384 || video.v_depth != 32 ||
+            video.v_rotate || video.v_rowBytes < static_cast<uint64_t>(video.v_width) * 4 ||
+            (video.v_rowBytes & 3) ||
+            static_cast<uint64_t>(video.v_rowBytes) > UINT64_MAX / video.v_height)
+            return false;
+        const uint64_t length = static_cast<uint64_t>(video.v_rowBytes) * video.v_height;
+        IOMemoryDescriptor *memory = IOMemoryDescriptor::withPhysicalAddress(video.v_baseAddr, length, kIODirectionOut);
+        if (memory == nullptr)
+            return false;
+        scanout = memory->map();
+        memory->release();
+        if (scanout == nullptr)
+            return false;
+        if (!scanout->getVirtualAddress() || scanout->getLength() < length ||
+            scanout->getPhysicalAddress() != video.v_baseAddr) {
+            scanout->release();
+            scanout = nullptr;
+            return false;
+        }
+        width = static_cast<uint32_t>(video.v_width);
+        height = static_cast<uint32_t>(video.v_height);
+        rowBytes = static_cast<uint32_t>(video.v_rowBytes);
+        __builtin_memcpy(reinterpret_cast<unsigned char *>(this) + 5208, &width, sizeof(width));
+        __builtin_memcpy(reinterpret_cast<unsigned char *>(this) + 5212, &height, sizeof(height));
+        nanoseconds_to_absolutetime(NSEC_PER_SEC / 60, &period);
+        uint64_t refresh[6] = {(1ULL << 32) / 60, period, (1ULL << 32) / 60, period, 0, 0};
+        OSData *data = OSData::withBytes(refresh, sizeof(refresh));
+        const bool published = data != nullptr && setProperty("IOMFBDisplayRefresh", data);
+        if (data != nullptr)
+            data->release();
+        if (!published) {
+            scanout->release();
+            scanout = nullptr;
+            return false;
+        }
+        IOWorkLoop *loop = getWorkLoop();
+        timer = loop == nullptr ? nullptr : IOTimerEventSource::timerEventSource(this, &NativeHoujiLegacyDisplay::vsyncFired);
+        if (timer == nullptr || loop->addEventSource(timer) != kIOReturnSuccess) {
+            if (timer != nullptr)
+                timer->release();
+            timer = nullptr;
+            scanout->release();
+            scanout = nullptr;
+            return false;
+        }
+        timer->wakeAtTime(mach_absolute_time() + period);
+        IOLog("HOUJI-LEGACY: stage=hardware mapped=%ux%u refresh=60 writes=0\n", width, height);
+        return true;
+    }
+
+    void getDisplayDimensions(uint32_t *outWidth, uint32_t *outHeight) override
+    {
+        if (outWidth != nullptr)
+            *outWidth = width;
+        if (outHeight != nullptr)
+            *outHeight = height;
+    }
+
+    bool getRefreshAttributes(uint64_t *values, bool) override
+    {
+        if (values == nullptr || !period)
+            return false;
+        const uint64_t refresh[6] = {(1ULL << 32) / 60, period, (1ULL << 32) / 60, period, 0, 0};
+        __builtin_memcpy(values, refresh, sizeof(refresh));
+        return true;
+    }
+
+    IOReturn collectCompletionReports(uint32_t, void *, uint32_t *count, uint32_t) override
+    {
+        if (count != nullptr)
+            *count = 0;
+        return kIOReturnUnsupported;
+    }
+
+    bool validateSwap(const void *request) override
+    {
+        uint32_t enabled = 0;
+        uint32_t synchronous = 0;
+        PE_parse_boot_argn("houji-legacy-cpu", &enabled, sizeof(enabled));
+        PE_parse_boot_argn("houji-legacy-sync-cpu", &synchronous, sizeof(synchronous));
+        return enabled == 1 && synchronous == 1 && scanout != nullptr &&
+            HoujiLegacy20H392::fullFrameRequest(request, width, height);
+    }
+
+    void kickSwapQueue() override
+    {
+        uint32_t enabled = 0;
+        uint32_t synchronous = 0;
+        PE_parse_boot_argn("houji-legacy-cpu", &enabled, sizeof(enabled));
+        PE_parse_boot_argn("houji-legacy-sync-cpu", &synchronous, sizeof(synchronous));
+        IOWorkLoop *loop = getWorkLoop();
+        if (enabled != 1 || synchronous != 1 || scanout == nullptr || loop == nullptr ||
+            !loop->inGate() || copying ||
+            HoujiLegacy20H392::loadPointer(this, HoujiLegacy20H392::currentSwap) != nullptr)
+            return;
+        copying = true;
+        void *request = HoujiLegacy20H392::loadPointer(this, HoujiLegacy20H392::pendingHead);
+        if (request != nullptr && HoujiLegacy20H392::fullFrameRequest(request, width, height)) {
+            OSObject *surfaces[4] = {};
+            __builtin_memcpy(surfaces, static_cast<unsigned char *>(request) + 2040, sizeof(surfaces));
+            OSObject *surface = surfaces[0];
+            if (surface != nullptr && !surfaces[1] && !surfaces[2] && !surfaces[3] &&
+                surface->metaCast("IOSurface") && houji_legacy_surface_format(surface) == 0x42475241U &&
+                houji_legacy_surface_planes(surface) == 0 &&
+                houji_legacy_surface_width(surface) >= width && houji_legacy_surface_height(surface) >= height) {
+                surface->retain();
+                IOMemoryDescriptor *memory = houji_legacy_surface_descriptor(surface);
+                if (memory != nullptr && memory->metaCast("IOMemoryDescriptor")) {
+                    memory->retain();
+                    const uint64_t allocation = houji_legacy_surface_allocation(surface);
+                    const uint64_t offset = houji_legacy_surface_offset(surface);
+                    const uint64_t stride = houji_legacy_surface_stride(surface);
+                    IOMemoryMap *mapping = memory->map(kIOMapAnywhere | kIOMapReadOnly);
+                    const bool bounds = allocation <= memory->getLength() && offset <= allocation &&
+                        mapping != nullptr && mapping->getLength() >= allocation &&
+                        HoujiLegacy20H392::pixelExtent(allocation - offset, stride, width, height);
+                    const bool copied = bounds && HoujiLegacy20H392::copyBgra(
+                        reinterpret_cast<volatile void *>(scanout->getVirtualAddress()),
+                        scanout->getLength(), rowBytes,
+                        reinterpret_cast<const void *>(mapping->getVirtualAddress()),
+                        allocation, offset, stride, width, height);
+                    if (copied) {
+                        __asm__ volatile("dsb sy" ::: "memory");
+                        if (HoujiLegacy20H392::activatePendingSwap(this, request)) {
+                            IOMobileFramebufferLegacy::completeCurrentSwap();
+                            ++presented;
+                            if (presented <= 8)
+                                IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u\n", presented);
+                        }
+                    }
+                    if (mapping != nullptr)
+                        mapping->release();
+                    memory->release();
+                }
+                surface->release();
+            }
+        }
+        copying = false;
+    }
+
+    void stop(IOService *provider) override
+    {
+        if (timer != nullptr) {
+            timer->cancelTimeout();
+            if (getWorkLoop() != nullptr)
+                getWorkLoop()->removeEventSource(timer);
+            timer->release();
+            timer = nullptr;
+        }
+        if (scanout != nullptr) {
+            scanout->release();
+            scanout = nullptr;
+        }
+        IOMobileFramebufferLegacy::stop(provider);
+    }
+
 #define HOUJI_LEGACY_LEAF(slot) \
     void opaque##slot() override { __builtin_trap(); }
     HOUJI_LEGACY_LEAF(211)
@@ -21,7 +223,6 @@ public:
     HOUJI_LEGACY_LEAF(243)
     HOUJI_LEGACY_LEAF(292)
     HOUJI_LEGACY_LEAF(293)
-    HOUJI_LEGACY_LEAF(321)
     HOUJI_LEGACY_LEAF(322)
     HOUJI_LEGACY_LEAF(329)
 #undef HOUJI_LEGACY_LEAF
@@ -127,7 +328,7 @@ houjiLegacyProbe(void)
         NativeHoujiLegacyDisplay::gMetaClass.~MetaClass();
     const OSMetaClass *meta = houjiFindClass("NativeHoujiLegacyDisplay");
     const bool valid = constructed && result == kOSReturnSuccess && meta != nullptr &&
-        meta->getSuperClass() == base && meta->getClassSize() == 0x1660;
+        meta->getSuperClass() == base && meta->getClassSize() == sizeof(NativeHoujiLegacyDisplay);
     houjiProbeStage = valid ? "registered-not-published" : "registration-failed";
     IOLog("HOUJI-LEGACY: stage=register valid=%d rc=%#x size=%u allocated=0 published=0\n",
         valid, result, meta == nullptr ? 0U : meta->getClassSize());
@@ -136,8 +337,16 @@ houjiLegacyProbe(void)
 static unsigned houjiEarlyProbeCalls;
 static unsigned houjiLateProbeCalls;
 
-extern "C" void native_legacy_display_probe(void) { ++houjiEarlyProbeCalls; }
-extern "C" void native_legacy_display_late_probe(void) { ++houjiLateProbeCalls; }
+extern "C" void native_legacy_display_probe(void)
+{
+    ++houjiEarlyProbeCalls;
+    houji_fb_set_legacy_checkpoint(&houji_legacy_bootstrap_checkpoint);
+}
+extern "C" void native_legacy_display_late_probe(void)
+{
+    ++houjiLateProbeCalls;
+    houji_fb_set_legacy_checkpoint(&houji_legacy_bootstrap_checkpoint);
+}
 
 extern "C" void
 houji_legacy_bootstrap_checkpoint(void)
