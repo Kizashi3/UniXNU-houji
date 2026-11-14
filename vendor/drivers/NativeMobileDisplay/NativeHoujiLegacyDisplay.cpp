@@ -29,6 +29,11 @@ extern "C" uint32_t houji_legacy_surface_allocation(OSObject *);
 extern "C" uint32_t houji_legacy_surface_format(OSObject *);
 extern "C" uint32_t houji_legacy_surface_planes(OSObject *);
 static const char *houjiProbeStage = "not-inspected";
+static int houjiDbgFamilyLoaded;
+static const void *houjiDbgBase;
+static const void *houjiDbgFb;
+static const void *houjiDbgClient;
+static const char *houjiDbgBaseOwner = "";
 
 class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     OSDeclareDefaultStructors(NativeHoujiLegacyDisplay)
@@ -288,10 +293,20 @@ houjiLegacyProbe(void)
 
     static const char family[] = "com.apple.iokit.IOMobileGraphicsFamily";
     const OSMetaClass *base = houjiFindClass("IOMobileFramebufferLegacy");
+    if (base == nullptr && !OSKext::isKextWithIdentifierLoaded(family)) {
+        (void)OSKext::loadKextWithIdentifier(family);
+        base = houjiFindClass("IOMobileFramebufferLegacy");
+    }
     const OSMetaClass *framebuffer = houjiFindClass("IOMobileFramebuffer");
     const OSMetaClass *client = houjiFindClass("IOMobileFramebufferUserClient");
-    IOLog("HOUJI-LEGACY: stage=preflight family-loaded=%d base=%p fb=%p client=%p\n",
-        OSKext::isKextWithIdentifierLoaded(family), base, framebuffer, client);
+    houjiDbgFamilyLoaded = OSKext::isKextWithIdentifierLoaded(family);
+    houjiDbgBase = base;
+    houjiDbgFb = framebuffer;
+    houjiDbgClient = client;
+    if (base != nullptr && base->getKmodName() != nullptr)
+        houjiDbgBaseOwner = base->getKmodName()->getCStringNoCopy();
+    IOLog("HOUJI-LEGACY: stage=preflight family-loaded=%d base=%p fb=%p client=%p owner=%s\n",
+        houjiDbgFamilyLoaded, base, framebuffer, client, houjiDbgBaseOwner);
     houjiCheckGop();
     if ((framebuffer != nullptr && !houjiClassOwnedBy(framebuffer, family)) ||
         (client != nullptr && !houjiClassOwnedBy(client, family))) {
@@ -299,7 +314,7 @@ houjiLegacyProbe(void)
         IOLog("HOUJI-LEGACY: stage=blocked duplicate-original-class-name old-service-retained\n");
         return;
     }
-    if (base == nullptr || !houjiClassOwnedBy(base, family) ||
+    if (base == nullptr ||
         strcmp(base->getClassName(), "IOMobileFramebufferLegacy") != 0 ||
         base->getClassSize() != 0x1660) {
         houjiProbeStage = "original-superclass-not-ready";
@@ -353,7 +368,8 @@ houji_legacy_bootstrap_checkpoint(void)
 {
     uint32_t enabled = 0;
     PE_parse_boot_argn("houji-legacy-display", &enabled, sizeof(enabled));
-    IOLog("HOUJI-LEGACY: checkpoint enabled=%u early=%u late=%u stage=%s\n",
-        enabled, houjiEarlyProbeCalls, houjiLateProbeCalls, houjiProbeStage);
+    IOLog("HOUJI-LEGACY: checkpoint enabled=%u early=%u late=%u stage=%s fam=%d base=%p fb=%p owner=%s\n",
+        enabled, houjiEarlyProbeCalls, houjiLateProbeCalls, houjiProbeStage,
+        houjiDbgFamilyLoaded, houjiDbgBase, houjiDbgFb, houjiDbgBaseOwner);
     houjiLegacyProbe();
 }
