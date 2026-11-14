@@ -1,0 +1,99 @@
++ T=out/houji/tree
++ mkdir -p out/houji/tree/build/native-prelink
++ cp out/houji/kernel/kernel.macho out/houji/tree/build/native-prelink/native-owner-mobile-graphics-candidate.macho
++ cp out/houji/kernel/kernel.json out/houji/tree/build/native-prelink/native-owner-mobile-graphics-candidate.json
++ cp out/houji/kernel/kernel.macho out/houji/tree/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.macho
++ cp out/houji/kernel/kernel.json out/houji/tree/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.json
++ cd out/houji/tree
++ cp /Users/runner/work/UniXNU-houji/UniXNU-houji/device/vendor/scripts-audit-mobile-graphics-legacy.py scripts/audit-mobile-graphics-legacy.py
++ cp /Users/runner/work/UniXNU-houji/UniXNU-houji/device/vendor/build-native-legacy-display.py scripts/build-native-legacy-display.py
++ md5sum scripts/audit-mobile-graphics-legacy.py scripts/build-native-legacy-display.py
+7328279d1e730542b2ce604c0f9cbf64  scripts/audit-mobile-graphics-legacy.py
+37c44c4f1b03831cbdceb5311fb10ab1  scripts/build-native-legacy-display.py
++ pwd
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree
++ head -10
++ ls -la build/native-prelink
+total 286608
+drwxr-xr-x   6 runner  staff       192 Nov 14 18:32 .
+drwxr-xr-x  18 runner  staff       576 Nov 14 18:32 ..
+-rw-r--r--   1 runner  staff  16003866 Nov 14 18:32 native-owner-mobile-graphics-candidate.json
+-rw-r--r--   1 runner  staff  57364480 Nov 14 18:32 native-owner-mobile-graphics-candidate.macho
+-rw-r--r--   1 runner  staff  16003866 Nov 14 18:32 native-owner-ufs-cpu-desktop-houji-candidate.json
+-rw-r--r--   1 runner  staff  57364480 Nov 14 18:32 native-owner-ufs-cpu-desktop-houji-candidate.macho
++ python3 -c 'from pathlib import Path; r=Path('\''scripts/audit-mobile-graphics-legacy.py'\'').resolve().parents[1]; print('\''audit ROOT'\'', r); print('\''exists'\'', (r/'\''build/native-prelink/native-owner-mobile-graphics-candidate.macho'\'').exists())'
+audit ROOT /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree
+exists True
++ python3 scripts/audit-mobile-graphics-legacy.py
+PASS: 20H392 queue/vsync instruction checks and 0..4-element queue model
+Static qualification only; original runtime/backend remains disabled
++ python3 scripts/build-native-legacy-display.py
+clang: warning: using sysroot for 'MacOSX' but targeting 'iPhone' [-Wincompatible-sysroot]
+PASS: unchanged owned sections 19
+PASS: houji-legacy-queue-test
+PASS: houji-legacy-pixels-test
+PASS: houji-legacy-request-test
+HOUJI-LEGACY build: 338-slot archive with 175 original bindings; automatic registration removed; runtime activation gated
++ ls -la build/native-legacy-display
+total 2240
+drwxr-xr-x  15 runner  staff     480 Nov 14 18:32 .
+drwxr-xr-x  20 runner  staff     640 Nov 14 18:32 ..
+-rw-r--r--   1 runner  staff    1822 Nov 14 18:32 build-report.json
+-rw-r--r--   1 runner  staff       0 Nov 14 18:32 driver-compile.log
+-rwxr-xr-x   1 runner  staff   72328 Nov 14 18:32 houji-legacy-pixels-test
+-rwxr-xr-x   1 runner  staff   72888 Nov 14 18:32 houji-legacy-queue-test
+-rwxr-xr-x   1 runner  staff   53640 Nov 14 18:32 houji-legacy-request-test
+-rw-r--r--   1 runner  staff     464 Nov 14 18:32 late-registration.o
+-rw-r--r--   1 runner  staff     134 Nov 14 18:32 late-registration.S
+-rw-r--r--   1 runner  staff  308056 Nov 14 18:32 libNativeLegacyDisplay.late.a
+-rw-r--r--   1 runner  staff  286328 Nov 14 18:32 NativeHoujiLegacyDisplay.late.o
+-rw-r--r--   1 runner  staff  286448 Nov 14 18:32 NativeHoujiLegacyDisplay.o
+-rw-r--r--   1 runner  staff   10768 Nov 14 18:32 original-bindings.o
+-rw-r--r--   1 runner  staff   20862 Nov 14 18:32 original-bindings.S
+-rw-r--r--   1 runner  staff    6102 Nov 14 18:32 OriginalHoujiLegacyABI.h
++ cd /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu
++ sed -i '' -e s/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y/ out/houji/.config
++ sed -i '' -e s/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y/ /Users/runner/work/UniXNU-houji/UniXNU-houji/device/configs/houji_defconfig
++ grep LEGACY_DISPLAY /Users/runner/work/UniXNU-houji/UniXNU-houji/device/configs/houji_defconfig
+CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y
++ ./unixnu build kernel -D /Users/runner/work/UniXNU-houji/UniXNU-houji/device -j 3
++ tee out/houji/logs/github-build-display.log
+== submodules /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu
+== submodules: drivers/GopFramebuffer has local changes, not updated
+== submodules: drivers/RamBlock has local changes, not updated
+== submodules: drivers/SoftwareAES has local changes, not updated
+== submodules: kits/XnuPrelink has local changes, not updated
+== tree /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree
+== kernel: XNU
+== kernel: assembled 91 upstream/device XNU patches
+== kernel: prepare storage headers
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/prepare-storage-headers.py
+== kernel: archive-01-build-arm-driver
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py HoujiFramebuffer
+== kernel: archive-02-build-arm-driver
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py NativeUfs
+== kernel: archive-03-build-corecrypto-14
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-corecrypto-14.py
+== kernel: archive-04-build-corecrypto-14
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-corecrypto-14.py --namespace
+== kernel: archive-05-build-arm-driver
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py ArmDTPlatform
+== kernel: archive-06-build-arm-driver
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py ArmCpu
+== kernel: archive-07-build-libpthread-kernel
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-libpthread-kernel.py
+== kernel: archive-08-build-arm-driver
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py NativeAES
+== kernel: archive-09-build-native-aes-bindings
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-native-aes-bindings.py
+== kernel: archive-10-build-arm-driver
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py NativeRamBlock
+== kernel: archive-11-build-native-ram-block-bindings
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-native-ram-block-bindings.py
++ bash /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-xnu-4k-baseline.sh
+== kernel: prelink
+== ipsw: remote https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw
++ python3 /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/kits/NativePrelink/emit_prelink.py --kernel /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf --prelinked /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/ipsw/20H392/kernelcache.decompressed --slide=-0x1000000 --root com.apple.AppleFSCompression.AppleFSCompressionTypeZlib --root com.apple.driver.AppleARMPlatform --root com.apple.driver.AppleARMWatchdogTimer --root com.apple.driver.AppleAudioClockLibs --root com.apple.driver.AppleEffaceableStorage --root com.apple.driver.AppleIISController --root com.apple.driver.AppleM2ScalerCSCDriver --root com.apple.driver.AppleMobileFileIntegrity --root com.apple.driver.ApplePMGR --root com.apple.driver.IODARTFamily --root com.apple.filesystems.apfs --root com.apple.iokit.CoreAnalyticsFamily --root com.apple.iokit.IOAVFamily --root com.apple.iokit.IOAudio2Family --root com.apple.iokit.IOCECFamily --root com.apple.iokit.IOCryptoAcceleratorFamily --root com.apple.iokit.IOGPUFamily --root com.apple.iokit.IOHDCPFamily --root com.apple.iokit.IOMobileGraphicsFamily --root com.apple.iokit.IOReportFamily --root com.apple.iokit.IOSlowAdaptiveClockingFamily --root com.apple.iokit.IOStorageFamily --root com.apple.iokit.IOSurface --root com.apple.kec.Libm --root com.apple.kec.corecrypto --root com.apple.kext.AppleMatch --root com.apple.kext.CoreTrust --root com.apple.security.AppleImage4 --root com.apple.security.sandbox --root com.apple.iokit.IOHIDFamily --early-security-init com.apple.driver.AppleMobileFileIntegrity=0xfffffff005703c54 --output /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/kernel/.prelink-2jowzmd1/kernel.macho
+== kernel: /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/kernel/kernel.macho sha256 cb77865aa7a0f58dddf745037df88c835595ecb663863151e1d8fd623e1e13a1
++ ls -la out/houji/kernel/kernel.macho
+-rw-r--r--  1 runner  staff  57384960 Nov 14 18:33 out/houji/kernel/kernel.macho

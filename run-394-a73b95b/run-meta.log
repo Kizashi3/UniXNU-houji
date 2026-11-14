@@ -1,0 +1,487 @@
+=== run meta ===
+run 394 attempt 1 job kernel
+commit a73b95b4f4cb817c8245bb4e8cda385a6d44f76a branch merged-root-kernel trigger push
+unixnu 1c9261527e7e90f0eb0f263afeda80598fdd5cd0
+device a73b95b4f4cb817c8245bb4e8cda385a6d44f76a
+selected DEVELOPER_DIR /Applications/Xcode_26.6.app/Contents/Developer
+=== files under unixnu/out/houji (maxdepth 4) ===
+unixnu/out/houji/.config
+unixnu/out/houji/kernel/data-seed.raw.gz
+unixnu/out/houji/kernel/kernel.json
+unixnu/out/houji/kernel/kernel.macho
+unixnu/out/houji/kernel/kernel.macho.sha256
+unixnu/out/houji/logs/archive-01-build-arm-driver.log
+unixnu/out/houji/logs/archive-02-build-arm-driver.log
+unixnu/out/houji/logs/archive-03-build-corecrypto-14.log
+unixnu/out/houji/logs/archive-04-build-corecrypto-14.log
+unixnu/out/houji/logs/archive-05-build-arm-driver.log
+unixnu/out/houji/logs/archive-06-build-arm-driver.log
+unixnu/out/houji/logs/archive-07-build-libpthread-kernel.log
+unixnu/out/houji/logs/archive-08-build-arm-driver.log
+unixnu/out/houji/logs/archive-09-build-native-aes-bindings.log
+unixnu/out/houji/logs/archive-10-build-arm-driver.log
+unixnu/out/houji/logs/archive-11-build-native-ram-block-bindings.log
+unixnu/out/houji/logs/display.log
+unixnu/out/houji/logs/early-steps.log
+unixnu/out/houji/logs/github-build-display.log
+unixnu/out/houji/logs/github-build.log
+unixnu/out/houji/logs/github-diagnostics.log
+unixnu/out/houji/logs/kernel-bootstrap.log
+unixnu/out/houji/logs/kernel.log
+unixnu/out/houji/logs/objects-dirs.txt
+unixnu/out/houji/logs/prelink-ios16-validation.json
+unixnu/out/houji/logs/prelink.log
+unixnu/out/houji/logs/run-meta.log
+unixnu/out/houji/logs/storage-headers.log
+unixnu/out/houji/logs/storage-interface-audit.json
+unixnu/out/houji/tree/.cache/fakeroot/.xnu-10063.141.1-headers
+unixnu/out/houji/tree/.cache/libdispatch-work/CMakeLists.txt
+unixnu/out/houji/tree/.cache/libdispatch-work/INSTALL.md
+unixnu/out/houji/tree/.cache/libdispatch-work/LICENSE
+unixnu/out/houji/tree/.cache/libdispatch-work/PATCHES
+unixnu/out/houji/tree/.cache/libpthread-work/.upstream_base_commits
+unixnu/out/houji/tree/.cache/sources/xnu-driverkit-10063.121.3.json
+unixnu/out/houji/tree/.cache/sources/xnu-driverkit-crypto-10063.121.3.json
+unixnu/out/houji/tree/.cache/sources/xnu-restored-headers.json
+unixnu/out/houji/tree/.cache/sources/xnu-trustcache-8796.101.5.json
+unixnu/out/houji/tree/.cache/xnu-patch-series/apple-only-cpu-tunables.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/architectural-timer-entry.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/armvirt-platform-personality.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/con-ring.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/corpse-limit.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/cryptex-namei-fallback.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/cs-overlay-platform.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/cxx-flag-dependencies.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/defer-entropy-sha512-until-kiec.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/dict-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/disabled-deferred-reclaim.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/dt-panic-region.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/external-archive-dependencies.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/houji-sys-trace.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/inpcblist-heap.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/kernel-sdk-root.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/kfree-caller.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/kobj-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/legacy-mig-defs.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/local-availability.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/memdev-64bit-size.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/mockfs-intermediate-lookup.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/mockfs-memory-device-width.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/mockfs-statfs.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/mockfs-test-file.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/mockfs-typed-allocation.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/msgbuf-16m.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-4k-bootstrap-capacity.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-4k-signature-hash-cache.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-4k-user-abi.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-aes-personality.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-arm-pan.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-dt-panic-region.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-lookup-trace.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-persistent-early-log.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-priv-work-interval.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-quiet-managed-page-report.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-smp-secondary.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-text-fixup.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-trust-cache-runtime.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-union-getattrlistbulk.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-union-lower-directory.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-work-interval-instance.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-work-interval-soft-fail.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/native-work-interval-trace.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/non-apple-cache-monitor.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/non-apple-iommu-bootstrap.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/non-apple-pmap-field.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/null-root-media.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/nvdedup.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-component-load-probes.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-legacy-start.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-native-gpu-broker.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-owner-boot-manifest.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-owner-cache-carrier.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-owner-root-binding-audit.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-owner-root-crypto-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-owner-systemos-mount.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-owner-z-air-init.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/offline-pgz-alignment-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/ool-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/pgz-aligned-validation.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/public-entitlements-header.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/published-freezer-condition.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/ramdisk-outside-physmem.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/setport-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/sheng-platform-power.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/skip-shared-cache-macf-check.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/source-corecrypto14-bootstrap.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/source-machine-layer.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/source-pthread-bootstrap.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/srcache-dynamic.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/srcache-noreject.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/srcache-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/svcmatch-null-sleep.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/svcmatch-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/svctrace-initproc.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/ucprobe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/ufault-probe.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/user-fault-log.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/video-console.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzw-native-adreno-sandbox-grant.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzwb-native-sandbox-grant-set-properties.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzx-pmap-sync-64bit-pa.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzy-native-gpu-addon-mount.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzy-staged-system-apps.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzyb-native-cryptex-os-view.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzyc-owner-skip-launch-constraints.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzzz-rd2-systemos-mount.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzzzzz-houji-exit-klog.patch
+unixnu/out/houji/tree/.cache/xnu-patch-series/zzzzzzz-houji-bp-probe.patch
+unixnu/out/houji/tree/.cache/xnu-work/.upstream_base_commits
+unixnu/out/houji/tree/.cache/xnu-work/APPLE_LICENSE
+unixnu/out/houji/tree/.cache/xnu-work/Makefile
+unixnu/out/houji/tree/.cache/xnu-work/README.md
+unixnu/out/houji/tree/build/armcpu/ArmCpu.o
+unixnu/out/houji/tree/build/armcpu/compile-command.json
+unixnu/out/houji/tree/build/armcpu/compile.log
+unixnu/out/houji/tree/build/armcpu/libArmCpu.a
+unixnu/out/houji/tree/build/armdt-platform/ArmDTPlatform-giulia.cpp
+unixnu/out/houji/tree/build/armdt-platform/ArmDTPlatform.o
+unixnu/out/houji/tree/build/armdt-platform/compile-command.json
+unixnu/out/houji/tree/build/armdt-platform/compile.log
+unixnu/out/houji/tree/build/armdt-platform/GiuliaUfsProbe.h
+unixnu/out/houji/tree/build/armdt-platform/GiuliaUfsRead.o
+unixnu/out/houji/tree/build/armdt-platform/libArmDTPlatform.a
+unixnu/out/houji/tree/build/armdt-platform/ufs-compile-command.json
+unixnu/out/houji/tree/build/armdt-platform/ufs-compile.log
+unixnu/out/houji/tree/build/availability/.ninja_log
+unixnu/out/houji/tree/build/availability/availability
+unixnu/out/houji/tree/build/availability/Availability.h
+unixnu/out/houji/tree/build/availability/AvailabilityInternal.h
+unixnu/out/houji/tree/build/availability/AvailabilityInternalLegacy.h
+unixnu/out/houji/tree/build/availability/AvailabilityInternalPrivate.h
+unixnu/out/houji/tree/build/availability/AvailabilityMacros.h
+unixnu/out/houji/tree/build/availability/AvailabilityPrivate.modulemap
+unixnu/out/houji/tree/build/availability/AvailabilityProhibitedInternal.h
+unixnu/out/houji/tree/build/availability/AvailabilityVersions.h
+unixnu/out/houji/tree/build/availability/build.ninja
+unixnu/out/houji/tree/build/availability/cmake_install.cmake
+unixnu/out/houji/tree/build/availability/CMakeCache.txt
+unixnu/out/houji/tree/build/availability/for_dyld_priv.inc
+unixnu/out/houji/tree/build/availability/install_manifest.txt
+unixnu/out/houji/tree/build/availability/os_availability_private.modulemap
+unixnu/out/houji/tree/build/availability/os_availability.h
+unixnu/out/houji/tree/build/availability/os_availability.modulemap
+unixnu/out/houji/tree/build/availability/VersionMap.h
+unixnu/out/houji/tree/build/corecrypto-2023/build-report-namespaced.json
+unixnu/out/houji/tree/build/corecrypto-2023/build-report.json
+unixnu/out/houji/tree/build/corecrypto-2023/compile-command-namespaced.json
+unixnu/out/houji/tree/build/corecrypto-2023/compile-command.json
+unixnu/out/houji/tree/build/corecrypto-2023/libcorecrypto_kernel_noasm-namespaced.a
+unixnu/out/houji/tree/build/corecrypto-2023/libcorecrypto_kernel_noasm.a
+unixnu/out/houji/tree/build/corecrypto-2023/link-survey-namespaced.json
+unixnu/out/houji/tree/build/corecrypto-2023/link-survey.json
+unixnu/out/houji/tree/build/corecrypto-2023/namespace.h
+unixnu/out/houji/tree/build/corecrypto-2023/project.json
+unixnu/out/houji/tree/build/display-analysis/mobile-graphics-legacy-abi.json
+unixnu/out/houji/tree/build/houji-framebuffer/compile-command.json
+unixnu/out/houji/tree/build/houji-framebuffer/compile.log
+unixnu/out/houji/tree/build/houji-framebuffer/HoujiFramebuffer.o
+unixnu/out/houji/tree/build/houji-framebuffer/libHoujiFramebuffer.a
+unixnu/out/houji/tree/build/libpthread-kernel/kern_init.log
+unixnu/out/houji/tree/build/libpthread-kernel/kern_init.o
+unixnu/out/houji/tree/build/libpthread-kernel/kern_support.log
+unixnu/out/houji/tree/build/libpthread-kernel/kern_support.o
+unixnu/out/houji/tree/build/libpthread-kernel/kern_synch.log
+unixnu/out/houji/tree/build/libpthread-kernel/kern_synch.o
+unixnu/out/houji/tree/build/libpthread-kernel/libpthread_kernel.a
+unixnu/out/houji/tree/build/libpthread-kernel/namespace.h
+unixnu/out/houji/tree/build/libpthread-kernel/report.json
+unixnu/out/houji/tree/build/libpthread-kernel/source_pthread_bootstrap.log
+unixnu/out/houji/tree/build/libpthread-kernel/source_pthread_bootstrap.o
+unixnu/out/houji/tree/build/native-legacy-display/build-report.json
+unixnu/out/houji/tree/build/native-legacy-display/driver-compile.log
+unixnu/out/houji/tree/build/native-legacy-display/houji-legacy-pixels-test
+unixnu/out/houji/tree/build/native-legacy-display/houji-legacy-queue-test
+unixnu/out/houji/tree/build/native-legacy-display/houji-legacy-request-test
+unixnu/out/houji/tree/build/native-legacy-display/late-registration.o
+unixnu/out/houji/tree/build/native-legacy-display/late-registration.S
+unixnu/out/houji/tree/build/native-legacy-display/libNativeLegacyDisplay.late.a
+=== early-steps.log tail ===
+Submodule 'drivers/Adreno740' (https://github.com/UniXNU/Adreno740.git) registered for path 'drivers/Adreno740'
+Submodule 'drivers/AdrenoMetal' (https://github.com/UniXNU/AdrenoMetal.git) registered for path 'drivers/AdrenoMetal'
+Submodule 'drivers/AppleKeyStoreState' (https://github.com/UniXNU/AppleKeyStoreState.git) registered for path 'drivers/AppleKeyStoreState'
+Submodule 'drivers/ArmCpu' (https://github.com/UniXNU/ArmCpu.git) registered for path 'drivers/ArmCpu'
+Submodule 'drivers/ArmDTPlatform' (https://github.com/UniXNU/ArmDTPlatform.git) registered for path 'drivers/ArmDTPlatform'
+Submodule 'drivers/ArmVirtPlatform' (https://github.com/UniXNU/ArmVirtPlatform.git) registered for path 'drivers/ArmVirtPlatform'
+Submodule 'drivers/DarwinBoot' (https://github.com/UniXNU/DarwinBoot.git) registered for path 'drivers/DarwinBoot'
+Submodule 'drivers/GopFramebuffer' (https://github.com/UniXNU/GopFramebuffer.git) registered for path 'drivers/GopFramebuffer'
+Submodule 'drivers/QcomBaseband' (https://github.com/UniXNU/QcomBaseband.git) registered for path 'drivers/QcomBaseband'
+Submodule 'drivers/QcomGeniSpi' (https://github.com/UniXNU/QcomGeniSpi.git) registered for path 'drivers/QcomGeniSpi'
+Submodule 'drivers/RamBlock' (https://github.com/UniXNU/RamBlock.git) registered for path 'drivers/RamBlock'
+Submodule 'drivers/SoftwareAES' (https://github.com/UniXNU/SoftwareAES.git) registered for path 'drivers/SoftwareAES'
+Submodule 'drivers/VirtioMmioBlock' (https://github.com/UniXNU/VirtioMmioBlock.git) registered for path 'drivers/VirtioMmioBlock'
+Submodule 'drivers/VirtioMmioConsole' (https://github.com/UniXNU/VirtioMmioConsole.git) registered for path 'drivers/VirtioMmioConsole'
+Submodule 'kits/AdrenoFirmware' (https://github.com/UniXNU/AdrenoFirmware.git) registered for path 'kits/AdrenoFirmware'
+Submodule 'kits/AdrenoPM4' (https://github.com/UniXNU/AdrenoPM4.git) registered for path 'kits/AdrenoPM4'
+Submodule 'kits/AirNir' (https://github.com/UniXNU/AirNir.git) registered for path 'kits/AirNir'
+Submodule 'kits/ArmSmmu4K' (https://github.com/UniXNU/ArmSmmu4K.git) registered for path 'kits/ArmSmmu4K'
+Submodule 'kits/VerifiedRoot' (https://github.com/UniXNU/VerifiedRoot.git) registered for path 'kits/VerifiedRoot'
+Submodule 'kits/XnuPrelink' (https://github.com/UniXNU/XnuPrelink.git) registered for path 'kits/XnuPrelink'
+unixnu: retargeting drivers/ArmCpu from the dangling pin to d90e457b8392623853ec85c860feef546c767621
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/Adreno740'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/AdrenoMetal'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/AppleKeyStoreState'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmCpu'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmDTPlatform'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmVirtPlatform'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/DarwinBoot'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/GopFramebuffer'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/QcomBaseband'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/QcomGeniSpi'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/RamBlock'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/SoftwareAES'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/VirtioMmioBlock'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/VirtioMmioConsole'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/AdrenoFirmware'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/AdrenoPM4'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/AirNir'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/ArmSmmu4K'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/VerifiedRoot'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/XnuPrelink'...
+Submodule path 'drivers/Adreno740': checked out '6fa7bae2a5b3b523e790eb3e0348af4d98969e4d'
+Submodule path 'drivers/AdrenoMetal': checked out '6416a76e0a287d85afbcddda21192388460e155c'
+Submodule path 'drivers/AppleKeyStoreState': checked out '42ff83e08b2265fe741d4adaf084bebe003452ba'
+Submodule path 'drivers/ArmCpu': checked out 'd90e457b8392623853ec85c860feef546c767621'
+Submodule path 'drivers/ArmDTPlatform': checked out '417ff95d6a6e8607ddea9309ec45c3bfd4a67c60'
+Submodule path 'drivers/ArmVirtPlatform': checked out 'd1423a8bceac4be0478a93d9173587111c040084'
+Submodule path 'drivers/DarwinBoot': checked out '3c75734014cdab0acd9541e88057b7606ee7ae08'
+Submodule path 'drivers/GopFramebuffer': checked out 'e47c1b8de169cd2bd0b885c7d85e433010e3cdf2'
+Submodule path 'drivers/QcomBaseband': checked out 'dd0199cf3300764ed52b23f4a47761f91fab21a2'
+Submodule path 'drivers/QcomGeniSpi': checked out 'eac47baefe6a5d2368a70351e6ad1b6361bedbe2'
+Submodule path 'drivers/RamBlock': checked out '4be2d7eb05ef5a98126c91e0302c149140c0e3e1'
+Submodule path 'drivers/SoftwareAES': checked out '4a45326da5c2cd6fe6813d79ee43db20805628af'
+Submodule path 'drivers/VirtioMmioBlock': checked out '4e1013eb8c45077b57f8d38d61b389fe899ea1c3'
+Submodule path 'drivers/VirtioMmioConsole': checked out '70253216890b2afcaa6333948726f896f84fc757'
+Submodule path 'kits/AdrenoFirmware': checked out '20ad3d7aca14bd46aecab6335c780f5413fa054b'
+Submodule path 'kits/AdrenoPM4': checked out '282606b528b2595bc4274ea7490b62b323f35a5f'
+Submodule path 'kits/AirNir': checked out 'b356371a74cd158c2902f4886f373ebb0f833a36'
+Submodule path 'kits/ArmSmmu4K': checked out '83969cd874503e65997ff7639f7dcf3d0a92cd17'
+Submodule path 'kits/VerifiedRoot': checked out '974f043d0c71ba2e60331483a41c6c6d35274ee3'
+Submodule path 'kits/XnuPrelink': checked out 'b1888c12456c46a2226d63c794465dfcee08d465'
+d90e457
+== configuration houji_defconfig -> /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/.config
+== submodules /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu
+== fetch https://github.com/apple-oss-distributions/xnu.git d8b80295118e
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/xnu-0b4b910d fetch -q --depth 1 origin d8b80295118ef25ac3a784134bcf95cd8e88109f
+== fetch https://github.com/apple-oss-distributions/libplatform.git a00a4cc36da2
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/libplatform-08d11127 fetch -q --depth 1 origin a00a4cc36da2110578bcf3b8eeeeb93dcc7f4e11
+== fetch https://github.com/apple-oss-distributions/libdispatch.git 30fe6a7d9453
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/libdispatch-50d3508d fetch -q --depth 1 origin 30fe6a7d945340ce69cef121132f049e810089a5
+== fetch https://github.com/apple-oss-distributions/AvailabilityVersions.git 933f9360f1b7
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/AvailabilityVersions-1c8ff76f fetch -q --depth 1 origin 933f9360f1b70dfbda5548386a3d65e0358b4f7d
+== fetch https://github.com/apple-oss-distributions/libpthread.git c0e60fb5ecfc
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/libpthread-67dc7894 fetch -q --depth 1 origin c0e60fb5ecfc54cf379c261d3f9572cc22ded891
+== fetch https://github.com/ONLYA/corecrypto-2023.git 11fba65b12d8
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/corecrypto-2023-5ef10490 fetch -q --depth 1 origin 11fba65b12d8830630e248dfa8344caf8b065f26
+== wrote /Users/runner/work/UniXNU-houji/UniXNU-houji/device/unixnu.lock
+== submodules /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu
+== tree /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree
+NativeAES source: drivers/SoftwareAES/NativeAES.cpp
+Checking patch NativeAES.cpp...
+Applied patch NativeAES.cpp cleanly.
+30:  bool isKeySupported(unsigned selector) override { return selector == 0 || selector == 2212; }
+native AES generators:
+./out/houji/tree/scripts/build-native-aes-bindings.py
+out/houji/tree/scripts/build-native-aes-bindings.py: recorded compile anchor matched 0 times
+native AES base entry points: 4 rewritten, out/houji/tree/scripts/data/native-aes-original-bindings.S
+native AES base entry points: 4 rewritten, scripts/data/native-aes-original-bindings.S
+sitecustomize hook ready
+native AES constructors no longer jump into unpopulated prelink text
+tree: out/houji/tree exists
+driver directories: ['Adreno740', 'AdrenoMetal', 'AppleKeyStoreState', 'ArmCpu', 'ArmDTPlatform', 'ArmVirtPlatform', 'DarwinBoot', 'GopFramebuffer', 'NativeAES', 'NativeAdreno', 'NativeGeniSpi', 'NativeKeyStoreEvents', 'NativeMetal', 'NativeMobileDisplay', 'NativeRamBlock', 'NativeVirtioBlock', 'NativeVirtioConsole', 'QcomBaseband', 'QcomGeniSpi', 'RamBlock', 'SoftwareAES', 'VirtioMmioBlock', 'VirtioMmioConsole']
+bindings scripts in tree: ['audit-target-kext-bindings.py', 'build-native-aes-bindings.py', 'build-native-ram-block-bindings.py', 'build-native-virtio-bindings.py', 'build-software-aes-bindings.py', 'build-virtio-mmio-bindings.py', 'check-adreno-shader-bindings.py', 'patch-native-aes-bindings-script.py']
+literal build-arm-driver.py choices: ['ArmCpu', 'ArmDTPlatform', 'ArmVirtPlatform', 'NativeAES', 'NativeAdreno', 'NativeGOPPresenter', 'NativeHidInput', 'NativeIOGPUProviderProbe', 'NativeKeyStoreEvents', 'NativeLegacyDisplay', 'NativeMobileDisplay', 'NativeOfflineAccelerator', 'NativeOfflineGPU', 'NativeRamBlock', 'NativeUfs', 'NativeVirtioBlock', 'NativeVirtioConsole', 'component']
+aes: driver=build-arm-driver.py NativeAES bindings=build-native-aes-bindings.py objects=out/houji/tree/build/software-aes
+archives rewritten: 9 entries, board.toml still parses
+  archive: build-corecrypto-14.py
+  archive: build-corecrypto-14.py --namespace
+  archive: build-arm-driver.py ArmDTPlatform
+  archive: build-arm-driver.py ArmCpu
+  archive: build-libpthread-kernel.py
+  archive: build-arm-driver.py NativeAES
+  archive: build-native-aes-bindings.py
+  archive: build-arm-driver.py NativeRamBlock
+  archive: build-native-ram-block-bindings.py
+board archive rewrite rc=0
+prepared objects directory out/houji/tree/build/software-aes
+# Xiaomi 14 (houji): XNU first-entry build; no system volume or storage driver yet.
+[board]
+name = "houji"
+soc = "SM8650"
+description = "Xiaomi 14 houji SM8650"
+kit = "houji"
+
+# Read-only live GPT of the connected Xiaomi 14 unit, CRC-checked on 2026-10-21.
+# Specific to the connected 256 GB unit; does not authorize flashing userdata.
+[userdata]
+first_lba = 3920350
+last_lba = 61321210
+lba_bytes = 4096
+windows = [
+  { name = "OS", component = "OS" },
+  { name = "SystemOS", component = "Cryptex1,SystemOS" },
+]
+
+[ipsw]
+url = "https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw"
+product = "iPhone10,3"
+version = "16.7.16"
+build = "20H392"
+device_class = "d22ap"
+chip_id = 0x8015
+board_id = 6
+fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache"]   # the small components
+
+[ipsw.sha256]
+# Raw KernelCache member pin (the local input is the same IM4P member).
+"kernelcache.release.iphone10b" = "2d6a13d040aaf87cec09bb6906d43e9bd8cea951e43d1aa1cd62707dfdc5aaec"
+
+[kernel]
+defconfig = "houji_defconfig"
+patch_series = ["patches/xnu-iorpc-message-from-mach.patch"]
+archives = [
+  "build-corecrypto-14.py",
+  "build-corecrypto-14.py --namespace",
+  "build-arm-driver.py ArmDTPlatform",
+  "build-arm-driver.py ArmCpu",
+  "build-libpthread-kernel.py",
+  "build-arm-driver.py NativeAES",
+  "build-native-aes-bindings.py",
+  "build-arm-driver.py NativeRamBlock",
+  "build-native-ram-block-bindings.py",
+]
+
+[kernel.prelink]
+kernelcache_sha256 = "2ec297bac95bcba01046fd0148e97e7e5885c05a6c18827f39f534ba375c1221"
+tool = "kits/NativePrelink/emit_prelink.py"
+kernel = "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
+# Set after macOS compression_tool decodes the iOS 16.7.16 KernelCache IM4P.
+slide = "-0x1000000"
+# 20H392 AMFI policy initializer; see docs/prelink-20H392-validation.md.
+early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005703c54"
+roots = [
+  "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
+  "com.apple.driver.AppleARMPlatform",
+  "com.apple.driver.AppleARMWatchdogTimer",
+  "com.apple.driver.AppleAudioClockLibs",
+  "com.apple.driver.AppleEffaceableStorage",
+  "com.apple.driver.AppleIISController",
+  "com.apple.driver.AppleM2ScalerCSCDriver",
+  "com.apple.driver.AppleMobileFileIntegrity",
+  "com.apple.driver.ApplePMGR",
+  "com.apple.driver.IODARTFamily",
+  "com.apple.filesystems.apfs",
+  "com.apple.iokit.CoreAnalyticsFamily",
+  "com.apple.iokit.IOAVFamily",
+  "com.apple.iokit.IOAudio2Family",
+  "com.apple.iokit.IOCECFamily",
+  "com.apple.iokit.IOCryptoAcceleratorFamily",
+  "com.apple.iokit.IOGPUFamily",
+  "com.apple.iokit.IOHDCPFamily",
+  "com.apple.iokit.IOMobileGraphicsFamily",
+  "com.apple.iokit.IOReportFamily",
+  "com.apple.iokit.IOSlowAdaptiveClockingFamily",
+  "com.apple.iokit.IOStorageFamily",
+  "com.apple.iokit.IOSurface",
+  "com.apple.kec.Libm",
+  "com.apple.kec.corecrypto",
+  "com.apple.kext.AppleMatch",
+  "com.apple.kext.CoreTrust",
+  "com.apple.security.AppleImage4",
+  "com.apple.security.sandbox",
+  "com.apple.iokit.IOHIDFamily",
+]
+
+[payload]
+volume = "GIULIAESP"
+size_mib = 192
+loader = "firmware"
+title = "Xiaomi 14 houji XNU first entry (no system volume)"
+# The first-entry handoff window, not total installed device RAM.
+dram_size = "0x10000000"
+panic_screen = false
+timeout = 0
+kernel_args = ["-v", "serial=3", "debug=0x14e", "-enable_kprintf_spam=1", "armcpu-diagnostics=1", "houji-ufs-probe=2"]
+
+[payload.adt]
+tool = "scripts/make-houji-adt.py"
+owned_memory_size = "0x10000000"
+cpu_regs = "0"
+psci_method = "smc"
+
+[firmware]
+config = "houji"
+prepared out/houji/tree/scripts/build-xnu-4k-baseline.sh
+SVC trace is present in sleh.c
+user fault log is present in sleh.c
+pid-1 user fault probe is present in sleh.c
+NVRAM dedup is present in IONVRAMCHRPHandler.cpp
+shared-cache CS-monitor bypass is present in vm_fault.c
+shared-cache probe is present in vm_unix.c
+shared-cache dynamic page mapping is present in vm_shared_region.c
+shared-cache MACF bypass is present in ubc_subr.c
+console ring and corpse limits are present
+deferred entropy SHA-512 init is present in entropy.c
+kernel persistent log now comes from the DT pram region
+out-of-aperture DT ramdisks are mapped with kmem_alloc + pmap_map
+annotated kits/XnuPrelink/native_prelink.py
+Resolved prelink kit: /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/XnuPrelink
+..............................................................
+----------------------------------------------------------------------
+Ran 62 tests in 0.035s
+
+OK
+== ArmCpu tree state ==
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmCpu
+lrwxr-xr-x  1 runner  staff  66 Nov 14 18:24 out/houji/tree/drivers/ArmCpu -> /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmCpu
+ArmCpu sources OK
+overlaid out/houji/tree/drivers/NativeUfs cpp True
+/Users/runner/work/UniXNU-houji/UniXNU-houji/device/scripts/build-arm-driver.py : verified flags removed
+out/houji/tree/scripts/build-arm-driver.py : verified flags removed
+scripts/build-xnu-4k-baseline.sh : UFS archive path -> native-ufs
+out/houji/tree/scripts/build-xnu-4k-baseline.sh : UFS archive path -> native-ufs
+alias out/houji/tree/build/sheng-ufs/libShengUfs.a -> ../native-ufs/libNativeUfs.a
+board.toml: NativeUfs archive added
+overlaid out/houji/tree/drivers/NativeRamBlock/NativeRamBlock.cpp bytes 10184
+/Users/runner/work/UniXNU-houji/UniXNU-houji/device/scripts/build-arm-driver.py : HoujiFramebuffer added
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py : HoujiFramebuffer added
+board.toml: HoujiFramebuffer archive added
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/scripts/build-xnu-4k-baseline.sh : framebuffer archive linked
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-xnu-4k-baseline.sh : framebuffer archive linked
+NativeMobileDisplay overlaid: ['.git', 'AGENTS.md', 'HoujiLegacyPixels.h', 'HoujiLegacyQueue.h', 'HoujiLegacyRequest.h', 'LICENSE', 'NativeGOPPresenter.cpp', 'NativeGOPWire.h', 'NativeGpuTrace.h', 'NativeHalfCodes.h', 'NativeHoujiLegacyDisplay.cpp', 'NativeLegacyDisplay.cpp', 'NativeLegacyRequest.h', 'NativeMobileDisplay.cpp', 'OriginalMobileFramebufferABI.h', 'README.md', 'Test', 'houji-legacy-pixels-test.cpp', 'houji-legacy-queue-test.cpp', 'houji-legacy-request-test.cpp']
+display scripts overlaid
+=== IOBlockStorageDevice symbols in CI candidate ===
+11
+fffffff006a091d0 A __ZN20IOBlockStorageDevice10gMetaClassE
+fffffff0045da050 A __ZN20IOBlockStorageDevice11requestIdleEv
+fffffff0045da068 A __ZN20IOBlockStorageDevice13doSetPriorityEP26IOBlockStorageDeviceExtentjh
+fffffff0045d9f38 A __ZN20IOBlockStorageDevice13setPropertiesEP8OSObject
+fffffff0045da08c A __ZN20IOBlockStorageDevice20doGetProvisionStatusEyyPjP35IOBlockStorageProvisionDeviceExtenty
+fffffff0045d9e30 A __ZN20IOBlockStorageDevice4initEP12OSDictionary
+fffffff0045da05c A __ZN20IOBlockStorageDevice7doUnmapEP26IOBlockStorageDeviceExtentjj
+fffffff0045d9d98 A __ZN20IOBlockStorageDeviceC2EPK11OSMetaClass
+fffffff0045d9db8 A __ZN20IOBlockStorageDeviceD2Ev
+fffffff0045d9e88 A __ZNK20IOBlockStorageDevice11getPropertyEPK8OSSymbol
+fffffff005c73f50 A __ZTV20IOBlockStorageDevice
+=== run storage ABI audit ===
+PASS [export] kernel.macho: 190 slots, 14 pure, 183 bindings
+  __ZTV20IOBlockStorageDevice = 0xfffffff005c73f50
+  __ZN20IOBlockStorageDevice10gMetaClassE = 0xfffffff006a091d0
+  __ZN20IOBlockStorageDeviceC2EPK11OSMetaClass = 0xfffffff0045d9d98
+  __ZN20IOBlockStorageDeviceD2Ev = 0xfffffff0045d9db8
+  wrote out/houji/logs/storage-interface-audit.json
+created: /tmp/houji-data.cdr
+"disk33" ejected.
+seed bytes 67108864 magic b'NXSB'
+-rw-r--r--  1 runner  staff  68007 Nov 14 18:33 out/houji/kernel/data-seed.raw.gz
+f65e88eaf2fc3af413b765f13477ecb8bc001ea86840862ee8dfce0c75d5ccda  out/houji/kernel/data-seed.raw.gz
+PASS: 30 components, 236892 PC-relative encodings; digest/boundary/initializer checks
