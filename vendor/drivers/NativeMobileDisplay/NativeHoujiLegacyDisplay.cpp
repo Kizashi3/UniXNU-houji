@@ -18,6 +18,7 @@
 extern "C" void houji_legacy_initialize_class(void);
 extern "C" void houji_legacy_bootstrap_checkpoint(void);
 extern "C" void houji_fb_set_legacy_checkpoint(void (*)(void));
+extern "C" void houji_fb_set_legacy_publisher(bool (*)(IOService *));
 extern "C" void houji_legacy_vsync_notify(void *, uint64_t, uint64_t, uint64_t);
 extern "C" uint64_t mach_continuous_time(void);
 extern "C" IOMemoryDescriptor *houji_legacy_surface_descriptor(OSObject *);
@@ -204,7 +205,8 @@ public:
         copying = false;
     }
 
-    void stop(IOService *provider) override
+    // startHardware can fail after allocating resources; free also owns cleanup.
+    void releaseHardware()
     {
         if (timer != nullptr) {
             timer->cancelTimeout();
@@ -217,7 +219,18 @@ public:
             scanout->release();
             scanout = nullptr;
         }
+    }
+
+    void stop(IOService *provider) override
+    {
+        releaseHardware();
         IOMobileFramebufferLegacy::stop(provider);
+    }
+
+    void free() override
+    {
+        releaseHardware();
+        IOMobileFramebufferLegacy::free();
     }
 
 #define HOUJI_LEGACY_LEAF(slot) \
@@ -349,6 +362,62 @@ houjiLegacyProbe(void)
         valid, result, meta == nullptr ? 0U : meta->getClassSize());
 }
 
+// Called only at the old framebuffer's bootstrap site, with its display nub.
+// Keep the initial reference for the lifetime of this built-in boot service.
+static bool
+houjiLegacyPublish(IOService *provider)
+{
+    uint32_t enabled = 0;
+    uint32_t publish = 0;
+    PE_parse_boot_argn("houji-legacy-display", &enabled, sizeof(enabled));
+    PE_parse_boot_argn("houji-legacy-publish", &publish, sizeof(publish));
+    if (enabled != 1 || publish != 1)
+        return false;
+    static NativeHoujiLegacyDisplay *published;
+    static bool attempted;
+    if (published != nullptr)
+        return true;
+    if (attempted || provider == nullptr ||
+        strcmp(houjiProbeStage, "registered-not-published") != 0)
+        return false;
+    attempted = true;
+
+    houjiProbeStage = "publish-allocate";
+    IOLog("HOUJI-LEGACY: stage=%s\n", houjiProbeStage);
+    auto display = new NativeHoujiLegacyDisplay;
+    if (display == nullptr) {
+        houjiProbeStage = "publish-allocation-failed";
+    } else if (!display->init(nullptr)) {
+        houjiProbeStage = "publish-init-failed";
+        display->release();
+    } else if (!display->attach(provider)) {
+        houjiProbeStage = "publish-attach-failed";
+        display->release();
+    } else {
+        display->setName("IOMobileFramebuffer");
+        houjiProbeStage = "publish-start";
+        IOLog("HOUJI-LEGACY: stage=%s provider=%s\n", houjiProbeStage, provider->getName());
+        if (!display->start(provider)) {
+            houjiProbeStage = "publish-start-failed";
+            display->releaseHardware();
+            display->detach(provider);
+            display->release();
+        } else {
+            // The original start may set its own registry name.
+            display->setName("IOMobileFramebuffer");
+            // No fallible setup remains once clients can match the service.
+            display->registerService();
+            published = display;
+            houjiProbeStage = "published";
+            IOLog("HOUJI-LEGACY: stage=published name=%s old-service-skipped=1\n",
+                display->getName());
+            return true;
+        }
+    }
+    IOLog("HOUJI-LEGACY: stage=%s old-service-retained=1\n", houjiProbeStage);
+    return false;
+}
+
 static unsigned houjiEarlyProbeCalls;
 static unsigned houjiLateProbeCalls;
 
@@ -356,11 +425,13 @@ extern "C" void native_legacy_display_probe(void)
 {
     ++houjiEarlyProbeCalls;
     houji_fb_set_legacy_checkpoint(&houji_legacy_bootstrap_checkpoint);
+    houji_fb_set_legacy_publisher(&houjiLegacyPublish);
 }
 extern "C" void native_legacy_display_late_probe(void)
 {
     ++houjiLateProbeCalls;
     houji_fb_set_legacy_checkpoint(&houji_legacy_bootstrap_checkpoint);
+    houji_fb_set_legacy_publisher(&houjiLegacyPublish);
 }
 
 extern "C" void

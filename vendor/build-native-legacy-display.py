@@ -227,5 +227,6 @@ sources = [DRIVER, OUT / 'OriginalHoujiLegacyABI.h', asm, late_asm, AUDIT,
     'source_sha256': {os.path.relpath(str(p), str(ROOT)): sha(p) for p in sources},
     'bound_symbols': len(bindings), 'virtual_entries': 338,
     'automatic_class_registration': False,
-    'runtime_instantiation': False}, indent=2) + '\n')
+    'runtime_instantiation': 'boot-arg-gated',
+    'runtime_publish_boot_arg': 'houji-legacy-publish=1'}, indent=2) + '\n')
 print('HOUJI-LEGACY build: 338-slot archive with %d original bindings; automatic registration removed; runtime activation gated' % len(bindings))

@@ -35,6 +35,14 @@ houji_fb_set_legacy_checkpoint(void (*checkpoint)(void))
 	houjiLegacyCheckpoint = checkpoint;
 }
 
+// Return true only after the replacement has started and registered.
+static bool (*houjiLegacyPublisher)(IOService *);
+extern "C" void
+houji_fb_set_legacy_publisher(bool (*publisher)(IOService *))
+{
+    houjiLegacyPublisher = publisher;
+}
+
 #define HOUJI_FB_LOG(fmt, ...) IOLog("HOUJI-FB: " fmt "\n", ##__VA_ARGS__)
 
 static unsigned houjiCountServices(const char *cls);
@@ -595,49 +603,57 @@ houji_fb_bootstrap(void)
 	if (houjiLegacyCheckpoint != nullptr)
 		houjiLegacyCheckpoint();
 
-	HoujiFramebuffer *fb = new HoujiFramebuffer;
-	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(provider) || !fb->start(provider)) {
-		HOUJI_FB_LOG("framebuffer service start failed");
-		if (fb != nullptr) fb->release();
-		return;
-	}
-	fb->registerService();
-	{
-		OSDictionary *m = OSDictionary::withCapacity(1);
-		if (m != nullptr) {
-			OSString *s = OSString::withCString("IOMobileFramebuffer");
-			unsigned n = 0;
-			if (s != nullptr) {
-				m->setObject(kIOProviderClassKey, s);
-				auto it = IOService::getMatchingServices(m);
-				if (it) {
-					while (it->getNextObject() != nullptr) {
-						n++;
-					}
-				}
-				s->release();
-			}
-			m->release();
-			HOUJI_FB_LOG("self-match class=%u", n);
+	const bool legacyPublished = houjiLegacyPublisher != nullptr &&
+	    houjiLegacyPublisher(provider);
+	if (!legacyPublished) {
+		HoujiFramebuffer *fb = new HoujiFramebuffer;
+		if (fb == nullptr || !fb->init(nullptr) || !fb->attach(provider) || !fb->start(provider)) {
+			HOUJI_FB_LOG("framebuffer service start failed");
+			if (fb != nullptr) fb->release();
+			return;
 		}
-		m = OSDictionary::withCapacity(1);
-		if (m != nullptr) {
-			OSString *s = OSString::withCString("IOMobileFramebuffer");
-			unsigned n = 0;
-			if (s != nullptr) {
-				m->setObject(kIONameMatchKey, s);
-				auto it = IOService::getMatchingServices(m);
-				if (it) {
-					while (it->getNextObject() != nullptr) {
-						n++;
+		fb->registerService();
+		{
+			OSDictionary *m = OSDictionary::withCapacity(1);
+			if (m != nullptr) {
+				OSString *s = OSString::withCString("IOMobileFramebuffer");
+				unsigned n = 0;
+				if (s != nullptr) {
+					m->setObject(kIOProviderClassKey, s);
+					auto it = IOService::getMatchingServices(m);
+					if (it) {
+						while (it->getNextObject() != nullptr) {
+							n++;
+						}
 					}
+					s->release();
 				}
-				s->release();
+				m->release();
+				HOUJI_FB_LOG("self-match class=%u", n);
 			}
-			m->release();
-			HOUJI_FB_LOG("self-match name=%u", n);
+			m = OSDictionary::withCapacity(1);
+			if (m != nullptr) {
+				OSString *s = OSString::withCString("IOMobileFramebuffer");
+				unsigned n = 0;
+				if (s != nullptr) {
+					m->setObject(kIONameMatchKey, s);
+					auto it = IOService::getMatchingServices(m);
+					if (it) {
+						while (it->getNextObject() != nullptr) {
+							n++;
+						}
+					}
+					s->release();
+				}
+				m->release();
+				HOUJI_FB_LOG("self-match name=%u", n);
+			}
 		}
+		HOUJI_FB_LOG("HoujiFramebuffer registered: %s", fb->getName());
+	} else {
+		HOUJI_FB_LOG("Legacy published; old framebuffer skipped");
 	}
+
 	{
 		bool loaded = OSKext::isKextWithIdentifierLoaded("com.apple.iokit.IOHIDFamily");
 		int rc = 0;
@@ -666,7 +682,6 @@ houji_fb_bootstrap(void)
 			HOUJI_FB_LOG("IOHIDSystem services=%u", n);
 		}
 	}
-	HOUJI_FB_LOG("HoujiFramebuffer registered: %s", fb->getName());
 	{
 		int on = 0;
 		PE_parse_boot_argn("houji_hid", &on, sizeof(on));

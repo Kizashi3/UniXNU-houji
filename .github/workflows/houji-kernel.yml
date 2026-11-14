@@ -852,7 +852,6 @@ jobs:
           exit "$build_status"
 
       - name: Build NativeLegacyDisplay and relink the kernel
-        continue-on-error: true
         working-directory: unixnu
         env:
           GITHUB_TOKEN: ${{ github.token }}
