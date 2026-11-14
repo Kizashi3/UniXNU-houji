@@ -109,7 +109,6 @@ IOMobileFramebuffer::start(IOService *provider)
 	}
 
 	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
-	setProperty("IOMFBDisplayRefresh", true);
 	setProperty("compatible", "houji,display");
 	uint32_t hz = 60;
 	PE_parse_boot_argn("houji_fb_hz", &hz, sizeof(hz));
@@ -117,6 +116,17 @@ IOMobileFramebuffer::start(IOService *provider)
 		hz = 60;
 	}
 	nanoseconds_to_absolutetime(NSEC_PER_SEC / hz, &fPeriod);
+	uint64_t interval = (1ULL << 32) / hz;
+	uint64_t machInterval = fPeriod;
+	uint64_t refresh[6] = { interval, machInterval, interval, machInterval, 0, 0 };
+	OSData *refreshData = OSData::withBytes(refresh, sizeof(refresh));
+	if (refreshData == nullptr || !setProperty("IOMFBDisplayRefresh", refreshData)) {
+		if (refreshData != nullptr) refreshData->release();
+		HOUJI_FB_LOG("refresh property setup failed");
+		return false;
+	}
+	refreshData->release();
+	HOUJI_FB_LOG("refresh property 60Hz interval=%llu", (unsigned long long)interval);
 
 	fWorkLoop = IOWorkLoop::workLoop();
 	fVsync = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(
@@ -290,11 +300,6 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
 	default:
 		if (logMethod) HOUJI_FB_LOG("selector %u accepted", selector);
 		break;
-	}
-	if (args->structureOutputSize != 0) {
-		HOUJI_FB_LOG("method selector=%u unsupported structure output=%llu",
-		    selector, (unsigned long long)args->structureOutputSize);
-		return kIOReturnUnsupported;
 	}
 	if (outputCount != 0) {
 		if (args->scalarOutput == nullptr || args->scalarOutputCount < outputCount) {
