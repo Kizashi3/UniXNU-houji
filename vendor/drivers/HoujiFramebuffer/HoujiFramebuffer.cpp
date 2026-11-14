@@ -24,6 +24,7 @@
 #include <kern/task.h>
 #include <libkern/c++/OSKext.h>
 #include <libkern/c++/OSData.h>
+#include <IOKit/IOMemoryDescriptor.h>
 
 extern "C" struct proc *current_proc(void);
 extern "C" int proc_getpid(struct proc *);
@@ -76,10 +77,15 @@ public:
 	uint32_t          fRowBytes = 0;
 	uint64_t          fBase = 0;
 	uint32_t          fSwapCount = 0;
+	IOMemoryMap      *fMap = nullptr;
+	volatile uint32_t *fPixels = nullptr;
+	bool              fBootUi = false;
+	uint64_t          fBootUiStart = 0;
 
 	bool start(IOService *provider) override;
 	void stop(IOService *provider) override;
 	void vsyncFired(OSObject *owner, IOTimerEventSource *sender);
+	void drawBootUi(uint32_t permille);
 	bool matchPropertyTable(OSDictionary *table, SInt32 *score) override;
 	IOReturn newUserClient(task_t owningTask, void *securityID, UInt32 type,
 	    OSDictionary *properties, IOUserClient **handler) override;
@@ -87,6 +93,63 @@ public:
 
 OSDefineMetaClassAndStructors(IOMobileFramebuffer, IOService);
 OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
+
+static inline bool
+houjiApplePixel(double x, double y)
+{
+	double bx = x, by = y + 0.06;
+	bool body = ((bx * bx) / (0.92 * 0.92) + (by * by) / (1.00 * 1.00)) < 1.0;
+	bool dip = ((x * x) / (0.26 * 0.26) + ((y + 0.84) * (y + 0.84)) / (0.34 * 0.34)) < 1.0;
+	bool bite = (((x - 0.62) * (x - 0.62)) / (0.30 * 0.30) + ((y + 0.10) * (y + 0.10)) / (0.34 * 0.34)) < 1.0;
+	if (body && !dip && !bite) {
+		return true;
+	}
+	double lx = (x - 0.16) * 0.94 - (y + 0.90) * 0.34;
+	double ly = (x - 0.16) * 0.34 + (y + 0.90) * 0.94;
+	return ((lx * lx) / (0.17 * 0.17) + (ly * ly) / (0.09 * 0.09)) < 1.0;
+}
+
+void
+IOMobileFramebuffer::drawBootUi(uint32_t permille)
+{
+	volatile uint32_t *dst = fPixels;
+	uint32_t w = fWidth, h = fHeight, stride = fRowBytes;
+	if (dst == nullptr || w == 0 || h == 0 || stride < w * 4) {
+		return;
+	}
+	const uint32_t black = 0xff000000U, white = 0xffffffffU, bar = 0xff202020U;
+	for (uint32_t y = 0; y < h; y++) {
+		volatile uint32_t *row = dst + (uint64_t)y * (stride / 4);
+		for (uint32_t x = 0; x < w; x++) {
+			row[x] = black;
+		}
+	}
+	uint32_t side = h / 4;
+	if (side > w / 3) side = w / 3;
+	uint32_t cx = w / 2, cy = (uint32_t)(h * 0.42);
+	for (uint32_t y = 0; y < side; y++) {
+		for (uint32_t x = 0; x < side; x++) {
+			double nx = (2.0 * x / (double)side) - 1.0;
+			double ny = (2.0 * y / (double)side) - 1.0;
+			if (houjiApplePixel(nx, ny)) {
+				uint32_t px = cx - side / 2 + x, py = cy - side / 2 + y;
+				if (px < w && py < h) {
+					dst[(uint64_t)py * (stride / 4) + px] = white;
+				}
+			}
+		}
+	}
+	uint32_t barW = w / 2, barH = h / 80;
+	if (barH < 6) barH = 6;
+	uint32_t bx = (w - barW) / 2, by = (uint32_t)(h * 0.62);
+	uint32_t fill = (uint32_t)((uint64_t)barW * permille / 1000U);
+	for (uint32_t y = 0; y < barH; y++) {
+		volatile uint32_t *row = dst + (uint64_t)(by + y) * (stride / 4);
+		for (uint32_t x = 0; x < barW; x++) {
+			if (bx + x < w) row[bx + x] = (x < fill) ? white : bar;
+		}
+	}
+}
 
 bool
 IOMobileFramebuffer::start(IOService *provider)
@@ -127,6 +190,28 @@ IOMobileFramebuffer::start(IOService *provider)
 	}
 	refreshData->release();
 	HOUJI_FB_LOG("refresh property 60Hz interval=%llu", (unsigned long long)interval);
+	{
+		uint32_t bootui = 0;
+		PE_parse_boot_argn("houji-bootui", &bootui, sizeof(bootui));
+		uint64_t bytes = (uint64_t)fRowBytes * fHeight;
+		IOMemoryDescriptor *mem = IOMemoryDescriptor::withPhysicalAddress(
+		    (IOPhysicalAddress)fBase, (IOByteCount)bytes, kIODirectionOut);
+		if (mem != nullptr) {
+			fMap = mem->map();
+			mem->release();
+			if (fMap != nullptr) {
+				fPixels = (volatile uint32_t *)fMap->getVirtualAddress();
+			}
+		}
+		if (bootui != 0 && fPixels != nullptr) {
+			fBootUi = true;
+			fBootUiStart = fVsyncCount;
+			drawBootUi(0);
+			HOUJI_FB_LOG("boot ui on, %llu bytes mapped", (unsigned long long)bytes);
+		} else {
+			HOUJI_FB_LOG("boot ui off (arg=%u pixels=%p)", bootui, fPixels);
+		}
+	}
 
 	fWorkLoop = IOWorkLoop::workLoop();
 	fVsync = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(
@@ -164,6 +249,12 @@ IOMobileFramebuffer::stop(IOService *provider)
 	if (fVsync != nullptr) {
 		fVsync->cancelTimeout();
 	}
+	fBootUi = false;
+	if (fMap != nullptr) {
+		fMap->release();
+		fMap = nullptr;
+		fPixels = nullptr;
+	}
 	IOService::stop(provider);
 }
 
@@ -180,6 +271,12 @@ IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 			    houjiCountServices("IOSurfaceRoot"),
 			    houjiCountServices("IOResources"));
 		}
+	}
+	if (fBootUi && (fVsyncCount % 60) == 0) {
+		uint64_t ticks = fVsyncCount - fBootUiStart;
+		uint32_t permille = (uint32_t)(ticks * 1000 / (90ULL * 60ULL));
+		if (permille > 950) permille = 950;
+		drawBootUi(permille);
 	}
 	sender->wakeAtTime(mach_absolute_time() + fPeriod);
 }
@@ -200,6 +297,7 @@ IOMobileFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 t
 	}
 	client->fOwner = this;
 	*handler = client;
+	fBootUi = false;
 	HOUJI_FB_LOG("user client opened pid %d type %u", proc_getpid(current_proc()), type);
 	return kIOReturnSuccess;
 }
