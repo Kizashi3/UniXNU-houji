@@ -291,6 +291,11 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
 		if (logMethod) HOUJI_FB_LOG("selector %u accepted", selector);
 		break;
 	}
+	if (args->structureOutputSize != 0) {
+		HOUJI_FB_LOG("method selector=%u unsupported structure output=%llu",
+		    selector, (unsigned long long)args->structureOutputSize);
+		return kIOReturnUnsupported;
+	}
 	if (outputCount != 0) {
 		if (args->scalarOutput == nullptr || args->scalarOutputCount < outputCount) {
 			HOUJI_FB_LOG("method selector=%u needs %u scalar outputs", selector, outputCount);
