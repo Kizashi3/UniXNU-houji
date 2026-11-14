@@ -93,9 +93,9 @@ houjiDumpCall(IOExternalMethodArguments *args)
 	houjiDumpHex("in", in, inLen);
 	houjiDumpHex("out", out, outLen);
 	if (inMap != nullptr)
-		inMap->free();
+		inMap->release();
 	if (outMap != nullptr)
-		outMap->free();
+		outMap->release();
 }
 
 /* User-client selectors observed from the framework's call sites. */
