@@ -1,7 +1,7 @@
 /*
- * HOUJI-FB: minimal IOMobileFramebuffer service, written for this port.
+ * HOUJI-FB: minimal HoujiFramebuffer service, written for this port.
  *
- * The service class is literally named IOMobileFramebuffer: IOService falls
+ * The service class is literally named HoujiFramebuffer: IOService falls
  * back to the metaclass name when a service has no IOName, so both class
  * matching (IOProviderClass) and name matching (IONameMatch) find it.
  *
@@ -117,12 +117,12 @@ enum {
 	kSelEnableNotifications    = 72,
 };
 
-class IOMobileFramebuffer;
+class HoujiFramebuffer;
 
-class IOMobileFramebufferUserClient : public IOUserClient {
-	OSDeclareDefaultStructors(IOMobileFramebufferUserClient);
+class HoujiFramebufferUserClient : public IOUserClient {
+	OSDeclareDefaultStructors(HoujiFramebufferUserClient);
 public:
-	IOMobileFramebuffer *fOwner = nullptr;
+	HoujiFramebuffer *fOwner = nullptr;
 	task_t            fTask = TASK_NULL;
 	mach_port_t       fPort = MACH_PORT_NULL;
 	uint32_t          fMethodLogCount = 0;
@@ -135,8 +135,8 @@ public:
 	    IOExternalMethodDispatch *dispatch, OSObject *target, void *reference) override;
 };
 
-class IOMobileFramebuffer : public IOService {
-	OSDeclareDefaultStructors(IOMobileFramebuffer);
+class HoujiFramebuffer : public IOService {
+	OSDeclareDefaultStructors(HoujiFramebuffer);
 public:
 	IOService        *fProvider = nullptr;
 	IOWorkLoop       *fWorkLoop = nullptr;
@@ -162,8 +162,8 @@ public:
 	    OSDictionary *properties, IOUserClient **handler) override;
 };
 
-OSDefineMetaClassAndStructors(IOMobileFramebuffer, IOService);
-OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
+OSDefineMetaClassAndStructors(HoujiFramebuffer, IOService);
+OSDefineMetaClassAndStructors(HoujiFramebufferUserClient, IOUserClient);
 
 static const unsigned char houjiAppleMask[2048] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,31,128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,128,0,0,0,0,0,0,0,0,0,0,0,0,0,3,255,128,0,0,0,0,0,0,0,0,0,0,0,0,0,15,255,128,0,0,0,0,0,0,0,0,0,0,0,0,0,31,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,127,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,1,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,3,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,7,255,254,0,0,0,0,0,0,0,0,0,0,0,0,0,15,255,254,0,0,0,0,0,0,0,0,0,0,0,0,0,15,255,254,0,0,0,0,0,0,0,0,0,0,0,0,0,31,255,252,0,0,0,0,0,0,0,0,0,0,0,0,0,63,255,252,0,0,0,0,0,0,0,0,0,0,0,0,0,63,255,248,0,0,0,0,0,0,0,0,0,0,0,0,0,63,255,240,0,0,0,0,0,0,0,0,0,0,0,0,0,127,255,240,0,0,0,0,0,0,0,0,0,0,0,0,0,127,255,224,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,192,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,128,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,254,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,252,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,248,0,0,0,0,0,0,0,0,0,0,0,0,0,1,255,224,0,0,0,0,0,0,0,0,0,0,0,0,0,1,255,128,0,0,0,0,0,0,0,0,0,0,0,0,0,1,254,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,240,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,240,0,0,0,0,0,0,0,0,1,255,192,0,0,0,255,255,0,0,0,0,0,0,0,0,31,255,252,0,0,7,255,255,224,0,0,0,0,0,0,0,127,255,255,0,0,63,255,255,248,0,0,0,0,0,0,1,255,255,255,224,0,255,255,255,252,0,0,0,0,0,0,7,255,255,255,252,15,255,255,255,255,0,0,0,0,0,0,15,255,255,255,255,255,255,255,255,255,128,0,0,0,0,0,31,255,255,255,255,255,255,255,255,255,192,0,0,0,0,0,63,255,255,255,255,255,255,255,255,255,224,0,0,0,0,0,127,255,255,255,255,255,255,255,255,255,240,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,248,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,252,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,252,0,0,0,0,7,255,255,255,255,255,255,255,255,255,255,248,0,0,0,0,15,255,255,255,255,255,255,255,255,255,255,240,0,0,0,0,15,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,31,255,255,255,255,255,255,255,255,255,255,128,0,0,0,0,31,255,255,255,255,255,255,255,255,255,255,0,0,0,0,0,63,255,255,255,255,255,255,255,255,255,254,0,0,0,0,0,63,255,255,255,255,255,255,255,255,255,252,0,0,0,0,0,127,255,255,255,255,255,255,255,255,255,252,0,0,0,0,0,127,255,255,255,255,255,255,255,255,255,248,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,240,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,240,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,224,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,224,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,224,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,224,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,224,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,224,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,240,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,240,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,248,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,248,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,252,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,252,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,254,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,128,0,0,0,0,127,255,255,255,255,255,255,255,255,255,255,192,0,0,0,0,127,255,255,255,255,255,255,255,255,255,255,224,0,0,0,0,127,255,255,255,255,255,255,255,255,255,255,240,0,0,0,0,127,255,255,255,255,255,255,255,255,255,255,248,0,0,0,0,63,255,255,255,255,255,255,255,255,255,255,254,0,0,0,0,63,255,255,255,255,255,255,255,255,255,255,255,0,0,0,0,31,255,255,255,255,255,255,255,255,255,255,255,192,0,0,0,31,255,255,255,255,255,255,255,255,255,255,255,192,0,0,0,31,255,255,255,255,255,255,255,255,255,255,255,128,0,0,0,15,255,255,255,255,255,255,255,255,255,255,255,128,0,0,0,15,255,255,255,255,255,255,255,255,255,255,255,0,0,0,0,7,255,255,255,255,255,255,255,255,255,255,255,0,0,0,0,7,255,255,255,255,255,255,255,255,255,255,255,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,254,0,0,0,0,3,255,255,255,255,255,255,255,255,255,255,254,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,252,0,0,0,0,1,255,255,255,255,255,255,255,255,255,255,252,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,248,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,248,0,0,0,0,0,127,255,255,255,255,255,255,255,255,255,240,0,0,0,0,0,63,255,255,255,255,255,255,255,255,255,224,0,0,0,0,0,63,255,255,255,255,255,255,255,255,255,224,0,0,0,0,0,31,255,255,255,255,255,255,255,255,255,192,0,0,0,0,0,15,255,255,255,255,255,255,255,255,255,128,0,0,0,0,0,15,255,255,255,255,255,255,255,255,255,128,0,0,0,0,0,7,255,255,255,255,255,255,255,255,255,0,0,0,0,0,0,3,255,255,255,255,255,255,255,255,254,0,0,0,0,0,0,1,255,255,255,255,255,255,255,255,252,0,0,0,0,0,0,1,255,255,255,255,255,255,255,255,252,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,248,0,0,0,0,0,0,0,127,255,255,255,255,255,255,255,240,0,0,0,0,0,0,0,63,255,255,255,255,255,255,255,224,0,0,0,0,0,0,0,31,255,255,255,255,255,255,255,192,0,0,0,0,0,0,0,15,255,255,255,255,255,255,255,128,0,0,0,0,0,0,0,7,255,255,254,7,255,255,255,0,0,0,0,0,0,0,0,1,255,255,224,0,63,255,252,0,0,0,0,0,0,0,0,0,255,255,0,0,15,255,248,0,0,0,0,0,0,0,0,0,63,248,0,0,1,255,224,0,0,0,0,0,0,0,0,0,7,224,0,0,0,31,128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
@@ -183,7 +183,7 @@ houjiApplePixel(double x, double y)
 }
 
 void
-IOMobileFramebuffer::drawBootUi(uint32_t permille)
+HoujiFramebuffer::drawBootUi(uint32_t permille)
 {
 	volatile uint32_t *dst = fPixels;
 	uint32_t w = fWidth, h = fHeight, stride = fRowBytes;
@@ -216,8 +216,9 @@ IOMobileFramebuffer::drawBootUi(uint32_t permille)
 }
 
 bool
-IOMobileFramebuffer::start(IOService *provider)
+HoujiFramebuffer::start(IOService *provider)
 {
+	setName("IOMobileFramebuffer");
 	PE_Video video;
 
 	if (!IOService::start(provider)) {
@@ -235,7 +236,7 @@ IOMobileFramebuffer::start(IOService *provider)
 		return false;
 	}
 
-	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
+	setProperty(kIOUserClientClassKey, "HoujiFramebufferUserClient");
 	setProperty("compatible", "houji,display");
 	uint32_t hz = 60;
 	PE_parse_boot_argn("houji_fb_hz", &hz, sizeof(hz));
@@ -279,7 +280,7 @@ IOMobileFramebuffer::start(IOService *provider)
 
 	fWorkLoop = IOWorkLoop::workLoop();
 	fVsync = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(
-	    IOTimerEventSource::Action, this, &IOMobileFramebuffer::vsyncFired));
+	    IOTimerEventSource::Action, this, &HoujiFramebuffer::vsyncFired));
 	if (fWorkLoop == nullptr || fVsync == nullptr ||
 	    fWorkLoop->addEventSource(fVsync) != kIOReturnSuccess) {
 		HOUJI_FB_LOG("work loop setup failed");
@@ -291,7 +292,7 @@ IOMobileFramebuffer::start(IOService *provider)
 }
 
 bool
-IOMobileFramebuffer::matchPropertyTable(OSDictionary *table, SInt32 *score)
+HoujiFramebuffer::matchPropertyTable(OSDictionary *table, SInt32 *score)
 {
 	static unsigned seen;
 	bool r = IOService::matchPropertyTable(table, score);
@@ -308,7 +309,7 @@ IOMobileFramebuffer::matchPropertyTable(OSDictionary *table, SInt32 *score)
 }
 
 void
-IOMobileFramebuffer::stop(IOService *provider)
+HoujiFramebuffer::stop(IOService *provider)
 {
 	if (fVsync != nullptr) {
 		fVsync->cancelTimeout();
@@ -323,7 +324,7 @@ IOMobileFramebuffer::stop(IOService *provider)
 }
 
 void
-IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+HoujiFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 {
 	fVsyncCount++;
 	if ((fVsyncCount % 600) == 0) {
@@ -332,7 +333,7 @@ IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 			houjiLegacyCheckpoint();
 		if (fVsyncCount <= 3600) {
 			HOUJI_FB_LOG("services fb=%u hid=%u surf=%u res=%u",
-			    houjiCountServices("IOMobileFramebuffer"),
+			    houjiCountServices("HoujiFramebuffer"),
 			    houjiCountServices("IOHIDSystem"),
 			    houjiCountServices("IOSurfaceRoot"),
 			    houjiCountServices("IOResources"));
@@ -348,10 +349,10 @@ IOMobileFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 }
 
 IOReturn
-IOMobileFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 type,
+HoujiFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 type,
     OSDictionary *properties, IOUserClient **handler)
 {
-	IOMobileFramebufferUserClient *client = new IOMobileFramebufferUserClient;
+	HoujiFramebufferUserClient *client = new HoujiFramebufferUserClient;
 	if (client == nullptr) {
 		return kIOReturnNoMemory;
 	}
@@ -369,7 +370,7 @@ IOMobileFramebuffer::newUserClient(task_t owningTask, void *securityID, UInt32 t
 }
 
 bool
-IOMobileFramebufferUserClient::initWithTask(task_t owningTask, void *securityID, UInt32 type)
+HoujiFramebufferUserClient::initWithTask(task_t owningTask, void *securityID, UInt32 type)
 {
 	if (!IOUserClient::initWithTask(owningTask, securityID, type)) {
 		return false;
@@ -379,13 +380,13 @@ IOMobileFramebufferUserClient::initWithTask(task_t owningTask, void *securityID,
 }
 
 bool
-IOMobileFramebufferUserClient::start(IOService *provider)
+HoujiFramebufferUserClient::start(IOService *provider)
 {
 	return IOUserClient::start(provider);
 }
 
 IOReturn
-IOMobileFramebufferUserClient::clientClose(void)
+HoujiFramebufferUserClient::clientClose(void)
 {
 	HOUJI_FB_LOG("user client closed pid %d swaps %u",
 	    proc_getpid(current_proc()), fOwner ? fOwner->fSwapCount : 0);
@@ -394,7 +395,7 @@ IOMobileFramebufferUserClient::clientClose(void)
 }
 
 IOReturn
-IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, UInt32 type, io_user_reference_t refCon)
+HoujiFramebufferUserClient::registerNotificationPort(mach_port_t port, UInt32 type, io_user_reference_t refCon)
 {
 	fPort = port;
 	HOUJI_FB_LOG("notification port type %u", type);
@@ -402,7 +403,7 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, UInt32
 }
 
 IOReturn
-IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments *args,
+HoujiFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments *args,
     IOExternalMethodDispatch *dispatch, OSObject *target, void *reference)
 {
 	uint64_t out0 = 0, out1 = 0;
@@ -594,7 +595,7 @@ houji_fb_bootstrap(void)
 	if (houjiLegacyCheckpoint != nullptr)
 		houjiLegacyCheckpoint();
 
-	IOMobileFramebuffer *fb = new IOMobileFramebuffer;
+	HoujiFramebuffer *fb = new HoujiFramebuffer;
 	if (fb == nullptr || !fb->init(nullptr) || !fb->attach(provider) || !fb->start(provider)) {
 		HOUJI_FB_LOG("framebuffer service start failed");
 		if (fb != nullptr) fb->release();
@@ -665,7 +666,7 @@ houji_fb_bootstrap(void)
 			HOUJI_FB_LOG("IOHIDSystem services=%u", n);
 		}
 	}
-	HOUJI_FB_LOG("IOMobileFramebuffer registered: %s", fb->getName());
+	HOUJI_FB_LOG("HoujiFramebuffer registered: %s", fb->getName());
 	{
 		int on = 0;
 		PE_parse_boot_argn("houji_hid", &on, sizeof(on));
