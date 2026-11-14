@@ -2,6 +2,7 @@
 and the late archive the kernel force-loads. No sheng kit is required.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -184,7 +185,7 @@ def sha(path):
 sources = [DRIVER, OUT / 'OriginalHoujiLegacyABI.h', asm, AUDIT]
 (OUT / 'build-report.json').write_text(json.dumps({
     'archive_sha256': sha(archive),
-    'source_sha256': {str(Path(p).resolve().relative_to(ROOT)): sha(p) for p in sources},
+    'source_sha256': {os.path.relpath(str(p), str(ROOT)): sha(p) for p in sources},
     'bound_symbols': len(bindings), 'virtual_entries': 338,
     'runtime_instantiation': False}, indent=2) + '\n')
 print('HOUJI-LEGACY build: 338-slot archive with %d original bindings; probe gated off' % len(bindings))
