@@ -114,7 +114,11 @@ require(result.returncode == 0, (result.stdout + result.stderr)[-4000:])
 # ---- map every undefined original symbol to its original address ---------
 def nm_undefined(obj):
     for tool in (['llvm-nm', '-u'], ['xcrun', 'llvm-nm', '-u'], ['nm', '-u']):
-        r = subprocess.run([str(x) for x in tool + [str(obj)]], capture_output=True, text=True)
+        try:
+            r = subprocess.run([str(x) for x in tool + [str(obj)]],
+                               capture_output=True, text=True)
+        except OSError:
+            continue
         if r.returncode == 0:
             return r.stdout
     raise SystemExit('no nm tool could read the driver object')
