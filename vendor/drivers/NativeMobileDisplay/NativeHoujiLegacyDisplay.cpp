@@ -39,8 +39,8 @@ public:
 
 OSDefineMetaClassAndStructors(NativeHoujiLegacyDisplay, IOMobileFramebufferLegacy)
 
-extern "C" void
-native_legacy_display_probe(void)
+static void
+houji_legacy_display_probe_body(void)
 {
 	if (!houjiLegacyDisplayEnabled()) {
 		return;
@@ -52,3 +52,7 @@ native_legacy_display_probe(void)
 	 */
 	IOLog("HOUJI-LEGACY: class linked; instantiation pending next milestone\n");
 }
+
+/* The pinned kernel patches reference both spellings from different sites. */
+extern "C" void native_legacy_display_probe(void) { houji_legacy_display_probe_body(); }
+extern "C" void native_legacy_display_late_probe(void) { houji_legacy_display_probe_body(); }
