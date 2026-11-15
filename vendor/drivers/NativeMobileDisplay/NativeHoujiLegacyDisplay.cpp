@@ -72,7 +72,7 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
             const uint32_t dimensions = __atomic_load_n(&display->dimensionCalls, __ATOMIC_RELAXED);
             const uint32_t refreshes = __atomic_load_n(&display->refreshCalls, __ATOMIC_RELAXED);
             const uint32_t completions = __atomic_load_n(&display->completionCalls, __ATOMIC_RELAXED);
-            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u dims=%u refreshes=%u completions=%u current=%d pending=%d submission=%d\n",
+            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u dims=%u refreshes=%u completions=%u canvas=%u current=%d pending=%d submission=%d\n",
                 houjiProbeStage, display->width, display->height, display->rowBytes,
                 __atomic_load_n(&display->recordQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->lastRecordStatus, __ATOMIC_RELAXED),
@@ -80,6 +80,7 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
                 __atomic_load_n(&display->validationCalls, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->validationAccepted, __ATOMIC_RELAXED),
                 display->rejectedCopies, display->presented, dimensions, refreshes, completions,
+                display->canvasVerified,
                 HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::currentSwap) != nullptr,
                 HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) != nullptr,
                 HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::submissionHead) != nullptr);
@@ -89,6 +90,10 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     }
 
 public:
+    // Read by the publisher after registerService() to prove the canvas properties
+    // landed on the entry clients match.
+    bool canvasVerified = false;
+
     IOReturn newUserClient(task_t task, void *security, UInt32 type,
         IOUserClient **client) override
     {
@@ -135,6 +140,16 @@ public:
         if (data != nullptr)
             data->release();
         if (!published) {
+            scanout->release();
+            scanout = nullptr;
+            return false;
+        }
+        // 20H392 IOMobileFramebufferOpen() reads these two number properties from the
+        // framebuffer entry itself (0x1af226874 / 0x1af22688c) and caches them as the
+        // client canvas size; the provider nub is not consulted.
+        const bool canvas = setProperty("canvas-width", &width, sizeof(width)) &&
+            setProperty("canvas-height", &height, sizeof(height));
+        if (!canvas) {
             scanout->release();
             scanout = nullptr;
             return false;
@@ -202,10 +217,15 @@ public:
     {
         if (count == nullptr || output == nullptr)
             return kIOReturnBadArgument;
+        // Contract from IOMobileFramebufferSupportedFrameInfo (0x1af226384): query 0
+        // returns the record count plus record 0, queries 1..count-1 return the rest.
+        // A zero count is the well-formed empty answer, so the client reports no
+        // supported frame info rather than treating a refused selector as fatal.
         *count = 0;
+        __builtin_memset(output, 0, 64);
         if (__atomic_fetch_add(&backendQueries, 1U, __ATOMIC_RELAXED) < 8)
-            IOLog("HOUJI-LEGACY: stage=backend-query slot=212 query=%u rc=unsupported\n", query);
-        return kIOReturnUnsupported;
+            IOLog("HOUJI-LEGACY: stage=backend-query slot=212 query=%u count=0 rc=0\n", query);
+        return kIOReturnSuccess;
     }
 
     IOReturn collectCompletionReports(uint32_t, void *, uint32_t *count, uint32_t) override
@@ -532,8 +552,13 @@ houjiLegacyPublish(IOService *provider)
             display->registerService();
             published = display;
             houjiProbeStage = "published";
-            IOLog("HOUJI-LEGACY: stage=published name=%s old-service-skipped=1\n",
-                display->getName());
+            OSData *canvasWidth = OSDynamicCast(OSData, display->getProperty("canvas-width"));
+            OSData *canvasHeight = OSDynamicCast(OSData, display->getProperty("canvas-height"));
+            display->canvasVerified = canvasWidth != nullptr && canvasHeight != nullptr &&
+                canvasWidth->getLength() == sizeof(uint32_t) &&
+                canvasHeight->getLength() == sizeof(uint32_t);
+            IOLog("HOUJI-LEGACY: stage=published name=%s old-service-skipped=1 canvas-verified=%u\n",
+                display->getName(), display->canvasVerified);
             return true;
         }
     }
