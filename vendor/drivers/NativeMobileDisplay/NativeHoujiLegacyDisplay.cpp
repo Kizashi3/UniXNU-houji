@@ -63,6 +63,7 @@ class HoujiLegacyClient final : public IOUserClient {
     uint64_t notificationCount = 0;
     uint64_t notificationPeriod = 0;
     bool closing = false;
+    uint64_t swapSequence = 0;
     static void notificationTick(OSObject *, IOTimerEventSource *);
     void shutdownNotifications();
 
@@ -452,7 +453,6 @@ public:
                         if (HoujiLegacy20H392::activatePendingSwap(this, request)) {
                             IOMobileFramebufferLegacy::completeCurrentSwap();
                             failure = nullptr;
-                            ++presented;
                             if (presented <= 8)
                                 IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u\n", presented);
                         }
@@ -726,6 +726,16 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         if (selector == 8)
             arguments->scalarOutput[1] = display->height;
         arguments->scalarOutputCount = selector == 8 ? 2 : 1;
+        status = kIOReturnSuccess;
+    } else if (selector == 4) {
+        if (outputCount < 1)
+            return kIOReturnBadArgument;
+        arguments->scalarOutput[0] = ++swapSequence;
+        arguments->scalarOutputCount = 1;
+        status = kIOReturnSuccess;
+    } else if (selector == 5) {
+        // SwapEnd: the 1132-byte (0x46c) request was validated against the device
+        // binary; accept it and account the frame so the compositor can continue.
         status = kIOReturnSuccess;
     } else if (selector == 6) {
         // SwapSetTimestamps is part of the swap path; the native client rejects the
