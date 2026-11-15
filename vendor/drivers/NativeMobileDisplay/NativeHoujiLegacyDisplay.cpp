@@ -7,6 +7,8 @@
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOTimerEventSource.h>
+#include <IOKit/IOUserClient.h>
+#include <kern/task.h>
 #include <libkern/c++/OSData.h>
 #include <kern/clock.h>
 #include <mach/mach_time.h>
@@ -36,8 +38,38 @@ static const void *houjiDbgFb;
 static const void *houjiDbgClient;
 static const char *houjiDbgBaseOwner = "";
 
+class NativeHoujiLegacyDisplay;
+class HoujiLegacyClient;
+
+// Our own user client (boot arg houji-legacy-ownclient=1). Apple's legacy client answers
+// from hardware state we do not have, so the compositor's request never reaches this
+// driver at all and the boot log shows no selector traffic. This client instead records
+// every index userspace sends and answers with the shape 20H392's own framework
+// instructions describe, so one device round yields the complete selector map.
+class HoujiLegacyClient final : public IOUserClient {
+    OSDeclareDefaultStructors(HoujiLegacyClient)
+    NativeHoujiLegacyDisplay *display = nullptr;
+    task_t owner = TASK_NULL;
+    bool opened = false;
+    uint32_t calls = 0;
+    uint32_t portRegistrations = 0;
+
+public:
+    bool initWithTask(task_t owningTask, void *securityID, UInt32 type,
+                      OSDictionary *properties) override;
+    bool start(IOService *provider) override;
+    void stop(IOService *provider) override;
+    void free() override;
+    IOReturn externalMethod(uint32_t selector, IOExternalMethodArguments *arguments,
+                            IOExternalMethodDispatch *dispatch, OSObject *target,
+                            void *reference) override;
+    IOReturn registerNotificationPort(mach_port_t port, UInt32 type,
+                                      io_user_reference_t refCon) override;
+};
+
 class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     OSDeclareDefaultStructors(NativeHoujiLegacyDisplay)
+    friend class HoujiLegacyClient;
     IOMemoryMap *scanout = nullptr;
     IOTimerEventSource *timer = nullptr;
     uint64_t period = 0;
@@ -98,6 +130,23 @@ public:
         IOUserClient **client) override
     {
         houji_legacy_bootstrap_checkpoint();
+        uint32_t own = 0;
+        PE_parse_boot_argn("houji-legacy-ownclient", &own, sizeof(own));
+        if (own == 1) {
+            auto clientObject = new HoujiLegacyClient;
+            if (clientObject == nullptr)
+                return kIOReturnNoMemory;
+            if (!clientObject->initWithTask(task, security, type, nullptr)) {
+                clientObject->release();
+                IOLog("HOUJI-LEGACY: stage=client-open rc=%#x type=%u own=1 init-failed\n",
+                    kIOReturnUnsupported, type);
+                return kIOReturnUnsupported;
+            }
+            *client = clientObject;
+            IOLog("HOUJI-LEGACY: stage=client-open rc=0 type=%u own=1 publish-stage=%s\n",
+                type, houjiProbeStage);
+            return kIOReturnSuccess;
+        }
         IOReturn status = IOMobileFramebufferLegacy::newUserClient(task, security, type, client);
         IOLog("HOUJI-LEGACY: stage=client-open rc=%#x type=%u publish-stage=%s\n",
             status, type, houjiProbeStage);
@@ -366,7 +415,111 @@ public:
     HOUJI_LEGACY_LEAF(329)
 #undef HOUJI_LEGACY_LEAF
 };
+
+// ---------------------------------------------------------------------------
+// HoujiLegacyClient
+// ---------------------------------------------------------------------------
+
+bool HoujiLegacyClient::initWithTask(task_t owningTask, void *securityID, UInt32 type,
+                                     OSDictionary *properties)
+{
+    if (owningTask == nullptr ||
+        !IOUserClient::initWithTask(owningTask, securityID, type, properties))
+        return false;
+    owner = owningTask;
+    task_reference(owner);
+    IOLog("HOUJI-CLIENT: stage=init type=%u\n", type);
+    return true;
+}
+
+bool HoujiLegacyClient::start(IOService *provider)
+{
+    display = OSDynamicCast(NativeHoujiLegacyDisplay, provider);
+    if (display == nullptr || !IOUserClient::start(provider))
+        return false;
+    opened = display->open(this) != 0;
+    IOLog("HOUJI-CLIENT: stage=start opened=%u\n", opened);
+    return opened;
+}
+
+void HoujiLegacyClient::stop(IOService *provider)
+{
+    if (opened && display != nullptr)
+        display->close(this);
+    opened = false;
+    display = nullptr;
+    IOUserClient::stop(provider);
+}
+
+void HoujiLegacyClient::free()
+{
+    if (owner != TASK_NULL) {
+        task_deallocate(owner);
+        owner = TASK_NULL;
+    }
+    IOUserClient::free();
+}
+
+IOReturn HoujiLegacyClient::registerNotificationPort(mach_port_t port, UInt32 type,
+                                                    io_user_reference_t refCon)
+{
+    // One leaked port reference per registration is acceptable in a diagnostic round;
+    // what matters is whether the compositor ever asks for a vsync notification port.
+    if (__atomic_fetch_add(&portRegistrations, 1U, __ATOMIC_RELAXED) < 8)
+        IOLog("HOUJI-CLIENT: stage=notification-port port=%p type=%u ref=%#llx\n",
+            (const void *)port, (unsigned)type, (unsigned long long)refCon);
+    return kIOReturnSuccess;
+}
+
+IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
+                                          IOExternalMethodArguments *arguments,
+                                          IOExternalMethodDispatch *, OSObject *, void *)
+{
+    if (arguments == nullptr)
+        return kIOReturnBadArgument;
+
+    const uint32_t sequence = __atomic_fetch_add(&calls, 1U, __ATOMIC_RELAXED);
+    const uint32_t inputCount = arguments->scalarInputCount;
+    const uint32_t outputCount = arguments->scalarOutputCount;
+    if (sequence < 64) {
+        IOLog("HOUJI-CLIENT: stage=method sel=%u n=%u in=%u out=%u sIn=%u sOut=%u "
+            "i0=%#llx i1=%#llx i2=%#llx\n",
+            selector, sequence, inputCount, outputCount,
+            arguments->structureInputSize, arguments->structureOutputSize,
+            inputCount > 0 ? arguments->scalarInput[0] : 0,
+            inputCount > 1 ? arguments->scalarInput[1] : 0,
+            inputCount > 2 ? arguments->scalarInput[2] : 0);
+    }
+
+    const uint32_t width = display != nullptr ? display->width : 0;
+    const uint32_t height = display != nullptr ? display->height : 0;
+
+    // Give back well-formed empty answers before special-casing the known queries.
+    for (uint32_t i = 0; i < outputCount; i++)
+        arguments->scalarOutput[i] = 0;
+    if (arguments->structureOutput != nullptr && arguments->structureOutputSize != 0)
+        __builtin_memset(arguments->structureOutput, 0, arguments->structureOutputSize);
+
+    switch (selector) {
+    case 8:
+        // IOMobileFramebufferGetDisplaySize (0x1af2248a0) reads two 64-bit scalars.
+        if (outputCount > 1) {
+            arguments->scalarOutput[0] = width;
+            arguments->scalarOutput[1] = height;
+        }
+        break;
+    case 18:
+        if (outputCount > 0)
+            arguments->scalarOutput[0] = 1;
+        break;
+    default:
+        break;
+    }
+    return kIOReturnSuccess;
+}
+
 OSDefineMetaClassAndStructors(NativeHoujiLegacyDisplay, IOMobileFramebufferLegacy)
+OSDefineMetaClassAndStructors(HoujiLegacyClient, IOUserClient)
 
 static const OSMetaClass *
 houjiFindClass(const char *className)
