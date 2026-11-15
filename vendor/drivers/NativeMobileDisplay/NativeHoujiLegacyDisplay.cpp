@@ -273,6 +273,18 @@ public:
             scanout = nullptr;
             return false;
         }
+        // The sandbox profiles name only Apple's framebuffer user-client class, so an
+        // open of this port's own class is refused by MACF before a single selector
+        // arrives. Upstream added NativeSandboxGrantProcess for exactly that case: the
+        // service itself names, per process, the opens that stand in for the sandbox
+        // verdict, and nothing else changes.
+        const bool granted = setProperty("NativeSandboxGrantProcess",
+            "backboardd,SpringBoard,MobileGestaltHelper,IOMFB_FDR_Loader");
+        if (!granted) {
+            scanout->release();
+            scanout = nullptr;
+            return false;
+        }
         IOWorkLoop *loop = getWorkLoop();
         timer = loop == nullptr ? nullptr : IOTimerEventSource::timerEventSource(this, &NativeHoujiLegacyDisplay::vsyncFired);
         if (timer == nullptr || loop->addEventSource(timer) != kIOReturnSuccess) {
@@ -288,7 +300,8 @@ public:
         diagnostics = diag == 1;
         nextSummary = mach_absolute_time() + period * 300;
         timer->wakeAtTime(mach_absolute_time() + period);
-        IOLog("HOUJI-LEGACY: stage=hardware mapped=%ux%u refresh=60 writes=0\n", width, height);
+        IOLog("HOUJI-LEGACY: stage=hardware mapped=%ux%u refresh=60 writes=0 grant=%u\n",
+            width, height, granted);
         return true;
     }
 
