@@ -1,0 +1,32 @@
+--- a/iokit/Kernel/IOUserClient.cpp
++++ b/iokit/Kernel/IOUserClient.cpp
+@@ -6435,6 +6435,29 @@
+ 	}
+ 	ipcExit(defaultLocking ? (defaultLockingSingleThreadExternalMethod ? kIPCLockWrite : kIPCLockRead) : kIPCLockNone);
+ 
++	/* HOUJI-UCT: every user-client selector for the framebuffer clients is recorded
++	 * here with its shape and the code it actually returned. callExternalMethod is
++	 * the single point both the legacy and the IOUserClient2022 dispatch pass
++	 * through, so this observes Apple's own client without changing its behaviour.
++	 * Up to four records per selector, first occurrence in registration order. */
++	{
++		static unsigned char houjiIndexSeen[512];
++		static const char houjiPrefix[] = "IOMobileFramebuffer";
++		const char *houjiName = getMetaClass()->getClassName();
++		bool houjiFrame = houjiName != nullptr;
++		for (unsigned i = 0; houjiFrame && i < sizeof(houjiPrefix) - 1; i++)
++			houjiFrame = houjiName[i] == houjiPrefix[i];
++		if (houjiFrame && selector < 512 && houjiIndexSeen[selector] < 4) {
++			houjiIndexSeen[selector]++;
++			IOLog("HOUJI-UCT: client=%s sel=%u n=%u rc=%#x in=%u out=%u sIn=%u sOut=%u\n",
++			    houjiName, selector, (unsigned)houjiIndexSeen[selector], ret,
++			    args != nullptr ? args->scalarInputCount : 0,
++			    args != nullptr ? args->scalarOutputCount : 0,
++			    args != nullptr ? args->structureInputSize : 0,
++			    args != nullptr ? args->structureOutputSize : 0);
++		}
++	}
++
+ 	return ret;
+ }
+ 
