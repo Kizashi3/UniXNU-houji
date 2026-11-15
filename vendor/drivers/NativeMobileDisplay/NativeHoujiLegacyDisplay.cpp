@@ -126,6 +126,30 @@ public:
     // landed on the entry clients match.
     bool canvasVerified = false;
 
+    // IOMobileFramebufferLegacy admits a single client, so at run404 the first opener
+    // took the slot and the compositor's open failed before it could send one selector.
+    // The plain IOService rule admits every client, which is what the legacy client
+    // itself allowed (run399 showed two simultaneous opens).
+    bool handleOpen(IOService *forClient, IOOptionBits options, void *arg) override
+    {
+        const bool accepted = IOService::handleOpen(forClient, options, arg);
+        IOLog("HOUJI-LEGACY: stage=handle-open client=%s options=%#x accepted=%u\n",
+            forClient != nullptr ? forClient->getMetaClass()->getClassName() : "none",
+            options, accepted);
+        return accepted;
+    }
+
+    void handleClose(IOService *forClient, IOOptionBits options) override
+    {
+        IOLog("HOUJI-LEGACY: stage=handle-close options=%#x\n", options);
+        IOService::handleClose(forClient, options);
+    }
+
+    bool handleIsOpen(const IOService *client) const override
+    {
+        return IOService::handleIsOpen(client);
+    }
+
     IOReturn newUserClient(task_t task, void *security, UInt32 type,
         OSDictionary *properties, IOUserClient **client) override
     {
