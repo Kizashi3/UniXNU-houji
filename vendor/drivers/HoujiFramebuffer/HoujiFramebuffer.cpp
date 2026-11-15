@@ -519,6 +519,88 @@ houjiCountServices(const char *cls)
 	return n;
 }
 
+class AppleKeyStore final : public IOService {
+    OSDeclareDefaultStructors(AppleKeyStore)
+    unsigned interestReports = 0;
+    unsigned openReports = 0;
+public:
+    bool start(IOService *provider) override
+    {
+        if (!IOService::start(provider))
+            return false;
+        setName("HoujiKeyStoreEvents");
+        if (!setProperty("HoujiKeyStoreEvents", true) ||
+            !setProperty("KeyOperationsAvailable", false)) {
+            IOService::stop(provider);
+            return false;
+        }
+        return true;
+    }
+
+    OSPtr<IONotifier> registerInterest(const OSSymbol *type, IOServiceInterestHandler handler,
+        void *target, void *ref = nullptr) override
+    {
+        auto notifier = IOService::registerInterest(type, handler, target, ref);
+        if (__atomic_fetch_add(&interestReports, 1U, __ATOMIC_RELAXED) < 12)
+            IOLog("HOUJI-KEYEVENTS: interest=%s registered=%u\n",
+                type == nullptr ? "null" : type->getCStringNoCopy(), static_cast<bool>(notifier));
+        return notifier;
+    }
+
+    IOReturn newUserClient(task_t, void *, UInt32 type, IOUserClient **out) override
+    {
+        if (out != nullptr)
+            *out = nullptr;
+        if (__atomic_fetch_add(&openReports, 1U, __ATOMIC_RELAXED) < 8)
+            IOLog("HOUJI-KEYEVENTS: client-open type=%u rc=unsupported key-operations=0\n", type);
+        return kIOReturnUnsupported;
+    }
+
+    IOReturn newUserClient(task_t task, void *security, UInt32 type,
+        OSDictionary *, IOUserClient **out) override
+    {
+        return newUserClient(task, security, type, out);
+    }
+};
+OSDefineMetaClassAndStructors(AppleKeyStore, IOService)
+
+static void
+houjiKeyEventsBootstrap(IOService *platform)
+{
+    uint32_t enabled = 0;
+    PE_parse_boot_argn("houji-keyevents", &enabled, sizeof(enabled));
+    if (enabled != 1)
+        return;
+    if (houjiCountServices("AppleKeyStore") != 0) {
+        IOLog("HOUJI-KEYEVENTS: existing-service-retained\n");
+        return;
+    }
+    auto service = new AppleKeyStore;
+    if (service == nullptr) {
+        IOLog("HOUJI-KEYEVENTS: allocation-failed\n");
+        return;
+    }
+    if (!service->init(nullptr)) {
+        service->release();
+        IOLog("HOUJI-KEYEVENTS: init-failed\n");
+        return;
+    }
+    if (!service->attach(platform)) {
+        service->release();
+        IOLog("HOUJI-KEYEVENTS: attach-failed\n");
+        return;
+    }
+    if (!service->start(platform)) {
+        service->detach(platform);
+        service->release();
+        IOLog("HOUJI-KEYEVENTS: start-failed\n");
+        return;
+    }
+    service->registerService();
+    IOLog("HOUJI-KEYEVENTS: published matches=%u notifications-only=1 key-operations=0\n",
+        houjiCountServices("AppleKeyStore"));
+}
+
 // Use the native provider's actual metaclass when Legacy publication is requested.
 // The pinned 20H392 AppleARMIODevice uses IOService init/start/stop/free.
 static bool
@@ -583,6 +665,7 @@ houji_fb_bootstrap(void)
 		HOUJI_FB_LOG("no platform expert");
 		return;
 	}
+	houjiKeyEventsBootstrap(platform);
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
