@@ -1805,8 +1805,16 @@ extern "C" int native_ufs_bcb_write (const char *command)
   memcpy (block, command, length);
   memset (block + 32, 0, 32);
   if (hostWrite4k (0, gMiscFirstLba, 1, block, true) != kIOReturnSuccess) return -7;
-  IOLog ("HOUJI-BCB: wrote '%s' lba=%llu\n", command, (unsigned long long) gMiscFirstLba);
-  return 1;
+  // Read the block back: proof in this boot's own log that the command reached the medium,
+  // independent of whether the bootloader later honors or clears it.
+  static uint8_t verify[4096];
+  if (hostRead4k (0, gMiscFirstLba, 1, verify) != kIOReturnSuccess) {
+    IOLog ("HOUJI-BCB: wrote '%s' lba=%llu verify=read-failed\n", command, (unsigned long long) gMiscFirstLba);
+    return 1;
+  }
+  const bool verified = !memcmp (verify, command, length) && verify[length] == 0;
+  IOLog ("HOUJI-BCB: wrote '%s' lba=%llu verify=%u\n", command, (unsigned long long) gMiscFirstLba, verified);
+  return verified ? 1 : -8;
 }
 
 static void houjiPsciReset (void)
@@ -1888,7 +1896,7 @@ extern "C" void native_ufs_exit (const char *why)
   if (__atomic_exchange_n (&gExitStarted, 1, __ATOMIC_ACQ_REL)) {
     for (;;) { __asm__ volatile ("wfe"); }
   }
-  IOLog ("HOUJI-EXIT: %s\n", why ? why : "?");
+  IOLog ("HOUJI-BOOTEXIT: %s\n", why ? why : "?");
   if (gLogBuf && gLogRegionBlocks && !gSnapshotActive) {
     if (houjiLogWriteSnapshot (gLogBuf, 0) == 0) {
       houjiConRingWrite (gLogBuf);
@@ -1896,7 +1904,7 @@ extern "C" void native_ufs_exit (const char *why)
   }
   (void) hostSyncCache ();
   const int bcb = native_ufs_bcb_write (houjiBcbCommand ());
-  IOLog ("HOUJI-EXIT: bcb=%d resetting\n", bcb);
+  IOLog ("HOUJI-BOOTEXIT: bcb=%d resetting\n", bcb);
   houjiPsciReset ();
 }
 
@@ -1912,7 +1920,7 @@ static void houjiExitCheck (void)
       uint64_t ticks = 0;
       nanoseconds_to_absolutetime ((uint64_t) seconds * NSEC_PER_SEC, &ticks);
       deadline = (int64_t) ticks;
-      IOLog ("HOUJI-EXIT: timed exit in %u s bcb='%s'\n", seconds,
+      IOLog ("HOUJI-BOOTEXIT: timed exit in %u s bcb='%s'\n", seconds,
           houjiBcbCommand () ? houjiBcbCommand () : "off");
     } else {
       deadline = 0;
@@ -1953,10 +1961,10 @@ static void houjiInstallExit (void)
   if (installed) return;
   installed = true;
   PE_halt_restart = houjiHaltRestart;
-  IOLog ("HOUJI-EXIT: halt/restart hook installed\n");
+  IOLog ("HOUJI-BOOTEXIT: halt/restart hook installed\n");
   const char *command = houjiBcbCommand ();
   const int rc = command ? native_ufs_bcb_write (command) : -2;
-  IOLog ("HOUJI-EXIT: arm '%s' rc=%d\n", command ? command : "off", rc);
+  IOLog ("HOUJI-BOOTEXIT: arm '%s' rc=%d\n", command ? command : "off", rc);
 }
 
 // Re-read the GPT header and entry array and compare their CRCs with what was recorded at root start. 0 = unchanged.
