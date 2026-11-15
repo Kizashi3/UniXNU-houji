@@ -130,24 +130,30 @@ public:
     // took the slot and the compositor's open failed before it could send one selector.
     // The plain IOService rule admits every client, which is what the legacy client
     // itself allowed (run399 showed two simultaneous opens).
+    uint32_t openClients = 0;
+
     bool handleOpen(IOService *forClient, IOOptionBits options, void *arg) override
     {
-        const bool accepted = IOService::handleOpen(forClient, options, arg);
-        IOLog("HOUJI-LEGACY: stage=handle-open client=%s options=%#x accepted=%u\n",
+        // IOService::handleOpen enforces one client per service, so run405 still lost
+        // the compositor. This service owns its clients now: admit every request and
+        // keep the count for the log.
+        const uint32_t sequence = __atomic_add_fetch(&openClients, 1U, __ATOMIC_RELAXED);
+        IOLog("HOUJI-LEGACY: stage=handle-open client=%s n=%u options=%#x accepted=1\n",
             forClient != nullptr ? forClient->getMetaClass()->getClassName() : "none",
-            options, accepted);
-        return accepted;
+            sequence, options);
+        return true;
     }
 
     void handleClose(IOService *forClient, IOOptionBits options) override
     {
-        IOLog("HOUJI-LEGACY: stage=handle-close options=%#x\n", options);
-        IOService::handleClose(forClient, options);
+        const uint32_t remaining =
+            __atomic_sub_fetch(&openClients, 1U, __ATOMIC_RELAXED);
+        IOLog("HOUJI-LEGACY: stage=handle-close options=%#x remaining=%u\n", options, remaining);
     }
 
     bool handleIsOpen(const IOService *client) const override
     {
-        return IOService::handleIsOpen(client);
+        return true;
     }
 
     IOReturn newUserClient(task_t task, void *security, UInt32 type,
@@ -492,7 +498,8 @@ bool HoujiLegacyClient::initWithTask(task_t owningTask, void *securityID, UInt32
         return false;
     owner = owningTask;
     task_reference(owner);
-    IOLog("HOUJI-CLIENT: stage=init type=%u\n", type);
+    IOLog("HOUJI-CLIENT: stage=init type=%u client=%p task=%p\n", type,
+        (void *)this, (void *)owningTask);
     return true;
 }
 
