@@ -48,6 +48,9 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     unsigned presented = 0;
     uint32_t recordQueries = 0;
     uint32_t backendQueries = 0;
+    uint32_t validationCalls = 0;
+    uint32_t validationAccepted = 0;
+    unsigned rejectedCopies = 0;
     IOReturn lastRecordStatus = kIOReturnNotReady;
     bool diagnostics = false;
     uint64_t nextSummary = 0;
@@ -63,11 +66,14 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         const uint64_t now = mach_absolute_time();
         if (display->diagnostics && now >= display->nextSummary) {
             display->nextSummary = now + display->period * 300;
-            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u frames=%u\n",
+            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u\n",
                 houjiProbeStage, display->width, display->height, display->rowBytes,
                 __atomic_load_n(&display->recordQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->lastRecordStatus, __ATOMIC_RELAXED),
-                __atomic_load_n(&display->backendQueries, __ATOMIC_RELAXED), display->presented);
+                __atomic_load_n(&display->backendQueries, __ATOMIC_RELAXED),
+                __atomic_load_n(&display->validationCalls, __ATOMIC_RELAXED),
+                __atomic_load_n(&display->validationAccepted, __ATOMIC_RELAXED),
+                display->rejectedCopies, display->presented);
         }
         if (display->timer != nullptr)
             display->timer->wakeAtTime(mach_absolute_time() + display->period);
@@ -200,8 +206,22 @@ public:
         uint32_t synchronous = 0;
         PE_parse_boot_argn("houji-legacy-cpu", &enabled, sizeof(enabled));
         PE_parse_boot_argn("houji-legacy-sync-cpu", &synchronous, sizeof(synchronous));
-        return enabled == 1 && synchronous == 1 && scanout != nullptr &&
+        const bool accepted = enabled == 1 && synchronous == 1 && scanout != nullptr &&
             HoujiLegacy20H392::fullFrameRequest(request, width, height);
+        uint32_t sequence = __atomic_fetch_add(&validationCalls, 1U, __ATOMIC_RELAXED);
+        if (accepted)
+            __atomic_fetch_add(&validationAccepted, 1U, __ATOMIC_RELAXED);
+        if (sequence < 8 && request != nullptr)
+            IOLog("HOUJI-LEGACY: stage=swap-validate accepted=%u cpu=%u sync=%u masks=%#x/%#x rect17=%u,%u,%u,%u rect81=%u,%u,%u,%u state=%#x/%#x/%#x\n",
+                accepted, enabled, synchronous,
+                HoujiLegacy20H392::requestWord(request, 792), HoujiLegacy20H392::requestWord(request, 796),
+                HoujiLegacy20H392::requestWord(request, 17), HoujiLegacy20H392::requestWord(request, 21),
+                HoujiLegacy20H392::requestWord(request, 25), HoujiLegacy20H392::requestWord(request, 29),
+                HoujiLegacy20H392::requestWord(request, 81), HoujiLegacy20H392::requestWord(request, 85),
+                HoujiLegacy20H392::requestWord(request, 89), HoujiLegacy20H392::requestWord(request, 93),
+                HoujiLegacy20H392::requestWord(request, 532), HoujiLegacy20H392::requestWord(request, 564),
+                HoujiLegacy20H392::requestWord(request, 580));
+        return accepted;
     }
 
     void kickSwapQueue() override
@@ -218,14 +238,16 @@ public:
         copying = true;
         void *request = HoujiLegacy20H392::loadPointer(this, HoujiLegacy20H392::pendingHead);
         if (request != nullptr && HoujiLegacy20H392::fullFrameRequest(request, width, height)) {
+            const char *failure = "surface-contract";
             OSObject *surfaces[4] = {};
-            __builtin_memcpy(surfaces, static_cast<unsigned char *>(request) + 2040, sizeof(surfaces));
+            __builtin_memcpy(surfaces, static_cast<unsigned char *>(request) + 2184, sizeof(surfaces));
             OSObject *surface = surfaces[0];
             if (surface != nullptr && !surfaces[1] && !surfaces[2] && !surfaces[3] &&
                 surface->metaCast("IOSurface") && houji_legacy_surface_format(surface) == 0x42475241U &&
                 houji_legacy_surface_planes(surface) == 0 &&
                 houji_legacy_surface_width(surface) >= width && houji_legacy_surface_height(surface) >= height) {
                 surface->retain();
+                failure = "descriptor";
                 IOMemoryDescriptor *memory = houji_legacy_surface_descriptor(surface);
                 if (memory != nullptr && memory->metaCast("IOMemoryDescriptor")) {
                     memory->retain();
@@ -236,15 +258,18 @@ public:
                     const bool bounds = allocation <= memory->getLength() && offset <= allocation &&
                         mapping != nullptr && mapping->getLength() >= allocation &&
                         HoujiLegacy20H392::pixelExtent(allocation - offset, stride, width, height);
+                    failure = bounds ? "pixel-copy" : "mapping-bounds";
                     const bool copied = bounds && HoujiLegacy20H392::copyBgra(
                         reinterpret_cast<volatile void *>(scanout->getVirtualAddress()),
                         scanout->getLength(), rowBytes,
                         reinterpret_cast<const void *>(mapping->getVirtualAddress()),
                         allocation, offset, stride, width, height);
                     if (copied) {
+                        failure = "queue-activation";
                         __asm__ volatile("dsb sy" ::: "memory");
                         if (HoujiLegacy20H392::activatePendingSwap(this, request)) {
                             IOMobileFramebufferLegacy::completeCurrentSwap();
+                            failure = nullptr;
                             ++presented;
                             if (presented <= 8)
                                 IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u\n", presented);
@@ -256,6 +281,11 @@ public:
                 }
                 surface->release();
             }
+            if (failure != nullptr && rejectedCopies++ < 8)
+                IOLog("HOUJI-LEGACY: stage=cpu-reject reason=%s request=%p surface-class=%s extra=%u current=%p\n",
+                    failure, request, surface == nullptr ? "null" : surface->getMetaClass()->getClassName(),
+                    surfaces[1] != nullptr || surfaces[2] != nullptr || surfaces[3] != nullptr,
+                    HoujiLegacy20H392::loadPointer(this, HoujiLegacy20H392::currentSwap));
         }
         copying = false;
     }

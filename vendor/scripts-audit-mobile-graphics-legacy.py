@@ -205,6 +205,14 @@ def inspect(kernel, plan):
     slot(330, 0xfffffff004c0fbe8)
     slot(281, 0xfffffff004c1ace4)
     slot(287, 0xfffffff004c234b4)
+    check(0xfffffff004c19500, [0x91222108, 0xb94017e9, 0xf8697901,
+          0xf9400fe8, 0x911fe108, 0xb94017e9, 0x8b090d02],
+          'Layer resolver passes IOSurface input at 2184 and DMA command output at 2040')
+    check(0xfffffff004c161f0, [0x91222108, 0xb89183a9, 0xf8697908],
+          'Original layer property queries read IOSurfaces from request offset 2184')
+    check(0xfffffff004c18f44, [0x940037b8, 0xf85b83a8, 0xf9000100],
+          'Acquire helper stores its newly allocated DMA command in the output slot')
+    stub(0xfffffff004c26e24, '__ZN12IODMACommand17withSpecificationEPFbPS_NS_9Segment64EPvjEhyNS_14MappingOptionsEyjP8IOMapperS2_')
     surface_name = 'com.apple.iokit.IOSurface'
     surface = next(e for e in meta['extents'] if e['module'] == surface_name
                    and e['segment'] == '__TEXT_EXEC')
@@ -285,7 +293,7 @@ def inspect(kernel, plan):
                         'request_previous_link': 2416, 'notification_heads': 4912,
                         'notification_stride': 16, 'notification_types': 6,
                         'vsync_type': 5, 'vsync_head': 4992,
-                        'request_layer_inputs': 2184, 'request_resolved_surfaces': 2040,
+                        'request_layer_inputs': 2184, 'request_dma_commands': 2040,
                         'request_layer_stride': 8, 'request_layer_count': 4},
             'request_resolution': {'validate_slot': 282, 'pre_submit_slot': 283,
                                    'resolve_layer_slot': 331,
