@@ -105,6 +105,47 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     IOReturn lastRecordStatus = kIOReturnNotReady;
     bool diagnostics = false;
     uint64_t nextSummary = 0;
+    bool selftest = false;
+    uint32_t selftestFrames = 0;
+
+    // CPU-only bring-up painter. This XNU never instantiates a GPU accelerator, so no
+    // compositor produces a frame and the scanout stays dark. Paint a flat color-bar
+    // test image (with a moving white band) directly into the GOP framebuffer so the
+    // panel lights up independently of the display pipeline. It yields the moment a
+    // real swap appears (presented>0 or a pending request).
+    void paintSelfTest()
+    {
+        if (scanout == nullptr)
+            return;
+        const uint64_t bytes = scanout->getLength();
+        if (!HoujiLegacy20H392::pixelExtent(bytes, rowBytes, width, height))
+            return;
+        volatile unsigned char *base =
+            reinterpret_cast<volatile unsigned char *>(scanout->getVirtualAddress());
+        static const uint32_t bars[8] = {
+            0xffffffffU, 0xffffff00U, 0xff00ffffU, 0xff00ff00U,
+            0xffff00ffU, 0xffff0000U, 0xff0000ffU, 0xff000000U};
+        const uint32_t frame = selftestFrames++;
+        for (uint32_t x = 0; x < width; ++x) {
+            uint32_t index = static_cast<uint32_t>((static_cast<uint64_t>(x) * 8) / width);
+            if (index > 7)
+                index = 7;
+            const uint32_t color = bars[index];
+            for (uint32_t y = 0; y < height; ++y)
+                *reinterpret_cast<volatile uint32_t *>(
+                    base + static_cast<uint64_t>(y) * rowBytes + static_cast<uint64_t>(x) * 4) = color;
+        }
+        uint32_t bandHeight = height / 12;
+        if (bandHeight == 0)
+            bandHeight = 1;
+        const uint32_t bandY = static_cast<uint32_t>(
+            (static_cast<uint64_t>(frame) * bandHeight * 2) % height);
+        for (uint32_t y = bandY; y < bandY + bandHeight && y < height; ++y)
+            for (uint32_t x = 0; x < width; ++x)
+                *reinterpret_cast<volatile uint32_t *>(
+                    base + static_cast<uint64_t>(y) * rowBytes + static_cast<uint64_t>(x) * 4) = 0xffffffffU;
+        __asm__ volatile("dsb sy" ::: "memory");
+    }
 
     static void vsyncFired(OSObject *owner, IOTimerEventSource *)
     {
@@ -114,6 +155,10 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         if (head != nullptr)
             houji_legacy_vsync_notify(display, mach_absolute_time(), mach_continuous_time(), display->period);
         display->kickSwapQueue();
+        if (display->selftest && display->presented == 0 &&
+            HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) == nullptr &&
+            (display->selftestFrames % 30) == 0)
+            display->paintSelfTest();
         const uint64_t now = mach_absolute_time();
         if (display->diagnostics && now >= display->nextSummary) {
             display->nextSummary = now + display->period * 300;
@@ -315,6 +360,13 @@ public:
         PE_parse_boot_argn("houji-legacy-diag", &diag, sizeof(diag));
         diagnostics = diag == 1;
         nextSummary = mach_absolute_time() + period * 300;
+        uint32_t st = 0;
+        PE_parse_boot_argn("houji-legacy-selftest", &st, sizeof(st));
+        selftest = st == 1;
+        if (selftest) {
+            paintSelfTest();
+            IOLog("HOUJI-LEGACY: stage=selftest paint=%ux%u stride=%u\n", width, height, rowBytes);
+        }
         timer->wakeAtTime(mach_absolute_time() + period);
         IOLog("HOUJI-LEGACY: stage=hardware mapped=%ux%u refresh=60 writes=0 grant=%u\n",
             width, height, granted);
