@@ -7,6 +7,7 @@ static_assert(sizeof(void *) == 8, "20H392 requires 64-bit pointers");
 constexpr size_t currentSwap = 4872;
 constexpr size_t pendingHead = 4880;
 constexpr size_t pendingTail = 4888;
+constexpr size_t submissionHead = 4896;
 constexpr size_t requestNext = 2408;
 constexpr size_t requestPreviousLink = 2416;
 constexpr size_t vsyncHead = 4992;

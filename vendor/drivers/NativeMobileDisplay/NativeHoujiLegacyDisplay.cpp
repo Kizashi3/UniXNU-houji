@@ -50,6 +50,9 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     uint32_t backendQueries = 0;
     uint32_t validationCalls = 0;
     uint32_t validationAccepted = 0;
+    uint32_t dimensionCalls = 0;
+    uint32_t refreshCalls = 0;
+    uint32_t completionCalls = 0;
     unsigned rejectedCopies = 0;
     IOReturn lastRecordStatus = kIOReturnNotReady;
     bool diagnostics = false;
@@ -66,14 +69,20 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         const uint64_t now = mach_absolute_time();
         if (display->diagnostics && now >= display->nextSummary) {
             display->nextSummary = now + display->period * 300;
-            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u\n",
+            const uint32_t dimensions = __atomic_load_n(&display->dimensionCalls, __ATOMIC_RELAXED);
+            const uint32_t refreshes = __atomic_load_n(&display->refreshCalls, __ATOMIC_RELAXED);
+            const uint32_t completions = __atomic_load_n(&display->completionCalls, __ATOMIC_RELAXED);
+            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u dims=%u refreshes=%u completions=%u current=%d pending=%d submission=%d\n",
                 houjiProbeStage, display->width, display->height, display->rowBytes,
                 __atomic_load_n(&display->recordQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->lastRecordStatus, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->backendQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->validationCalls, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->validationAccepted, __ATOMIC_RELAXED),
-                display->rejectedCopies, display->presented);
+                display->rejectedCopies, display->presented, dimensions, refreshes, completions,
+                HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::currentSwap) != nullptr,
+                HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) != nullptr,
+                HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::submissionHead) != nullptr);
         }
         if (display->timer != nullptr)
             display->timer->wakeAtTime(mach_absolute_time() + display->period);
@@ -151,6 +160,9 @@ public:
 
     void getDisplayDimensions(uint32_t *outWidth, uint32_t *outHeight) override
     {
+        if (__atomic_fetch_add(&dimensionCalls, 1U, __ATOMIC_RELAXED) < 4)
+            IOLog("HOUJI-LEGACY: stage=slot-dimensions requested=%d,%d\n",
+                outWidth != nullptr, outHeight != nullptr);
         if (outWidth != nullptr)
             *outWidth = width;
         if (outHeight != nullptr)
@@ -159,6 +171,9 @@ public:
 
     bool getRefreshAttributes(uint64_t *values, bool) override
     {
+        if (__atomic_fetch_add(&refreshCalls, 1U, __ATOMIC_RELAXED) < 4)
+            IOLog("HOUJI-LEGACY: stage=slot-refresh requested values=%d period=%llu\n",
+                values != nullptr, (unsigned long long)period);
         if (values == nullptr || !period)
             return false;
         const uint64_t refresh[6] = {(1ULL << 32) / 60, period, (1ULL << 32) / 60, period, 0, 0};
@@ -195,6 +210,8 @@ public:
 
     IOReturn collectCompletionReports(uint32_t, void *, uint32_t *count, uint32_t) override
     {
+        if (__atomic_fetch_add(&completionCalls, 1U, __ATOMIC_RELAXED) < 4)
+            IOLog("HOUJI-LEGACY: stage=slot-completion-reports count=%d\n", count != nullptr);
         if (count != nullptr)
             *count = 0;
         return kIOReturnUnsupported;
