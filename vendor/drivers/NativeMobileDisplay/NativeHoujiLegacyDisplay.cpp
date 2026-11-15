@@ -127,6 +127,29 @@ public:
     bool canvasVerified = false;
 
     IOReturn newUserClient(task_t task, void *security, UInt32 type,
+        OSDictionary *properties, IOUserClient **client) override
+    {
+        uint32_t own = 0;
+        PE_parse_boot_argn("houji-legacy-ownclient", &own, sizeof(own));
+        if (own != 1)
+            // The legacy path stays exactly as it was in run399: the four-argument form.
+            return IOMobileFramebufferLegacy::newUserClient(task, security, type, client);
+        auto clientObject = new HoujiLegacyClient;
+        if (clientObject == nullptr)
+            return kIOReturnNoMemory;
+        if (!clientObject->initWithTask(task, security, type, properties)) {
+            clientObject->release();
+            IOLog("HOUJI-LEGACY: stage=client-open rc=%#x type=%u own=1 five-arg init-failed\n",
+                kIOReturnUnsupported, type);
+            return kIOReturnUnsupported;
+        }
+        *client = clientObject;
+        IOLog("HOUJI-LEGACY: stage=client-open rc=0 type=%u own=1 five-arg publish-stage=%s\n",
+            type, houjiProbeStage);
+        return kIOReturnSuccess;
+    }
+
+    IOReturn newUserClient(task_t task, void *security, UInt32 type,
         IOUserClient **client) override
     {
         houji_legacy_bootstrap_checkpoint();
@@ -435,8 +458,15 @@ bool HoujiLegacyClient::initWithTask(task_t owningTask, void *securityID, UInt32
 bool HoujiLegacyClient::start(IOService *provider)
 {
     display = OSDynamicCast(NativeHoujiLegacyDisplay, provider);
-    if (display == nullptr || !IOUserClient::start(provider))
+    if (display == nullptr) {
+        IOLog("HOUJI-CLIENT: stage=start provider-unexpected=%s\n",
+            provider != nullptr ? provider->getMetaClass()->getClassName() : "none");
         return false;
+    }
+    if (!IOUserClient::start(provider)) {
+        IOLog("HOUJI-CLIENT: stage=start base-failed\n");
+        return false;
+    }
     opened = display->open(this) != 0;
     IOLog("HOUJI-CLIENT: stage=start opened=%u\n", opened);
     return opened;
