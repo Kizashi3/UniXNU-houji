@@ -1,0 +1,41 @@
+--- a/iokit/Kernel/IOUserClient.cpp
++++ b/iokit/Kernel/IOUserClient.cpp
+@@ -83,6 +83,28 @@
+ 	kIOUCAsyncErrorLoggedFlag = 2ULL
+ };
+ 
++/* HOUJI-UC: this port's framebuffer driver publishes its own user-client class. The
++ * sandbox profiles admit Apple's IOMobileFramebufferUserClient by name, so IOServiceOpen
++ * for the port's class is refused by MACF before a single selector can arrive. Admit
++ * exactly this class name and nothing else. */
++static bool
++IOHoujiPortUserClient(IOUserClient *client)
++{
++	static const char houjiClass[] = "HoujiLegacyClient";
++	const char *name;
++
++	if (client == nullptr)
++		return false;
++	name = client->getMetaClass()->getClassName();
++	if (name == nullptr)
++		return false;
++	for (unsigned i = 0; i < sizeof(houjiClass); i++) {
++		if (name[i] != houjiClass[i])
++			return false;
++	}
++	return true;
++}
++
+ #if IOKITSTATS
+ 
+ #define IOStatisticsRegisterCounter() \
+@@ -4512,7 +4534,8 @@
+ 				res = kIOReturnNotPrivileged;
+ 			}
+ #if CONFIG_MACF
+-			else if (0 != mac_iokit_check_open(kauth_cred_get(), client, connect_type)) {
++			else if (0 != mac_iokit_check_open(kauth_cred_get(), client, connect_type) &&
++			    !IOHoujiPortUserClient(client)) {
+ 				IOLog("IOUC %s failed MACF in process %s\n",
+ 				    client->getMetaClass()->getClassName(), creatorNameCStr);
+ 				res = kIOReturnNotPermitted;
