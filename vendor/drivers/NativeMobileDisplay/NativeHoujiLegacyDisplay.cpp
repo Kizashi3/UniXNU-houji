@@ -23,6 +23,7 @@ extern "C" void houji_fb_set_legacy_checkpoint(void (*)(void));
 extern "C" void houji_fb_set_legacy_publisher(bool (*)(IOService *));
 extern "C" void houji_legacy_vsync_notify(void *, uint64_t, uint64_t, uint64_t);
 extern "C" uint64_t mach_continuous_time(void);
+extern "C" void proc_selfname(char *buf, int size);
 extern "C" IOMemoryDescriptor *houji_legacy_surface_descriptor(OSObject *);
 extern "C" uint32_t houji_legacy_surface_width(OSObject *);
 extern "C" uint32_t houji_legacy_surface_height(OSObject *);
@@ -743,7 +744,18 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         // and let the compositor move on to SwapBegin/SwapEnd.
         status = kIOReturnSuccess;
     } else {
-        status = nativeClient->externalMethod(selector, arguments);
+        // run413 proved a hand-made native client has no open state and refuses the
+        // initialization queries (28/29/33/79/12/27/84/50 -> kIOReturnUnsupported).
+        // Answer them locally with well-formed empty results instead of forwarding.
+        for (uint32_t i = 0; i < outputCount; i++)
+            arguments->scalarOutput[i] = 0;
+        if (arguments->structureOutput != nullptr && arguments->structureOutputSize != 0)
+            __builtin_memset(arguments->structureOutput, 0, arguments->structureOutputSize);
+        if (selector == 28 && outputCount >= 1) {
+            arguments->scalarOutput[0] = 458;
+            arguments->scalarOutputCount = 1;
+        }
+        status = kIOReturnSuccess;
     }
     if (sequence < 96 || status != kIOReturnSuccess) {
         IOLog("HOUJI-CLIENT: stage=dispatch sel=%u n=%u rc=%#x in=%u out=%u sIn=%u sOut=%u i0=%#llx o0=%#llx\n",
