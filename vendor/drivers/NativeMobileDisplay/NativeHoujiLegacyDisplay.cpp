@@ -137,14 +137,31 @@ public:
         auto clientObject = new HoujiLegacyClient;
         if (clientObject == nullptr)
             return kIOReturnNoMemory;
+        // Assembly follows IOService::newUserClient's own order (IOService.cpp
+        // 8025-8045): initWithTask, then attach, then start, releasing on each
+        // failure. run401 and run403 returned the object without doing this, so
+        // nothing ever attached or started it and every open failed in userspace.
         if (!clientObject->initWithTask(task, security, type, properties)) {
             clientObject->release();
-            IOLog("HOUJI-LEGACY: stage=client-open rc=%#x type=%u own=1 five-arg init-failed\n",
-                kIOReturnUnsupported, type);
+            IOLog("HOUJI-LEGACY: stage=client-open rc=%#x type=%u own=1 init-failed\n",
+                kIOReturnBadArgument, type);
+            return kIOReturnBadArgument;
+        }
+        if (!clientObject->attach(this)) {
+            clientObject->release();
+            IOLog("HOUJI-LEGACY: stage=client-open rc=%#x own=1 attach-failed\n",
+                kIOReturnUnsupported);
+            return kIOReturnUnsupported;
+        }
+        if (!clientObject->start(this)) {
+            clientObject->detach(this);
+            clientObject->release();
+            IOLog("HOUJI-LEGACY: stage=client-open rc=%#x own=1 start-failed\n",
+                kIOReturnUnsupported);
             return kIOReturnUnsupported;
         }
         *client = clientObject;
-        IOLog("HOUJI-LEGACY: stage=client-open rc=0 type=%u own=1 five-arg publish-stage=%s\n",
+        IOLog("HOUJI-LEGACY: stage=client-open rc=0 type=%u own=1 assembled publish-stage=%s\n",
             type, houjiProbeStage);
         return kIOReturnSuccess;
     }
