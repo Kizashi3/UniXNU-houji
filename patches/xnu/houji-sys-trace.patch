@@ -1,7 +1,7 @@
-diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
-@@ -103,5 +103,32 @@
+@@ -102,6 +102,33 @@
+ 
  	code = arm_get_syscall_number(state);
  
 +	/* HOUJI-SYS: sample one process's syscall sites (boot arg houji-sys-pid). */
@@ -34,3 +34,34 @@ diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
+@@ -181,6 +208,30 @@
+ 	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
+ 	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
+ 
++	/* HOUJI-WI: name the work_interval_ctl (unix syscall 499) request and answer
++	 * that the sampled process just received. Its arguments are operation, type,
++	 * buffer and size, so a refused type is distinguishable from a bad size. */
++	{
++		extern boolean_t PE_parse_boot_argn(const char *, void *, int);
++		static int houji_wi_pid = -1;
++		static unsigned houji_wi_count;
++		if (houji_wi_pid < 0) {
++			int v = 0;
++			PE_parse_boot_argn("houji-sys-pid", &v, sizeof(v));
++			houji_wi_pid = v;
++		}
++		if (houji_wi_pid > 0 && pid == houji_wi_pid && code == 499 &&
++		    houji_wi_count < 24) {
++			houji_wi_count++;
++			printf("HOUJI-WI: op=%u type=%#x buf=%#llx size=%u rval=%#llx,%#llx "
++			    "error=%d comm=%s\n",
++			    (unsigned)uthread->uu_arg[0], (unsigned)uthread->uu_arg[1],
++			    (unsigned long long)uthread->uu_arg[2], (unsigned)uthread->uu_arg[3],
++			    (unsigned long long)uthread->uu_rval[0],
++			    (unsigned long long)uthread->uu_rval[1], error, proc->p_comm);
++		}
++	}
++
+ #if CONFIG_MACF
+ skip_syscall:
+ #endif /* CONFIG_MACF */
