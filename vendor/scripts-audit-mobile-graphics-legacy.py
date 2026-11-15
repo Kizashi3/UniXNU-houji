@@ -91,6 +91,17 @@ def inspect(kernel, plan):
         if struct.unpack('<Q', read(ptr, 8))[0] != names[name]:
             raise ValueError('Wrong imported symbol: ' + name)
 
+    check(0xfffffff004bff398, [0xb0008f69, 0x912d6129],
+          'User-client dispatch table base is 0x5decb58')
+    check(0xfffffff005decde0, [0x04c00950, 0xfffffff0, 0, 0, 0, 3084],
+          'Selector 27 requires a 3084-byte structure output')
+    check(0xfffffff004c00974, [0x97fff764],
+          'Selector 27 thunk calls wrapper 0x4bfe704')
+    check(0xfffffff004bfe724, [0xf9400008, 0xf9431d08, 0xd63f0100],
+          'Selector 27 calls slot 199 with its output pointer')
+    slot(199, 0xfffffff004c1adbc)
+    check(0xfffffff004c1adc8, [0x528058e0, 0x72bc0000, 0x910043ff, 0xd65f03c0],
+          'Original slot 199 returns Unsupported without filling the output record')
     # Run393 stopped at the derived slot-212 trap. Qualify the ABI from
     # the original user-client thunk, dispatch entry, and scalar widening.
     check(0xfffffff005ded248, [0x04c00c04, 0xfffffff0, 1, 0, 1, 64],

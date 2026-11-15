@@ -13,7 +13,7 @@ OUT = ROOT / 'build/native-legacy-display'
 OUT.mkdir(parents=True, exist_ok=True)
 AUDIT = ROOT / 'build/display-analysis/mobile-graphics-legacy-abi.json'
 DRIVER = ROOT / 'drivers/NativeMobileDisplay/NativeHoujiLegacyDisplay.cpp'
-NAME_SLOT = {'free': 14, 'init': 21, 'setProperties': 44, 'probe': 85, 'start': 86,
+NAME_SLOT = {'queryBackendRecord': 199, 'free': 14, 'init': 21, 'setProperties': 44, 'probe': 85, 'start': 86,
              'stop': 87, 'getWorkLoop': 111, 'newUserClient': 141, 'setPowerState': 155,
              'getDisplayDimensions': 246, 'startHardware': 274, 'kickSwapQueue': 276,
              'completeCurrentSwap': 281, 'validateSwap': 282, 'prepareSwap': 283,
@@ -44,7 +44,8 @@ vptr = int(audit['legacy_vptr'], 16)
 lifecycle = audit['lifecycle']
 
 # ---- 338-slot ABI header -------------------------------------------------
-named = {212: 'virtual IOReturn queryBackendCapability(uint32_t, uint32_t *, void *) = 0;',
+named = {199: 'virtual IOReturn queryBackendRecord(void *);',
+         212: 'virtual IOReturn queryBackendCapability(uint32_t, uint32_t *, void *) = 0;',
          246: 'virtual void getDisplayDimensions(uint32_t *, uint32_t *);',
          274: 'virtual bool startHardware();',
          276: 'virtual void kickSwapQueue();',

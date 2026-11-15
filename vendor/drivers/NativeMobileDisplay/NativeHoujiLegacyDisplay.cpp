@@ -46,6 +46,11 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     uint32_t rowBytes = 0;
     bool copying = false;
     unsigned presented = 0;
+    uint32_t recordQueries = 0;
+    uint32_t backendQueries = 0;
+    IOReturn lastRecordStatus = kIOReturnNotReady;
+    bool diagnostics = false;
+    uint64_t nextSummary = 0;
 
     static void vsyncFired(OSObject *owner, IOTimerEventSource *)
     {
@@ -55,6 +60,15 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         if (head != nullptr)
             houji_legacy_vsync_notify(display, mach_absolute_time(), mach_continuous_time(), display->period);
         display->kickSwapQueue();
+        const uint64_t now = mach_absolute_time();
+        if (display->diagnostics && now >= display->nextSummary) {
+            display->nextSummary = now + display->period * 300;
+            IOLog("HOUJI-LEGACY: stage=summary mapped=%ux%u record27=%u record27-rc=%#x backend212=%u frames=%u\n",
+                display->width, display->height,
+                __atomic_load_n(&display->recordQueries, __ATOMIC_RELAXED),
+                __atomic_load_n(&display->lastRecordStatus, __ATOMIC_RELAXED),
+                __atomic_load_n(&display->backendQueries, __ATOMIC_RELAXED), display->presented);
+        }
         if (display->timer != nullptr)
             display->timer->wakeAtTime(mach_absolute_time() + display->period);
     }
@@ -120,6 +134,10 @@ public:
             scanout = nullptr;
             return false;
         }
+        uint32_t diag = 0;
+        PE_parse_boot_argn("houji-legacy-diag", &diag, sizeof(diag));
+        diagnostics = diag == 1;
+        nextSummary = mach_absolute_time() + period * 300;
         timer->wakeAtTime(mach_absolute_time() + period);
         IOLog("HOUJI-LEGACY: stage=hardware mapped=%ux%u refresh=60 writes=0\n", width, height);
         return true;
@@ -142,6 +160,20 @@ public:
         return true;
     }
 
+    // Selector 27 supplies a 3084-byte output; retain the original contract.
+    // The record layout is not qualified, so only observe the original result.
+    IOReturn queryBackendRecord(void *output) override
+    {
+        if (output == nullptr)
+            return kIOReturnBadArgument;
+        IOReturn status = IOMobileFramebufferLegacy::queryBackendRecord(output);
+        __atomic_store_n(&lastRecordStatus, status, __ATOMIC_RELAXED);
+        uint32_t sequence = __atomic_fetch_add(&recordQueries, 1U, __ATOMIC_RELAXED);
+        if (sequence < 8)
+            IOLog("HOUJI-LEGACY: stage=record-query selector=27 slot=199 rc=%#x\n", status);
+        return status;
+    }
+
     // 20H392 UC thunk 0x4c00c04 -> wrapper 0x4bfec14 -> slot 212.
     // One scalar query, one scalar output (32-bit local widened by wrapper),
     // and a 64-byte structure output. Semantics are not yet qualified.
@@ -150,8 +182,7 @@ public:
         if (count == nullptr || output == nullptr)
             return kIOReturnBadArgument;
         *count = 0;
-        static unsigned reports;
-        if (reports++ < 8)
+        if (__atomic_fetch_add(&backendQueries, 1U, __ATOMIC_RELAXED) < 8)
             IOLog("HOUJI-LEGACY: stage=backend-query slot=212 query=%u rc=unsupported\n", query);
         return kIOReturnUnsupported;
     }
