@@ -1513,7 +1513,7 @@ houjiConRingWrite (uint8_t *buf)
 	uint32_t off = 0, blocks;
 
 	houji_con_ring_info (&ring, &size, &pos, &total);
-	if (!ring || size == 0 || size > (1u << 20) || pos >= size) {
+	if (!ring || size == 0 || size > (1u << 23) || pos >= size) {
 		return;
 	}
 	if (!announced) {
@@ -2455,7 +2455,7 @@ extern "C" int native_ufs_md_init (void)
 			uint8_t *probeBuf = static_cast<uint8_t *> (IOMalloc ((1 << 23) + 4096));
 			int probeRc = probeBuf ? houjiLogWriteSnapshot (probeBuf, 0) : -4;
 			if (probeBuf) {
-				IOFree (probeBuf, (1 << 20) + 4096);
+				IOFree (probeBuf, (1 << 23) + 4096);
 			}
 			IOLog ("HOUJI-LOG: md write %s rc=%d scsi=%x sense=%x result=%x\n",
 			    probeRc == 0 ? "ok" : "failed", probeRc,
@@ -2472,7 +2472,7 @@ extern "C" int native_ufs_md_init (void)
       thread_deallocate (logthread);
       IOLog ("HOUJI-LOG: snapshot thread started (md)\n");
     } else {
-      if (logbuf) IOFree (logbuf, (1 << 20) + 4096);
+      if (logbuf) IOFree (logbuf, (1 << 23) + 4096);
     }
   }
   return 0;

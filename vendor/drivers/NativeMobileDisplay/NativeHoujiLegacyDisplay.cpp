@@ -63,8 +63,8 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         const uint64_t now = mach_absolute_time();
         if (display->diagnostics && now >= display->nextSummary) {
             display->nextSummary = now + display->period * 300;
-            IOLog("HOUJI-LEGACY: stage=summary mapped=%ux%u record27=%u record27-rc=%#x backend212=%u frames=%u\n",
-                display->width, display->height,
+            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u frames=%u\n",
+                houjiProbeStage, display->width, display->height, display->rowBytes,
                 __atomic_load_n(&display->recordQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->lastRecordStatus, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->backendQueries, __ATOMIC_RELAXED), display->presented);

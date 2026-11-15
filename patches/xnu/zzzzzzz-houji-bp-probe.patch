@@ -1,7 +1,7 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
-@@ -1228,6 +1228,127 @@
+@@ -1228,6 +1228,150 @@
  	exception_type_t           exception = EXC_BREAKPOINT;
  	mach_exception_data_type_t codes[2]  = {EXC_ARM_BREAKPOINT};
  	mach_msg_type_number_t     numcodes  = 2;
@@ -91,6 +91,29 @@ diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 +					    (unsigned long long)object);
 +				}
 +			}
++			{
++				uint64_t pc = get_saved_state_pc(state);
++				uint32_t code[5];
++				const uint32_t mode_trap[5] = {
++					0xaa1503e0, 0x95b1ba30, 0x9402229d, 0x95b1b962, 0xd4200000
++				};
++				if (pc >= 16 && COPYIN((user_addr_t)(pc - 16), (char *)code, sizeof(code)) == 0 &&
++				    memcmp(code, mode_trap, sizeof(code)) == 0) {
++					uint64_t mode[10];
++					uint64_t object = bp_ss->x[19];
++					if (object >= 0x10000 && COPYIN((user_addr_t)object, (char *)mode, sizeof(mode)) == 0) {
++						printf("HOUJI-FBSMODE: object=%#llx width=%llu height=%llu scalar=%llu float32=%#llx float40=%#llx enum48=%llu enum56=%llu enum64=%llu flag72=%u\n",
++						    (unsigned long long)object,
++						    (unsigned long long)mode[1], (unsigned long long)mode[2],
++						    (unsigned long long)mode[3], (unsigned long long)mode[4],
++						    (unsigned long long)mode[5], (unsigned long long)mode[6],
++						    (unsigned long long)mode[7], (unsigned long long)mode[8],
++						    (unsigned)(mode[9] & 0xff));
++					} else {
++						printf("HOUJI-FBSMODE: object=%#llx unreadable\n", (unsigned long long)object);
++					}
++				}
++			}
 +	/* HOUJI-BPC: dump the 32 bytes of code before the trap. */
 +			{
 +				uint64_t pc = get_saved_state_pc(state);
@@ -111,12 +134,12 @@ diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 +			}
 +			/* HOUJI-BPF: walk the user frame-pointer chain. */
 +			{
-+				uint64_t fp = bp_ss->x[29];
++				uint64_t fp = bp_ss->fp;
 +				unsigned f;
 +
 +				for (f = 0; f < 6 && (fp & 7) == 0 && fp >= 0x10000; f++) {
 +					uint64_t rec[2];
-+					if (COPYIN((user_addr_t)fp, rec, sizeof(rec)) != 0) {
++					if (COPYIN((user_addr_t)fp, (char *)rec, sizeof(rec)) != 0) {
 +						break;
 +					}
 +					printf("HOUJI-BPF: %u lr=%#llx\n", f,

@@ -11,7 +11,7 @@ index 4c1edf1..ca19f0d 100644
 + * /dev/console output (launchd, SpringBoard) reaches this function, so the
 + * ring is the only durable record of a userspace crash after reboot.
 + */
-+#define HOUJI_CON_RING_SIZE (256 * 1024)
++#define HOUJI_CON_RING_SIZE (8 * 1024 * 1024)
 +char unixnu_con_ring_buf[HOUJI_CON_RING_SIZE];
 +volatile uint32_t unixnu_con_ring_pos;
 +volatile uint64_t unixnu_con_ring_total;
