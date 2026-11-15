@@ -1,7 +1,7 @@
 """Create a bigger APFS Data seed from the verified read-only OS attachment.
 
 Fork of the upstream prepare-owner-data-fixture.py with three changes:
-  * 512 MiB container instead of 32 MiB (services ran out of space at 32 MiB),
+  * an explicitly sized container (96 MiB by default),
   * attached with ownership enabled and run as root, so the copied tree keeps
     the original uid/gid (mobile stays 501),
   * the runtime directory skeleton is completed explicitly.
@@ -16,12 +16,15 @@ import shutil
 import stat
 import subprocess
 
-SIZE_MIB = 96
-SIZE = SIZE_MIB << 20
-
 p = argparse.ArgumentParser()
 p.add_argument("--output", type=pathlib.Path, required=True)
+p.add_argument("--size-mib", type=int, default=96,
+               help="APFS container capacity in MiB (96..2048, multiple of 16)")
 args = p.parse_args()
+if not 96 <= args.size_mib <= 2048 or args.size_mib % 16:
+    p.error("--size-mib must be a multiple of 16 between 96 and 2048")
+SIZE_MIB = args.size_mib
+SIZE = SIZE_MIB << 20
 fixture = args.output.resolve()
 image = fixture / f"owner-data-{SIZE_MIB}.cdr"
 if image.exists():
