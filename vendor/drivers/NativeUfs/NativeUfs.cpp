@@ -1850,6 +1850,38 @@ static void houjiPanicSnapshotHeld (uint32_t seq)
   }
 }
 
+// The console ring into the same buffer. kprintf stops appending to the msgbuf once the debugger is
+// entered (conslog_putc skips log_putc), so the panic text itself only exists in the video console
+// ring; write that too, at the block offset the periodic writer uses.
+static void houjiPanicConRingHeld (void)
+{
+  char *ring = nullptr;
+  uint32_t size = 0, pos = 0;
+  uint64_t total = 0;
+  houji_con_ring_info (&ring, &size, &pos, &total);
+  if (!gPanicBuf || !ring || !size || size > (1u << 23) || pos >= size) return;
+  uint32_t off = 0;
+  memcpy (gPanicBuf + off, "HOUJICON", 8); off += 8;
+  *(uint32_t *)(void *)(gPanicBuf + off) = 1; off += 4;
+  *(uint32_t *)(void *)(gPanicBuf + off) = size; off += 4;
+  *(uint32_t *)(void *)(gPanicBuf + off) = pos; off += 4;
+  *(uint32_t *)(void *)(gPanicBuf + off) = 0; off += 4;
+  *(uint64_t *)(void *)(gPanicBuf + off) = total; off += 8;
+  memcpy (gPanicBuf + off, ring, size); off += size;
+  uint32_t blocks = (off + 4095) / 4096;
+  if (HOUJI_CON_BLOCK + blocks > (uint32_t) kLogReserveBlocks) {
+    blocks = (uint32_t) kLogReserveBlocks - HOUJI_CON_BLOCK;
+  }
+  for (uint32_t done = 0; done < blocks; ) {
+    uint32_t chunk = blocks - done;
+    if (chunk > kDataMax / 4096) chunk = kDataMax / 4096;
+    if (hostWrite4kHeld (gLogRegionFirst + HOUJI_CON_BLOCK + done, chunk, gPanicBuf + (uint64_t) done * 4096) != kIOReturnSuccess) {
+      return;
+    }
+    done += chunk;
+  }
+}
+
 // Flush the log snapshot, make the armed control block durable and reset. Never returns.
 extern "C" void native_ufs_exit (const char *why)
 {
@@ -1904,6 +1936,7 @@ static int houjiHaltRestart (unsigned int type)
   if (type == kPEPanicDiagnosticsDone) {
     if (gPanicBuf && gLogRegionBlocks && !gSnapshotActive && IOLockTryLock (gHost.lock)) {
       houjiPanicSnapshotHeld ((uint32_t) mach_absolute_time ());
+      houjiPanicConRingHeld ();
       IOLockUnlock (gHost.lock);
     }
     houjiPsciReset ();
