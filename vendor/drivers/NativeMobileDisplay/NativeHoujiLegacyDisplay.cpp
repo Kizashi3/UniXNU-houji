@@ -727,6 +727,11 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
             arguments->scalarOutput[1] = display->height;
         arguments->scalarOutputCount = selector == 8 ? 2 : 1;
         status = kIOReturnSuccess;
+    } else if (selector == 6) {
+        // SwapSetTimestamps is part of the swap path; the native client rejects the
+        // forwarded form in a tight loop (44993 retries at run409), so answer it here
+        // and let the compositor move on to SwapBegin/SwapEnd.
+        status = kIOReturnSuccess;
     } else {
         status = nativeClient->externalMethod(selector, arguments);
     }
