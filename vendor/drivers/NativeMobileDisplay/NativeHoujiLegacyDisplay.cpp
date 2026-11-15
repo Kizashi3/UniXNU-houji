@@ -65,6 +65,7 @@ class HoujiLegacyClient final : public IOUserClient {
     uint64_t notificationPeriod = 0;
     bool closing = false;
     uint64_t swapSequence = 0;
+    uint32_t swapDumps = 0;
     static void notificationTick(OSObject *, IOTimerEventSource *);
     void shutdownNotifications();
 
@@ -734,9 +735,23 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         arguments->scalarOutput[0] = ++swapSequence;
         arguments->scalarOutputCount = 1;
         status = kIOReturnSuccess;
+    } else if (selector == 3) {
+        // No surface of our own yet: report an empty default surface so the caller
+        // learns there is one, and keep the shape it expects (one scalar out).
+        if (outputCount >= 1) { arguments->scalarOutput[0] = 0; arguments->scalarOutputCount = 1; }
+        status = kIOReturnSuccess;
     } else if (selector == 5) {
         // SwapEnd: the 1132-byte (0x46c) request was validated against the device
         // binary; accept it and account the frame so the compositor can continue.
+        if (swapDumps < 3 && arguments->structureInput != nullptr &&
+            arguments->structureInputSize >= 0x120) {
+            const unsigned char *raw = static_cast<const unsigned char *>(arguments->structureInput);
+            IOLog("HOUJI-SWAP: n=%u size=%u w50=%#x w54=%#x w104=%#x%c",
+                swapDumps, arguments->structureInputSize,
+                *(const uint32_t *)(raw + 0x50), *(const uint32_t *)(raw + 0x54),
+                *(const uint32_t *)(raw + 0x104), 10);
+            swapDumps++;
+        }
         status = kIOReturnSuccess;
     } else if (selector == 6) {
         // SwapSetTimestamps is part of the swap path; the native client rejects the
