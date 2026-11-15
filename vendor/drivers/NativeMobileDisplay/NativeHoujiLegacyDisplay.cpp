@@ -53,6 +53,18 @@ class HoujiLegacyClient final : public IOUserClient {
     bool opened = false;
     uint32_t calls = 0;
     uint32_t portRegistrations = 0;
+    IOUserClient *nativeClient = nullptr;
+    IOWorkLoop *notificationLoop = nullptr;
+    IOTimerEventSource *notificationTimer = nullptr;
+    IOLock *notificationLock = nullptr;
+    mach_port_t notificationPorts[16] = {};
+    uint64_t notificationCallbacks[16] = {};
+    uint64_t notificationRefcons[16] = {};
+    uint64_t notificationCount = 0;
+    uint64_t notificationPeriod = 0;
+    bool closing = false;
+    static void notificationTick(OSObject *, IOTimerEventSource *);
+    void shutdownNotifications();
 
 public:
     bool initWithTask(task_t owningTask, void *securityID, UInt32 type,
@@ -60,6 +72,7 @@ public:
     bool start(IOService *provider) override;
     void stop(IOService *provider) override;
     void free() override;
+    IOReturn clientClose() override;
     IOReturn externalMethod(uint32_t selector, IOExternalMethodArguments *arguments,
                             IOExternalMethodDispatch *dispatch, OSObject *target,
                             void *reference) override;
@@ -519,22 +532,86 @@ bool HoujiLegacyClient::initWithTask(task_t owningTask, void *securityID, UInt32
 bool HoujiLegacyClient::start(IOService *provider)
 {
     display = OSDynamicCast(NativeHoujiLegacyDisplay, provider);
-    if (display == nullptr) {
-        IOLog("HOUJI-CLIENT: stage=start provider-unexpected=%s\n",
-            provider != nullptr ? provider->getMetaClass()->getClassName() : "none");
+    if (display == nullptr || !IOUserClient::start(provider))
         return false;
-    }
-    if (!IOUserClient::start(provider)) {
-        IOLog("HOUJI-CLIENT: stage=start base-failed\n");
+    opened = display->open(this);
+    if (!opened)
         return false;
+    notificationLock = IOLockAlloc();
+    notificationLoop = IOWorkLoop::workLoop();
+    if (notificationLock == nullptr || notificationLoop == nullptr)
+        return false;
+    notificationTimer = IOTimerEventSource::timerEventSource(this,
+        &HoujiLegacyClient::notificationTick);
+    if (notificationTimer == nullptr ||
+        notificationLoop->addEventSource(notificationTimer) != kIOReturnSuccess)
+        return false;
+    nanoseconds_to_absolutetime(NSEC_PER_SEC / 60, &notificationPeriod);
+    IOReturn nativeStatus = display->IOMobileFramebufferLegacy::newUserClient(
+        owner, reinterpret_cast<void *>(owner), 0, &nativeClient);
+    IOLog("HOUJI-CLIENT: stage=native-backend rc=%#x client=%p attached=%u\n",
+        nativeStatus, (void *)nativeClient,
+        nativeClient != nullptr ? (nativeClient->getProvider() != nullptr) : 0);
+    if (nativeStatus != kIOReturnSuccess || nativeClient == nullptr)
+        return false;
+    if (nativeClient->getProvider() == nullptr) {
+        if (!nativeClient->attach(display))
+            return false;
+        if (!nativeClient->start(display)) {
+            nativeClient->detach(display);
+            return false;
+        }
     }
-    opened = display->open(this) != 0;
-    IOLog("HOUJI-CLIENT: stage=start opened=%u\n", opened);
-    return opened;
+    notificationTimer->wakeAtTime(mach_absolute_time() + notificationPeriod);
+    IOLog("HOUJI-CLIENT: stage=start opened=1 native-backed=1 notifications=60\n");
+    return true;
+}
+
+void HoujiLegacyClient::shutdownNotifications()
+{
+    if (notificationLock != nullptr) {
+        IOLockLock(notificationLock);
+        closing = true;
+        IOLockUnlock(notificationLock);
+    }
+    if (notificationTimer != nullptr) {
+        notificationTimer->cancelTimeout();
+        if (notificationLoop != nullptr)
+            notificationLoop->removeEventSource(notificationTimer);
+        notificationTimer->release();
+        notificationTimer = nullptr;
+    }
+    if (notificationLoop != nullptr) {
+        notificationLoop->release();
+        notificationLoop = nullptr;
+    }
+    if (notificationLock != nullptr) {
+        IOLockLock(notificationLock);
+        for (unsigned i = 0; i < 16; ++i) {
+            if (notificationPorts[i] != MACH_PORT_NULL) {
+                releaseNotificationPort(notificationPorts[i]);
+                notificationPorts[i] = MACH_PORT_NULL;
+            }
+        }
+        IOLockUnlock(notificationLock);
+    }
+}
+
+IOReturn HoujiLegacyClient::clientClose()
+{
+    shutdownNotifications();
+    terminate();
+    return kIOReturnSuccess;
 }
 
 void HoujiLegacyClient::stop(IOService *provider)
 {
+    shutdownNotifications();
+    if (nativeClient != nullptr) {
+        nativeClient->clientClose();
+        nativeClient->release();
+        nativeClient = nullptr;
+    }
     if (opened && display != nullptr)
         display->close(this);
     opened = false;
@@ -544,6 +621,20 @@ void HoujiLegacyClient::stop(IOService *provider)
 
 void HoujiLegacyClient::free()
 {
+    shutdownNotifications();
+    if (nativeClient != nullptr) {
+        nativeClient->clientClose();
+        nativeClient->release();
+        nativeClient = nullptr;
+    }
+    if (opened && display != nullptr)
+        display->close(this);
+    opened = false;
+    display = nullptr;
+    if (notificationLock != nullptr) {
+        IOLockFree(notificationLock);
+        notificationLock = nullptr;
+    }
     if (owner != TASK_NULL) {
         task_deallocate(owner);
         owner = TASK_NULL;
@@ -554,59 +645,99 @@ void HoujiLegacyClient::free()
 IOReturn HoujiLegacyClient::registerNotificationPort(mach_port_t port, UInt32 type,
                                                     io_user_reference_t refCon)
 {
-    // One leaked port reference per registration is acceptable in a diagnostic round;
-    // what matters is whether the compositor ever asks for a vsync notification port.
-    if (__atomic_fetch_add(&portRegistrations, 1U, __ATOMIC_RELAXED) < 8)
-        IOLog("HOUJI-CLIENT: stage=notification-port port=%p type=%u ref=%#llx\n",
-            (const void *)port, (unsigned)type, (unsigned long long)refCon);
+    if (notificationLock == nullptr || type >= 16) {
+        if (port != MACH_PORT_NULL)
+            releaseNotificationPort(port);
+        return kIOReturnBadArgument;
+    }
+    IOLockLock(notificationLock);
+    if (closing) {
+        IOLockUnlock(notificationLock);
+        if (port != MACH_PORT_NULL)
+            releaseNotificationPort(port);
+        return kIOReturnNotOpen;
+    }
+    mach_port_t previous = notificationPorts[type];
+    notificationPorts[type] = port;
+    IOLockUnlock(notificationLock);
+    if (previous != MACH_PORT_NULL)
+        releaseNotificationPort(previous);
+    if (__atomic_fetch_add(&portRegistrations, 1U, __ATOMIC_RELAXED) < 16)
+        IOLog("HOUJI-CLIENT: stage=notification-port type=%u port=%p ref=%#llx\n",
+            type, (void *)port, (unsigned long long)refCon);
     return kIOReturnSuccess;
+}
+
+void HoujiLegacyClient::notificationTick(OSObject *object, IOTimerEventSource *source)
+{
+    auto client = static_cast<HoujiLegacyClient *>(object);
+    const uint64_t now = mach_absolute_time();
+    IOLockLock(client->notificationLock);
+    const bool sending = !client->closing &&
+        client->notificationPorts[5] != MACH_PORT_NULL &&
+        client->notificationCallbacks[5] != 0;
+    if (sending) {
+        const uint64_t sequence = ++client->notificationCount;
+        OSAsyncReference64 reference = {};
+        setAsyncReference64(reference, client->notificationPorts[5],
+            client->notificationCallbacks[5], client->notificationRefcons[5], client->owner);
+        io_user_reference_t words[6] = {
+            static_cast<uint32_t>(sequence), static_cast<uint32_t>(sequence >> 32),
+            static_cast<uint32_t>(now), static_cast<uint32_t>(now >> 32), 0, 0};
+        const IOReturn status = sendAsyncResult64WithOptions(reference, kIOReturnSuccess,
+            words, 6, kIOUserNotifyOptionCanDrop);
+        if (sequence <= 4 || sequence % 300 == 0)
+            IOLog("HOUJI-CLIENT: stage=vsync-send sequence=%llu rc=%#x\n", sequence, status);
+    }
+    const bool active = !client->closing;
+    IOLockUnlock(client->notificationLock);
+    if (active)
+        source->wakeAtTime(now + client->notificationPeriod);
 }
 
 IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
                                           IOExternalMethodArguments *arguments,
                                           IOExternalMethodDispatch *, OSObject *, void *)
 {
-    if (arguments == nullptr)
+    if (arguments == nullptr || nativeClient == nullptr)
         return kIOReturnBadArgument;
-
+    if ((arguments->scalarInputCount && arguments->scalarInput == nullptr) ||
+        (arguments->scalarOutputCount && arguments->scalarOutput == nullptr))
+        return kIOReturnBadArgument;
     const uint32_t sequence = __atomic_fetch_add(&calls, 1U, __ATOMIC_RELAXED);
     const uint32_t inputCount = arguments->scalarInputCount;
     const uint32_t outputCount = arguments->scalarOutputCount;
-    if (sequence < 64) {
-        IOLog("HOUJI-CLIENT: stage=method sel=%u n=%u in=%u out=%u sIn=%u sOut=%u "
-            "i0=%#llx i1=%#llx i2=%#llx\n",
-            selector, sequence, inputCount, outputCount,
+    IOReturn status;
+    if (selector == 72) {
+        if (inputCount != 4 || arguments->scalarInput[2] >= 16)
+            return kIOReturnBadArgument;
+        const uint32_t type = static_cast<uint32_t>(arguments->scalarInput[2]);
+        IOLockLock(notificationLock);
+        notificationCallbacks[type] = arguments->scalarInput[0];
+        notificationRefcons[type] = arguments->scalarInput[1];
+        IOLockUnlock(notificationLock);
+        IOLog("HOUJI-CLIENT: stage=notification-enable type=%u enabled=%u\n",
+            type, arguments->scalarInput[0] != 0);
+        status = kIOReturnSuccess;
+    } else if (selector == 8 || selector == 18) {
+        if (arguments->scalarOutputCount < (selector == 8 ? 2U : 1U))
+            return kIOReturnBadArgument;
+        arguments->scalarOutput[0] = selector == 8 ? display->width : 1;
+        if (selector == 8)
+            arguments->scalarOutput[1] = display->height;
+        arguments->scalarOutputCount = selector == 8 ? 2 : 1;
+        status = kIOReturnSuccess;
+    } else {
+        status = nativeClient->externalMethod(selector, arguments);
+    }
+    if (sequence < 96 || status != kIOReturnSuccess) {
+        IOLog("HOUJI-CLIENT: stage=dispatch sel=%u n=%u rc=%#x in=%u out=%u sIn=%u sOut=%u i0=%#llx o0=%#llx\n",
+            selector, sequence, status, inputCount, outputCount,
             arguments->structureInputSize, arguments->structureOutputSize,
-            inputCount > 0 ? arguments->scalarInput[0] : 0,
-            inputCount > 1 ? arguments->scalarInput[1] : 0,
-            inputCount > 2 ? arguments->scalarInput[2] : 0);
+            inputCount != 0 ? arguments->scalarInput[0] : 0,
+            arguments->scalarOutputCount != 0 ? arguments->scalarOutput[0] : 0);
     }
-
-    const uint32_t width = display != nullptr ? display->width : 0;
-    const uint32_t height = display != nullptr ? display->height : 0;
-
-    // Give back well-formed empty answers before special-casing the known queries.
-    for (uint32_t i = 0; i < outputCount; i++)
-        arguments->scalarOutput[i] = 0;
-    if (arguments->structureOutput != nullptr && arguments->structureOutputSize != 0)
-        __builtin_memset(arguments->structureOutput, 0, arguments->structureOutputSize);
-
-    switch (selector) {
-    case 8:
-        // IOMobileFramebufferGetDisplaySize (0x1af2248a0) reads two 64-bit scalars.
-        if (outputCount > 1) {
-            arguments->scalarOutput[0] = width;
-            arguments->scalarOutput[1] = height;
-        }
-        break;
-    case 18:
-        if (outputCount > 0)
-            arguments->scalarOutput[0] = 1;
-        break;
-    default:
-        break;
-    }
-    return kIOReturnSuccess;
+    return status;
 }
 
 OSDefineMetaClassAndStructors(NativeHoujiLegacyDisplay, IOMobileFramebufferLegacy)
