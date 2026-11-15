@@ -1547,10 +1547,19 @@ houjiConRingWrite (uint8_t *buf)
 	}
 }
 
+static uint8_t *gLogBuf;
+static uint8_t *gPanicBuf;
+static volatile int gSnapshotActive;
+static void houjiExitCheck (void);
+
 static void
 houjiLogThread (void *param, wait_result_t wr)
 {
 	uint8_t *buf = static_cast<uint8_t *> (param);
+	if (!gPanicBuf) {
+		gPanicBuf = static_cast<uint8_t *> (IOMalloc ((1 << 23) + 4096));
+	}
+	gLogBuf = buf;
 	uint32_t seq = 0;
 	uint32_t tick = 0;
 	int warned = 0;
@@ -1558,6 +1567,7 @@ houjiLogThread (void *param, wait_result_t wr)
 	(void) wr;
 	IOLog ("HOUJI-ARGS: %.400s\n", PE_boot_args ());
 	for (;;) {
+		houjiExitCheck ();
 		if (houji_fb_test_parsed == 0) {
 			houji_fb_test_parsed = 1;
 			PE_parse_boot_argn ("houji-fb-test", &houji_fb_test_on,
@@ -1626,6 +1636,7 @@ houjiLogThread (void *param, wait_result_t wr)
 		uint32_t size = (uint32_t)mb->msg_size;
 		uint32_t idx = (uint32_t)mb->msg_bufx % size;
 		uint32_t off = 0;
+		gSnapshotActive = 1;
 		uint32_t blocks;
 		memcpy (buf + off, "HOUJILOG", 8); off += 8;
 		*(uint32_t *)(void *)(buf + off) = 1; off += 4;
@@ -1652,6 +1663,7 @@ houjiLogThread (void *param, wait_result_t wr)
 			}
 			done += chunk;
 		}
+		gSnapshotActive = 0;
 		if (writeOk) {
 			if (seq == 1) { IOLog ("HOUJI-LOG: first write ok\n"); }
 		} else if (!warned) {
@@ -1687,6 +1699,231 @@ extern "C" int native_ufs_export_write (uint64_t rel, uint32_t blocks, const voi
 extern "C" int native_ufs_log_sync (void)
 {
   return gLogRegionBlocks && hostSyncCache () == kIOReturnSuccess;
+}
+
+// ---- HOUJI: unattended exit through the misc bootloader control block ---------------------------
+// The bootloader reads the control block (first GPT entry named "misc") before it picks a slot.
+// "bootonce-bootloader" is the standard Android request for one classic-fastboot boot; the
+// bootloader clears it itself. Arming it at every start therefore makes any later reset (timed exit,
+// panic, watchdog) land in fastboot, where the host watcher can boot skyward TWRP and pull this run's
+// log window. The write touches one 4096-byte block, only the 32-byte command and 32-byte status
+// fields; the A/B slot metadata at offset 2048 and everything else are preserved.
+static bool gMiscKnown;
+static uint64_t gMiscFirstLba, gMiscLastLba;
+static volatile int gExitStarted;
+
+static bool houjiFindGptPartition (const char *wanted, uint64_t *first, uint64_t *last)
+{
+  static uint8_t block[4096];
+  if (!gHost.ready || !wanted || !wanted[0]) return false;
+  if (hostRead4k (0, 1, 1, block) != kIOReturnSuccess) return false;
+  if (le32 (block) != 0x20494645U || le32 (block + 4) != 0x54524150U) return false;
+  const uint64_t entLba = le64 (block + 72);
+  const uint32_t entCount = le32 (block + 80), entSize = le32 (block + 84);
+  if (entSize != 128 || entCount == 0 || entCount > 1024 || entLba >= 0xffffffffULL) return false;
+  const size_t wantedLength = strlen (wanted);
+  if (wantedLength > 36) return false;
+  const uint32_t blocks = (entCount * 128 + 4095) / 4096;
+  for (uint32_t done = 0; done < blocks; ) {
+    uint32_t chunk = blocks - done;
+    if (chunk > 32) chunk = 32;
+    if (hostRead4k (0, entLba + done, chunk, gScratch) != kIOReturnSuccess) return false;
+    for (uint32_t blockIndex = 0; blockIndex < chunk; blockIndex++) {
+      for (uint32_t entryIndex = 0; entryIndex < 32; entryIndex++) {
+        const uint32_t index = (done + blockIndex) * 32 + entryIndex;
+        if (index >= entCount) break;
+        const uint8_t *entry = gScratch + blockIndex * 4096 + entryIndex * 128;
+        bool used = false;
+        for (unsigned b = 0; b < 16; b++) {
+          if (entry[b]) { used = true; break; }
+        }
+        if (!used) continue;
+        bool match = true;
+        for (size_t c = 0; c < 36; c++) {
+          const uint8_t lo = entry[56 + 2 * c], hi = entry[57 + 2 * c];
+          if (c < wantedLength) {
+            if (hi || lo != static_cast<uint8_t> (wanted[c])) { match = false; break; }
+          } else if (lo || hi) {
+            match = false;
+            break;
+          }
+        }
+        if (!match) continue;
+        const uint64_t entryFirst = le64 (entry + 32), entryLast = le64 (entry + 40);
+        if (entryFirst > entryLast) return false;
+        if (first) *first = entryFirst;
+        if (last) *last = entryLast;
+        return true;
+      }
+    }
+    done += chunk;
+  }
+  return false;
+}
+
+// The command written into the control block. Boot argument houji-bcb=<name>: "fastboot" (default)
+// arms one classic-fastboot boot, "recovery" asks for recovery, "off" disables arming, any other
+// value is written verbatim (at most 31 characters).
+static const char *houjiBcbCommand (void)
+{
+  static char command[32];
+  static int loaded;
+  if (!loaded) {
+    loaded = 1;
+    command[0] = 0;
+    if (PE_parse_boot_argn ("houji-bcb", command, sizeof (command))) {
+      if (!strcmp (command, "off") || !strcmp (command, "0")) command[0] = 0;
+      else if (!strcmp (command, "fastboot")) strlcpy (command, "bootonce-bootloader", sizeof (command));
+      else if (!strcmp (command, "recovery")) strlcpy (command, "boot-recovery", sizeof (command));
+    } else {
+      strlcpy (command, "bootonce-bootloader", sizeof (command));
+    }
+  }
+  return command[0] ? command : nullptr;
+}
+
+// 1 = written, 0 = already set, negative = refused (reason in the log).
+extern "C" int native_ufs_bcb_write (const char *command)
+{
+  if (!gHost.ready) return -1;
+  if (!command || !command[0] || strlen (command) > 31) return -2;
+  if (!gMiscKnown) {
+    uint64_t first = 0, last = 0;
+    if (!houjiFindGptPartition ("misc", &first, &last)) return -3;
+    if (gStoreGeometry.valid && first >= gStoreGeometry.first && first <= gStoreGeometry.last) return -4;
+    gMiscFirstLba = first;
+    gMiscLastLba = last;
+    gMiscKnown = true;
+    IOLog ("HOUJI-BCB: misc lba=%llu..%llu\n", (unsigned long long) gMiscFirstLba, (unsigned long long) gMiscLastLba);
+  }
+  if (!gMiscOpen && !hostMiscOpen (gMiscFirstLba, 1)) return -5;
+  static uint8_t block[4096];
+  if (hostRead4k (0, gMiscFirstLba, 1, block) != kIOReturnSuccess) return -6;
+  const size_t length = strlen (command);
+  if (!memcmp (block, command, length) && block[length] == 0) return 0;
+  memset (block, 0, 32);
+  memcpy (block, command, length);
+  memset (block + 32, 0, 32);
+  if (hostWrite4k (0, gMiscFirstLba, 1, block, true) != kIOReturnSuccess) return -7;
+  IOLog ("HOUJI-BCB: wrote '%s' lba=%llu\n", command, (unsigned long long) gMiscFirstLba);
+  return 1;
+}
+
+static void houjiPsciReset (void)
+{
+  register uint64_t x0 __asm__ ("x0") = 0x84000009;   // PSCI SYSTEM_RESET
+  register uint64_t x1 __asm__ ("x1") = 0;
+  register uint64_t x2 __asm__ ("x2") = 0;
+  register uint64_t x3 __asm__ ("x3") = 0;
+  __asm__ volatile ("smc #0" : "+r" (x0) : "r" (x1), "r" (x2), "r" (x3) : "memory");
+  for (;;) { __asm__ volatile ("wfe"); }
+}
+
+// The msgbuf ring into a buffer the snapshot thread is not using. Runs with the transport lock held,
+// only from the panic path, whose caller owns that lock through IOLockTryLock.
+static void houjiPanicSnapshotHeld (uint32_t seq)
+{
+  struct houji_msgbuf *mb = msgbufp;
+  if (!gPanicBuf || !gLogRegionBlocks || !mb || !mb->msg_bufc || mb->msg_magic != 0x063061 ||
+      mb->msg_size <= 0 || mb->msg_size > (1 << 23)) {
+    return;
+  }
+  const uint32_t size = (uint32_t) mb->msg_size;
+  const uint32_t idx = (uint32_t) mb->msg_bufx % size;
+  uint32_t off = 0;
+  memcpy (gPanicBuf + off, "HOUJILOG", 8); off += 8;
+  *(uint32_t *)(void *)(gPanicBuf + off) = 1; off += 4;
+  *(uint32_t *)(void *)(gPanicBuf + off) = size; off += 4;
+  *(uint32_t *)(void *)(gPanicBuf + off) = idx; off += 4;
+  *(uint32_t *)(void *)(gPanicBuf + off) = seq; off += 4;
+  *(uint64_t *)(void *)(gPanicBuf + off) = 1; off += 8;   // bit 0: written while panicking
+  memcpy (gPanicBuf + off, mb->msg_bufc, size); off += size;
+  uint32_t blocks = (off + 4095) / 4096;
+  if (blocks > (uint32_t) kLogReserveBlocks) blocks = (uint32_t) kLogReserveBlocks;
+  for (uint32_t done = 0; done < blocks; ) {
+    uint32_t chunk = blocks - done;
+    if (chunk > kDataMax / 4096) chunk = kDataMax / 4096;
+    if (hostWrite4kHeld (gLogRegionFirst + done, chunk, gPanicBuf + (uint64_t) done * 4096) != kIOReturnSuccess) {
+      return;
+    }
+    done += chunk;
+  }
+}
+
+// Flush the log snapshot, make the armed control block durable and reset. Never returns.
+extern "C" void native_ufs_exit (const char *why)
+{
+  if (__atomic_exchange_n (&gExitStarted, 1, __ATOMIC_ACQ_REL)) {
+    for (;;) { __asm__ volatile ("wfe"); }
+  }
+  IOLog ("HOUJI-EXIT: %s\n", why ? why : "?");
+  if (gLogBuf && gLogRegionBlocks && !gSnapshotActive) {
+    if (houjiLogWriteSnapshot (gLogBuf, 0) == 0) {
+      houjiConRingWrite (gLogBuf);
+    }
+  }
+  (void) hostSyncCache ();
+  const int bcb = native_ufs_bcb_write (houjiBcbCommand ());
+  IOLog ("HOUJI-EXIT: bcb=%d resetting\n", bcb);
+  houjiPsciReset ();
+}
+
+// Boot argument houji-autoreboot=<seconds>: exit this boot into fastboot after that many seconds of
+// kernel time. 0 (or absent) disables the timed exit.
+static void houjiExitCheck (void)
+{
+  static int64_t deadline = -1;
+  if (deadline < 0) {
+    uint32_t seconds = 0;
+    if (!PE_parse_boot_argn ("houji-autoreboot", &seconds, sizeof (seconds)) || seconds > 86400) seconds = 0;
+    if (seconds) {
+      uint64_t ticks = 0;
+      nanoseconds_to_absolutetime ((uint64_t) seconds * NSEC_PER_SEC, &ticks);
+      deadline = (int64_t) ticks;
+      IOLog ("HOUJI-EXIT: timed exit in %u s bcb='%s'\n", seconds,
+          houjiBcbCommand () ? houjiBcbCommand () : "off");
+    } else {
+      deadline = 0;
+    }
+  }
+  if (deadline > 0 && mach_absolute_time () >= (uint64_t) deadline) {
+    native_ufs_exit ("timeout");
+  }
+}
+
+// kPEPanicDiagnosticsDone is reached once the panic text and backtrace are in the msgbuf; the
+// platform had no halt/restart callback at all, so a panic used to spin until the PMIC watchdog.
+// Snapshotting there and resetting turns a panic into the same fastboot landing as the timed exit.
+static void houjiInstallExit (void);
+static int houjiHaltRestart (unsigned int type)
+{
+  if (type == kPEPanicSync) return 0;
+  if (type == kPEHaltCPU) {
+    for (;;) { __asm__ volatile ("wfe"); }
+  }
+  if (type == kPEPanicDiagnosticsDone) {
+    if (gPanicBuf && gLogRegionBlocks && !gSnapshotActive && IOLockTryLock (gHost.lock)) {
+      houjiPanicSnapshotHeld ((uint32_t) mach_absolute_time ());
+      IOLockUnlock (gHost.lock);
+    }
+    houjiPsciReset ();
+  }
+  if (type == kPERestartCPU || type == kPEPanicRestartCPU || type == kPEPanicRestartCPUNoCallouts) {
+    native_ufs_exit ("halt-restart");
+  }
+  return 0;
+}
+
+static void houjiInstallExit (void)
+{
+  static bool installed;
+  if (installed) return;
+  installed = true;
+  PE_halt_restart = houjiHaltRestart;
+  IOLog ("HOUJI-EXIT: halt/restart hook installed\n");
+  const char *command = houjiBcbCommand ();
+  const int rc = command ? native_ufs_bcb_write (command) : -2;
+  IOLog ("HOUJI-EXIT: arm '%s' rc=%d\n", command ? command : "off", rc);
 }
 
 // Re-read the GPT header and entry array and compare their CRCs with what was recorded at root start. 0 = unchanged.
@@ -2475,6 +2712,7 @@ extern "C" int native_ufs_md_init (void)
       if (logbuf) IOFree (logbuf, (1 << 23) + 4096);
     }
   }
+  houjiInstallExit ();
   return 0;
 }
 
@@ -2835,6 +3073,7 @@ bool NativeUfs::startRoot (IOService *provider)
                           "root window preparation failed");
     return false;
   }
+  houjiInstallExit ();
   return true;
 }
 #endif

@@ -263,8 +263,9 @@ static IOReturn hostRead4k (uint8_t lun, uint64_t lba, uint32_t blocks, void *ds
 // The only place this driver writes. At most two windows of 4096-byte LBAs on LUN 0 (the Data store and the diagnostic log),
 // each opened once by its integration after it has proved that the window lies inside the userdata partition and clear of the
 // root image; every write is checked against them again here, so nothing outside them can be written even if a caller is wrong.
-static bool gStoreOpen = false, gLogOpen = false;
+static bool gStoreOpen = false, gLogOpen = false, gMiscOpen = false;
 static uint64_t gStoreFirst = 0, gStoreBlocks = 0, gLogFirst = 0, gLogBlocks = 0;
+static uint64_t gMiscFirst = 0, gMiscBlocks = 0;
 
 static bool hostLogOpen (uint64_t first, uint64_t blocks)
 {
@@ -279,6 +280,7 @@ static bool hostLogOpen (uint64_t first, uint64_t blocks)
 static bool hostInWindow (uint64_t lba, uint32_t blocks)
 {
   if (gStoreOpen && lba >= gStoreFirst && lba - gStoreFirst < gStoreBlocks && blocks <= gStoreBlocks - (lba - gStoreFirst)) return true;
+  if (gMiscOpen && lba >= gMiscFirst && lba - gMiscFirst < gMiscBlocks && blocks <= gMiscBlocks - (lba - gMiscFirst)) return true;
   return gLogOpen && lba >= gLogFirst && lba - gLogFirst < gLogBlocks && blocks <= gLogBlocks - (lba - gLogFirst);
 }
 
@@ -286,9 +288,23 @@ static bool hostStoreOpen (uint64_t first, uint64_t blocks)
 {
   if (gStoreOpen || !blocks || first > 0xffffffffULL || blocks > 0xffffffffULL - first) return false;
   if (gLogOpen && first < gLogFirst + gLogBlocks && gLogFirst < first + blocks) return false;
+  if (gMiscOpen && first < gMiscFirst + gMiscBlocks && gMiscFirst < first + blocks) return false;
   gStoreFirst = first;
   gStoreBlocks = blocks;
   gStoreOpen = true;
+  return true;
+}
+
+// The bootloader control block: one 4096-byte block of the "misc" GPT partition. The window is at most 16
+// blocks and must stay clear of the persistent store and the diagnostic log, which are the only other writers.
+static bool hostMiscOpen (uint64_t first, uint64_t blocks)
+{
+  if (gMiscOpen || !blocks || blocks > 16 || first > 0xffffffffULL || blocks > 0xffffffffULL - first) return false;
+  if (gStoreOpen && first < gStoreFirst + gStoreBlocks && gStoreFirst < first + blocks) return false;
+  if (gLogOpen && first < gLogFirst + gLogBlocks && gLogFirst < first + blocks) return false;
+  gMiscFirst = first;
+  gMiscBlocks = blocks;
+  gMiscOpen = true;
   return true;
 }
 
@@ -309,10 +325,26 @@ static IOReturn hostWrite4k (uint8_t lun, uint64_t lba, uint32_t blocks, const v
   return status;
 }
 
+// The same WRITE(10) with the transport lock already held. Only the panic snapshot uses it: blocking on a lock
+// a halted CPU may still own would hang the panic instead of recording it, so its caller takes the lock with
+// IOLockTryLock and gives up when the lock is busy.
+static IOReturn hostWrite4kHeld (uint64_t lba, uint32_t blocks, const void *src)
+{
+  if (!gHost.ready || !src || !blocks || blocks > kDataMax / 4096 || !hostInWindow (lba, blocks)) {
+    return kIOReturnBadArgument;
+  }
+  gRootDiagnostic.lba = lba;
+  memcpy (gHost.virt + kDataOffset, src, blocks * 4096U);
+  uint8_t cdb[10] = { 0x2a, 0x08, uint8_t (lba >> 24), uint8_t (lba >> 16), uint8_t (lba >> 8), uint8_t (lba),
+                      0, uint8_t (blocks >> 8), uint8_t (blocks), 0 };
+  uint32_t scsi = 0;
+  return hostScsiDir (0, cdb, 10, 1, blocks * 4096U, 2000000, &scsi);
+}
+
 // SYNCHRONIZE CACHE(10) for the whole LUN: everything written so far is on the medium when this returns.
 static IOReturn hostSyncCache (void)
 {
-  if (!gHost.ready || (!gStoreOpen && !gLogOpen)) return kIOReturnNotReady;
+  if (!gHost.ready || (!gStoreOpen && !gLogOpen && !gMiscOpen)) return kIOReturnNotReady;
   IOLockLock (gHost.lock);
   uint8_t cdb[10] = { 0x35 };
   uint32_t scsi = 0;
