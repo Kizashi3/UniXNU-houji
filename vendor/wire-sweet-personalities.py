@@ -12,6 +12,7 @@ add = (
     '\niokit/Kernel/arm/SweetSurface.cpp optional iokitcpp\n'
     'iokit/Kernel/arm/SweetFramebuffer.cpp optional iokitcpp\n'
     'iokit/Kernel/arm/SweetDisplayStubs.cpp optional iokitcpp\n'
+    'iokit/Kernel/arm/HoujiWeakStubs.cpp optional iokitcpp\n'
 )
 if 'SweetFramebuffer.cpp' not in t:
     fa.write_text(t.rstrip('\n') + '\n' + add)
@@ -26,14 +27,14 @@ if 'AppleCLCD' not in k:
     assert anchor in k, 'KCT anchor missing'
     block = (
         '    "   {",\n'
-        '    "     ' + "'" + 'IOClass' + "'" + '         = IOCoreSurfaceRoot;",\n'
-        '    "     ' + "'" + 'IOProviderClass' + "'" + ' = IOResources;",\n'
-        '    "     ' + "'" + 'IOMatchCategory' + "'" + ' = IOCoreSurfaceRoot;",\n'
+        "    \"     'IOClass'         = IOCoreSurfaceRoot;\",\n"
+        "    \"     'IOProviderClass' = IOResources;\",\n"
+        "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\",\n"
         '    "   },",\n'
         '    "   {",\n'
-        '    "     ' + "'" + 'IOClass' + "'" + '         = AppleCLCD;",\n'
-        '    "     ' + "'" + 'IOProviderClass' + "'" + ' = IOService;",\n'
-        '    "     ' + "'" + 'IONameMatch' + "'" + '     = ' + "'" + 'houji,display' + "'" + ';",\n'
+        "    \"     'IOClass'         = AppleCLCD;\",\n"
+        "    \"     'IOProviderClass' = IOService;\",\n"
+        "    \"     'IONameMatch'     = 'houji,display';\",\n"
         '    "   },",\n'
     )
     kc.write_text(k.replace(anchor, anchor + block, 1))
