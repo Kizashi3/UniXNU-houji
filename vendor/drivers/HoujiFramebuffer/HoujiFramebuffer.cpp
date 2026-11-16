@@ -25,6 +25,7 @@
 #include <libkern/c++/OSKext.h>
 #include <libkern/c++/OSData.h>
 #include <IOKit/IOMemoryDescriptor.h>
+#include <IOKit/IODeviceMemory.h>
 
 extern "C" struct proc *current_proc(void);
 extern "C" int proc_getpid(struct proc *);
@@ -603,6 +604,9 @@ houjiKeyEventsBootstrap(IOService *platform)
 
 // Use the native provider's actual metaclass when Legacy publication is requested.
 // The pinned 20H392 AppleARMIODevice uses IOService init/start/stop/free.
+static uint64_t gPanelPhys;
+static uint64_t gPanelBytes;
+
 static bool
 houjiDisplayProperties(IOService *nub)
 {
@@ -613,6 +617,8 @@ houjiDisplayProperties(IOService *nub)
         return false;
     uint32_t width = (uint32_t)video.v_width;
     uint32_t height = (uint32_t)video.v_height;
+    gPanelPhys = video.v_baseAddr;
+    gPanelBytes = video.v_rowBytes * (uint64_t)video.v_height;
     nub->setName("display0");
     return nub->setProperty("compatible", compatible, sizeof(compatible)) &&
         nub->setProperty("device_type", deviceType, sizeof(deviceType)) &&
@@ -622,6 +628,16 @@ houjiDisplayProperties(IOService *nub)
 
 class HoujiDisplayNub : public IOPlatformDevice {
     OSDeclareDefaultStructors(HoujiDisplayNub);
+public:
+    // The original IOMobileFramebufferLegacy startHardware() maps device memory
+    // index 0 for scanout; without it the family refuses to start and never
+    // allocates its default framebuffer. Publish the panel window here.
+    IODeviceMemory *getDeviceMemoryWithIndex(unsigned int index) override
+    {
+        if (index != 0 || gPanelPhys == 0 || gPanelBytes == 0)
+            return IOPlatformDevice::getDeviceMemoryWithIndex(index);
+        return IODeviceMemory::withRange(gPanelPhys, gPanelBytes);
+    }
 };
 OSDefineMetaClassAndStructors(HoujiDisplayNub, IOPlatformDevice);
 
