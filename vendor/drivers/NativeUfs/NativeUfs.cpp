@@ -1701,6 +1701,47 @@ extern "C" int native_ufs_log_sync (void)
   return gLogRegionBlocks && hostSyncCache () == kIOReturnSuccess;
 }
 
+// ---- HOUJI: satisfy AMFI's PMGR lookup ----------------------------------------------------------
+// AMFI's ConfigurationSettings (AppleMobileFileIntegrity, ConfigurationSettings.cpp:152) does
+// IOService::serviceMatching("ApplePMGRNub") + waitForMatchingService and then, with the matched
+// service's provider, reads the provider pointer at nub+0x88 and ORs 0x4 into its 32-bit value.
+// Apple's own stack answers that query with the SoC PMGR driver (a subclass of ApplePMGRNub) that
+// AppleBringUpPMGR matches from the device tree. This board's DT carries no pmgr node, so the
+// query returns null and AMFI panics ("AMFI: No PMGR?") whenever the path is first taken (72 s in
+// one boot, 856 s in another). The contract that satisfies it without any hardware access is the
+// one the prelinked ApplePMGR base class already implements: a real ApplePMGRNub instance whose
+// provider (+0x88) is null makes the imported read return 0xffffffff and the write a no-op.
+// Publishing the nub plus one child service (the query matches services by provider class) is
+// therefore enough, and touches no MMIO.
+static void houjiPublishPmgrNub (void)
+{
+  static int state;   // 0 = not tried, 1 = published, -1 = refused
+  if (state != 0) return;
+  state = -1;
+  OSObject *nubObject = OSMetaClass::allocClassWithName ("ApplePMGRNub");
+  IOService *nub = OSDynamicCast (IOService, nubObject);
+  IOService *resources = IOService::getResourceService ();
+  if (nub == nullptr || resources == nullptr || !nub->init () || !nub->attach (resources)) {
+    if (nub != nullptr) nub->release ();
+    else if (nubObject != nullptr) nubObject->release ();
+    IOLog ("HOUJI-PMGR: ApplePMGRNub unavailable\n");
+    return;
+  }
+  nub->registerService ();
+  IOService *child = OSDynamicCast (IOService, OSMetaClass::allocClassWithName ("IOService"));
+  if (child != nullptr && child->init () && child->attach (nub)) {
+    child->registerService ();
+    child->release ();
+    IOLog ("HOUJI-PMGR: published ApplePMGRNub with child service\n");
+    state = 1;
+  } else {
+    if (child != nullptr) child->release ();
+    IOLog ("HOUJI-PMGR: published ApplePMGRNub without child\n");
+    state = 1;
+  }
+  nub->release ();
+}
+
 // ---- HOUJI: unattended exit through the misc bootloader control block ---------------------------
 // The bootloader reads the control block (first GPT entry named "misc") before it picks a slot.
 // "bootonce-bootloader" is the standard Android request for one classic-fastboot boot; the
@@ -2692,6 +2733,7 @@ extern "C" int native_ufs_md_init (void)
   const char *why = "";
   if (gMdWindowCount) return 0;
   if (!hostBringUp (&why)) { IOLog ("NativeUfs: md bring-up failed: %s\n", why); return -1; }
+  houjiPublishPmgrNub ();
   RootLayout *layout = static_cast<RootLayout *> (IOMalloc (sizeof (RootLayout)));
   if (!layout) return -2;
   if (!findRootLayout (layout, &why) || layout->manifestStatus != 0) {
@@ -3017,6 +3059,7 @@ bool NativeUfs::startRoot (IOService *provider)
     return false;
   }
   native_ufs_root_step = 2;
+  houjiPublishPmgrNub ();
   RootLayout *layout = static_cast<RootLayout *> (IOMalloc (sizeof (RootLayout)));
   if (!layout || !findRootLayout (layout, &why)) {
     rootDiagnosticFailure (layout ? why : "root layout allocation failed");
