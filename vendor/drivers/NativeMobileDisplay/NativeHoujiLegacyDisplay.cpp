@@ -105,8 +105,62 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     IOReturn lastRecordStatus = kIOReturnNotReady;
     bool diagnostics = false;
     uint64_t nextSummary = 0;
-    bool selftest = false;
+    uint32_t selftest = 0;
     uint32_t selftestFrames = 0;
+    void *shadow = nullptr;
+    uint64_t shadowBytes = 0;
+    uint32_t syntheticFrames = 0;
+
+    // Paint the producer-side picture. This is the same buffer shape an IOSurface
+    // hands the swap path: width*4 rows inside a stride, BGRA. Keeping the drawing
+    // here lets presentShadow() exercise the real copy routine without a surface.
+    bool paintShadow()
+    {
+        if (shadow == nullptr || shadowBytes < static_cast<uint64_t>(rowBytes) * height)
+            return false;
+        auto base = static_cast<unsigned char *>(shadow);
+        const uint32_t frame = syntheticFrames;
+        for (uint32_t y = 0; y < height; ++y) {
+            auto row = reinterpret_cast<uint32_t *>(base + static_cast<uint64_t>(y) * rowBytes);
+            const uint32_t shade = static_cast<uint32_t>(
+                (static_cast<uint64_t>(y) * 255) / (height ? height : 1));
+            for (uint32_t x = 0; x < width; ++x) {
+                const uint32_t index = static_cast<uint32_t>((static_cast<uint64_t>(x) * 8) / width);
+                const uint32_t channel = 0xff000000U | (shade << 16) | ((index & 3U) * 0x40U);
+                row[x] = channel;
+            }
+        }
+        const uint32_t bandHeight = height / 10 ? height / 10 : 1;
+        const uint32_t bandY = static_cast<uint32_t>(
+            (static_cast<uint64_t>(frame) * bandHeight * 3) % (height ? height : 1));
+        for (uint32_t y = bandY; y < bandY + bandHeight && y < height; ++y) {
+            auto row = reinterpret_cast<uint32_t *>(base + static_cast<uint64_t>(y) * rowBytes);
+            for (uint32_t x = 0; x < width; ++x)
+                row[x] = 0xffffffffU;
+        }
+        return true;
+    }
+
+    // The swap pixel step, unchanged: source stride -> scanout stride, bounds
+    // checked by the same helpers the real path uses.
+    bool presentShadow()
+    {
+        if (scanout == nullptr || !paintShadow())
+            return false;
+        const uint64_t bytes = scanout->getLength();
+        const bool copied = HoujiLegacy20H392::copyBgra(
+            reinterpret_cast<volatile void *>(scanout->getVirtualAddress()), bytes, rowBytes,
+            shadow, shadowBytes, 0, rowBytes, width, height);
+        if (!copied)
+            return false;
+        __asm__ volatile("dsb sy" ::: "memory");
+        syntheticFrames++;
+        presented++;
+        if (presented <= 8)
+            IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u synthetic=1 shadow=%llu\n",
+                presented, (unsigned long long)shadowBytes);
+        return true;
+    }
 
     // CPU-only bring-up painter. This XNU never instantiates a GPU accelerator, so no
     // compositor produces a frame and the scanout stays dark. Paint a flat color-bar
@@ -125,7 +179,7 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         static const uint32_t bars[8] = {
             0xffffffffU, 0xffffff00U, 0xff00ffffU, 0xff00ff00U,
             0xffff00ffU, 0xffff0000U, 0xff0000ffU, 0xff000000U};
-        const uint32_t frame = selftestFrames++;
+        const uint32_t frame = selftestFrames;
         for (uint32_t x = 0; x < width; ++x) {
             uint32_t index = static_cast<uint32_t>((static_cast<uint64_t>(x) * 8) / width);
             if (index > 7)
@@ -155,24 +209,36 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         if (head != nullptr)
             houji_legacy_vsync_notify(display, mach_absolute_time(), mach_continuous_time(), display->period);
         display->kickSwapQueue();
-        if (display->selftest && display->presented == 0 &&
+        const uint32_t phase = display->selftest >= 2 ? display->syntheticFrames
+                                                      : display->selftestFrames;
+        if (display->selftest &&
             HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) == nullptr &&
-            (display->selftestFrames % 30) == 0)
-            display->paintSelfTest();
+            (phase % 30) == 0) {
+            if (display->selftest >= 2) {
+                if (!display->presentShadow()) {
+                    display->selftestFrames++;
+                    display->paintSelfTest();
+                }
+            } else {
+                display->selftestFrames++;
+                display->paintSelfTest();
+            }
+        }
         const uint64_t now = mach_absolute_time();
         if (display->diagnostics && now >= display->nextSummary) {
             display->nextSummary = now + display->period * 300;
             const uint32_t dimensions = __atomic_load_n(&display->dimensionCalls, __ATOMIC_RELAXED);
             const uint32_t refreshes = __atomic_load_n(&display->refreshCalls, __ATOMIC_RELAXED);
             const uint32_t completions = __atomic_load_n(&display->completionCalls, __ATOMIC_RELAXED);
-            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u dims=%u refreshes=%u completions=%u canvas=%u current=%d pending=%d submission=%d\n",
+            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u synthetic=%u dims=%u refreshes=%u completions=%u canvas=%u current=%d pending=%d submission=%d\n",
                 houjiProbeStage, display->width, display->height, display->rowBytes,
                 __atomic_load_n(&display->recordQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->lastRecordStatus, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->backendQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->validationCalls, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->validationAccepted, __ATOMIC_RELAXED),
-                display->rejectedCopies, display->presented, dimensions, refreshes, completions,
+                display->rejectedCopies, display->presented, display->syntheticFrames,
+                dimensions, refreshes, completions,
                 display->canvasVerified,
                 HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::currentSwap) != nullptr,
                 HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) != nullptr,
@@ -362,10 +428,27 @@ public:
         nextSummary = mach_absolute_time() + period * 300;
         uint32_t st = 0;
         PE_parse_boot_argn("houji-legacy-selftest", &st, sizeof(st));
-        selftest = st == 1;
+        selftest = st;
         if (selftest) {
-            paintSelfTest();
-            IOLog("HOUJI-LEGACY: stage=selftest paint=%ux%u stride=%u\n", width, height, rowBytes);
+            if (selftest >= 2) {
+                shadowBytes = static_cast<uint64_t>(rowBytes) * height;
+                shadow = IOMallocAligned(static_cast<vm_size_t>(shadowBytes), 16384);
+                if (shadow == nullptr) {
+                    shadowBytes = 0;
+                    selftest = 1;
+                }
+            }
+            if (selftest >= 2 && presentShadow())
+                IOLog("HOUJI-LEGACY: stage=selftest mode=copy paint=%ux%u stride=%u shadow=%llu\n",
+                    width, height, rowBytes, (unsigned long long)shadowBytes);
+            else {
+                if (selftest >= 2)
+                    IOLog("HOUJI-LEGACY: stage=selftest copy-failed fallback=direct\n");
+                selftest = 1;
+                selftestFrames++;
+                paintSelfTest();
+                IOLog("HOUJI-LEGACY: stage=selftest paint=%ux%u stride=%u\n", width, height, rowBytes);
+            }
         }
         timer->wakeAtTime(mach_absolute_time() + period);
         IOLog("HOUJI-LEGACY: stage=hardware mapped=%ux%u refresh=60 writes=0 grant=%u\n",
@@ -535,6 +618,11 @@ public:
                 getWorkLoop()->removeEventSource(timer);
             timer->release();
             timer = nullptr;
+        }
+        if (shadow != nullptr) {
+            IOFreeAligned(shadow, static_cast<vm_size_t>(shadowBytes));
+            shadow = nullptr;
+            shadowBytes = 0;
         }
         if (scanout != nullptr) {
             scanout->release();
