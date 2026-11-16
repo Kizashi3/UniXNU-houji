@@ -458,6 +458,11 @@ public:
         // 20H392 IOMobileFramebufferOpen() reads these two number properties from the
         // framebuffer entry itself (0x1af226874 / 0x1af22688c) and caches them as the
         // client canvas size; the provider nub is not consulted.
+        // IOMobileFramebuffer.framework counts /arm-io children with device_type
+        // "display-subsystem" and then waits for that many services matching
+        // IOServiceMatching("IOMobileFramebuffer"). Our metaclass is the legacy
+        // subclass, so publish the matched class name explicitly as well.
+        setProperty("IOClass", "IOMobileFramebuffer");
         const bool canvas = setProperty("canvas-width", &width, sizeof(width)) &&
             setProperty("canvas-height", &height, sizeof(height));
         if (!canvas) {
@@ -516,6 +521,14 @@ public:
             }
         }
         timer->wakeAtTime(mach_absolute_time() + period);
+        {
+            OSDictionary *match = IOService::serviceMatching("IOMobileFramebuffer");
+            OSIterator *it = match != nullptr ? IOService::getMatchingServices(match) : nullptr;
+            int n = 0;
+            if (it != nullptr) { while (it->getNextObject() != nullptr) n++; it->release(); }
+            if (match != nullptr) match->release();
+            IOLog("HOUJI-LEGACY: match IOMobileFramebuffer services=%d\n", n);
+        }
         IOLog("HOUJI-LEGACY: stage=hardware mapped=%ux%u refresh=60 writes=0 grant=%u\n",
             width, height, granted);
         return true;
