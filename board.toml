@@ -59,7 +59,7 @@ roots = [
   "com.apple.driver.AppleAudioClockLibs",
   "com.apple.driver.AppleEffaceableStorage",
   "com.apple.driver.AppleIISController",
-  "com.apple.driver.AppleM2ScalerCSCDriver",
+  # "com.apple.driver.AppleM2ScalerCSCDriver",  # pulls com.apple.iokit.IOSurface; Sweet owns IOSurface
   "com.apple.driver.AppleMobileFileIntegrity",
   "com.apple.driver.ApplePMGR",
   "com.apple.driver.IODARTFamily",
@@ -69,7 +69,7 @@ roots = [
   "com.apple.iokit.IOAudio2Family",
   "com.apple.iokit.IOCECFamily",
   "com.apple.iokit.IOCryptoAcceleratorFamily",
-  "com.apple.iokit.IOGPUFamily",
+  # "com.apple.iokit.IOGPUFamily",  # pulls com.apple.iokit.IOSurface; Sweet owns IOSurface
   "com.apple.iokit.IOHDCPFamily",
   # "com.apple.iokit.IOMobileGraphicsFamily",  # owned by SweetSurface/AppleCLCD
   "com.apple.iokit.IOReportFamily",
