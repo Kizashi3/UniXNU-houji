@@ -1047,7 +1047,7 @@ index 0000000..7a7baba
 +		return NULL;
 +	}
 +	s->state = IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
-+	    kIODirectionInOut | kIOMemoryKernelUserShared, page_size, page_size);
++	    (IOOptionBits)kIODirectionInOut | (IOOptionBits)kIOMemoryKernelUserShared, page_size, page_size);
 +	if (s->state == NULL) {
 +		s->release();
 +		return NULL;
@@ -1101,7 +1101,7 @@ index 0000000..7a7baba
 + s->allocSize=(uint32_t)round_page((uint64_t)row*height);
 + const uint64_t old=(uint64_t)OSAddAtomic64(s->allocSize,(volatile SInt64 *)&sweet_surface_wired);
 + if(old+s->allocSize>SWEET_SURFACE_WIRED_MAX){OSAddAtomic64(-(SInt64)s->allocSize,(volatile SInt64 *)&sweet_surface_wired);s->release();return nullptr;}
-+ auto *mem=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,kIODirectionInOut|kIOMemoryKernelUserShared,s->allocSize,page_size);
++ auto *mem=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,(IOOptionBits)kIODirectionInOut|(IOOptionBits)kIOMemoryKernelUserShared,s->allocSize,page_size);
 + if(!mem){OSAddAtomic64(-(SInt64)s->allocSize,(volatile SInt64 *)&sweet_surface_wired);s->release();return nullptr;}
 + s->memory=mem;s->mapCache=kIOMapDefaultCache;
 + bzero(mem->getBytesNoCopy(),s->allocSize);houji_surface_clean_new_zeros(mem->getBytesNoCopy(),s->allocSize);
@@ -1552,7 +1552,7 @@ index 0000000..7a7baba
 +		if ((uint64_t)OSAddAtomic64(s->allocSize, (volatile SInt64 *)&sweet_surface_wired) +
 +		    s->allocSize <= SWEET_SURFACE_WIRED_MAX) {
 +			mem = IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
-+			    kIODirectionInOut | kIOMemoryKernelUserShared, s->allocSize, page_size);
++			    (IOOptionBits)kIODirectionInOut | (IOOptionBits)kIOMemoryKernelUserShared, s->allocSize, page_size);
 +		}
 +		if (mem == NULL) {
 +			OSAddAtomic64(-(SInt64)s->allocSize, (volatile SInt64 *)&sweet_surface_wired);
