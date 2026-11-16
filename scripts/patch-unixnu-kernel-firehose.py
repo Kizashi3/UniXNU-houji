@@ -19,10 +19,17 @@ if [ "$BOOTSTRAP" = 1 ]; then
   EXTRA_MAKE_ARGS+=("LD_KERNEL_ARCHIVES=-L$KERNEL_SDKROOT/usr/local/lib/kernel -lfirehose_kernel")
 fi
 '''
+# Sweet display: the .cpp translation units come from patches/xnu/sweet-display.patch,
+# but the tree that is compiled is .cache/xnu-work (a clean HEAD clone plus the
+# patch series), so the files.arm64 registration and the KernelConfigTables
+# personalities must be injected into that tree. wire-sweet-worktree.py does it.
+PREP = 'python3 scripts/prepare-xnu-source.py\n'
+SWEET_CALL = 'python3 scripts/wire-sweet-worktree.py\n'
 REPLACEMENTS = (
     (CLONE, STAGE),
     (FLAGS, 'EXTRA_CFLAGS="$EXTRA_CFLAGS -DOS_FIREHOSE_SPI=1"\n' + FLAGS),
     (CRYPTO, BOOTSTRAP + CRYPTO),
+    (PREP, SWEET_CALL + PREP),
 )
 
 
@@ -61,6 +68,9 @@ def patch_driver(text):
         '    for name, patch in sorted(selected.items()):\n'
         '        shutil.copyfile(patch, series / name)\n'
         "    log(f'kernel: assembled {len(selected)} upstream/device XNU patches')\n"
+        "    wire_src = ctx.device / 'vendor/wire-sweet-worktree.py'\n"
+        '    if wire_src.is_file():\n'
+        "        shutil.copyfile(wire_src, ctx.tree / 'scripts/wire-sweet-worktree.py')\n"
         '    baseline_text = script.read_text()\n'
         "    baseline_text = baseline_text.replace('/patches/xnu/', '/.cache/xnu-patch-series/')\n"
         f'    for old, new in {REPLACEMENTS!r}:\n'

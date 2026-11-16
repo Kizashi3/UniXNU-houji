@@ -392,18 +392,6 @@ jobs:
           PY
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
-      - name: Wire Sweet display translation units into the XNU work tree
-        working-directory: unixnu
-        run: |
-          mkdir -p "$DIAG_DIR"
-          {
-            set -x
-            cp "$DEVICE_DIR/vendor/wire-sweet-worktree.py" out/houji/tree/scripts/wire-sweet-worktree.py
-            cp "$DEVICE_DIR/vendor/patch-baseline-wire.py" out/houji/tree/scripts/patch-baseline-wire.py
-            ( cd out/houji/tree && python3 scripts/patch-baseline-wire.py )
-            grep -n wire-sweet-worktree out/houji/tree/scripts/build-xnu-4k-baseline.sh
-          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
-
       - name: Apply persistent early-log patch
         working-directory: unixnu
         run: |
