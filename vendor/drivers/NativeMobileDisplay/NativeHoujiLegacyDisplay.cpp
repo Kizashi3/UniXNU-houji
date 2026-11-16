@@ -166,6 +166,8 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     friend class HoujiLegacyClient;
     IOMemoryMap *scanout = nullptr;
     HoujiSurface *defaultSurface = nullptr;
+    uint64_t panelPhys = 0;
+    uint64_t panelBytes = 0;
     IOTimerEventSource *timer = nullptr;
     uint64_t period = 0;
     uint32_t width = 0;
@@ -494,10 +496,10 @@ public:
         width = static_cast<uint32_t>(video.v_width);
         height = static_cast<uint32_t>(video.v_height);
         rowBytes = static_cast<uint32_t>(video.v_rowBytes);
-        defaultSurface = HoujiSurface::withPhysical(video.v_baseAddr, length, width, height, rowBytes);
-        IOLog("HOUJI-SURF: default surface id=%u %ux%u stride=%u surface=%p\n",
-            defaultSurface != nullptr ? defaultSurface->id : 0, width, height, rowBytes,
-            (void *) defaultSurface);
+        panelPhys = video.v_baseAddr;
+        panelBytes = length;
+        IOLog("HOUJI-SURF: panel %ux%u stride=%u phys=%#llx\n", width, height, rowBytes,
+            (unsigned long long) panelPhys);
         __builtin_memcpy(reinterpret_cast<unsigned char *>(this) + 5208, &width, sizeof(width));
         __builtin_memcpy(reinterpret_cast<unsigned char *>(this) + 5212, &height, sizeof(height));
         nanoseconds_to_absolutetime(NSEC_PER_SEC / 60, &period);
@@ -1051,6 +1053,9 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         const uint64_t canvasW = inputCount > 0 ? arguments->scalarInput[0] : 0;
         const uint64_t canvasH = inputCount > 1 ? arguments->scalarInput[1] : 0;
         for (uint32_t i = 0; i < outputCount; i++) arguments->scalarOutput[i] = 0;
+        if (display->defaultSurface == nullptr && display->panelPhys != 0)
+            display->defaultSurface = HoujiSurface::withPhysical(display->panelPhys, display->panelBytes,
+                display->width, display->height, display->rowBytes);
         mach_port_name_t surfacePort = 0;
         if (display->defaultSurface != nullptr && owner != nullptr)
             (void) IOUserClient::copyPortNameForObjectInTask(owner, display->defaultSurface, &surfacePort);
