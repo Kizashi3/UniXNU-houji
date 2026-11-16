@@ -154,6 +154,7 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     void *shadow = nullptr;
     uint64_t shadowBytes = 0;
     uint32_t syntheticFrames = 0;
+    uint32_t readbackFailures = 0;
 
     // Paint the producer-side picture. This is the same buffer shape an IOSurface
     // hands the swap path: width*4 rows inside a stride, BGRA. Keeping the drawing
@@ -198,11 +199,27 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         if (!copied)
             return false;
         __asm__ volatile("dsb sy" ::: "memory");
+        __asm__ volatile("dsb sy" ::: "memory");
+        // A store that never left the cache would look identical in the source
+        // buffer; read the scanout back and compare sample pixels.
+        auto readback = reinterpret_cast<volatile uint32_t *>(scanout->getVirtualAddress());
+        auto source = static_cast<const unsigned char *>(shadow);
+        uint32_t mismatched = 0;
+        for (uint32_t y = 0; y < height; y += 97) {
+            const auto row = reinterpret_cast<const uint32_t *>(source + static_cast<uint64_t>(y) * rowBytes);
+            for (uint32_t x = 0; x < width; x += 151) {
+                const uint32_t stored = readback[(static_cast<uint64_t>(y) * rowBytes) / 4 + x];
+                if (stored != row[x])
+                    mismatched++;
+            }
+        }
         syntheticFrames++;
         presented++;
         if (presented <= 8)
-            IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u synthetic=1 shadow=%llu\n",
-                presented, (unsigned long long)shadowBytes);
+            IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u synthetic=1 shadow=%llu verify=%s\n",
+                presented, (unsigned long long)shadowBytes, mismatched == 0 ? "ok" : "mismatch");
+        if (mismatched != 0 && readbackFailures++ < 8)
+            IOLog("HOUJI-LEGACY: stage=cpu-present-readback mismatched=%u\n", mismatched);
         return true;
     }
 
