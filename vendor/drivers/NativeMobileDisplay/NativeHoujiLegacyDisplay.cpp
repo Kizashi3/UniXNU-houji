@@ -127,10 +127,44 @@ public:
                                       io_user_reference_t refCon) override;
 };
 
+// Minimal kernel-side drawable: the panel memory itself, published to userspace as
+// an IOKit object port (IOUserClient::copyPortNameForObjectInTask). sel=3 returns
+// that port as the layer's default surface.
+class HoujiSurface : public OSObject {
+    OSDeclareDefaultStructors(HoujiSurface)
+public:
+    uint32_t id = 0;
+    IOMemoryDescriptor *memory = nullptr;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t stride = 0;
+    uint32_t format = 0x42475241U;  // 'BGRA'
+    static HoujiSurface *withPhysical(uint64_t phys, uint64_t bytes,
+                                      uint32_t w, uint32_t h, uint32_t s);
+    void free() override
+    {
+        if (memory != nullptr) { memory->release(); memory = nullptr; }
+        OSObject::free();
+    }
+};
+OSDefineMetaClassAndStructors(HoujiSurface, OSObject)
+
+HoujiSurface *HoujiSurface::withPhysical(uint64_t phys, uint64_t bytes,
+                                         uint32_t w, uint32_t h, uint32_t s)
+{
+    HoujiSurface *surface = new HoujiSurface;
+    if (surface == nullptr) return nullptr;
+    surface->memory = IOMemoryDescriptor::withPhysicalAddress(phys, bytes, kIODirectionOutIn);
+    if (surface->memory == nullptr) { surface->release(); return nullptr; }
+    surface->width = w; surface->height = h; surface->stride = s; surface->id = 1;
+    return surface;
+}
+
 class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     OSDeclareDefaultStructors(NativeHoujiLegacyDisplay)
     friend class HoujiLegacyClient;
     IOMemoryMap *scanout = nullptr;
+    HoujiSurface *defaultSurface = nullptr;
     IOTimerEventSource *timer = nullptr;
     uint64_t period = 0;
     uint32_t width = 0;
@@ -459,6 +493,10 @@ public:
         width = static_cast<uint32_t>(video.v_width);
         height = static_cast<uint32_t>(video.v_height);
         rowBytes = static_cast<uint32_t>(video.v_rowBytes);
+        defaultSurface = HoujiSurface::withPhysical(video.v_baseAddr, length, width, height, rowBytes);
+        IOLog("HOUJI-SURF: default surface id=%u %ux%u stride=%u surface=%p\n",
+            defaultSurface != nullptr ? defaultSurface->id : 0, width, height, rowBytes,
+            (void *) defaultSurface);
         __builtin_memcpy(reinterpret_cast<unsigned char *>(this) + 5208, &width, sizeof(width));
         __builtin_memcpy(reinterpret_cast<unsigned char *>(this) + 5212, &height, sizeof(height));
         nanoseconds_to_absolutetime(NSEC_PER_SEC / 60, &period);
@@ -988,10 +1026,14 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         // and treat the display as absent.
         const uint64_t canvasW = inputCount > 0 ? arguments->scalarInput[0] : 0;
         const uint64_t canvasH = inputCount > 1 ? arguments->scalarInput[1] : 0;
-        IOLog("HOUJI-SEL3: canvas=%llux%llu out=%u\n",
-            (unsigned long long)canvasW, (unsigned long long)canvasH, outputCount);
         for (uint32_t i = 0; i < outputCount; i++) arguments->scalarOutput[i] = 0;
-        if (outputCount >= 1) { arguments->scalarOutput[0] = 1; arguments->scalarOutputCount = 1; }
+        mach_port_name_t surfacePort = 0;
+        if (display->defaultSurface != nullptr && owner != nullptr)
+            (void) IOUserClient::copyPortNameForObjectInTask(owner, display->defaultSurface, &surfacePort);
+        if (outputCount >= 1) { arguments->scalarOutput[0] = surfacePort; arguments->scalarOutputCount = 1; }
+        IOLog("HOUJI-SEL3: canvas=%llux%llu port=%u surface=%p\n",
+            (unsigned long long)canvasW, (unsigned long long)canvasH, (unsigned) surfacePort,
+            (void *) display->defaultSurface);
         status = kIOReturnSuccess;
     } else if (selector == 5) {
         // SwapEnd. Parse the qualified 1132-byte request, resolve the named
