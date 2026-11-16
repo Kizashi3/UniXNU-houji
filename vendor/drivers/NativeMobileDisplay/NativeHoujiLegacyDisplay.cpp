@@ -155,6 +155,7 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
     uint64_t shadowBytes = 0;
     uint32_t syntheticFrames = 0;
     uint32_t readbackFailures = 0;
+    bool realFrame = false;
 
     // Paint the producer-side picture. This is the same buffer shape an IOSurface
     // hands the swap path: width*4 rows inside a stride, BGRA. Keeping the drawing
@@ -270,18 +271,17 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
         if (head != nullptr)
             houji_legacy_vsync_notify(display, mach_absolute_time(), mach_continuous_time(), display->period);
         display->kickSwapQueue();
-        const uint32_t phase = display->selftest >= 2 ? display->syntheticFrames
-                                                      : display->selftestFrames;
-        if (display->selftest &&
-            HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) == nullptr &&
-            (phase % 30) == 0) {
+        // selftestFrames counts timer ticks; the presented counter would only move on
+        // success, so gating on it would latch the very first frame forever.
+        if (display->selftest)
+            display->selftestFrames++;
+        if (display->selftest && !display->realFrame &&
+            (display->selftestFrames % 30) == 0 &&
+            HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) == nullptr) {
             if (display->selftest >= 2) {
-                if (!display->presentShadow()) {
-                    display->selftestFrames++;
+                if (!display->presentShadow())
                     display->paintSelfTest();
-                }
             } else {
-                display->selftestFrames++;
                 display->paintSelfTest();
             }
         }
@@ -981,6 +981,7 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
                             __asm__ volatile("dsb sy" ::: "memory");
                             display->presented++;
                             display->syntheticFrames = 0;
+                            display->realFrame = true;
                             failure = nullptr;
                             if (display->presented <= 8)
                                 IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u synthetic=0 surface=%u size=%ux%u stride=%llu\n",
