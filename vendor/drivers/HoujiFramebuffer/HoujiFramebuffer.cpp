@@ -615,8 +615,8 @@ houjiDisplayProperties(IOService *nub)
     PE_Video video = {};
     if (PE_current_console(&video) != 0 || video.v_width == 0 || video.v_height == 0)
         return false;
-    uint32_t width = (uint32_t)video.v_width;
-    uint32_t height = (uint32_t)video.v_height;
+    uint32_t width = 1125; /* iPhone X logical canvas; must match Sweet default surface and GetDisplaySize, not the 1200x2670 panel */
+    uint32_t height = 2436;
     gPanelPhys = video.v_baseAddr;
     gPanelBytes = video.v_rowBytes * (uint64_t)video.v_height;
     nub->setName("display0");
