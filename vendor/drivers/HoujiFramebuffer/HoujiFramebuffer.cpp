@@ -669,6 +669,39 @@ houjiAllocateDisplayNub()
     return new HoujiDisplayNub;
 }
 
+// SWEET display: the AppleCLCD class compiled into this kernel owns the panel and
+// answers IOMobileFramebuffer itself. It is not reachable through a kext
+// personality here, so allocate and start it the same way the Legacy service is
+// published. Gated by houji-sweet-display=1.
+static void
+houjiStartSweetDisplay(IOService *nub)
+{
+    uint32_t enabled = 0;
+    PE_parse_boot_argn("houji-sweet-display", &enabled, sizeof(enabled));
+    if (enabled != 1 || nub == nullptr) {
+        return;
+    }
+    OSObject *object = OSMetaClass::allocClassWithName("AppleCLCD");
+    IOService *display = OSDynamicCast(IOService, object);
+    if (display == nullptr) {
+        if (object != nullptr) {
+            object->release();
+        }
+        HOUJI_FB_LOG("sweet display unavailable");
+        return;
+    }
+    if (!display->init(nullptr) || !display->attach(nub) || !display->start(nub)) {
+        HOUJI_FB_LOG("sweet display start failed");
+        if (display->getProvider() != nullptr) {
+            display->detach(nub);
+        }
+        display->release();
+        return;
+    }
+    display->registerService();
+    HOUJI_FB_LOG("sweet display published class=%s", display->getMetaClass()->getClassName());
+}
+
 extern "C" void
 houji_fb_bootstrap(void)
 {
@@ -726,6 +759,9 @@ houji_fb_bootstrap(void)
 		}
 	}
 	if (armIO != nullptr) armIO->release();
+	if (provider != platform) {
+		houjiStartSweetDisplay(provider);
+	}
 	if (provider == platform) {
 		HOUJI_FB_LOG("enumeration precondition failed; retaining platform-provider service");
 	}

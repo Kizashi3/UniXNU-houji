@@ -1864,7 +1864,7 @@ index 559a9db..1bd9527 100644
 +    "   {"
 +    "     'IOClass'         = AppleCLCD;"
 +    "     'IOProviderClass' = IOService;"
-+    "     'IONameMatch'     = 'display0';"
++    "     'IONameMatch'     = 'houji,display';"
 +    "   },"
 +    "   {"
      "     'IOClass'         = IOPanicPlatform;"
