@@ -291,7 +291,15 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
             const uint32_t dimensions = __atomic_load_n(&display->dimensionCalls, __ATOMIC_RELAXED);
             const uint32_t refreshes = __atomic_load_n(&display->refreshCalls, __ATOMIC_RELAXED);
             const uint32_t completions = __atomic_load_n(&display->completionCalls, __ATOMIC_RELAXED);
-            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u synthetic=%u dims=%u refreshes=%u completions=%u canvas=%u current=%d pending=%d submission=%d\n",
+            int svc = -1;
+            {
+                OSDictionary *m = IOService::serviceMatching("IOMobileFramebuffer");
+                OSIterator *it = m != nullptr ? IOService::getMatchingServices(m) : nullptr;
+                svc = 0;
+                if (it != nullptr) { while (it->getNextObject() != nullptr) svc++; it->release(); }
+                if (m != nullptr) m->release();
+            }
+            IOLog("HOUJI-LEGACY: stage=summary publish-stage=%s mapped=%ux%u stride=%u refresh=60 record27=%u record27-rc=%#x backend212=%u validate=%u accepted=%u copy-rejected=%u frames=%u synthetic=%u dims=%u refreshes=%u completions=%u svc=%d canvas=%u current=%d pending=%d submission=%d\n",
                 houjiProbeStage, display->width, display->height, display->rowBytes,
                 __atomic_load_n(&display->recordQueries, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->lastRecordStatus, __ATOMIC_RELAXED),
@@ -299,7 +307,7 @@ class NativeHoujiLegacyDisplay : public IOMobileFramebufferLegacy {
                 __atomic_load_n(&display->validationCalls, __ATOMIC_RELAXED),
                 __atomic_load_n(&display->validationAccepted, __ATOMIC_RELAXED),
                 display->rejectedCopies, display->presented, display->syntheticFrames,
-                dimensions, refreshes, completions,
+                dimensions, refreshes, completions, svc,
                 display->canvasVerified,
                 HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::currentSwap) != nullptr,
                 HoujiLegacy20H392::loadPointer(display, HoujiLegacy20H392::pendingHead) != nullptr,
