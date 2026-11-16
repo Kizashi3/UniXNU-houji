@@ -1996,11 +1996,16 @@ static int houjiHaltRestart (unsigned int type)
   return 0;
 }
 
+extern "C" int do_coredump;
 static void houjiInstallExit (void)
 {
   static bool installed;
   if (installed) return;
   installed = true;
+  // A crashing user process otherwise dumps a multi-hundred-MB core into the 512 MiB
+  // Data container (ENOSPC) and stalls the panic path ~113 s before we can reset.
+  do_coredump = 0;
+  IOLog ("HOUJI-EXIT: local coredump disabled\n");
   PE_halt_restart = houjiHaltRestart;
   IOLog ("HOUJI-BOOTEXIT: halt/restart hook installed\n");
   const char *command = houjiBcbCommand ();

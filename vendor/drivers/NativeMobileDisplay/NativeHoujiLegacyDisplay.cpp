@@ -910,6 +910,11 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
     const uint32_t sequence = __atomic_fetch_add(&calls, 1U, __ATOMIC_RELAXED);
     const uint32_t inputCount = arguments->scalarInputCount;
     const uint32_t outputCount = arguments->scalarOutputCount;
+    if (sequence < 300) {
+        IOLog("HOUJI-UCT: n=%u sel=%u in=%u out=%u str=%u strout=%u\n",
+            sequence, selector, inputCount, outputCount,
+            arguments->structureInputSize, arguments->structureOutputSize);
+    }
     IOReturn status;
     if (selector == 72) {
         if (inputCount != 4 || arguments->scalarInput[2] >= 16)
