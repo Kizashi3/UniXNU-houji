@@ -768,8 +768,12 @@ houji_fb_bootstrap(void)
 	if (houjiLegacyCheckpoint != nullptr)
 		houjiLegacyCheckpoint();
 
-	const bool legacyPublished = houjiLegacyPublisher != nullptr &&
-	    houjiLegacyPublisher(provider);
+	uint32_t houjiSweetOn = 0;
+	PE_parse_boot_argn("houji-sweet-display", &houjiSweetOn, sizeof(houjiSweetOn));
+	// When the in-kernel Sweet AppleCLCD owns the display, do not publish a second
+	// IOMobileFramebuffer service (the legacy/generic HoujiFramebuffer would shadow it).
+	const bool legacyPublished = houjiSweetOn == 1 ||
+	    (houjiLegacyPublisher != nullptr && houjiLegacyPublisher(provider));
 	if (!legacyPublished) {
 		HoujiFramebuffer *fb = new HoujiFramebuffer;
 		if (fb == nullptr || !fb->init(nullptr) || !fb->attach(provider) || !fb->start(provider)) {
