@@ -392,6 +392,18 @@ jobs:
           PY
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Wire Sweet display translation units into the XNU work tree
+        working-directory: unixnu
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            set -x
+            cp "$DEVICE_DIR/vendor/wire-sweet-worktree.py" out/houji/tree/scripts/wire-sweet-worktree.py
+            cp "$DEVICE_DIR/vendor/patch-baseline-wire.py" out/houji/tree/scripts/patch-baseline-wire.py
+            ( cd out/houji/tree && python3 scripts/patch-baseline-wire.py )
+            grep -n wire-sweet-worktree out/houji/tree/scripts/build-xnu-4k-baseline.sh
+          } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Apply persistent early-log patch
         working-directory: unixnu
         run: |
@@ -585,10 +597,6 @@ jobs:
             grep -q 'TOTAL_CORPSES_ALLOWED 64' "$xnu/osfmk/corpses/task_corpse.h"
             echo "console ring and corpse limits are present"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
-
-      - name: Wire Sweet display personalities into the XNU tree
-        working-directory: unixnu
-        run: python3 "$DEVICE_DIR/vendor/wire-sweet-personalities.py"
 
       - name: Apply deferred entropy SHA-512 init
         working-directory: unixnu
@@ -855,41 +863,6 @@ jobs:
             echo "UniXNU kernel retry exit status: ${build_status}" | tee -a out/houji/logs/github-build.log
           fi
           exit "$build_status"
-
-      - name: Build NativeLegacyDisplay and relink the kernel
-        working-directory: unixnu
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          PYTHONPATH: ${{ env.DEVICE_DIR }}/ci-hooks
-        run: |
-          set -o pipefail
-          mkdir -p "$DIAG_DIR"
-          {
-            set -x
-            T=out/houji/tree
-            mkdir -p "$T/build/native-prelink"
-            cp out/houji/kernel/kernel.macho "$T/build/native-prelink/native-owner-mobile-graphics-candidate.macho"
-            cp out/houji/kernel/kernel.json "$T/build/native-prelink/native-owner-mobile-graphics-candidate.json"
-            cp out/houji/kernel/kernel.macho "$T/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.macho"
-            cp out/houji/kernel/kernel.json "$T/build/native-prelink/native-owner-ufs-cpu-desktop-houji-candidate.json"
-            cd "$T"
-            cp "$DEVICE_DIR/vendor/scripts-audit-mobile-graphics-legacy.py" scripts/audit-mobile-graphics-legacy.py
-            cp "$DEVICE_DIR/vendor/build-native-legacy-display.py" scripts/build-native-legacy-display.py
-            md5sum scripts/audit-mobile-graphics-legacy.py scripts/build-native-legacy-display.py
-            pwd
-            ls -la build/native-prelink | head -10
-            python3 -c "from pathlib import Path; r=Path('scripts/audit-mobile-graphics-legacy.py').resolve().parents[1]; print('audit ROOT', r); print('exists', (r/'build/native-prelink/native-owner-mobile-graphics-candidate.macho').exists())"
-            python3 scripts/audit-mobile-graphics-legacy.py
-            python3 scripts/build-native-legacy-display.py
-            ls -la build/native-legacy-display
-            cd "$GITHUB_WORKSPACE/unixnu"
-            sed -i '' -e 's/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y/' out/houji/.config
-            sed -i '' -e 's/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n/CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y/' "$DEVICE_DIR/configs/houji_defconfig"
-            grep LEGACY_DISPLAY "$DEVICE_DIR/configs/houji_defconfig"
-            ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build-display.log
-            ls -la out/houji/kernel/kernel.macho
-          } 2>&1 | tee "$DIAG_DIR/display.log"
-          exit "${PIPESTATUS[0]}"
 
       - name: Verify the AES base binding reached the kernel
         working-directory: unixnu
