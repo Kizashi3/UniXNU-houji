@@ -425,6 +425,15 @@ public:
 
     bool startHardware() override
     {
+        // The original family owns allocateDefaultFramebuffer(); our override would
+        // otherwise bypass its hardware bring-up so IOMFB later reports "No Default
+        // FB Surface found". With houji-legacy-familyhw=1 let the family run first.
+        uint32_t familyHw = 0;
+        PE_parse_boot_argn("houji-legacy-familyhw", &familyHw, sizeof(familyHw));
+        if (familyHw == 1) {
+            const bool family = IOMobileFramebufferLegacy::startHardware();
+            IOLog("HOUJI-LEGACY: family startHardware=%u\n", family);
+        }
         PE_Video video = {};
         if (scanout != nullptr || PE_current_console(&video) != 0 ||
             !video.v_baseAddr || !video.v_width || !video.v_height ||
