@@ -586,6 +586,10 @@ jobs:
             echo "console ring and corpse limits are present"
           } 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Wire Sweet display personalities into the XNU tree
+        working-directory: unixnu
+        run: python3 "$DEVICE_DIR/vendor/wire-sweet-personalities.py"
+
       - name: Apply deferred entropy SHA-512 init
         working-directory: unixnu
         run: |
@@ -809,7 +813,8 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p "$DIAG_DIR"
-          DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-native-legacy-display.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+          # Sweet AppleCLCD replaces the legacy display archive
+          # DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-native-legacy-display.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
       - name: Build houji kernel
         working-directory: unixnu

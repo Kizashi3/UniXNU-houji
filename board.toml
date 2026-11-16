@@ -71,11 +71,11 @@ roots = [
   "com.apple.iokit.IOCryptoAcceleratorFamily",
   "com.apple.iokit.IOGPUFamily",
   "com.apple.iokit.IOHDCPFamily",
-  "com.apple.iokit.IOMobileGraphicsFamily",
+  # "com.apple.iokit.IOMobileGraphicsFamily",  # owned by SweetSurface/AppleCLCD
   "com.apple.iokit.IOReportFamily",
   "com.apple.iokit.IOSlowAdaptiveClockingFamily",
   "com.apple.iokit.IOStorageFamily",
-  "com.apple.iokit.IOSurface",
+  # "com.apple.iokit.IOSurface",  # owned by SweetSurface/AppleCLCD
   "com.apple.kec.Libm",
   "com.apple.kec.corecrypto",
   "com.apple.kext.AppleMatch",
