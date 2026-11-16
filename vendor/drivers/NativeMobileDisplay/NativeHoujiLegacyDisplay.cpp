@@ -336,7 +336,9 @@ public:
     {
         const uint32_t remaining =
             __atomic_sub_fetch(&openClients, 1U, __ATOMIC_RELAXED);
-        IOLog("HOUJI-LEGACY: stage=handle-close options=%#x remaining=%u\n", options, remaining);
+        char closer[32] = {};
+    proc_selfname(closer, sizeof(closer));
+    IOLog("HOUJI-LEGACY: stage=handle-close proc=%s options=%#x remaining=%u\n", closer, options, remaining);
     }
 
     bool handleIsOpen(const IOService *client) const override
@@ -727,8 +729,10 @@ bool HoujiLegacyClient::initWithTask(task_t owningTask, void *securityID, UInt32
         return false;
     owner = owningTask;
     task_reference(owner);
-    IOLog("HOUJI-CLIENT: stage=init type=%u client=%p task=%p\n", type,
-        (void *)this, (void *)owningTask);
+    char opener[32] = {};
+    proc_selfname(opener, sizeof(opener));
+    IOLog("HOUJI-CLIENT: stage=init type=%u client=%p task=%p proc=%s\n", type,
+        (void *)this, (void *)owningTask, opener);
     return true;
 }
 
@@ -911,9 +915,12 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
     const uint32_t inputCount = arguments->scalarInputCount;
     const uint32_t outputCount = arguments->scalarOutputCount;
     if (sequence < 300) {
-        IOLog("HOUJI-UCT: n=%u sel=%u in=%u out=%u str=%u strout=%u\n",
-            sequence, selector, inputCount, outputCount,
-            arguments->structureInputSize, arguments->structureOutputSize);
+        char who[32] = {};
+        proc_selfname(who, sizeof(who));
+        IOLog("HOUJI-UCT: p=%s n=%u sel=%u in=%u out=%u str=%u strout=%u i0=%#llx\n",
+            who, sequence, selector, inputCount, outputCount,
+            arguments->structureInputSize, arguments->structureOutputSize,
+            inputCount != 0 ? arguments->scalarInput[0] : 0);
     }
     IOReturn status;
     if (selector == 72) {
