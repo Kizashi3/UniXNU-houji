@@ -209,7 +209,7 @@ AppleCLCD::start(IOService *provider)
 	fHeight = (uint32_t)video.v_height;
 	fRowBytes = (uint32_t)video.v_rowBytes;
 	/* Only the independently observed Xiaomi 14 boot framebuffer. */
-	if (fPhys != 0xfc400000ULL || fWidth != 1200 || fHeight != 2670 || fRowBytes != 4800) {
+	if (fWidth != 1200 || fHeight != 2670 || fRowBytes != 4800) {
 		IOLog("HOUJI FB: geometry guard refused\n");
 		return false;
 	}
