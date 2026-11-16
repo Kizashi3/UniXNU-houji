@@ -3,6 +3,7 @@
 #include "HoujiLegacyQueue.h"
 #include "HoujiLegacyPixels.h"
 #include "HoujiLegacyRequest.h"
+#include "HoujiLegacySwapRequest.h"
 #include <IOKit/IOLib.h>
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/IOWorkLoop.h>
@@ -38,6 +39,49 @@ static const void *houjiDbgBase;
 static const void *houjiDbgFb;
 static const void *houjiDbgClient;
 static const char *houjiDbgBaseOwner = "";
+
+// The swap request names a surface by identifier. This XNU has no private
+// lookup symbol bound, so walk the published IOSurface services and match the
+// identifier property instead; every surface the compositor may hand us is one
+// of those services. Returns a retained reference.
+static OSObject *houjiSurfaceById(uint32_t identifier, uint32_t *found)
+{
+    if (identifier == 0 || found == nullptr)
+        return nullptr;
+    OSDictionary *matching = IOService::serviceMatching("IOSurface");
+    if (matching == nullptr)
+        return nullptr;
+    OSIterator *services = IOService::getMatchingServices(matching);
+    matching->release();
+    if (services == nullptr)
+        return nullptr;
+    OSObject *result = nullptr;
+    while (OSObject *entry = services->getNextObject()) {
+        IOService *surface = OSDynamicCast(IOService, entry);
+        if (surface == nullptr)
+            continue;
+        OSObject *property = surface->getProperty("IOSurfaceID");
+        uint32_t value = 0;
+        bool known = false;
+        if (auto *number = OSDynamicCast(OSNumber, property)) {
+            value = number->unsigned32BitValue();
+            known = true;
+        } else if (auto *data = OSDynamicCast(OSData, property)) {
+            if (data->getLength() >= sizeof(value)) {
+                __builtin_memcpy(&value, data->getBytesNoCopy(), sizeof(value));
+                known = true;
+            }
+        }
+        if (known && value == identifier) {
+            surface->retain();
+            result = surface;
+            *found = value;
+            break;
+        }
+    }
+    services->release();
+    return result;
+}
 
 class NativeHoujiLegacyDisplay;
 class HoujiLegacyClient;
@@ -881,15 +925,80 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         if (outputCount >= 1) { arguments->scalarOutput[0] = 0; arguments->scalarOutputCount = 1; }
         status = kIOReturnSuccess;
     } else if (selector == 5) {
-        // SwapEnd: the 1132-byte (0x46c) request was validated against the device
-        // binary; accept it and account the frame so the compositor can continue.
-        if (swapDumps < 3 && arguments->structureInput != nullptr &&
-            arguments->structureInputSize >= 0x120) {
-            const unsigned char *raw = static_cast<const unsigned char *>(arguments->structureInput);
-            IOLog("HOUJI-SWAP: n=%u size=%u w50=%#x w54=%#x w104=%#x%c",
-                swapDumps, arguments->structureInputSize,
-                *(const uint32_t *)(raw + 0x50), *(const uint32_t *)(raw + 0x54),
-                *(const uint32_t *)(raw + 0x104), 10);
+        // SwapEnd. Parse the qualified 1132-byte request, resolve the named
+        // surface, and copy its pixels into the scanout: the swap's pixel step.
+        HoujiLegacy20H392::SwapLayers layers = {};
+        const bool parsed = arguments->structureInput != nullptr &&
+            HoujiLegacy20H392::parseSwapRequest(arguments->structureInput,
+                arguments->structureInputSize, &layers);
+        if (parsed) {
+            uint32_t found = 0;
+            OSObject *surface = houjiSurfaceById(layers.surfaceId[layers.firstLayer], &found);
+            if (surface != nullptr) {
+                const char *failure = "descriptor";
+                IOMemoryDescriptor *memory = houji_legacy_surface_descriptor(surface);
+                if (memory != nullptr && memory->metaCast("IOMemoryDescriptor")) {
+                    memory->retain();
+                    const uint64_t allocation = houji_legacy_surface_allocation(surface);
+                    const uint64_t offset = houji_legacy_surface_offset(surface);
+                    const uint64_t stride = houji_legacy_surface_stride(surface);
+                    const uint32_t surfaceWidth = houji_legacy_surface_width(surface);
+                    const uint32_t surfaceHeight = houji_legacy_surface_height(surface);
+                    const bool formatOk = houji_legacy_surface_format(surface) == 0x42475241U &&
+                        houji_legacy_surface_planes(surface) == 0;
+                    failure = "format";
+                    if (formatOk && display->scanout != nullptr && surfaceWidth >= display->width &&
+                        surfaceHeight >= display->height) {
+                        IOMemoryMap *mapping = memory->map(kIOMapAnywhere | kIOMapReadOnly);
+                        const bool bounds = mapping != nullptr &&
+                            allocation <= memory->getLength() && offset <= allocation &&
+                            mapping->getLength() >= allocation &&
+                            HoujiLegacy20H392::pixelExtent(allocation - offset, stride,
+                                display->width, display->height);
+                        failure = bounds ? "pixel-copy" : "mapping-bounds";
+                        if (bounds && HoujiLegacy20H392::copyBgra(
+                                reinterpret_cast<volatile void *>(display->scanout->getVirtualAddress()),
+                                display->scanout->getLength(), display->rowBytes,
+                                reinterpret_cast<const void *>(mapping->getVirtualAddress()),
+                                allocation, offset, stride, display->width, display->height)) {
+                            __asm__ volatile("dsb sy" ::: "memory");
+                            display->presented++;
+                            display->syntheticFrames = 0;
+                            failure = nullptr;
+                            if (display->presented <= 8)
+                                IOLog("HOUJI-LEGACY: stage=cpu-present frame=%u synthetic=0 surface=%u size=%ux%u stride=%llu\n",
+                                    display->presented, found, surfaceWidth, surfaceHeight,
+                                    (unsigned long long)stride);
+                        }
+                        if (mapping != nullptr)
+                            mapping->release();
+                    }
+                    if (failure != nullptr && display->rejectedCopies++ < 8)
+                        IOLog("HOUJI-LEGACY: stage=cpu-reject reason=%s surface=%u fmt=%#x planes=%u alloc=%llu offset=%llu stride=%llu\n",
+                            failure, found, houji_legacy_surface_format(surface),
+                            houji_legacy_surface_planes(surface),
+                            (unsigned long long)allocation, (unsigned long long)offset,
+                            (unsigned long long)stride);
+                    memory->release();
+                } else if (display->rejectedCopies++ < 8) {
+                    IOLog("HOUJI-LEGACY: stage=cpu-reject reason=descriptor surface=%u\n", found);
+                }
+                surface->release();
+            } else if (swapDumps < 6) {
+                IOLog("HOUJI-LEGACY: stage=swap-surface-missing id=%u mask=%#x size=%u\n",
+                    layers.surfaceId[layers.firstLayer], layers.mask,
+                    arguments->structureInputSize);
+            }
+            if (swapDumps < 6) {
+                IOLog("HOUJI-LEGACY: stage=swap-request seq=%u mask=%#x layer=%u id=%u rect=%u,%u,%u,%u\n",
+                    layers.sequence, layers.mask, layers.firstLayer, layers.surfaceId[layers.firstLayer],
+                    layers.rect[layers.firstLayer][0], layers.rect[layers.firstLayer][1],
+                    layers.rect[layers.firstLayer][2], layers.rect[layers.firstLayer][3]);
+                swapDumps++;
+            }
+        } else if (swapDumps < 6) {
+            IOLog("HOUJI-LEGACY: stage=swap-request-invalid size=%u\n",
+                arguments->structureInputSize);
             swapDumps++;
         }
         status = kIOReturnSuccess;
