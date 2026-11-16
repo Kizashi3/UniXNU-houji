@@ -334,8 +334,10 @@ public:
 
     void handleClose(IOService *forClient, IOOptionBits options) override
     {
-        const uint32_t remaining =
-            __atomic_sub_fetch(&openClients, 1U, __ATOMIC_RELAXED);
+        uint32_t current = __atomic_load_n(&openClients, __ATOMIC_RELAXED);
+        while (current > 0 && !__atomic_compare_exchange_n(&openClients, &current, current - 1, false,
+                   __ATOMIC_RELAXED, __ATOMIC_RELAXED)) { }
+        const uint32_t remaining = current;
         char closer[32] = {};
     proc_selfname(closer, sizeof(closer));
     IOLog("HOUJI-LEGACY: stage=handle-close proc=%s options=%#x remaining=%u\n", closer, options, remaining);
@@ -949,9 +951,16 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         arguments->scalarOutputCount = 1;
         status = kIOReturnSuccess;
     } else if (selector == 3) {
-        // No surface of our own yet: report an empty default surface so the caller
-        // learns there is one, and keep the shape it expects (one scalar out).
-        if (outputCount >= 1) { arguments->scalarOutput[0] = 0; arguments->scalarOutputCount = 1; }
+        // Framework (_IOMobileFramebufferOpen) calls this with two scalars = cached
+        // canvas-width/height and expects a non-zero id back, which it resolves with
+        // 0x1afb9760c into conn+1160. Returning 0 made it take the create-fallback path
+        // and treat the display as absent.
+        const uint64_t canvasW = inputCount > 0 ? arguments->scalarInput[0] : 0;
+        const uint64_t canvasH = inputCount > 1 ? arguments->scalarInput[1] : 0;
+        IOLog("HOUJI-SEL3: canvas=%llux%llu out=%u\n",
+            (unsigned long long)canvasW, (unsigned long long)canvasH, outputCount);
+        for (uint32_t i = 0; i < outputCount; i++) arguments->scalarOutput[i] = 0;
+        if (outputCount >= 1) { arguments->scalarOutput[0] = 1; arguments->scalarOutputCount = 1; }
         status = kIOReturnSuccess;
     } else if (selector == 5) {
         // SwapEnd. Parse the qualified 1132-byte request, resolve the named
@@ -1033,9 +1042,10 @@ IOReturn HoujiLegacyClient::externalMethod(uint32_t selector,
         }
         status = kIOReturnSuccess;
     } else if (selector == 6) {
-        // SwapSetTimestamps is part of the swap path; the native client rejects the
-        // forwarded form in a tight loop (44993 retries at run409), so answer it here
-        // and let the compositor move on to SwapBegin/SwapEnd.
+        IOLog("HOUJI-SEL6: n=%u a=%#llx b=%#llx c=%#llx\n", sequence,
+            inputCount > 0 ? arguments->scalarInput[0] : 0,
+            inputCount > 1 ? arguments->scalarInput[1] : 0,
+            inputCount > 2 ? arguments->scalarInput[2] : 0);
         status = kIOReturnSuccess;
     } else {
         // run413 proved a hand-made native client has no open state and refuses the
