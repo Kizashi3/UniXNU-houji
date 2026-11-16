@@ -572,8 +572,8 @@ public:
         *count = 0;
         __builtin_memset(output, 0, 64);
         if (__atomic_fetch_add(&backendQueries, 1U, __ATOMIC_RELAXED) < 8)
-            IOLog("HOUJI-LEGACY: stage=backend-query slot=212 query=%u count=0 rc=0\n", query);
-        return kIOReturnSuccess;
+            IOLog("HOUJI-LEGACY: stage=backend-query slot=212 query=%u count=0 rc=unsupported\n", query);
+        return kIOReturnUnsupported;
     }
 
     IOReturn collectCompletionReports(uint32_t, void *, uint32_t *count, uint32_t) override
@@ -625,7 +625,7 @@ public:
         if (request != nullptr && HoujiLegacy20H392::fullFrameRequest(request, width, height)) {
             const char *failure = "surface-contract";
             OSObject *surfaces[4] = {};
-            __builtin_memcpy(surfaces, static_cast<unsigned char *>(request) + 2184, sizeof(surfaces));
+            __builtin_memcpy(surfaces, static_cast<unsigned char *>(request) + 2624, sizeof(surfaces));
             OSObject *surface = surfaces[0];
             if (surface != nullptr && !surfaces[1] && !surfaces[2] && !surfaces[3] &&
                 surface->metaCast("IOSurface") && houji_legacy_surface_format(surface) == 0x42475241U &&
@@ -673,6 +673,7 @@ public:
         }
         copying = false;
     }
+
 
     // startHardware can fail after allocating resources; free also owns cleanup.
     void releaseHardware()
