@@ -521,6 +521,11 @@ public:
             scanout = nullptr;
             return false;
         }
+        // Userspace matches this service by IOServiceMatching("IOMobileFramebuffer"),
+        // which is resolved through the IOClass property; without it nothing opens the
+        // port at all (run441: zero client-open, zero selectors, while run428 with the
+        // property admitted backboardd's 16-query sequence).
+        setProperty("IOClass", "IOMobileFramebuffer");
         // The sandbox profiles name only Apple's framebuffer user-client class, so an
         // open of this port's own class is refused by MACF before a single selector
         // arrives. Upstream added NativeSandboxGrantProcess for exactly that case: the
