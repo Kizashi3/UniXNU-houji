@@ -11,6 +11,7 @@
 #include <IOKit/IOUserClient.h>
 #include <kern/task.h>
 #include <libkern/c++/OSData.h>
+#include <libkern/c++/OSNumber.h>
 #include <kern/clock.h>
 #include <mach/mach_time.h>
 #include <libkern/c++/OSKext.h>
@@ -819,10 +820,22 @@ bool HoujiLegacyClient::start(IOService *provider)
     // just opened (0x1af22686c..0x1af22688c), not from the display service. Publish
     // the same values here; missing ones make Open bail before it installs the
     // default-surface callback and before it ever asks for selector 3.
-    setProperty("canvas-width", &display->width, sizeof(display->width));
-    setProperty("canvas-height", &display->height, sizeof(display->height));
-    if (display->rowBytes != 0)
-        setProperty("canvas-bytes-per-row", &display->rowBytes, sizeof(display->rowBytes));
+    // These are read with an OSNumber expectation, so publish numbers rather than
+    // raw OSData or the read fails and the cached canvas stays 0x0.
+    if (OSNumber *canvasWidth = OSNumber::withNumber(display->width, 32)) {
+        setProperty("canvas-width", canvasWidth);
+        canvasWidth->release();
+    }
+    if (OSNumber *canvasHeight = OSNumber::withNumber(display->height, 32)) {
+        setProperty("canvas-height", canvasHeight);
+        canvasHeight->release();
+    }
+    if (display->rowBytes != 0) {
+        if (OSNumber *canvasStride = OSNumber::withNumber(display->rowBytes, 32)) {
+            setProperty("canvas-bytes-per-row", canvasStride);
+            canvasStride->release();
+        }
+    }
     notificationLock = IOLockAlloc();
     notificationLoop = IOWorkLoop::workLoop();
     if (notificationLock == nullptr || notificationLoop == nullptr)
