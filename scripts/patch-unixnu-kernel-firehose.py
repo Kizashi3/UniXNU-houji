@@ -24,7 +24,11 @@ fi
 # patch series), so the files.arm64 registration and the KernelConfigTables
 # personalities must be injected into that tree. wire-sweet-worktree.py does it.
 PREP = 'python3 scripts/prepare-xnu-source.py\n'
-SWEET_CALL = 'python3 scripts/wire-sweet-worktree.py\n'
+# Run only in the final (non-bootstrap) pass: the bootstrap pass leaves xnu-work
+# patched, and the final pass re-applies the patch series first (skipping any
+# patch already present via a reverse check). If the tree were already wired,
+# the reverse check for the KernelConfigTables personality patch would fail.
+SWEET_CALL = 'if [ "${XNU_BOOTSTRAP:-0}" != 1 ]; then python3 scripts/wire-sweet-worktree.py; fi\n'
 REPLACEMENTS = (
     (CLONE, STAGE),
     (FLAGS, 'EXTRA_CFLAGS="$EXTRA_CFLAGS -DOS_FIREHOSE_SPI=1"\n' + FLAGS),
