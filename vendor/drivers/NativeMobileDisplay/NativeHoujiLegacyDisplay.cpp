@@ -815,6 +815,14 @@ bool HoujiLegacyClient::start(IOService *provider)
     opened = display->open(this);
     if (!opened)
         return false;
+    // IOMobileFramebufferOpen reads canvas-width/canvas-height from the client it
+    // just opened (0x1af22686c..0x1af22688c), not from the display service. Publish
+    // the same values here; missing ones make Open bail before it installs the
+    // default-surface callback and before it ever asks for selector 3.
+    setProperty("canvas-width", &display->width, sizeof(display->width));
+    setProperty("canvas-height", &display->height, sizeof(display->height));
+    if (display->rowBytes != 0)
+        setProperty("canvas-bytes-per-row", &display->rowBytes, sizeof(display->rowBytes));
     notificationLock = IOLockAlloc();
     notificationLoop = IOWorkLoop::workLoop();
     if (notificationLock == nullptr || notificationLoop == nullptr)
