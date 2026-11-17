@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,742 @@
+@@ -0,0 +1,753 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -781,7 +781,7 @@ index 0000000..ba395b5
 +		break;
 +	}
 +	case kSweetFBGetID:
-+		out[0] = 0;
++		out[0] = 1;
 +		outCount = 1;
 +		break;
 +	case kSweetFBGetDisplaySize:
@@ -847,9 +847,20 @@ index 0000000..ba395b5
 +		if (args->structureOutput != NULL && args->structureOutputSize >= 8) {
 +			ds1 = *(const uint32_t *)((const uint8_t *)args->structureOutput + 4);
 +		}
-+		IOLog("SWEET FB: %s sel %u in %u/%u out %u/%u -> 0x%x o0=%#llx o1=%#llx s0=%#x s1=%#x\n",
++		uint64_t di0 = 0, di1 = 0, di2 = 0;
++		if (args->scalarInput != NULL && args->scalarInputCount > 0) {
++			di0 = args->scalarInput[0];
++		}
++		if (args->scalarInput != NULL && args->scalarInputCount > 1) {
++			di1 = args->scalarInput[1];
++		}
++		if (args->scalarInput != NULL && args->scalarInputCount > 2) {
++			di2 = args->scalarInput[2];
++		}
++		IOLog("SWEET FB: %s sel %u in %u/%u out %u/%u -> 0x%x i0=%#llx i1=%#llx i2=%#llx o0=%#llx o1=%#llx s0=%#x s1=%#x\n",
 +		    name, selector, args->scalarInputCount, args->structureInputSize,
-+		    args->scalarOutputCount, args->structureOutputSize, ret, do0, do1, ds0, ds1);
++		    args->scalarOutputCount, args->structureOutputSize, ret,
++		    di0, di1, di2, do0, do1, ds0, ds1);
 +	}
 +	return ret;
 +}
