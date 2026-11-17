@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,728 @@
+@@ -0,0 +1,742 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
