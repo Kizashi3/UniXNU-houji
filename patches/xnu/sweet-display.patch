@@ -180,8 +180,8 @@ index 0000000..ba395b5
 +#define SWEET_FB_NOTIFY_VSYNC           5
 +#define SWEET_FB_VSYNC_US               16667
 +#define SWEET_FB_DOT_PITCH              458     /* iPhone X logical canvas */
-+#define HOUJI_LOGICAL_W 1200
-+#define HOUJI_LOGICAL_H 2670
++#define HOUJI_LOGICAL_W 1125
++#define HOUJI_LOGICAL_H 2436
 +static uint64_t houji_fb_copy_bytes, houji_fb_present_ticks, houji_fb_max_present_ticks;
 +static uint64_t houji_fb_missed_timer_ticks;
 +static uint64_t houji_fb_callbacks,houji_fb_due_ticks;
