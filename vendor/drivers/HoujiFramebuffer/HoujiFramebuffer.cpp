@@ -902,6 +902,18 @@ houji_fb_bootstrap(void)
 			}
 			m->release();
 			HOUJI_FB_LOG("IOHIDSystem services=%u", n);
+			{
+				static const char *names[] = {
+				    "IOHIDSystem", "IOHIDEventService", "IOHIDDevice",
+				    "IOHIDInterface", "IOHIDEventDriver", "IOHIDResource"};
+				for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+					OSObject *object = OSMetaClass::allocClassWithName(names[i]);
+					HOUJI_FB_LOG("hid class %s %s", names[i],
+					    object != nullptr ? "present" : "missing");
+					if (object != nullptr)
+						object->release();
+				}
+			}
 		}
 	}
 	{
