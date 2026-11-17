@@ -69,8 +69,8 @@ enum {
 #define SWEET_FB_NOTIFY_VSYNC           5
 #define SWEET_FB_VSYNC_US               16667
 #define SWEET_FB_DOT_PITCH              458     /* iPhone X logical canvas */
-#define HOUJI_LOGICAL_W 1125
-#define HOUJI_LOGICAL_H 2436
+#define HOUJI_LOGICAL_W 1200
+#define HOUJI_LOGICAL_H 2670
 static uint64_t houji_fb_copy_bytes, houji_fb_present_ticks, houji_fb_max_present_ticks;
 static uint64_t houji_fb_missed_timer_ticks;
 static uint64_t houji_fb_callbacks,houji_fb_due_ticks;
@@ -262,7 +262,7 @@ AppleCLCD::start(IOService *provider)
 	registerService();
 	IOLog("SWEET FB: AppleCLCD %ux%u stride %u at 0x%llx, default surface %u\n",
 	    fWidth, fHeight, fRowBytes, fPhys, fSurface->id);
-	IOLog("HOUJI FB: stock canvas 1125x2436 (375x812 points at 3x), scaled to full 1200x2670 panel; touch stays normalized\n");
+	IOLog("HOUJI FB: native panel canvas 1200x2670, no scaling, full-panel touch\n");
 	return true;
 }
 
