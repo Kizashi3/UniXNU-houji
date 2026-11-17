@@ -13,6 +13,7 @@ add = (
     'iokit/Kernel/arm/SweetFramebuffer.cpp optional iokitcpp\n'
     'iokit/Kernel/arm/SweetDisplayStubs.cpp optional iokitcpp\n'
     'iokit/Kernel/arm/HoujiWeakStubs.cpp optional iokitcpp\n'
+    'iokit/Kernel/arm/SweetWatchdog.cpp optional iokitcpp\n'
 )
 if 'SweetFramebuffer.cpp' not in t:
     fa.write_text(t.rstrip('\n') + '\n' + add)
@@ -30,6 +31,11 @@ if 'IOCoreSurfaceRoot' not in k:
         "    \"     'IOClass'         = IOCoreSurfaceRoot;\",\n"
         "    \"     'IOProviderClass' = IOResources;\",\n"
         "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\",\n"
+        '    "   },",\n'
+        '    "   {",\n'
+        "    \"     'IOClass'         = IOWatchdog;\",\n"
+        "    \"     'IOProviderClass' = IOResources;\",\n"
+        "    \"     'IOMatchCategory' = IOWatchdog;\",\n"
         '    "   },",\n'
     )
     kc.write_text(k.replace(anchor, anchor + block, 1))
