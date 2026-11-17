@@ -833,9 +833,23 @@ index 0000000..ba395b5
 +		}
 +		char name[32];
 +		proc_selfname(name, sizeof(name));
-+		IOLog("SWEET FB: %s sel %u in %u/%u out %u/%u -> 0x%x\n", name, selector,
-+		    args->scalarInputCount, args->structureInputSize,
-+		    args->scalarOutputCount, args->structureOutputSize, ret);
++		uint64_t do0 = 0, do1 = 0;
++		uint32_t ds0 = 0, ds1 = 0;
++		if (args->scalarOutput != NULL && args->scalarOutputCount > 0) {
++			do0 = args->scalarOutput[0];
++		}
++		if (args->scalarOutput != NULL && args->scalarOutputCount > 1) {
++			do1 = args->scalarOutput[1];
++		}
++		if (args->structureOutput != NULL && args->structureOutputSize >= 4) {
++			ds0 = *(const uint32_t *)args->structureOutput;
++		}
++		if (args->structureOutput != NULL && args->structureOutputSize >= 8) {
++			ds1 = *(const uint32_t *)((const uint8_t *)args->structureOutput + 4);
++		}
++		IOLog("SWEET FB: %s sel %u in %u/%u out %u/%u -> 0x%x o0=%#llx o1=%#llx s0=%#x s1=%#x\n",
++		    name, selector, args->scalarInputCount, args->structureInputSize,
++		    args->scalarOutputCount, args->structureOutputSize, ret, do0, do1, ds0, ds1);
 +	}
 +	return ret;
 +}
