@@ -96,12 +96,16 @@ new file mode 100644
 index 0000000..6bdf40e
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetDisplayStubs.cpp
-@@ -0,0 +1,5 @@
+@@ -0,0 +1,9 @@
 +#include <stdint.h>
 +extern "C" int houji_console_muted = 0;
 +extern "C" int native_adreno_present_begin_frame(uint32_t) { return 0; }
 +extern "C" uint32_t native_adreno_present_capture_fence(void) { return 0; }
 +extern "C" void native_adreno_present_end(void) {}
++/* The watchdog publisher lives in the device driver archive, which the
++ * bootstrap link does not have yet; weak keeps that pass resolvable and
++ * the archive's strong definition wins the final link. */
++extern "C" __attribute__((weak)) void houji_start_watchdog_late(void) {}
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
 new file mode 100644
 index 0000000..ba395b5
