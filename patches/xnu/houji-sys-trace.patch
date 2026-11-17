@@ -1,5 +1,5 @@
 diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
-index 8a1ec42..2324b4f 100644
+index 8a1ec42..d35ec9a 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
 @@ -79,6 +79,31 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
@@ -11,16 +11,16 @@ index 8a1ec42..2324b4f 100644
 +static unsigned houji_sys_ring_at;
 +static int houji_sys_pid = -1;
 +
-+/* Last calls of the sampled process, printed when it exits. */
++/* Last calls of the sampled process, printed only when that process exits. */
 +void
-+houji_sys_dump(void)
++houji_sys_dump(int pid)
 +{
 +	unsigned i;
 +
-+	if (houji_sys_ring_at == 0) {
++	if (pid != houji_sys_pid || houji_sys_ring_at == 0) {
 +		return;
 +	}
-+	printf("HOUJI-SYSRING: last calls of pid %d\n", houji_sys_pid);
++	printf("HOUJI-SYSRING: last calls of pid %d\n", pid);
 +	for (i = 0; i < 64; i++) {
 +		struct houji_sys_rec *r = &houji_sys_ring[(houji_sys_ring_at + i) % 64];
 +		if (r->code == 0) {
