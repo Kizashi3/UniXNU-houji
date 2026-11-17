@@ -729,7 +729,7 @@ houji_fb_bootstrap(void)
 					uint32_t cw = 1200, ch = 2670;
 					dsvc->setProperty("canvas-width", &cw, sizeof(cw));
 					dsvc->setProperty("canvas-height", &ch, sizeof(ch));
-					dsvc->setProperty("device_type", "display-subsystem", sizeof("display-subsystem"));
+					dsvc->setProperty("device_type", (void *)"display-subsystem", sizeof("display-subsystem"));
 					provider = dsvc;
 					HOUJI_FB_LOG("disp0 DT provider class=%s", dsvc->getMetaClass()->getClassName());
 				}
