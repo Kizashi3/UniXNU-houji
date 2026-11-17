@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,763 @@
+@@ -0,0 +1,772 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -818,6 +818,15 @@ index 0000000..ba395b5
 +				uint64_t status[2] = { 1, 0 };
 +				notify(3, status, 2);
 +			}
++		}
++		break;
++	case 74: /* one frame-info record, which is what makes backboardd register */
++		if (args->scalarOutput != NULL && args->scalarOutputCount > 0) {
++			out[0] = 1;
++			outCount = 1;
++		}
++		if (args->structureOutput != NULL && args->structureOutputSize >= 64) {
++			bzero(args->structureOutput, args->structureOutputSize);
 +		}
 +		break;
 +	case kSweetFBSwapWait:
