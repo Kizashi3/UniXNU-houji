@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-root = Path('out/houji/tree/refer/xnu')
+root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('out/houji/tree/refer/xnu')
 if not root.is_dir():
     print('refer/xnu missing')
     sys.exit(1)
@@ -26,24 +26,25 @@ kc = root / 'iokit/KernelConfigTables.cpp'
 k = kc.read_text()
 anchor = 'const char * gIOKernelConfigTables =\n    "("\n'
 assert anchor in k, 'KCT anchor missing'
-block = ''
+lines = []
 if 'IOCoreSurfaceRoot' not in k:
-    block += (
-        '    "   {",\n'
-        "    \"     'IOClass'         = IOCoreSurfaceRoot;\",\n"
-        "    \"     'IOProviderClass' = IOResources;\",\n"
-        "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\",\n"
-        '    "   },",\n'
-    )
+    lines += [
+        '    "   {"',
+        "    \"     'IOClass'         = IOCoreSurfaceRoot;\"",
+        "    \"     'IOProviderClass' = IOResources;\"",
+        "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\"",
+        '    "   },"',
+    ]
 if 'IOWatchdog' not in k:
-    block += (
-        '    "   {",\n'
-        "    \"     'IOClass'         = IOWatchdog;\",\n"
-        "    \"     'IOProviderClass' = IOResources;\",\n"
-        "    \"     'IOMatchCategory' = IOWatchdog;\",\n"
-        '    "   },",\n'
-    )
-if block:
+    lines += [
+        '    "   {"',
+        "    \"     'IOClass'         = IOWatchdog;\"",
+        "    \"     'IOProviderClass' = IOResources;\"",
+        "    \"     'IOMatchCategory' = IOWatchdog;\"",
+        '    "   },"',
+    ]
+if lines:
+    block = ''.join(l + '\n' for l in lines)
     kc.write_text(k.replace(anchor, anchor + block, 1))
     print('KernelConfigTables: personalities added')
 else:
