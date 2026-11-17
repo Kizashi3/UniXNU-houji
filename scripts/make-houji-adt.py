@@ -103,7 +103,7 @@ def main():
                        ('#size-cells', u32(2)), ('ranges', struct.pack('<QQQ', 0, 0x17000000, 0x08000000))],
              [node('intc', [('compatible', b'arm,gic-v3\0'),
                 ('reg', struct.pack('<4Q', 0x100000, 0x10000, 0x180000, 0x200000)),
-                ('redistributor-stride', u64(0x40000))])]),
+                ('redistributor-stride', u64(0x40000))]), node('disp0', [('device_type', b'display-subsystem\0'), ('compatible', b'disp0,t8015\0'), ('canvas-width', u32(1200)), ('canvas-height', u32(2670))])]),
     ])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(tree)

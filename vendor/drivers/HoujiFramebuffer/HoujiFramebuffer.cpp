@@ -718,7 +718,25 @@ houji_fb_bootstrap(void)
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
-		IOService *nub = houjiAllocateDisplayNub();
+		IOService *nub = nullptr;
+		{
+			uint32_t sweetPick = 0;
+			PE_parse_boot_argn("houji-sweet-display", &sweetPick, sizeof(sweetPick));
+			if (sweetPick == 1) {
+				IORegistryEntry *dent = IORegistryEntry::fromPath("/arm-io/disp0", gIODTPlane);
+				IOService *dsvc = dent ? OSDynamicCast(IOService, dent) : nullptr;
+				if (dsvc != nullptr) {
+					uint32_t cw = 1200, ch = 2670;
+					dsvc->setProperty("canvas-width", &cw, sizeof(cw));
+					dsvc->setProperty("canvas-height", &ch, sizeof(ch));
+					dsvc->setProperty("device_type", "display-subsystem", sizeof("display-subsystem"));
+					provider = dsvc;
+					HOUJI_FB_LOG("disp0 DT provider class=%s", dsvc->getMetaClass()->getClassName());
+				}
+				if (dent != nullptr) dent->release();
+			}
+			if (provider == platform) nub = houjiAllocateDisplayNub();
+		}
 		if (nub != nullptr) {
 			if (!nub->init(nullptr) || !houjiDisplayProperties(nub)) {
 				nub->release();
