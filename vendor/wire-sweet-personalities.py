@@ -22,7 +22,7 @@ else:
 
 kc = root / 'iokit/KernelConfigTables.cpp'
 k = kc.read_text()
-if 'AppleCLCD' not in k:
+if 'IOCoreSurfaceRoot' not in k:
     anchor = 'const char * gIOKernelConfigTables =\n    "("\n'
     assert anchor in k, 'KCT anchor missing'
     block = (
@@ -30,11 +30,6 @@ if 'AppleCLCD' not in k:
         "    \"     'IOClass'         = IOCoreSurfaceRoot;\",\n"
         "    \"     'IOProviderClass' = IOResources;\",\n"
         "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\",\n"
-        '    "   },",\n'
-        '    "   {",\n'
-        "    \"     'IOClass'         = AppleCLCD;\",\n"
-        "    \"     'IOProviderClass' = IOService;\",\n"
-        "    \"     'IONameMatch'     = 'houji,display';\",\n"
         '    "   },",\n'
     )
     kc.write_text(k.replace(anchor, anchor + block, 1))
