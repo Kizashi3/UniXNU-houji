@@ -702,6 +702,38 @@ houjiStartSweetDisplay(IOService *nub)
     HOUJI_FB_LOG("sweet display published class=%s", display->getMetaClass()->getClassName());
 }
 
+// Called by the SWEET framebuffer's vsync timer once the data volume is mounted.
+// watchdogd asserts and exits when IOWatchdog is missing, and its launchd job
+// panics the kernel after repeated crashes. Registering the service at boot
+// disturbs the APFS mount that follows, so it happens here instead.
+extern "C" void
+houji_start_watchdog_late(void)
+{
+    static bool started;
+    if (started) {
+        return;
+    }
+    started = true;
+    OSObject *object = OSMetaClass::allocClassWithName("IOWatchdog");
+    IOService *service = OSDynamicCast(IOService, object);
+    if (service == nullptr) {
+        HOUJI_FB_LOG("watchdog class missing");
+        return;
+    }
+    IOService *platform = IOService::getPlatform();
+    if (platform == nullptr || !service->init(nullptr) ||
+        !service->attach(platform) || !service->start(platform)) {
+        if (service->getProvider() != nullptr) {
+            service->detach(platform);
+        }
+        service->release();
+        HOUJI_FB_LOG("watchdog late start failed");
+        return;
+    }
+    service->registerService();
+    HOUJI_FB_LOG("watchdog published late");
+}
+
 extern "C" void
 houji_fb_bootstrap(void)
 {
