@@ -1,7 +1,7 @@
 diff --git a/bsd/kern/kern_exit.c b/bsd/kern/kern_exit.c
 --- a/bsd/kern/kern_exit.c
 +++ b/bsd/kern/kern_exit.c
-@@ -1892,6 +1892,14 @@
+@@ -1892,6 +1892,15 @@
  	task_t task = proc_task(p);
  
  

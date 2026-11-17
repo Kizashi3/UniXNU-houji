@@ -1,6 +1,6 @@
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
-@@ -102,6 +102,33 @@
+@@ -102,6 +102,61 @@
  
  	code = arm_get_syscall_number(state);
  
