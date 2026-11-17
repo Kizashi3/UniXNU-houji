@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,766 @@
+@@ -0,0 +1,770 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -808,6 +808,10 @@ index 0000000..ba395b5
 +			proc_selfname(name, sizeof(name));
 +			IOLog("SWEET FB: %s notifications type %u %s\n", name, type,
 +			    args->scalarInput[0] ? "on" : "off");
++			if (type == 3 && args->scalarInput[0] != 0) {
++				uint64_t status[2] = { 1, 0 };
++				notify(3, status, 2);
++			}
 +		}
 +		break;
 +	case 74: /* SupportedFrameInfo: one record, so the framework builds its array */
