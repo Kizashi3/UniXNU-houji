@@ -13,7 +13,6 @@ entries = [
     'iokit/Kernel/arm/SweetFramebuffer.cpp optional iokitcpp',
     'iokit/Kernel/arm/SweetDisplayStubs.cpp optional iokitcpp',
     'iokit/Kernel/arm/HoujiWeakStubs.cpp optional iokitcpp',
-    'iokit/Kernel/arm/SweetWatchdog.cpp optional iokitcpp',
 ]
 missing = [e for e in entries if Path(e.split()[0]).name not in t]
 if missing:
