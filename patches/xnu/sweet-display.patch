@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,771 @@
+@@ -0,0 +1,763 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -742,6 +742,11 @@ index 0000000..ba395b5
 +	if (type >= SWEET_FB_NOTIFY_TYPES || fFunc[type] == 0 || fPort == MACH_PORT_NULL) {
 +		return;
 +	}
++	static uint64_t sweet_fb_notify_sent[SWEET_FB_NOTIFY_TYPES];
++	uint64_t sent = ++sweet_fb_notify_sent[type];
++	if (sent <= 5 || (sent % 600) == 0) {
++		IOLog("SWEET FB: notify type %u sent %llu\n", type, sent);
++	}
 +	bzero(ref, sizeof(ref));
 +	setAsyncReference64(ref, fPort, (mach_vm_address_t)fFunc[type], fRefcon[type], fTask);
 +	sendAsyncResult64WithOptions(ref, kIOReturnSuccess, (io_user_reference_t *)values, count,
@@ -813,19 +818,6 @@ index 0000000..ba395b5
 +				uint64_t status[2] = { 1, 0 };
 +				notify(3, status, 2);
 +			}
-+		}
-+		break;
-+	case 74: /* SupportedFrameInfo: one record, so the framework builds its array */
-+		if (args->scalarOutput != NULL && args->scalarOutputCount > 0) {
-+			out[0] = 1;
-+			outCount = 1;
-+		}
-+		if (args->structureOutput != NULL && args->structureOutputSize >= 64) {
-+			uint32_t *rec = (uint32_t *)args->structureOutput;
-+			bzero(rec, args->structureOutputSize);
-+			rec[0] = HOUJI_LOGICAL_W;
-+			rec[1] = HOUJI_LOGICAL_H;
-+			rec[2] = SWEET_FB_DOT_PITCH;
 +		}
 +		break;
 +	case kSweetFBSwapWait:
