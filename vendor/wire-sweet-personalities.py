@@ -8,36 +8,42 @@ if not root.is_dir():
 
 fa = root / 'iokit/conf/files.arm64'
 t = fa.read_text()
-add = (
-    '\niokit/Kernel/arm/SweetSurface.cpp optional iokitcpp\n'
-    'iokit/Kernel/arm/SweetFramebuffer.cpp optional iokitcpp\n'
-    'iokit/Kernel/arm/SweetDisplayStubs.cpp optional iokitcpp\n'
-    'iokit/Kernel/arm/HoujiWeakStubs.cpp optional iokitcpp\n'
-    'iokit/Kernel/arm/SweetWatchdog.cpp optional iokitcpp\n'
-)
-if 'SweetFramebuffer.cpp' not in t:
-    fa.write_text(t.rstrip('\n') + '\n' + add)
-    print('files.arm64: sweet entries added')
+entries = [
+    'iokit/Kernel/arm/SweetSurface.cpp optional iokitcpp',
+    'iokit/Kernel/arm/SweetFramebuffer.cpp optional iokitcpp',
+    'iokit/Kernel/arm/SweetDisplayStubs.cpp optional iokitcpp',
+    'iokit/Kernel/arm/HoujiWeakStubs.cpp optional iokitcpp',
+    'iokit/Kernel/arm/SweetWatchdog.cpp optional iokitcpp',
+]
+missing = [e for e in entries if Path(e.split()[0]).name not in t]
+if missing:
+    fa.write_text(t.rstrip('\n') + '\n\n' + '\n'.join(missing) + '\n')
+    print('files.arm64: added', [e.split('/')[-1].split()[0] for e in missing])
 else:
     print('files.arm64: already wired')
 
 kc = root / 'iokit/KernelConfigTables.cpp'
 k = kc.read_text()
+anchor = 'const char * gIOKernelConfigTables =\n    "("\n'
+assert anchor in k, 'KCT anchor missing'
+block = ''
 if 'IOCoreSurfaceRoot' not in k:
-    anchor = 'const char * gIOKernelConfigTables =\n    "("\n'
-    assert anchor in k, 'KCT anchor missing'
-    block = (
+    block += (
         '    "   {",\n'
         "    \"     'IOClass'         = IOCoreSurfaceRoot;\",\n"
         "    \"     'IOProviderClass' = IOResources;\",\n"
         "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\",\n"
         '    "   },",\n'
+    )
+if 'IOWatchdog' not in k:
+    block += (
         '    "   {",\n'
         "    \"     'IOClass'         = IOWatchdog;\",\n"
         "    \"     'IOProviderClass' = IOResources;\",\n"
         "    \"     'IOMatchCategory' = IOWatchdog;\",\n"
         '    "   },",\n'
     )
+if block:
     kc.write_text(k.replace(anchor, anchor + block, 1))
     print('KernelConfigTables: personalities added')
 else:
