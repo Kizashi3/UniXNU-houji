@@ -6,6 +6,7 @@ diff --git a/bsd/kern/kern_exit.c b/bsd/kern/kern_exit.c
  
  
 +	/* HOUJI-EXIT: persist crash exit reasons (namespace/code/description) to the log. */
++	{ extern void houji_sys_dump(void); houji_sys_dump(); }
 +	if (p->p_exit_reason != OS_REASON_NULL) {
 +		char *houji_desc = exit_reason_get_string_desc(p->p_exit_reason);
 +		printf("HOUJI-EXIT: pid %d %s ns %d code 0x%llx desc %s\n",
