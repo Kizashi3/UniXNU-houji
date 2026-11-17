@@ -907,14 +907,16 @@ houji_fb_bootstrap(void)
 				    "IOHIDSystem", "IOHIDEventService", "IOHIDDevice",
 				    "IOHIDInterface", "IOHIDEventDriver", "IOHIDResource"};
 				for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
-					OSObject *object = OSMetaClass::allocClassWithName(names[i]);
+					const OSSymbol *symbol = OSSymbol::withCString(names[i]);
+					const OSMetaClass *meta = symbol != nullptr
+					    ? OSMetaClass::getMetaClassWithName(symbol) : nullptr;
+					if (symbol != nullptr)
+						const_cast<OSSymbol *>(symbol)->release();
 					HOUJI_FB_LOG("hid class %s %s", names[i],
-					    object != nullptr ? "present" : "missing");
-					if (object != nullptr)
-						object->release();
+					    meta != nullptr ? "present" : "missing");
 				}
 			}
-		}
+			}
 	}
 	{
 		int on = 0;
