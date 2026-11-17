@@ -1,17 +1,17 @@
 diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
-index 8a1ec42..d35ec9a 100644
+index 8a1ec42..6dd6c52 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
 @@ -79,6 +79,31 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
  extern int mach_trap_count;
  #endif
  
-+struct houji_sys_rec { uint32_t code; uint32_t pad; uint64_t pc, lr, x0; };
++struct houji_sys_rec { uint32_t code; int32_t error; uint64_t pc, lr, x0; };
 +static struct houji_sys_rec houji_sys_ring[64];
 +static unsigned houji_sys_ring_at;
 +static int houji_sys_pid = -1;
 +
-+/* Last calls of the sampled process, printed only when that process exits. */
++/* Last calls and their errors for the sampled process, printed when it exits. */
 +void
 +houji_sys_dump(int pid)
 +{
@@ -26,15 +26,15 @@ index 8a1ec42..d35ec9a 100644
 +		if (r->code == 0) {
 +			continue;
 +		}
-+		printf("HOUJI-SYSRING: code %u pc=%#llx lr=%#llx x0=%#llx\n",
-+		    r->code, r->pc, r->lr, r->x0);
++		printf("HOUJI-SYSRING: code %u err %d pc=%#llx lr=%#llx x0=%#llx\n",
++		    r->code, r->error, r->pc, r->lr, r->x0);
 +	}
 +}
 +
  /*
   * Function:	unix_syscall
   *
-@@ -102,6 +127,38 @@ unix_syscall(
+@@ -102,6 +127,32 @@ unix_syscall(
  
  	code = arm_get_syscall_number(state);
  
@@ -50,12 +50,6 @@ index 8a1ec42..d35ec9a 100644
 +		}
 +		if (houji_sys_pid > 0 && proc_getpid(proc) == houji_sys_pid &&
 +		    is_saved_state64(state)) {
-+			struct houji_sys_rec *ring =
-+			    &houji_sys_ring[houji_sys_ring_at++ % 64];
-+			ring->code = (uint32_t)code;
-+			ring->pc = (uint64_t)saved_state64(state)->pc;
-+			ring->lr = (uint64_t)saved_state64(state)->lr;
-+			ring->x0 = (uint64_t)saved_state64(state)->x[0];
 +			houji_sys_seen++;
 +			if (houji_sys_seen <= 40 || (houji_sys_seen & 31) == 0) {
 +				if (houji_sys_count < 400) {
@@ -73,10 +67,20 @@ index 8a1ec42..d35ec9a 100644
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
-@@ -181,6 +238,30 @@ unix_syscall(
+@@ -180,6 +231,39 @@ unix_syscall(
+ 	AUDIT_SYSCALL_ENTER(code, proc, uthread);
  	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
  	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
- 
++	/* HOUJI-SYSRING: record the sampled process's calls with their errors. */
++	if (houji_sys_pid > 0 && pid == houji_sys_pid && is_saved_state64(state)) {
++		struct houji_sys_rec *ring = &houji_sys_ring[houji_sys_ring_at++ % 64];
++		ring->code = (uint32_t)code;
++		ring->error = error;
++		ring->pc = (uint64_t)saved_state64(state)->pc;
++		ring->lr = (uint64_t)saved_state64(state)->lr;
++		ring->x0 = (uint64_t)saved_state64(state)->x[0];
++	}
++
 +	/* HOUJI-WI: name the work_interval_ctl (unix syscall 499) request and answer
 +	 * that the sampled process just received. Its arguments are operation, type,
 +	 * buffer and size, so a refused type is distinguishable from a bad size. */
@@ -100,7 +104,6 @@ index 8a1ec42..d35ec9a 100644
 +			    (unsigned long long)uthread->uu_rval[1], error, proc->p_comm);
 +		}
 +	}
-+
+ 
  #if CONFIG_MACF
  skip_syscall:
- #endif /* CONFIG_MACF */
