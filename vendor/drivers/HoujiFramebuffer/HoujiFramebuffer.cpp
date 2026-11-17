@@ -734,12 +734,15 @@ houji_start_watchdog_late(void)
     HOUJI_FB_LOG("watchdog published late");
 }
 
+extern "C" void houji_persona_bootstrap(void);
+
 extern "C" void
 houji_fb_bootstrap(void)
 {
 	static int done;
 	if (done) return;
 	done = 1;
+	houji_persona_bootstrap();
 
 	IOService *platform = IOService::getPlatform();
 	if (platform == nullptr) {

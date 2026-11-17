@@ -1,0 +1,31 @@
+diff --git a/bsd/kern/kern_persona.c b/bsd/kern/kern_persona.c
+index c051e63..7f9dc81 100644
+--- a/bsd/kern/kern_persona.c
++++ b/bsd/kern/kern_persona.c
+@@ -960,3 +960,26 @@ persona_is_adoption_allowed(__unused struct persona *persona)
+ 	return FALSE;
+ }
+ #endif
++
++/*
++ * HOUJI-PERSONA: launchd asks the kernel for the mobile user's system-proxy
++ * persona (type 6) during domain setup. Nothing on this platform creates it,
++ * so create it once at boot.
++ */
++void
++houji_persona_bootstrap(void)
++{
++	int error = 0;
++	struct persona *persona;
++
++	persona = persona_alloc(PERSONA_ID_NONE, "mobile", PERSONA_SYSTEM_PROXY,
++	    NULL, 501, &error);
++	if (persona == NULL) {
++		printf("HOUJI-PERSONA: alloc failed %d\n", error);
++		return;
++	}
++	error = persona_init_begin(persona);
++	persona_init_end(persona, error);
++	printf("HOUJI-PERSONA: system proxy id=%d err=%d\n",
++	    (int)persona->pna_id, error);
++}
