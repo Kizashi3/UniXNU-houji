@@ -83,6 +83,7 @@ roots = [
   "com.apple.security.AppleImage4",
   "com.apple.security.sandbox",
   "com.apple.iokit.IOHIDFamily",
+  "com.apple.iokit.IOHIDEventDriver",
 ]
 
 [payload]
