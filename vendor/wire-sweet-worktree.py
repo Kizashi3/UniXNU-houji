@@ -40,11 +40,6 @@ if "'IOMatchCategory' = IOCoreSurfaceRoot" not in k:
         "    \"     'IOProviderClass' = IOResources;\"\n"
         "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\"\n"
         '    "   },"\n'
-        '    "   {"\n'
-        "    \"     'IOClass'         = AppleCLCD;\"\n"
-        "    \"     'IOProviderClass' = IOService;\"\n"
-        "    \"     'IONameMatch'     = 'houji,display';\"\n"
-        '    "   },"\n'
     )
     kc.write_text(k.replace(anchor, anchor + block, 1))
     print('work KernelConfigTables: personalities added')
