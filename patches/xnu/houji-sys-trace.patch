@@ -1,19 +1,22 @@
+diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
+index 8a1ec42..2324b4f 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
-@@ -102,6 +102,61 @@
+@@ -79,6 +79,31 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
+ extern int mach_trap_count;
+ #endif
  
- 	code = arm_get_syscall_number(state);
- 
-+/* HOUJI-SYS-RING: the last calls of the sampled process, dumped when it exits. */
-+struct houji_sys_rec { uint32_t code; uint32_t pad; uint64_t pc; uint64_t lr; uint64_t x0; };
++struct houji_sys_rec { uint32_t code; uint32_t pad; uint64_t pc, lr, x0; };
 +static struct houji_sys_rec houji_sys_ring[64];
 +static unsigned houji_sys_ring_at;
 +static int houji_sys_pid = -1;
 +
++/* Last calls of the sampled process, printed when it exits. */
 +void
 +houji_sys_dump(void)
 +{
 +	unsigned i;
++
 +	if (houji_sys_ring_at == 0) {
 +		return;
 +	}
@@ -28,6 +31,13 @@
 +	}
 +}
 +
+ /*
+  * Function:	unix_syscall
+  *
+@@ -102,6 +127,38 @@ unix_syscall(
+ 
+ 	code = arm_get_syscall_number(state);
+ 
 +	/* HOUJI-SYS: sample one process's syscall sites (boot arg houji-sys-pid). */
 +	{
 +		extern boolean_t PE_parse_boot_argn(const char *, void *, int);
@@ -40,13 +50,14 @@
 +		}
 +		if (houji_sys_pid > 0 && proc_getpid(proc) == houji_sys_pid &&
 +		    is_saved_state64(state)) {
++			struct houji_sys_rec *ring =
++			    &houji_sys_ring[houji_sys_ring_at++ % 64];
++			ring->code = (uint32_t)code;
++			ring->pc = (uint64_t)saved_state64(state)->pc;
++			ring->lr = (uint64_t)saved_state64(state)->lr;
++			ring->x0 = (uint64_t)saved_state64(state)->x[0];
 +			houji_sys_seen++;
 +			if (houji_sys_seen <= 40 || (houji_sys_seen & 31) == 0) {
-+				struct houji_sys_rec *ring = &houji_sys_ring[houji_sys_ring_at++ % 64];
-+				ring->code = (uint32_t)code;
-+				ring->pc = (uint64_t)saved_state64(state)->pc;
-+				ring->lr = (uint64_t)saved_state64(state)->lr;
-+				ring->x0 = (uint64_t)saved_state64(state)->x[0];
 +				if (houji_sys_count < 400) {
 +					houji_sys_count++;
 +					printf("HOUJI-SYS: pid %d code %u pc=%#llx lr=%#llx x0=%#llx\n",
@@ -62,7 +73,7 @@
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
-@@ -181,6 +208,30 @@
+@@ -181,6 +238,30 @@ unix_syscall(
  	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
  	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
  
