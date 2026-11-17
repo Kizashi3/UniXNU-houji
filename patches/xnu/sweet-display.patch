@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,770 @@
+@@ -0,0 +1,771 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -405,6 +405,7 @@ index 0000000..ba395b5
 +		IOMobileFramebufferUserClient *client =
 +		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
 +		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
++		client->notify(3, values, 6);
 +	}
 + bool flush=fb->fFrames.count() && (count%fb->fFlushTicks)==0;
 + HoujiDisplayFrame frame{};
