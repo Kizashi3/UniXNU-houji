@@ -71,6 +71,7 @@ enum {
 #define SWEET_FB_DOT_PITCH              458     /* iPhone X logical canvas */
 #define HOUJI_LOGICAL_W 1200
 #define HOUJI_LOGICAL_H 2670
+static uint32_t houji_fb_probe_presents;
 static uint64_t houji_fb_copy_bytes, houji_fb_present_ticks, houji_fb_max_present_ticks;
 static uint64_t houji_fb_missed_timer_ticks;
 static uint64_t houji_fb_callbacks,houji_fb_due_ticks;
@@ -547,6 +548,23 @@ AppleCLCD::present(const HoujiDisplayFrame &frame)
 			}
 		}
 		s->release();
+	}
+	if (houji_fb_probe_presents < 3) {
+		uint64_t nonzero = 0, sampled = 0, hash = 1469598103934665603ULL;
+		for (uint32_t y = 0; y < fHeight; y += 64) {
+			const uint32_t *row = (const uint32_t *)(fPixels + (uint64_t)y * fRowBytes);
+			for (uint32_t x = 0; x < fWidth; x += 16) {
+				uint32_t v = row[x];
+				if (v != 0) nonzero++;
+				hash = (hash ^ v) * 1099511628211ULL;
+				sampled++;
+			}
+		}
+		houji_fb_probe_presents++;
+		IOLog("HOUJI FB: present probe %u %ux%u nonzero=%llu/%llu hash=%016llx\n",
+		    (unsigned)houji_fb_probe_presents, fWidth, fHeight,
+		    (unsigned long long)nonzero, (unsigned long long)sampled,
+		    (unsigned long long)hash);
 	}
 	uint64_t elapsed = mach_absolute_time() - started;
 	__atomic_add_fetch(&houji_fb_copy_bytes, copied, __ATOMIC_RELAXED);
