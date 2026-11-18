@@ -59,3 +59,30 @@ Questions to settle next:
 * QEMU cannot host this root: the houji kernel has no virtio-blk driver and the
   10.5 GiB container exceeds the VM's 9 GiB of RAM, so the image is verified by
   hash against the CI report instead.
+
+## 2026-11-19 small hours: first swaps, black content
+
+* Root ownership: the merged root carries 99:99 and is mounted read-only, so
+  chown and the MNT_UPDATE remount both fail.  `patches/xnu/houji-owner-override.patch`
+  rewrites va_uid/va_gid from 99 to 0 in `vn_stat_noauth` for the root mount.
+  Result: launchd error 122 dropped from 1066 to 0 and 121 jobs spawned,
+  including SpringBoard and backboardd.
+* Data volume: the flashed image now carries a second SHNGROOT window named
+  Data (2 GiB).  `IOKitBSDInit` publishes it as md3, `memdev` writes through
+  with `native_ufs_md_write`, and the mount helper mounts `/dev/md3` on
+  `/private/var` before the RAM block.
+* Display: with `/chosen/display-scale = 3` backboardd creates a 1200x2670
+  display surface and a 1125x2436 layer surface, `sel 3` returns the layer
+  surface and SwapEnd records real frames (first at ~250 s).
+* Console: `houji_console_muted` was set but never read; `vcputc` now returns
+  early after the first present, so the panel keeps the GUI.
+* Boot: `houji-autoreboot` compared an absolute deadline against
+  mach_absolute_time, which counts from power-on, so a device that sat in the
+  bootloader expired at once.  The deadline is relative now.  A 150 s boot
+  guard flushes the log and resets into recovery when init never reports.
+* Wall: the presented frames are all zeros (probe nonzero=0/3150).  CA has a
+  surface but nothing composited into it - SpringBoard runs (pid 5, idle after
+  its first transactions) yet never builds its UI.  Same wall ios-sweet hit
+  before their HID/work-interval/system-shell-check-in patches.
+* Note: the compiled driver is the copy inside `patches/xnu/sweet-display.patch`;
+  `vendor/drivers/SweetDisplay/*` is a stale mirror, so edits belong in the patch.
