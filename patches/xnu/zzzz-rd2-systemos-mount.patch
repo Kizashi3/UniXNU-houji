@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,7 +7139,498 @@
+@@ -7138,6 +7139,498 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -336,7 +336,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	}
 +#include <sys/dirent.h>
 +#include <sys/uio.h>
-
++
 +/*
 + * HOUJI-OWN-FIX: the merged root was written with owners disabled, so every inode
 + * carries uid/gid 99 and launchd rejects each plist with error 122.  Re-own the
