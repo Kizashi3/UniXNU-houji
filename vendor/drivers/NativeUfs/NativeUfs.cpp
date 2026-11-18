@@ -1960,7 +1960,9 @@ static void houjiExitCheck (void)
     if (seconds) {
       uint64_t ticks = 0;
       nanoseconds_to_absolutetime ((uint64_t) seconds * NSEC_PER_SEC, &ticks);
-      deadline = (int64_t) ticks;
+      /* mach_absolute_time() counts from power-on, not from kernel start, so the deadline
+       * has to be relative: a device that sat in the bootloader would otherwise expire at once. */
+      deadline = (int64_t) (mach_absolute_time () + ticks);
       IOLog ("HOUJI-BOOTEXIT: timed exit in %u s bcb='%s'\n", seconds,
           houjiBcbCommand () ? houjiBcbCommand () : "off");
     } else {
