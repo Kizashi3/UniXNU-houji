@@ -40,3 +40,22 @@ Questions to settle next:
 - ArmCpu is pinned to a823383 because upstream main references
   `arm64_platform_sleep_hook`, which this kernel does not provide.
 - `wdt=-1 wdt_test=no_user_checkin` do not stop watchdogd's own assertion exit.
+
+## 2026-11-18 evening: UFS Data window, ownership
+
+* A 2 GiB RAM Data seed cannot boot: `HOUJI XNU: Load failed: Out of Resources`
+  (the DXE unpack needs one 2.2 GiB contiguous allocation and the memory map is
+  fragmented at ~760 MiB). The RAM seed stays at 512 MiB or below.
+* The Data volume now lives in the flashed image as a second SHNGROOT window
+  named `Data` (2 GiB). `IOKitBSDInit` publishes it as md3, `memdev` writes
+  through to the userdata range via `native_ufs_md_write`, and the mount helper
+  tries `/dev/md3` before the RAM block. Run 520 boot: `HOUJI-RD2: mounted
+  /dev/md3 on /private/var`, spaceman scanned the container, no data abort.
+* The full SystemOS rsync produced a root whose files are owned by 99:99: the
+  writable sparse image was attached with owners off, so `hdiutil` stored the
+  anonymous owner. launchd then refused every daemon with error 122 ("bad
+  ownership/permissions") and nothing started. The merge now attaches with
+  `-owners on` and asserts 0:0 on SpringBoard.plist and the LaunchDaemons dir.
+* QEMU cannot host this root: the houji kernel has no virtio-blk driver and the
+  10.5 GiB container exceeds the VM's 9 GiB of RAM, so the image is verified by
+  hash against the CI report instead.
