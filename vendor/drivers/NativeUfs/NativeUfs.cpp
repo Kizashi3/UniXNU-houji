@@ -24,6 +24,9 @@ extern const uint8_t verified_root_key[];
 #include <libkern/c++/OSIterator.h>
 #include <IOKit/IOBSD.h>
 #include <kern/thread.h>
+#include <kern/task.h>
+#include <sys/proc.h>
+#include <mach/arm/thread_status.h>
 #include <IOKit/IOLib.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include <IOKit/IOMemoryDescriptor.h>
@@ -2005,6 +2008,56 @@ static void houjiBootGuardThread (void *arg, wait_result_t wr)
   }
 }
 
+/*
+ * HOUJI-SAMPLE: user pc/lr for SpringBoard and backboardd every minute, so a system that
+ * idles without building UI shows where its threads wait (same idea as ios-sweet sweetsample).
+ */
+extern "C" void houji_sample_pid (const char *name, int pid)
+{
+  proc_t p = pid ? proc_find (pid) : NULL;
+  if (p == NULL) {
+    return;
+  }
+  task_t task = proc_task (p);
+  if (task != NULL) {
+    thread_t thread;
+    int index = 0;
+    queue_iterate (&task->threads, thread, thread_t, task_threads) {
+      arm_thread_state64_t st;
+      mach_msg_type_number_t sc = ARM_THREAD_STATE64_COUNT;
+      if (index >= 6) {
+        break;
+      }
+      if (thread_get_state (thread, ARM_THREAD_STATE64, (thread_state_t) &st, &sc) == KERN_SUCCESS) {
+        IOLog ("HOUJI-SAMPLE: %s t%d pc=%#llx lr=%#llx x0=%#llx\n", name, index,
+            (unsigned long long) st.__pc, (unsigned long long) st.__lr,
+            (unsigned long long) st.__x[0]);
+      }
+      index++;
+    }
+  }
+  proc_rele (p);
+}
+
+static void houjiSampleThread (void *arg, wait_result_t wr)
+{
+  (void) arg; (void) wr;
+  for (int round = 0; round < 8; round++) {
+    IOSleep (60 * 1000);
+    houji_sample_pid ("SpringBoard", 5);
+  }
+  IOLog ("HOUJI-SAMPLE: done\n");
+}
+
+static void houjiStartSampler (void)
+{
+  thread_t th = NULL;
+  if (kernel_thread_start (houjiSampleThread, NULL, &th) == KERN_SUCCESS) {
+    thread_deallocate (th);
+    IOLog ("HOUJI-SAMPLE: armed\n");
+  }
+}
+
 static void houjiStartBootGuard (void)
 {
   thread_t th = NULL;
@@ -2844,6 +2897,7 @@ extern "C" int native_ufs_md_init (void)
   }
   houjiInstallExit ();
   houjiStartBootGuard ();
+  houjiStartSampler ();
   return 0;
 }
 
