@@ -1,20 +1,20 @@
 diff --git a/osfmk/console/video_console.c b/osfmk/console/video_console.c
-index 4c1edf1..aa0ffbd 100644
+index 4c1edf1..05c89b2 100644
 --- a/osfmk/console/video_console.c
 +++ b/osfmk/console/video_console.c
-@@ -1227,9 +1227,15 @@ gc_update_color(int color, boolean_t fore)
- 	gc_ops.update_color(color, fore);
+@@ -1244,9 +1244,15 @@ vcputc_options(char c, __unused bool poll)
+ 	}
  }
  
 +/* HOUJI: set once the Sweet framebuffer presents its first GUI frame. */
 +extern int houji_console_muted;
 +
  void
- vcputc_options(char c, __unused bool poll)
+ vcputc(char c)
  {
 +	if (houji_console_muted) {
 +		return;
 +	}
- 	if (gc_initialized && gc_enabled) {
- 		VCPUTC_LOCK_LOCK();
- 		if (gc_enabled) {
+ 	vcputc_options(c, false);
+ }
+ 
