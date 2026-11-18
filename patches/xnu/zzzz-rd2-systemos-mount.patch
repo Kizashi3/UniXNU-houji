@@ -13,7 +13,146 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
++#include <sys/dirent.h>
++#include <sys/uio.h>
++
 +/*
++ * HOUJI-OWN-FIX: the merged root was written with owners disabled, so every inode
++ * carries uid/gid 99 and launchd rejects each plist with error 122.  Re-own the
++ * launchd trees before init execs.  vnode_lookup cannot run in the mount context,
++ * so the walk runs in a kernel thread and the caller waits for it.
++ */
++static volatile int houji_own_done;
++
++static void
++houji_own_one(const char *path, int isdir)
++{
++	vfs_context_t ctx = vfs_context_create(NULL);
++	vnode_t vp = NULLVP;
++
++	if (vnode_lookup(path, 0, &vp, ctx) == 0) {
++		struct vnode_attr va;
++		int dir = isdir;
++
++		VATTR_INIT(&va);
++		VATTR_WANTED(&va, va_type);
++		if (vnode_getattr(vp, &va, ctx) == 0 && va.va_type == VDIR) {
++			dir = 1;
++		}
++		VATTR_INIT(&va);
++		VATTR_WANTED(&va, va_uid);
++		VATTR_WANTED(&va, va_gid);
++		VATTR_SET(&va, va_uid, 0);
++		VATTR_SET(&va, va_gid, 0);
++		if (dir) {
++			VATTR_WANTED(&va, va_mode);
++			VATTR_SET(&va, va_mode, 0755);
++		} else if (strstr(path, ".plist") != NULL) {
++			VATTR_WANTED(&va, va_mode);
++			VATTR_SET(&va, va_mode, 0644);
++		}
++		(void)vnode_setattr(vp, &va, ctx);
++		vnode_put(vp);
++	}
++	vfs_context_rele(ctx);
++}
++
++static void
++houji_own_tree(const char *dir, int depth)
++{
++	char buf[1024];
++	uint64_t off = 0;
++	vfs_context_t ctx;
++	vnode_t dvp = NULLVP;
++
++	houji_own_one(dir, 1);
++	if (depth >= 4) {
++		return;
++	}
++	ctx = vfs_context_create(NULL);
++	if (vnode_lookup(dir, 0, &dvp, ctx) != 0) {
++		vfs_context_rele(ctx);
++		return;
++	}
++	for (;;) {
++		int eofflag = 0;
++		int numdirent = 0;
++		uint64_t used;
++		uint64_t pos;
++		uio_t uio = uio_create(1, off, UIO_SYSSPACE, UIO_READ);
++
++		if (uio == NULL) {
++			break;
++		}
++		uio_addiov(uio, (uintptr_t)buf, sizeof(buf));
++		if (vnode_readdir64(dvp, uio, 0, &eofflag, &numdirent, ctx) != 0) {
++			uio_free(uio);
++			break;
++		}
++		used = sizeof(buf) - uio_resid(uio);
++		off = (uint64_t)uio_offset(uio);
++		uio_free(uio);
++		if (used == 0) {
++			break;
++		}
++		for (pos = 0; pos + sizeof(struct dirent) <= used; ) {
++			struct dirent *de = (struct dirent *)(void *)(buf + pos);
++			char path[1024];
++
++			if (de->d_reclen == 0) {
++				break;
++			}
++			if (de->d_namlen != 0 &&
++			    !(de->d_name[0] == '.' && (de->d_namlen == 1 ||
++			    (de->d_name[1] == '.' && de->d_namlen == 2)))) {
++				snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);
++				houji_own_one(path, de->d_type == DT_DIR);
++				if (de->d_type == DT_DIR) {
++					houji_own_tree(path, depth + 1);
++				}
++			}
++			pos += de->d_reclen;
++		}
++		if (eofflag) {
++			break;
++		}
++	}
++	vnode_put(dvp);
++	vfs_context_rele(ctx);
++}
++
++static void
++houji_own_thread(void *arg, wait_result_t wr)
++{
++	(void)arg;
++	(void)wr;
++	houji_own_tree("/System/Library/LaunchDaemons", 0);
++	houji_own_tree("/System/Library/LaunchAgents", 0);
++	printf("HOUJI-OWN-FIX: launchd trees re-owned\n");
++	__atomic_store_n(&houji_own_done, 1, __ATOMIC_RELEASE);
++	wakeup((void *)&houji_own_done);
++}
++
++static void
++houji_own_run(void)
++{
++	thread_t th = THREAD_NULL;
++	int spin;
++
++	if (kernel_thread_start(houji_own_thread, NULL, &th) != KERN_SUCCESS) {
++		return;
++	}
++	thread_deallocate(th);
++	for (spin = 0; spin < 600; spin++) {
++		if (__atomic_load_n(&houji_own_done, __ATOMIC_ACQUIRE)) {
++			break;
++		}
++		tsleep((void *)&houji_own_done, PRIBIO, "houji-own", 5);
++	}
++	printf("HOUJI-OWN-FIX: done=%d\n", __atomic_load_n(&houji_own_done, __ATOMIC_ACQUIRE));
++}
++
+++/*
 + * UniXNU: the SystemOS cryptex arrives as a second memory disk (md1). APFS mounts
 + * a volume, not the container, so try the volume device nodes first and log the
 + * errno of each attempt. Only mount(2) is used here; probing paths with
@@ -334,146 +473,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			}
 +		}
 +	}
-+#include <sys/dirent.h>
-+#include <sys/uio.h>
-+
-+/*
-+ * HOUJI-OWN-FIX: the merged root was written with owners disabled, so every inode
-+ * carries uid/gid 99 and launchd rejects each plist with error 122.  Re-own the
-+ * launchd trees before init execs.  vnode_lookup cannot run in the mount context,
-+ * so the walk runs in a kernel thread and the caller waits for it.
-+ */
-+static volatile int houji_own_done;
-+
-+static void
-+houji_own_one(const char *path, int isdir)
-+{
-+	vfs_context_t ctx = vfs_context_create(NULL);
-+	vnode_t vp = NULLVP;
-+
-+	if (vnode_lookup(path, 0, &vp, ctx) == 0) {
-+		struct vnode_attr va;
-+		int dir = isdir;
-+
-+		VATTR_INIT(&va);
-+		VATTR_WANTED(&va, va_type);
-+		if (vnode_getattr(vp, &va, ctx) == 0 && va.va_type == VDIR) {
-+			dir = 1;
-+		}
-+		VATTR_INIT(&va);
-+		VATTR_WANTED(&va, va_uid);
-+		VATTR_WANTED(&va, va_gid);
-+		VATTR_SET(&va, va_uid, 0);
-+		VATTR_SET(&va, va_gid, 0);
-+		if (dir) {
-+			VATTR_WANTED(&va, va_mode);
-+			VATTR_SET(&va, va_mode, 0755);
-+		} else if (strstr(path, ".plist") != NULL) {
-+			VATTR_WANTED(&va, va_mode);
-+			VATTR_SET(&va, va_mode, 0644);
-+		}
-+		(void)vnode_setattr(vp, &va, ctx);
-+		vnode_put(vp);
-+	}
-+	vfs_context_rele(ctx);
-+}
-+
-+static void
-+houji_own_tree(const char *dir, int depth)
-+{
-+	char buf[1024];
-+	uint64_t off = 0;
-+	vfs_context_t ctx;
-+	vnode_t dvp = NULLVP;
-+
-+	houji_own_one(dir, 1);
-+	if (depth >= 4) {
-+		return;
-+	}
-+	ctx = vfs_context_create(NULL);
-+	if (vnode_lookup(dir, 0, &dvp, ctx) != 0) {
-+		vfs_context_rele(ctx);
-+		return;
-+	}
-+	for (;;) {
-+		int eofflag = 0;
-+		int numdirent = 0;
-+		uint64_t used;
-+		uint64_t pos;
-+		uio_t uio = uio_create(1, off, UIO_SYSSPACE, UIO_READ);
-+
-+		if (uio == NULL) {
-+			break;
-+		}
-+		uio_addiov(uio, (uintptr_t)buf, sizeof(buf));
-+		if (vnode_readdir64(dvp, uio, 0, &eofflag, &numdirent, ctx) != 0) {
-+			uio_free(uio);
-+			break;
-+		}
-+		used = sizeof(buf) - uio_resid(uio);
-+		off = (uint64_t)uio_offset(uio);
-+		uio_free(uio);
-+		if (used == 0) {
-+			break;
-+		}
-+		for (pos = 0; pos + sizeof(struct dirent) <= used; ) {
-+			struct dirent *de = (struct dirent *)(void *)(buf + pos);
-+			char path[1024];
-+
-+			if (de->d_reclen == 0) {
-+				break;
-+			}
-+			if (de->d_namlen != 0 &&
-+			    !(de->d_name[0] == '.' && (de->d_namlen == 1 ||
-+			    (de->d_name[1] == '.' && de->d_namlen == 2)))) {
-+				snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);
-+				houji_own_one(path, de->d_type == DT_DIR);
-+				if (de->d_type == DT_DIR) {
-+					houji_own_tree(path, depth + 1);
-+				}
-+			}
-+			pos += de->d_reclen;
-+		}
-+		if (eofflag) {
-+			break;
-+		}
-+	}
-+	vnode_put(dvp);
-+	vfs_context_rele(ctx);
-+}
-+
-+static void
-+houji_own_thread(void *arg, wait_result_t wr)
-+{
-+	(void)arg;
-+	(void)wr;
-+	houji_own_tree("/System/Library/LaunchDaemons", 0);
-+	houji_own_tree("/System/Library/LaunchAgents", 0);
-+	printf("HOUJI-OWN-FIX: launchd trees re-owned\n");
-+	__atomic_store_n(&houji_own_done, 1, __ATOMIC_RELEASE);
-+	wakeup((void *)&houji_own_done);
-+}
-+
-+static void
-+houji_own_run(void)
-+{
-+	thread_t th = THREAD_NULL;
-+	int spin;
-+
-+	if (kernel_thread_start(houji_own_thread, NULL, &th) != KERN_SUCCESS) {
-+		return;
-+	}
-+	thread_deallocate(th);
-+	for (spin = 0; spin < 600; spin++) {
-+		if (__atomic_load_n(&houji_own_done, __ATOMIC_ACQUIRE)) {
-+			break;
-+		}
-+		tsleep((void *)&houji_own_done, PRIBIO, "houji-own", 5);
-+	}
-+	printf("HOUJI-OWN-FIX: done=%d\n", __atomic_load_n(&houji_own_done, __ATOMIC_ACQUIRE));
-+}
-+
-++	/*
++	/*
 +	 * HOUJI-OWN: the merged root is mounted with MNT_IGNORE_OWNERSHIP, so every
 +	 * vnode reports uid/gid 99 and launchd rejects every plist with error 122.
 +	 * The volume carries real ownership, so clear the flag on the root mount.
