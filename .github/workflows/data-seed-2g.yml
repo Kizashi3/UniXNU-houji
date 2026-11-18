@@ -1,0 +1,68 @@
+name: houji 2 GiB Data seed
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [kernel-cs-bypass]
+    paths:
+      - ".github/workflows/data-seed-2g.yml"
+      - "scripts/make-data-seed.py"
+      - "scripts/seed-skip-setup.py"
+
+permissions:
+  contents: write
+
+jobs:
+  seed:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: UniXNU/UniXNU
+          ref: fb2bb310564ce66779e472a021881cf7c5764919
+          path: upstream
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build a 2 GiB Data seed with every service enabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          exec > >(tee /tmp/seed.log) 2>&1
+          SRC="$RUNNER_TEMP/system-source"
+          mkdir -p "$SRC/ipsw/20H392"
+          STAGE="$RUNNER_TEMP/fwstage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
+          gh release download fw-cache-20H392 --repo "$GITHUB_REPOSITORY" --dir "$STAGE"
+          python3 scripts/merged-root-fwcache.py unpack "$STAGE" "$SRC"
+          rm -rf "$STAGE"
+          DMG="$SRC/ipsw/20H392/087-86698-044.dmg"
+          ls -la "$DMG"
+          MNT="$GITHUB_WORKSPACE/upstream/.cache/firmware/target-volumes/os-mount"
+          mkdir -p "$MNT"
+          hdiutil attach -readonly -nobrowse -mountpoint "$MNT" "$DMG"
+          cd "$GITHUB_WORKSPACE/upstream"
+          sudo python3 "$GITHUB_WORKSPACE/scripts/make-data-seed.py" --output "$RUNNER_TEMP/data-seed" --size-mib 2048
+          hdiutil detach "$MNT" || true
+          ls -la "$RUNNER_TEMP/data-seed"
+          cd "$GITHUB_WORKSPACE"
+          sudo python3 scripts/seed-skip-setup.py "$RUNNER_TEMP/data-seed/owner-data-2048.cdr" \
+            "$RUNNER_TEMP/data-seed/owner-data-2048-skip.cdr" --keep-services
+          sudo gzip -f -1 "$RUNNER_TEMP/data-seed/owner-data-2048-skip.cdr"
+          ls -la "$RUNNER_TEMP/data-seed"
+
+      - name: Publish the seed and the log
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          TAG="data-seed-2g-${{ github.run_number }}"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" \
+            --notes "2 GiB Data seed, every launchd service enabled" || true
+          for f in "$RUNNER_TEMP/data-seed/"*; do
+            gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber || true
+          done
+          gh release upload "$TAG" /tmp/seed.log --repo "$GITHUB_REPOSITORY" --clobber || true

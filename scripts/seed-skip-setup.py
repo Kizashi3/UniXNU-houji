@@ -6,7 +6,10 @@ hdiutil, merges the Setup/SpringBoard preferences into mobile/Library/
 Preferences, creates the container directories and the launchd disabled
 override, then detaches. The volume UUID is unchanged.
 
-usage: seed-skip-setup.py BASE.cdr OUTPUT.cdr
+usage: seed-skip-setup.py BASE.cdr OUTPUT.cdr [--keep-services]
+
+--keep-services keeps every launchd service enabled (no disabled.plist), so the
+Data seed ships the same service set as the OS image it was built from.
 """
 import os
 import plistlib
@@ -44,9 +47,11 @@ def merge_pref(root, name, values):
 
 
 def main():
-    if len(sys.argv) != 3:
+    args = [x for x in sys.argv[1:] if x != '--keep-services']
+    keep_services = '--keep-services' in sys.argv[1:]
+    if len(args) != 2:
         sys.exit(__doc__)
-    src, dst = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
+    src, dst = Path(args[0]).resolve(), Path(args[1]).resolve()
     if dst.exists():
         sys.exit('refuse to overwrite ' + str(dst))
     shutil.copyfile(src, dst)
@@ -90,9 +95,15 @@ def main():
             (mount / 'containers' / sub).mkdir(parents=True, exist_ok=True)
         db = mount / 'db/com.apple.xpc.launchd'
         db.mkdir(parents=True, exist_ok=True)
-        (db / 'disabled.plist').write_bytes(plistlib.dumps(
-            {label: True for label in DISABLED}, fmt=plistlib.FMT_BINARY))
-        print('disabled', list(DISABLED))
+        if keep_services:
+            stale = db / 'disabled.plist'
+            if stale.exists():
+                stale.unlink()
+            print('services kept complete')
+        else:
+            (db / 'disabled.plist').write_bytes(plistlib.dumps(
+                {label: True for label in DISABLED}, fmt=plistlib.FMT_BINARY))
+            print('disabled', list(DISABLED))
     finally:
         subprocess.run(['hdiutil', 'detach', device], check=True)
     data = dst.read_bytes()
