@@ -1,23 +1,21 @@
-diff --git a/bsd/vfs/kpi_vfs.c b/bsd/vfs/kpi_vfs.c
-index 10ac956..53a15e7 100644
---- a/bsd/vfs/kpi_vfs.c
-+++ b/bsd/vfs/kpi_vfs.c
-@@ -2744,6 +2744,18 @@ vnode_getattr(vnode_t vp, struct vnode_attr *vap, vfs_context_t ctx)
+diff --git a/bsd/vfs/vfs_vnops.c b/bsd/vfs/vfs_vnops.c
+index eae8459..a5ed096 100644
+--- a/bsd/vfs/vfs_vnops.c
++++ b/bsd/vfs/vfs_vnops.c
+@@ -1490,6 +1490,16 @@ vn_stat_noauth(struct vnode *vp, void *sbptr, kauth_filesec_t *xsec, int isstat6
+ 	if (error) {
  		goto out;
  	}
- 
 +	/*
 +	 * HOUJI-OWN-OVERRIDE: the merged root was written with owners disabled and is
 +	 * mounted read-only, so every inode reports uid/gid 99 and launchd refuses each
 +	 * plist with error 122.  Report root ownership for that mount only.
 +	 */
-+	if (rootvnode != NULL && vnode_mount(vp) == vnode_mount(rootvnode) &&
-+	    VATTR_IS_SUPPORTED(vap, va_uid) && vap->va_uid == 99 &&
-+	    VATTR_IS_SUPPORTED(vap, va_gid) && vap->va_gid == 99) {
-+		vap->va_uid = 0;
-+		vap->va_gid = 0;
++	if (rootvnode != NULL && vp->v_mount == rootvnode->v_mount &&
++	    va.va_uid == 99 && va.va_gid == 99) {
++		va.va_uid = 0;
++		va.va_gid = 0;
 +	}
-+
+ #if CONFIG_MACF
  	/*
- 	 * If extended security data was requested but not returned, try the fallback
- 	 * path.
+ 	 * Give MAC polices a chance to reject or filter the attributes
