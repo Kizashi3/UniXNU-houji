@@ -1,0 +1,23 @@
+diff --git a/bsd/vfs/kpi_vfs.c b/bsd/vfs/kpi_vfs.c
+index 10ac956..53a15e7 100644
+--- a/bsd/vfs/kpi_vfs.c
++++ b/bsd/vfs/kpi_vfs.c
+@@ -2744,6 +2744,18 @@ vnode_getattr(vnode_t vp, struct vnode_attr *vap, vfs_context_t ctx)
+ 		goto out;
+ 	}
+ 
++	/*
++	 * HOUJI-OWN-OVERRIDE: the merged root was written with owners disabled and is
++	 * mounted read-only, so every inode reports uid/gid 99 and launchd refuses each
++	 * plist with error 122.  Report root ownership for that mount only.
++	 */
++	if (rootvnode != NULL && vnode_mount(vp) == vnode_mount(rootvnode) &&
++	    VATTR_IS_SUPPORTED(vap, va_uid) && vap->va_uid == 99 &&
++	    VATTR_IS_SUPPORTED(vap, va_gid) && vap->va_gid == 99) {
++		vap->va_uid = 0;
++		vap->va_gid = 0;
++	}
++
+ 	/*
+ 	 * If extended security data was requested but not returned, try the fallback
+ 	 * path.
