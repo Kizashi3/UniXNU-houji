@@ -884,7 +884,7 @@ new file mode 100644
 index 0000000..7a7baba
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetSurface.cpp
-@@ -0,0 +1,938 @@
+@@ -0,0 +1,946 @@
 +#define SWEET 1
 +/*
 + * Built-in IOSurface for SWEET.
@@ -1649,8 +1649,16 @@ index 0000000..7a7baba
 +		sweet_surf_log_once("sel", selector);
 +		return sweet_struct_out(args, limits, sizeof(limits));
 +	}
-+	case kSweetSurfaceCreate:
++	case kSweetSurfaceCreate: {
++		static unsigned sweet_create_logged;
++		if (sweet_create_logged < 24) {
++			sweet_create_logged++;
++			char who[32];
++			proc_selfname(who, sizeof(who));
++			IOLog("SWEET SURF: create by %s\n", who);
++		}
 +		return create(args);
++	}
 +	case kSweetSurfaceLookup: {
 +		SweetSurface *s = sweet_surface_copy((uint32_t)arg0);
 +		IOReturn ret = kIOReturnNotFound;
