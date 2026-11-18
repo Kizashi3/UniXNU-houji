@@ -1972,6 +1972,46 @@ static void houjiExitCheck (void)
   }
 }
 
+/*
+ * HOUJI-BOOTGUARD: a boot that hangs between md init and the first exec would otherwise sit
+ * on the screen forever with no log on the medium.  This thread resets into recovery when
+ * init has not reported progress, and native_ufs_exit() flushes the log snapshot first.
+ */
+static volatile int gInitReached;
+
+extern "C" void native_ufs_boot_progress (void)
+{
+  __atomic_store_n (&gInitReached, 1, __ATOMIC_RELEASE);
+}
+
+static void houjiBootGuardThread (void *arg, wait_result_t wr)
+{
+  uint32_t seconds = 150;
+  (void) arg; (void) wr;
+  if (!PE_parse_boot_argn ("houji-bootguard", &seconds, sizeof (seconds)) || seconds < 30 ||
+      seconds > 3600) {
+    seconds = 150;
+  }
+  for (uint32_t i = 0; i < seconds * 10; i++) {
+    if (__atomic_load_n (&gInitReached, __ATOMIC_ACQUIRE)) {
+      return;
+    }
+    IOSleep (100);
+  }
+  if (!__atomic_load_n (&gInitReached, __ATOMIC_ACQUIRE)) {
+    native_ufs_exit ("boot-guard");
+  }
+}
+
+static void houjiStartBootGuard (void)
+{
+  thread_t th = NULL;
+  if (kernel_thread_start (houjiBootGuardThread, NULL, &th) == KERN_SUCCESS) {
+    thread_deallocate (th);
+    IOLog ("HOUJI-BOOTGUARD: armed\n");
+  }
+}
+
 // kPEPanicDiagnosticsDone is reached once the panic text and backtrace are in the msgbuf; the
 // platform had no halt/restart callback at all, so a panic used to spin until the PMIC watchdog.
 // Snapshotting there and resetting turns a panic into the same fastboot landing as the timed exit.
@@ -2801,6 +2841,7 @@ extern "C" int native_ufs_md_init (void)
     }
   }
   houjiInstallExit ();
+  houjiStartBootGuard ();
   return 0;
 }
 

@@ -10,6 +10,7 @@ __attribute__((weak)) int native_ufs_fill_report(void) { return 0; }
 __attribute__((weak)) int native_ufs_md_init(void) { return -1; }
 __attribute__((weak)) int native_ufs_md_read(const char *, unsigned long, void *, unsigned long) { return 0; }
 __attribute__((weak)) int native_ufs_md_write(const char *, unsigned long, const void *, unsigned long) { return -1; }
+__attribute__((weak)) void native_ufs_boot_progress(void) {}
 __attribute__((weak)) unsigned long long native_ufs_md_window_bytes(const char *) { return 0; }
 __attribute__((weak)) unsigned char native_ram_block_volume_seed[8] = {0};
 }
