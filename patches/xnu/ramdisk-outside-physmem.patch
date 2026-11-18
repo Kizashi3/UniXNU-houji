@@ -39,7 +39,7 @@ index 92142f7..172a377 100644
  // how long to wait for matching root device, secs
  #if DEBUG
  #define ROOTDEVICETIMEOUT       120
-@@ -773,7 +803,102 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
+@@ -773,7 +803,112 @@ IOFindBSDRoot( char * rootName, unsigned int rootNameSize,
  					panic("ramdisk params");
  				}
  #endif /* __LP64__ */
@@ -73,6 +73,16 @@ index 92142f7..172a377 100644
 +						}
 +						if (mdSys && mdevadd_ufs(1, "SystemOS", mdSys) < 0) {
 +							panic("ufs-md: md1 window device failed");
++						}
++						{
++							uint64_t mdData = native_ufs_md_window_bytes("Data");
++							if (mdData && mdevadd_ufs(3, "Data", mdData) < 0) {
++								panic("ufs-md: md3 Data window device failed");
++							}
++							if (mdData) {
++								IOLog("HOUJI-UFS-DATA: md3 Data window bytes=%#llx\n",
++								    (unsigned long long)mdData);
++							}
 +						}
 +						IOLog("HOUJI-UFS-MD: md0=%#llx md1=%#llx\n", (uint64_t)mdOS, (uint64_t)mdSys);
 +					if (ramdParms[1] >= 4096) {

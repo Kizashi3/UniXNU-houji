@@ -2,13 +2,14 @@ diff --git a/bsd/dev/memdev.c b/bsd/dev/memdev.c
 index 1254061..08fbeae 100644
 --- a/bsd/dev/memdev.c
 +++ b/bsd/dev/memdev.c
-@@ -86,6 +86,9 @@
+@@ -86,6 +86,10 @@
  #include <sys/fcntl.h>
  #include <sys/conf.h>
  #include <sys/disk.h>
 +
 +/* HOUJI-UFS-MD: NativeUfs window reader (vendor/drivers/NativeUfs). */
 +extern int native_ufs_md_read(const char *name, uint64_t off, void *dst, uint64_t len);
++extern int native_ufs_md_write(const char *name, uint64_t off, const void *src, uint64_t len);
  #include <sys/stat.h>
  #include <sys/vm.h>
  #include <sys/uio_internal.h>
@@ -82,19 +83,24 @@ index 1254061..08fbeae 100644
  	}
  	/*
  	 * make sure the buffer's data area is
-@@ -299,6 +311,31 @@ mdevstrategy(struct buf *bp)
+@@ -299,6 +311,36 @@ mdevstrategy(struct buf *bp)
  		panic("ramstrategy: buf_map failed");
  	}
  
 +	if (mdev[devid].mdFlags & mdUfs) {
 +		/*
 +		 * HOUJI-UFS-MD: the buffer pages are mapped, so pull the window bytes straight
-+		 * into them.  The window holds the flashed root and cryptex images and this
-+		 * kernel never writes them, so refuse writes instead of corrupting them.
++		 * into them.  Root and cryptex windows stay read-only; a window named Data is
++		 * written through to the same userdata range so an APFS volume can live there.
 +		 */
 +		if (!(buf_flags(bp) & B_READ)) {
-+			buf_seterror(bp, EROFS);
-+			buf_setresid(bp, buf_count(bp));
++			if (native_ufs_md_write(mdev[devid].mdUfsName, (uint64_t)blkoff,
++					(void *)(uintptr_t)vaddr, (uint64_t)buf_count(bp)) != 0) {
++				buf_seterror(bp, EIO);
++				buf_setresid(bp, buf_count(bp));
++			} else {
++				buf_setresid(bp, 0);
++			}
 +			buf_unmap(bp);
 +			buf_biodone(bp);
 +			return;

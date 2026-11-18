@@ -2856,6 +2856,72 @@ extern "C" int native_ufs_md_read (const char *name, uint64_t off, void *dst, ui
   return 0;
 }
 
+/*
+ * HOUJI-UFS-DATA: write-through for a md window. Only the Data window is written; the first
+ * write opens exactly that LBA range with the same bookkeeping the persistent store uses, so
+ * hostWrite4k refuses anything outside it. Reads keep going through mdFillCache, whose
+ * contents are dropped before and after each write.
+ */
+static int gMdWriteWin = -1;
+
+extern "C" int native_ufs_md_write (const char *name, uint64_t off, const void *src, uint64_t len)
+{
+  if (!gMdWindowCount || !gMdLock || !src) return -10;
+  int win = -1;
+  for (unsigned i = 0; i < gMdWindowCount; i++)
+    if (!strncmp (gMdWindows[i].name, name, sizeof (gMdWindows[i].name))) { win = (int) i; break; }
+  if (win < 0) return -11;
+  if (!len) return 0;
+  if (off > gMdWindows[win].size || len > gMdWindows[win].size - off) return -12;
+  if (gMdWriteWin < 0) {
+    uint64_t blocks = gMdWindows[win].size / 4096;
+    if (!hostStoreOpen (gMdWindows[win].firstLba, blocks)) {
+      IOLog ("NativeUfs: md write window %s refused lba=%llu blocks=%llu\n", name,
+          (unsigned long long) gMdWindows[win].firstLba, (unsigned long long) blocks);
+      return -14;
+    }
+    gMdWriteWin = win;
+    IOLog ("NativeUfs: md write window %s open lba=%llu blocks=%llu\n", name,
+        (unsigned long long) gMdWindows[win].firstLba, (unsigned long long) blocks);
+  }
+  if (gMdWriteWin != win) return -15;
+
+  IOLockLock (gMdLock);
+  gMdCacheWin = -1; gMdCacheLen = 0;
+  IOLockUnlock (gMdLock);
+
+  const uint8_t *p = static_cast<const uint8_t *> (src);
+  uint64_t at = off;
+  int rc = 0;
+  while (len) {
+    uint32_t inBlock = (uint32_t) (at & 0xFFF);
+    if (inBlock == 0 && len >= 4096) {
+      uint32_t chunk = (uint32_t) (len < kDataMax ? len : kDataMax);
+      chunk &= ~0xFFFu;
+      if (!chunk) chunk = 4096;
+      if (hostWrite4k (0, gMdWindows[win].firstLba + (at >> 12), chunk >> 12, p, true) != kIOReturnSuccess) {
+        rc = -13; break;
+      }
+      at += chunk; p += chunk; len -= chunk;
+      continue;
+    }
+    uint8_t *tmp = static_cast<uint8_t *> (IOMalloc (4096));
+    uint32_t span = (uint32_t) ((len < (4096 - inBlock)) ? len : (4096 - inBlock));
+    if (!tmp) { rc = -16; break; }
+    if (native_ufs_md_read (name, at & ~0xFFFULL, tmp, 4096) != 0) { IOFree (tmp, 4096); rc = -17; break; }
+    memcpy (tmp + inBlock, p, span);
+    bool ok = hostWrite4k (0, gMdWindows[win].firstLba + ((at & ~0xFFFULL) >> 12), 1, tmp, true) == kIOReturnSuccess;
+    IOFree (tmp, 4096);
+    if (!ok) { rc = -18; break; }
+    at += span; p += span; len -= span;
+  }
+
+  IOLockLock (gMdLock);
+  gMdCacheWin = -1; gMdCacheLen = 0;
+  IOLockUnlock (gMdLock);
+  return rc;
+}
+
 // Step3: fill the second reserved ramdisk (rd2) from the SystemOS window.
 extern "C" boolean_t native_ufs_fill2 (vm_offset_t base, vm_size_t size)
 {
