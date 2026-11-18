@@ -1,0 +1,26 @@
+diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
+index ff5296d..6d7ac07 100644
+--- a/osfmk/arm64/sleh.c
++++ b/osfmk/arm64/sleh.c
+@@ -1652,6 +1652,21 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+ 		codes[0] = KERN_FAILURE;
+ 	}
+ 
++{
++		/* HOUJI-DA: name the user data-abort site behind a SIGSEGV. */
++		static unsigned houji_da_count;
++		extern struct proc *current_proc(void);
++		extern int proc_getpid(struct proc *);
++		if (houji_da_count < 40) {
++			houji_da_count++;
++			arm_saved_state64_t *da_ss = saved_state64(state);
++			printf("HOUJI-DA: pid %d pc=%#llx lr=%#llx far=%#llx code=%#x\n",
++			    proc_getpid(current_proc()),
++			    (unsigned long long)get_saved_state_pc(state),
++			    (unsigned long long)da_ss->lr,
++			    (unsigned long long)fault_addr, fault_code);
++		}
++	}
+ #if CODE_SIGNING_MONITOR
+ 	/*
+ 	 * If the code reaches here, it means we weren't able to resolve the fault and we're
