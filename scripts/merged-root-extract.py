@@ -23,6 +23,30 @@ elif head[1024:1026] in (b"H+", b"HX"):
     total = block_size * total_blocks
     print("HFS volume", total, "bytes; block", block_size, "count", total_blocks, "base", base)
 
+if base is None:
+    # hdiutil's GPT puts the APFS container behind an EFI System Partition, so the
+    # superblock can sit well past the first 2 MiB.  Walk the GPT for the Apple_APFS
+    # partition instead of guessing where the container starts.
+    with src.open("rb") as f:
+        f.seek(512)
+        header = f.read(512)
+        if header[:8] == b"EFI PART":
+            entries_lba, = struct.unpack_from("<Q", header, 72)
+            count, entry_size = struct.unpack_from("<II", header, 80)
+            f.seek(entries_lba * 512)
+            table = f.read(count * entry_size)
+            apfs = bytes.fromhex("ef57347c0000aa11aa1100306543ecac")
+            for i in range(count):
+                entry = table[i * entry_size:(i + 1) * entry_size]
+                if entry[:16] == apfs:
+                    first, = struct.unpack_from("<Q", entry, 32)
+                    last, = struct.unpack_from("<Q", entry, 40)
+                    base = first * 512
+                    total = (last - first + 1) * 512
+                    f.seek(base + 32)
+                    print("GPT APFS partition", total, "bytes at", base, "magic", f.read(4))
+                    break
+
 assert base is not None and total and 0 < total <= src.stat().st_size - base, (base, total)
 
 with src.open("rb") as fi, dst.open("wb") as fo:
