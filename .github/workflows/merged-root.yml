@@ -45,7 +45,7 @@ jobs:
           echo "OS at $OSMNT"; ls "$OSMNT" | head
           echo "SystemOS at $SYSMNT"; ls "$SYSMNT" | head
           rm -f /tmp/root.dmg
-          hdiutil create -size 12g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
+          hdiutil create -size 10g -volname houjiRoot -fs APFS -type SPARSE /tmp/root.sparseimage
           hdiutil attach -nobrowse /tmp/root.sparseimage | tee /tmp/att_root.txt
           ROOTMNT=$(awk 'NF>=3 {print $NF}' /tmp/att_root.txt | tail -1)
           echo "merged at $ROOTMNT"; df -h "$ROOTMNT"
@@ -58,12 +58,54 @@ jobs:
           sudo rsync -aH --numeric-ids "$SYSMNT/" "$ROOTMNT/" || true
           df -h "$ROOTMNT"
           if [ -f "$OSMNT/usr/lib/dyld" ]; then sudo cp -p "$OSMNT/usr/lib/dyld" "$ROOTMNT/usr/lib/dyld"; fi
+          echo "service inventory"
+          for rel in sbin/launchd usr/lib/dyld \
+              System/Library/CoreServices/SpringBoard.app/SpringBoard \
+              System/Library/Frameworks/UIKit.framework/UIKit \
+              System/Library/PrivateFrameworks/FrontBoard.framework/FrontBoard \
+              System/Library/PrivateFrameworks/BackBoardServices.framework/BackBoardServices \
+              System/Library/PrivateFrameworks/RunningBoardServices.framework/RunningBoardServices \
+              System/Library/LaunchDaemons/com.apple.backboardd.plist \
+              System/Library/LaunchDaemons/com.apple.SpringBoard.plist; do
+            if sudo test -e "$ROOTMNT/$rel"; then echo "ok $rel"; else echo "MISSING $rel"; fi
+          done
+          sudo test -x "$ROOTMNT/System/Library/CoreServices/SpringBoard.app/SpringBoard"
+          sudo test -f "$ROOTMNT/usr/lib/dyld"
+          echo "launch daemons: $(sudo ls "$ROOTMNT/System/Library/LaunchDaemons" | wc -l)"
+          echo "launch agents: $(sudo ls "$ROOTMNT/System/Library/LaunchAgents" | wc -l)"
+          echo "private frameworks: $(sudo ls "$ROOTMNT/System/Library/PrivateFrameworks" | wc -l)"
+          df -h / "$RUNNER_TEMP"
           sync
           hdiutil detach "$ROOTMNT"
-          hdiutil convert -format UDRW -o /tmp/root /tmp/root.sparseimage | tee /tmp/conv.txt
           hdiutil detach "$OSMNT" || true
           hdiutil detach "$SYSMNT" || true
-          python3 scripts/merged-root-extract.py /tmp/root.dmg "$RUNNER_TEMP/merged-root.raw"
+          # Read the APFS partition straight off the attached image: converting the
+          # sparse image first wrote two extra 10 GiB copies that this runner cannot hold.
+          hdiutil attach -readonly -nobrowse /tmp/root.sparseimage | tee /tmp/att_root2.txt
+          APFS_DEV=$(grep Apple_APFS /tmp/att_root2.txt | awk '{print $1}' | head -1)
+          echo "apfs partition $APFS_DEV"
+          test -n "$APFS_DEV"
+          sudo dd if="$(echo "$APFS_DEV" | sed 's#/dev/disk#/dev/rdisk#')" \
+            of="$RUNNER_TEMP/merged-root.raw" bs=8m status=progress
+          hdiutil detach "$(echo "$APFS_DEV" | sed 's/s[0-9]*$//')" || true
+          rm -f /tmp/root.sparseimage
+          python3 - "$RUNNER_TEMP/merged-root.raw" <<'PY'
+          import pathlib
+          import struct
+          import sys
+          p = pathlib.Path(sys.argv[1])
+          with p.open("rb") as f:
+              head = f.read(64)
+          assert head[32:36] == b"NXSB", head[:64]
+          block, count = struct.unpack_from("<IQ", head, 36)
+          total = block * count
+          print("container", total, "file", p.stat().st_size)
+          assert total <= p.stat().st_size
+          if total < p.stat().st_size:
+              with p.open("r+b") as f:
+                  f.truncate(total)
+          PY
+          df -h / "$RUNNER_TEMP"
           sync
           shasum -a 256 "$RUNNER_TEMP/merged-root.raw"
           rm -f "$RUNNER_TEMP"/part-*
@@ -96,14 +138,13 @@ jobs:
 
       - name: Publish merge logs
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config --global user.email "unixnu@local"
-          git config --global user.name "UniXNU"
-          git clone -q --depth 1 -b ci-diagnostics \
-            "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" /tmp/cidiag2 || exit 0
-          mkdir -p /tmp/cidiag2/merged-root
-          cp /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/merge_step.log /tmp/cidiag2/merged-root/ 2>/dev/null || true
-          cd /tmp/cidiag2
-          git add -f merged-root
-          git commit -q -m "merged root logs ${{ github.run_number }}" || exit 0
-          git push -f origin ci-diagnostics || exit 0
+          set -x
+          TAG="merge-log-${{ github.run_number }}"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" \
+            --notes "merged root merge log" || true
+          for f in /tmp/att_os.txt /tmp/att_sys.txt /tmp/att_root.txt /tmp/att_root2.txt /tmp/merge_step.log; do
+            if [ -f "$f" ]; then gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber || true; fi
+          done
