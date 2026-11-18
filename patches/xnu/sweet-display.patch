@@ -888,7 +888,7 @@ new file mode 100644
 index 0000000..7a7baba
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetSurface.cpp
-@@ -0,0 +1,946 @@
+@@ -0,0 +1,951 @@
 +#define SWEET 1
 +/*
 + * Built-in IOSurface for SWEET.
@@ -1360,6 +1360,11 @@ index 0000000..7a7baba
 +bool
 +IOSurfaceRootUserClient::initWithTask(task_t owningTask, void *securityID, UInt32 type)
 +{
++	{
++		char who[32];
++		proc_selfname(who, sizeof(who));
++		IOLog("SWEET SURF: client open by %s\n", who);
++	}
 +	if (!IOUserClient::initWithTask(owningTask, securityID, type)) {
 +		return false;
 +	}
