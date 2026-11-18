@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,499 @@
+@@ -7138,6 +7139,522 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -23,6 +23,29 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 + * launchd trees before init execs.  vnode_lookup cannot run in the mount context,
 + * so the walk runs in a kernel thread and the caller waits for it.
 + */
++static int
++houji_own_is_plist(const char *path)
++{
++	const char *suffix = ".plist";
++	size_t n = 0, m = 0, i;
++
++	while (path[n] != '\0') {
++		n++;
++	}
++	while (suffix[m] != '\0') {
++		m++;
++	}
++	if (n < m) {
++		return 0;
++	}
++	for (i = 0; i < m; i++) {
++		if (path[n - m + i] != suffix[i]) {
++			return 0;
++		}
++	}
++	return 1;
++}
++
 +static volatile int houji_own_done;
 +
 +static void
@@ -48,7 +71,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +		if (dir) {
 +			VATTR_WANTED(&va, va_mode);
 +			VATTR_SET(&va, va_mode, 0755);
-+		} else if (strstr(path, ".plist") != NULL) {
++		} else if (houji_own_is_plist(path)) {
 +			VATTR_WANTED(&va, va_mode);
 +			VATTR_SET(&va, va_mode, 0644);
 +		}
