@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,771 @@
+@@ -0,0 +1,777 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -814,6 +814,12 @@ index 0000000..ba395b5
 +			proc_selfname(name, sizeof(name));
 +			IOLog("SWEET FB: %s notifications type %u %s\n", name, type,
 +			    args->scalarInput[0] ? "on" : "off");
++		}
++		break;
++	case 57: /* display identity query seen during open */
++		if (args->scalarOutput != NULL && args->scalarOutputCount > 0) {
++			out[0] = 1;
++			outCount = 1;
 +		}
 +		break;
 +	case 79: /* display property blob: report unsupported so the caller keeps its defaults */
