@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,777 @@
+@@ -0,0 +1,795 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -374,6 +374,24 @@ index 0000000..ba395b5
 +	fVsync->wakeAtTime(fNextVsync);
 +
 +	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
++	/* The framework caches the canvas from these two properties during open;
++	 * without them the display looks 0x0 and nothing ever renders into it. */
++	{
++		uint32_t cw = fWidth, ch = fHeight;
++		setProperty("canvas-width", &cw, sizeof(cw));
++		setProperty("canvas-height", &ch, sizeof(ch));
++		setProperty("canvas-bytes-per-row", &fRowBytes, sizeof(fRowBytes));
++	}
++	setProperty("IOClass", "IOMobileFramebuffer");
++	{
++		uint64_t refresh[6] = { (1ULL << 32) / 60, fVsyncPeriod,
++		    (1ULL << 32) / 60, fVsyncPeriod, 0, 0 };
++		OSData *data = OSData::withBytes(refresh, sizeof(refresh));
++		if (data != NULL) {
++			setProperty("IOMFBDisplayRefresh", data);
++			data->release();
++		}
++	}
 +	setProperty("external", false);
 +	setProperty("DisplayPipePlaneBaseAlignment", 64ULL, 32);
 +	registerService();
