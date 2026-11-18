@@ -9,12 +9,13 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,498 @@
+@@ -7138,6 +7139,499 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
 +#include <sys/dirent.h>
 +#include <sys/uio.h>
++#include <libkern/libkern.h>
 +
 +/*
 + * HOUJI-OWN-FIX: the merged root was written with owners disabled, so every inode
@@ -152,7 +153,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	printf("HOUJI-OWN-FIX: done=%d\n", __atomic_load_n(&houji_own_done, __ATOMIC_ACQUIRE));
 +}
 +
-++/*
++/*
 + * UniXNU: the SystemOS cryptex arrives as a second memory disk (md1). APFS mounts
 + * a volume, not the container, so try the volume device nodes first and log the
 + * errno of each attempt. Only mount(2) is used here; probing paths with
