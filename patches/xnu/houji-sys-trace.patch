@@ -1,5 +1,5 @@
 diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
-index 8a1ec42..6b4e713 100644
+index 8a1ec42..0987a19 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
 @@ -79,6 +79,94 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
@@ -141,7 +141,7 @@ index 8a1ec42..6b4e713 100644
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
-@@ -180,6 +305,78 @@ unix_syscall(
+@@ -180,6 +305,87 @@ unix_syscall(
  	AUDIT_SYSCALL_ENTER(code, proc, uthread);
  	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
  	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
@@ -168,6 +168,7 @@ index 8a1ec42..6b4e713 100644
 +			up = saved_state64(state)->x[0];
 +			break;
 +		case 463:
++		case 98:
 +			up = saved_state64(state)->x[1];
 +			break;
 +		default:
@@ -176,7 +177,15 @@ index 8a1ec42..6b4e713 100644
 +		if (up != 0 && houji_sys_paths < 120) {
 +			char pbuf[96];
 +			vm_size_t plen = 0;
-+			if (copyinstr(up, pbuf, sizeof(pbuf), &plen) == 0 && plen != 0) {
++			if (code == 98) {
++				uint8_t sb[2];
++				if (copyin(up, sb, sizeof(sb)) == 0 &&
++				    copyinstr(up + 2, pbuf, sizeof(pbuf), &plen) == 0 && plen != 0) {
++					houji_sys_paths++;
++					printf("HOUJI-SYSPATH: connect err %d af %u path %s\n",
++					    error, (unsigned)sb[1], pbuf);
++				}
++			} else if (copyinstr(up, pbuf, sizeof(pbuf), &plen) == 0 && plen != 0) {
 +				houji_sys_paths++;
 +				printf("HOUJI-SYSPATH: code %u err %d path %s\n",
 +				    (unsigned)code, error, pbuf);
