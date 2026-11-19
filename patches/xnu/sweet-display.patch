@@ -111,7 +111,7 @@ new file mode 100644
 index 0000000..ba395b5
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -0,0 +1,813 @@
+@@ -0,0 +1,806 @@
 +#define SWEET 1
 +/*
 + * Built-in IOMobileFramebuffer for SWEET: the ABL's continuous-splash
@@ -861,14 +861,7 @@ index 0000000..ba395b5
 +	case 79: /* display property blob: report unsupported so the caller keeps its defaults */
 +		ret = kIOReturnUnsupported;
 +		break;
-+	case 74: /* one record so backboardd registers its display link */
-+		if (args->scalarOutput != NULL && args->scalarOutputCount > 0) {
-+			out[0] = 1;
-+			outCount = 1;
-+		}
-+		if (args->structureOutput != NULL && args->structureOutputSize >= 64) {
-+			bzero(args->structureOutput, args->structureOutputSize);
-+		}
++	case 74: /* no supported-frame record: the caller falls back to its 60 Hz default */
 +		break;
 +	case kSweetFBSwapWait:
 +		if(args->scalarInputCount!=3){ret=kIOReturnBadArgument;break;}
