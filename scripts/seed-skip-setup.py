@@ -20,10 +20,10 @@ from pathlib import Path
 
 BUILD = '20H392'
 DISABLED = (
-    'com.apple.identityservicesd',
-    'com.apple.locationd',
-    'com.apple.CommCenter',
-    'com.apple.iconservices.iconservicesagent',
+    # watchdogd is the one job that has to stay out of the boot: it asserts about
+    # checked-in daemons long before data migration finishes and takes the whole
+    # system down with panic-on-crash.
+    'com.apple.watchdogd',
 )
 MINI = (
     'ShouldRunDiagnosticsMiniBuddy',
