@@ -2005,70 +2005,6 @@ static void houjiBootGuardThread (void *arg, wait_result_t wr)
   }
 }
 
-/*
- * HOUJI-SAMPLE: user pc/lr of every SpringBoard thread, printed after the system goes
- * idle.  task_threads() returns the threads, thread_get_state() their saved user state.
- * The state buffer is read as raw 64-bit words (x0..x28, fp, lr, sp, pc) so no
- * SDK-specific struct field names are involved.
- */
-extern "C" kern_return_t task_threads(task_t, thread_act_array_t *, mach_msg_type_number_t *);
-extern "C" kern_return_t thread_get_state(thread_t, int, thread_state_t, mach_msg_type_number_t *);
-
-extern "C" void houji_sample_pid (const char *name, int pid)
-{
-  proc_t p = pid ? proc_find (pid) : NULL;
-
-  if (p == NULL) {
-    return;
-  }
-  task_t task = proc_task (p);
-  if (task != NULL) {
-    thread_act_array_t threads = NULL;
-    mach_msg_type_number_t count = 0;
-    if (task_threads (task, &threads, &count) == KERN_SUCCESS) {
-      for (mach_msg_type_number_t i = 0; i < count && i < 8; i++) {
-        uint64_t st[34];
-        mach_msg_type_number_t sc = 34;
-        bzero (st, sizeof (st));
-        if (thread_get_state ((thread_t)(uintptr_t) threads[i], 6 /* ARM_THREAD_STATE64 */,
-                (thread_state_t) st, &sc) == KERN_SUCCESS) {
-          IOLog ("HOUJI-SAMPLE: %s t%u pc=%#llx lr=%#llx x0=%#llx\n", name, (unsigned) i,
-              (unsigned long long) st[32], (unsigned long long) st[30],
-              (unsigned long long) st[0]);
-        } else {
-          IOLog ("HOUJI-SAMPLE: %s t%u state unavailable\n", name, (unsigned) i);
-        }
-        thread_deallocate ((thread_t)(uintptr_t) threads[i]);
-      }
-      kmem_free (kernel_map, (vm_offset_t) threads, count * sizeof (thread_t));
-    } else {
-      IOLog ("HOUJI-SAMPLE: %s task_threads failed\n", name);
-    }
-  }
-  proc_rele (p);
-}
-
-static void houjiSampleThread (void *arg, wait_result_t wr)
-{
-  (void) arg; (void) wr;
-  IOSleep (240 * 1000);
-  houji_sample_pid ("SpringBoard", 5);
-  IOSleep (120 * 1000);
-  houji_sample_pid ("SpringBoard", 5);
-  IOSleep (120 * 1000);
-  houji_sample_pid ("SpringBoard", 5);
-  IOLog ("HOUJI-SAMPLE: done\n");
-}
-
-static void houjiStartSampler (void)
-{
-  thread_t th = NULL;
-  if (kernel_thread_start (houjiSampleThread, NULL, &th) == KERN_SUCCESS) {
-    thread_deallocate (th);
-    IOLog ("HOUJI-SAMPLE: armed\n");
-  }
-}
-
 static void houjiStartBootGuard (void)
 {
   thread_t th = NULL;
@@ -2908,7 +2844,6 @@ extern "C" int native_ufs_md_init (void)
   }
   houjiInstallExit ();
   houjiStartBootGuard ();
-  houjiStartSampler ();
   return 0;
 }
 
