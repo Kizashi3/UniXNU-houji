@@ -91,10 +91,11 @@ def main():
             'SBDontDimOrLockOnAC': True,
             'SBDisableIdleSleep': True,
         })
-        # Leave DataMigration unmarked on purpose: the progress UI it draws is the
-        # only known client that exercises the CPU CoreAnimation path end to end.
+        # An older build version makes data migration necessary, which is the only
+        # known client that draws through the CPU CoreAnimation path end to end.
+        merge_pref(mount, 'com.apple.DataMigration', {'LastSystemVersion': '19H2'})
         merge_pref(mount, 'com.apple.migration', {
-            'LastSystemVersion': BUILD,
+            'LastSystemVersion': '19H2',
             'DMUserDataDisposition': {
                 'SyntheticDidUpgrade': False,
                 'buildVersion': BUILD,
