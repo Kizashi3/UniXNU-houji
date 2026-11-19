@@ -68,12 +68,16 @@ def main():
     try:
         if not (mount / 'mobile').is_dir():
             sys.exit('the seed has no /mobile; wrong base image?')
-        merge_pref(mount, 'com.apple.purplebuddy', {
-            'SetupDone': True,
-            'SetupFinishedAllSteps': True,
-            'SetupVersion': 11,
-            'daemonizeNeedsToRun': False,
-        })
+        run_setup = os.environ.get('HOUJI_RUN_SETUP') == '1'
+        if not run_setup:
+            merge_pref(mount, 'com.apple.purplebuddy', {
+                'SetupDone': True,
+                'SetupFinishedAllSteps': True,
+                'SetupVersion': 11,
+                'daemonizeNeedsToRun': False,
+            })
+        else:
+            print('setup left to run')
         merge_pref(mount, 'com.apple.purplebuddy.notbackedup',
                    {key: False for key in MINI})
         merge_pref(mount, 'com.apple.managedconfiguration.notbackedup', {
