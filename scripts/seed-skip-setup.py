@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 BUILD = '20H392'
+MOBILE = 501
 DISABLED = (
     # watchdogd is the one job that has to stay out of the boot: it asserts about
     # checked-in daemons long before data migration finishes and takes the whole
@@ -44,8 +45,9 @@ def merge_pref(root, name, values):
     data.update(values)
     path.write_bytes(plistlib.dumps(data, fmt=plistlib.FMT_BINARY))
     os.chmod(path, 0o600)
-    # cfprefsd and launchd ignore files that are not owned by root.
-    os.chown(path, 0, 0)
+    # ios-sweet writes these as the mobile user; cfprefsd runs as mobile and
+    # ignores a root-owned 0600 file it cannot read.
+    os.chown(path, MOBILE, MOBILE)
     print('pref', name, sorted(values))
 
 
@@ -104,7 +106,9 @@ def main():
             },
         })
         for sub in ('Bundle', 'Data/System', 'Shared/SystemGroup', 'Temp'):
-            (mount / 'containers' / sub).mkdir(parents=True, exist_ok=True)
+            d = mount / 'containers' / sub
+            d.mkdir(parents=True, exist_ok=True)
+            os.chown(d, MOBILE, MOBILE)
         db = mount / 'db/com.apple.xpc.launchd'
         db.mkdir(parents=True, exist_ok=True)
         if keep_services:
