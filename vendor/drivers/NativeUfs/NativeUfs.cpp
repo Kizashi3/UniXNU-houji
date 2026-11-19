@@ -2005,6 +2005,64 @@ static void houjiBootGuardThread (void *arg, wait_result_t wr)
   }
 }
 
+/*
+ * HOUJI-SAMPLE: user pc/lr of every SpringBoard thread, printed a few times after
+ * the system goes idle.  task_threads() hands back the threads of the task and
+ * thread_get_state() returns their saved user state, which is enough to tell a
+ * mach_msg wait from a runloop poll without any private structure access.
+ */
+extern "C" kern_return_t task_threads(task_t, thread_act_array_t *, mach_msg_type_number_t *);
+extern "C" kern_return_t thread_get_state(thread_act_t, thread_state_flavor_t, thread_state_t,
+    mach_msg_type_number_t *);
+
+extern "C" void houji_sample_pid (const char *name, int pid)
+{
+  proc_t p = pid ? proc_find (pid) : NULL;
+  if (p == NULL) {
+    return;
+  }
+  task_t task = proc_task (p);
+  if (task != NULL) {
+    thread_act_array_t threads = NULL;
+    mach_msg_type_number_t count = 0;
+    if (task_threads (task, &threads, &count) == KERN_SUCCESS) {
+      for (mach_msg_type_number_t i = 0; i < count && i < 8; i++) {
+        arm_thread_state64_t st;
+        mach_msg_type_number_t sc = ARM_THREAD_STATE64_COUNT;
+        if (thread_get_state (threads[i], ARM_THREAD_STATE64, (thread_state_t) &st, &sc) == KERN_SUCCESS) {
+          IOLog ("HOUJI-SAMPLE: %s t%u pc=%#llx lr=%#llx\n", name, (unsigned) i,
+              (unsigned long long) arm_thread_state64_get_pc (st),
+              (unsigned long long) arm_thread_state64_get_lr (st));
+        }
+        thread_deallocate (threads[i]);
+      }
+      kmem_free (kernel_map, (vm_offset_t) threads, count * sizeof (thread_t));
+    }
+  }
+  proc_rele (p);
+}
+
+static void houjiSampleThread (void *arg, wait_result_t wr)
+{
+  (void) arg; (void) wr;
+  IOSleep (240 * 1000);
+  houji_sample_pid ("SpringBoard", 5);
+  IOSleep (120 * 1000);
+  houji_sample_pid ("SpringBoard", 5);
+  IOSleep (120 * 1000);
+  houji_sample_pid ("SpringBoard", 5);
+  IOLog ("HOUJI-SAMPLE: done\n");
+}
+
+static void houjiStartSampler (void)
+{
+  thread_t th = NULL;
+  if (kernel_thread_start (houjiSampleThread, NULL, &th) == KERN_SUCCESS) {
+    thread_deallocate (th);
+    IOLog ("HOUJI-SAMPLE: armed\n");
+  }
+}
+
 static void houjiStartBootGuard (void)
 {
   thread_t th = NULL;
@@ -2844,6 +2902,7 @@ extern "C" int native_ufs_md_init (void)
   }
   houjiInstallExit ();
   houjiStartBootGuard ();
+  houjiStartSampler ();
   return 0;
 }
 
