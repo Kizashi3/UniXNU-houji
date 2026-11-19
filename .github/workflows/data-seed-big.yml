@@ -3,7 +3,7 @@ name: houji big Data seed
 on:
   workflow_dispatch:
   push:
-    branches: [merged-root-kernel]
+    branches: [merged-root-kernel, kernel-cs-bypass]
     paths:
       - ".github/workflows/data-seed-big.yml"
       - "scripts/make-data-seed.py"

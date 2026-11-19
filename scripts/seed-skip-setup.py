@@ -91,11 +91,13 @@ def main():
             'SBDontDimOrLockOnAC': True,
             'SBDisableIdleSleep': True,
         })
-        # An older build version makes data migration necessary, which is the only
-        # known client that draws through the CPU CoreAnimation path end to end.
-        merge_pref(mount, 'com.apple.DataMigration', {'LastSystemVersion': '19H2'})
+        # ios-sweet v12: claiming the current build is what stops the one-hour data
+        # migration that runs on every boot. backboardd holds the system shell
+        # check-in until migration returns, so a forced migration keeps SpringBoard
+        # out of its UI forever.
+        merge_pref(mount, 'com.apple.DataMigration', {'LastSystemVersion': BUILD})
         merge_pref(mount, 'com.apple.migration', {
-            'LastSystemVersion': '19H2',
+            'LastSystemVersion': BUILD,
             'DMUserDataDisposition': {
                 'SyntheticDidUpgrade': False,
                 'buildVersion': BUILD,
