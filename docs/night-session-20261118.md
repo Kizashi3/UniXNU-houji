@@ -122,3 +122,23 @@ Remaining suspects, in order:
    what stalls its UI bring-up.
 2. The Data volume is a synthetic seed, not a pulled iPhone X /private/var; the
    workspace/scene state SpringBoard expects is missing (Setup never launches either).
+
+## 2026-11-19 evening: first real pixels
+
+The blocker was a size mismatch, not a missing service.  The panel is 1200x2670 while the
+driver reported a 1125x2436 logical display, so the display surface (1200x2670) and the
+display mode (1125x2436 @3x) disagreed and clients never built a scene.
+
+`HOUJI_LOGICAL_W/H` now match the panel.  Run 562 (kernel 562, iPhone X ADT, scale 3):
+
+* `SWEET FB: backboardd sel 3 in 2/0 out 1/0 -> i0=0x4b0 i1=0xa6e` (the layer is the panel)
+* first present probe `1200x2670 nonzero=3150/3150 hash=f531192d37d829c8`
+* the Apple logo is visible on the panel, the system runs the full 20 minutes and the
+  relative autoreboot returns to recovery without a panic.
+
+Also fixed on the way in this session: `chip-id` fallback for IOPlatformUUID, a permissive
+`Sandbox` answer in `__mac_syscall` (launchd "error = 159" went 139 -> 0), root-owned seed
+prefs, and the boot guard/relative deadline.
+
+Next: SpringBoard still creates no surface of its own; test the setup-enabled seed so the
+assistant's Hello screen has a client to draw it.
