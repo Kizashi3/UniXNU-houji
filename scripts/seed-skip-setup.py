@@ -44,6 +44,8 @@ def merge_pref(root, name, values):
     data.update(values)
     path.write_bytes(plistlib.dumps(data, fmt=plistlib.FMT_BINARY))
     os.chmod(path, 0o600)
+    # cfprefsd and launchd ignore files that are not owned by root.
+    os.chown(path, 0, 0)
     print('pref', name, sorted(values))
 
 
@@ -60,7 +62,7 @@ def main():
     mount.mkdir(exist_ok=True)
     info = plistlib.loads(subprocess.check_output([
         'hdiutil', 'attach', '-imagekey', 'diskimage-class=CRawDiskImage',
-        '-readwrite', '-nobrowse', '-owners', 'off',
+        '-readwrite', '-nobrowse', '-owners', 'on',
         '-mountpoint', str(mount), '-plist', str(dst)]))
     device = info['system-entities'][0]['dev-entry']
     try:
