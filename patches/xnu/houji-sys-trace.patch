@@ -1,8 +1,8 @@
 diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
-index 8a1ec42..6dd6c52 100644
+index 8a1ec42..afd06c9 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
-@@ -79,6 +79,31 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
+@@ -79,6 +79,80 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
  extern int mach_trap_count;
  #endif
  
@@ -10,6 +10,55 @@ index 8a1ec42..6dd6c52 100644
 +static struct houji_sys_rec houji_sys_ring[64];
 +static unsigned houji_sys_ring_at;
 +static int houji_sys_pid = -1;
++
++void houji_sys_dump(int pid);
++
++static void
++houji_sys_record(unsigned code, int32_t error, uint64_t pc, uint64_t lr, uint64_t x0)
++{
++	struct houji_sys_rec *r = &houji_sys_ring[houji_sys_ring_at++ % 64];
++
++	r->code = (uint32_t)code;
++	r->error = error;
++	r->pc = pc;
++	r->lr = lr;
++	r->x0 = x0;
++}
++
++extern uint64_t mach_absolute_time(void);
++extern void absolutetime_to_nanoseconds(uint64_t, uint64_t *);
++
++/*
++ * Called from every unix syscall. If the sampled process stops calling, the
++ * ring stops changing; dump it once, 30 s after the stall, so a blocked launch
++ * is visible without waiting for the process to exit.
++ */
++static unsigned houji_sys_last_seen;
++static int houji_sys_stall_reported;
++static uint64_t houji_sys_next_tick;
++
++static void
++houji_sys_tick(void)
++{
++	uint64_t now = mach_absolute_time(), ns;
++
++	absolutetime_to_nanoseconds(now, &ns);
++	if (houji_sys_next_tick == 0) {
++		houji_sys_next_tick = ns + 30000000000ULL;
++		return;
++	}
++	if (ns < houji_sys_next_tick) {
++		return;
++	}
++	houji_sys_next_tick = ns + 30000000000ULL;
++	if (houji_sys_ring_at != houji_sys_last_seen) {
++		houji_sys_last_seen = houji_sys_ring_at;
++		houji_sys_stall_reported = 0;
++	} else if (!houji_sys_stall_reported && houji_sys_ring_at != 0) {
++		houji_sys_stall_reported = 1;
++		houji_sys_dump(houji_sys_pid);
++	}
++}
 +
 +/* Last calls and their errors for the sampled process, printed when it exits. */
 +void
@@ -34,7 +83,7 @@ index 8a1ec42..6dd6c52 100644
  /*
   * Function:	unix_syscall
   *
-@@ -102,6 +127,32 @@ unix_syscall(
+@@ -102,6 +176,39 @@ unix_syscall(
  
  	code = arm_get_syscall_number(state);
  
@@ -50,6 +99,12 @@ index 8a1ec42..6dd6c52 100644
 +		}
 +		if (houji_sys_pid > 0 && proc_getpid(proc) == houji_sys_pid &&
 +		    is_saved_state64(state)) {
++			/* Record on entry with a sentinel error: a call that never
++			 * returns still becomes the newest ring entry. */
++			houji_sys_record((unsigned)code, -999,
++			    (uint64_t)saved_state64(state)->pc,
++			    (uint64_t)saved_state64(state)->lr,
++			    (uint64_t)saved_state64(state)->x[0]);
 +			houji_sys_seen++;
 +			if (houji_sys_seen <= 40 || (houji_sys_seen & 31) == 0) {
 +				if (houji_sys_count < 400) {
@@ -62,12 +117,13 @@ index 8a1ec42..6dd6c52 100644
 +				}
 +			}
 +		}
++		houji_sys_tick();
 +	}
 +
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
-@@ -180,6 +231,39 @@ unix_syscall(
+@@ -180,6 +287,39 @@ unix_syscall(
  	AUDIT_SYSCALL_ENTER(code, proc, uthread);
  	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
  	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);

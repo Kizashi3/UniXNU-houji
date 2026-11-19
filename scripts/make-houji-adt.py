@@ -46,7 +46,8 @@ def main():
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--dram-size', type=lambda s: int(s, 0), required=True)
     p.add_argument('--owned-memory-size', type=lambda s: int(s, 0), default=0x10000000)
-    p.add_argument('--cpu-regs', choices=['0'], default='0')
+    p.add_argument('--cpu-count', type=int, choices=range(1, 9), default=1,
+                   help='Number of CPUs declared in /cpus (SM8650 numbers cores in MPIDR Aff1)')
     p.add_argument('--psci-method', choices=['smc'], default='smc')
     p.add_argument('--trust-cache', action='store_true')
     p.add_argument('--root-match-volume-uuid', type=uuid.UUID,
@@ -90,9 +91,11 @@ def main():
                                  ([('TrustCache', bytes(16))] if args.trust_cache else [])),
               node('manifest-properties')]),
         node('pram', [('reg', struct.pack('<QQ', args.panic_base, args.panic_size))]),
-        node('cpus', children=[node('cpu0', [('state', b'running\0'), ('reg', u32(0)),
+        node('cpus', children=[node('cpu%d' % i, [
+             ('state', b'running\0' if i == 0 else b'halted\0'),
+             ('reg', u32(i << 8)),
              ('device_type', b'cpu\0'), ('compatible', b'qcom,kryo\0'),
-             ('timebase-frequency', u32(19200000))])]),
+             ('timebase-frequency', u32(19200000))]) for i in range(args.cpu_count)]),
         # ArmCpu reads /psci/method before attempting secondary CPU startup.
         # Keep the selected conduit in the emitted ADT; this does not enable SMP.
         node('psci', [('compatible', b'arm,psci-1.0\0arm,psci-0.2\0'),
@@ -107,7 +110,7 @@ def main():
     ])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(tree)
-    print(f'houji first-entry ADT: {len(tree)} bytes; CPU0; no storage/GPU nodes')
+    print(f'houji first-entry ADT: {len(tree)} bytes; {args.cpu_count} CPU(s); no storage/GPU nodes')
 
 if __name__ == '__main__':
     main()
