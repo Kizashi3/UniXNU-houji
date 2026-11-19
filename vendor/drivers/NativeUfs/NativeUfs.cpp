@@ -24,6 +24,9 @@ extern const uint8_t verified_root_key[];
 #include <libkern/c++/OSIterator.h>
 #include <IOKit/IOBSD.h>
 #include <kern/thread.h>
+#include <kern/task.h>
+#include <kern/ipc_tt.h>
+#include <sys/proc.h>
 #include <IOKit/IOLib.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include <IOKit/IOMemoryDescriptor.h>
@@ -2029,16 +2032,19 @@ extern "C" void houji_sample_pid (const char *name, int pid)
       for (mach_msg_type_number_t i = 0; i < count && i < 8; i++) {
         uint64_t st[34];
         mach_msg_type_number_t sc = 34;
+        thread_t th = convert_port_to_thread (threads[i].port);
+
         bzero (st, sizeof (st));
-        if (thread_get_state ((thread_t)(uintptr_t) threads[i], 6 /* ARM_THREAD_STATE64 */,
-                (thread_state_t) st, &sc) == KERN_SUCCESS) {
-          IOLog ("HOUJI-SAMPLE: %s t%u pc=%#llx lr=%#llx x0=%#llx\n", name, (unsigned) i,
-              (unsigned long long) st[32], (unsigned long long) st[30],
-              (unsigned long long) st[0]);
-        } else {
-          IOLog ("HOUJI-SAMPLE: %s t%u state unavailable\n", name, (unsigned) i);
+        if (th != NULL) {
+          if (thread_get_state (th, 6 /* ARM_THREAD_STATE64 */, (thread_state_t) st, &sc) == KERN_SUCCESS) {
+            IOLog ("HOUJI-SAMPLE: %s t%u pc=%#llx lr=%#llx x0=%#llx\n", name, (unsigned) i,
+                (unsigned long long) st[32], (unsigned long long) st[30],
+                (unsigned long long) st[0]);
+          } else {
+            IOLog ("HOUJI-SAMPLE: %s t%u state unavailable\n", name, (unsigned) i);
+          }
+          thread_deallocate (th);
         }
-        thread_deallocate ((thread_t)(uintptr_t) threads[i]);
       }
       kmem_free (kernel_map, (vm_offset_t) threads, count * sizeof (thread_t));
     } else {
