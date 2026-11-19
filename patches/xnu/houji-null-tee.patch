@@ -1,0 +1,31 @@
+diff --git a/bsd/dev/mem.c b/bsd/dev/mem.c
+index c64e636..a5d0474 100644
+--- a/bsd/dev/mem.c
++++ b/bsd/dev/mem.c
+@@ -217,7 +217,25 @@ mmrw(dev_t dev, struct uio *uio, enum uio_rw rw)
+ 				return 0;
+ 			}
+ 			c = uio_curriovlen(uio);
+-
++			/*
++			 * HOUJI-NULLTEE: launchd points SpringBoard's and backboardd's stderr at
++			 * /dev/null, which hides the one diagnostic that matters.  Print short
++			 * writes from those two processes to the kernel log before discarding them.
++			 */
++			if (c > 0 && c <= 400) {
++				char name[32];
++				proc_selfname(name, sizeof(name));
++				if (strcmp(name, "SpringBoard") == 0 || strcmp(name, "backboardd") == 0) {
++					char text[401];
++					uint32_t take = (uint32_t)c;
++					if (uiomove(text, (int)take, uio) == 0) {
++						text[take] = 0;
++						printf("|%s| %s\n", name, text);
++						error = 0;
++						continue;
++					}
++				}
++			}
+ 			error = 0; /* Always succeeds, always consumes all input */
+ 			break;
+ 		case 3:
