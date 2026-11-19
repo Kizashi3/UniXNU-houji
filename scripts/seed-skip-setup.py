@@ -91,10 +91,8 @@ def main():
             'SBDontDimOrLockOnAC': True,
             'SBDisableIdleSleep': True,
         })
-        # DataMigration.framework reads its own preference domain, not just the
-        # migration one; without it the daemon runs on every boot and holds the
-        # system shell check-in.
-        merge_pref(mount, 'com.apple.DataMigration', {'LastSystemVersion': BUILD})
+        # Leave DataMigration unmarked on purpose: the progress UI it draws is the
+        # only known client that exercises the CPU CoreAnimation path end to end.
         merge_pref(mount, 'com.apple.migration', {
             'LastSystemVersion': BUILD,
             'DMUserDataDisposition': {
