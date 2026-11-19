@@ -828,8 +828,11 @@ jobs:
           # SM8650 numbers cores in MPIDR Aff1; the reset vector must compare
           # Aff0|Aff1 against /cpus reg, so widen the mask in the upstream SMP patch.
           for f in patches/xnu/native-smp-secondary.patch out/houji/tree/patches/xnu/native-smp-secondary.patch; do
-            [ -f "$f" ] && sed -i 's/#if HAS_CLUSTER || defined(BCM2837)/#if HAS_CLUSTER || defined(BCM2837) || defined(ARM64_BOARD_CONFIG_BCM2837)/' "$f"
+            if [ -f "$f" ]; then
+              sed -i 's/#if HAS_CLUSTER || defined(BCM2837)/#if HAS_CLUSTER || defined(BCM2837) || defined(ARM64_BOARD_CONFIG_BCM2837)/' "$f"
+            fi
           done
+          grep -q ARM64_BOARD_CONFIG_BCM2837 patches/xnu/native-smp-secondary.patch
           set +e
           ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build.log
           build_status=${PIPESTATUS[0]}
