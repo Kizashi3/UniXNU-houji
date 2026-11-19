@@ -1,29 +1,21 @@
 diff --git a/bsd/kern/kern_priv.c b/bsd/kern/kern_priv.c
-index 88adf2d..0592d3d 100644
+index 88adf2d..038b009 100644
 --- a/bsd/kern/kern_priv.c
 +++ b/bsd/kern/kern_priv.c
-@@ -77,6 +77,76 @@ int proc_check_footprint_priv(void);
- int
- priv_check_cred(kauth_cred_t cred, int priv, int flags)
- {
-+	/*
-+	 * HOUJI-PRIV: without a Sandbox kext nothing grants PRIV_WORK_INTERVAL, so
-+	 * CoreAnimation's work_interval_create(CA_CLIENT) fails in SpringBoard and the
-+	 * renderer never starts.  Grant that one privilege to every credential.
-+	 */
-+	if (priv == PRIV_WORK_INTERVAL) {
-+		return 0;
-+	}
-+
+@@ -66,7 +66,67 @@
+ 
+ #if CONFIG_MACF
+ #include <security/mac_framework.h>
+-#endif
 +#include <security/mac_policy.h>
 +#include <security/mac_internal.h>
 +
 +/*
 + * HOUJI-SANDBOX: libsystem_sandbox issues __mac_syscall("Sandbox", op, arg).  With no
 + * policy of that name every call fails with ENOPOLICY and launchd reports mach lookups
-+ * as "error = 159: Sandbox restriction", which is what keeps backboardd away from
-+ * mobilegestalt and iohideventsystem.  This stand-in allows the operations; only the
-+ * ones that must return a path or a token answer ENOENT.
++ * as "error = 159: Sandbox restriction", which keeps backboardd away from
++ * mobilegestalt and iohideventsystem.  This stand-in allows the operations; the ones
++ * that must return a path or a token answer ENOENT.
 + */
 +static uint64_t houji_sandbox_seen;
 +
@@ -75,6 +67,22 @@ index 88adf2d..0592d3d 100644
 +	printf("HOUJI-SANDBOX: policy %s (%d)\n", error ? "NOT registered" : "registered", error);
 +	return error;
 +}
++#endif /* CONFIG_MACF */
+ 
+ int proc_check_footprint_priv(void);
+ 
+@@ -77,6 +137,15 @@ int proc_check_footprint_priv(void);
+ int
+ priv_check_cred(kauth_cred_t cred, int priv, int flags)
+ {
++	/*
++	 * HOUJI-PRIV: without a Sandbox kext nothing grants PRIV_WORK_INTERVAL, so
++	 * CoreAnimation's work_interval_create(CA_CLIENT) fails in SpringBoard and the
++	 * renderer never starts.  Grant that one privilege to every credential.
++	 */
++	if (priv == PRIV_WORK_INTERVAL) {
++		return 0;
++	}
 +
  #if !CONFIG_MACF
  #pragma unused(priv)
