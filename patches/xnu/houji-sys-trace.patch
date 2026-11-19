@@ -1,5 +1,5 @@
 diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
-index 8a1ec42..0987a19 100644
+index 8a1ec42..8b7df10 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
 @@ -79,6 +79,94 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
@@ -97,7 +97,7 @@ index 8a1ec42..0987a19 100644
  /*
   * Function:	unix_syscall
   *
-@@ -102,6 +190,43 @@ unix_syscall(
+@@ -102,6 +190,44 @@ unix_syscall(
  
  	code = arm_get_syscall_number(state);
  
@@ -114,6 +114,7 @@ index 8a1ec42..0987a19 100644
 +		if (houji_sys_pid == 0 && houji_is_springboard(proc->p_comm)) {
 +			houji_sys_pid = proc_getpid(proc);
 +			printf("HOUJI-SYS: attached to SpringBoard pid %d\n", houji_sys_pid);
++			{ extern void houji_sample_start(void); houji_sample_start(); }
 +		}
 +		if (houji_sys_pid > 0 && proc_getpid(proc) == houji_sys_pid &&
 +		    is_saved_state64(state)) {
@@ -141,7 +142,7 @@ index 8a1ec42..0987a19 100644
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
-@@ -180,6 +305,87 @@ unix_syscall(
+@@ -180,6 +306,87 @@ unix_syscall(
  	AUDIT_SYSCALL_ENTER(code, proc, uthread);
  	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
  	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);

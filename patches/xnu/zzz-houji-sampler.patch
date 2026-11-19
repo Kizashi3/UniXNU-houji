@@ -100,21 +100,6 @@ index 0000000..a4a0c52
 +		thread_deallocate(thread);
 +	}
 +}
-diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index 5393fc5..8e8fa25 100644
---- a/iokit/Kernel/arm/SweetFramebuffer.cpp
-+++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -294,6 +294,10 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
- 	AppleCLCD *fb = (AppleCLCD *)owner;
- 	uint64_t now = mach_absolute_time();
- 	uint64_t count = ++fb->fVsyncCount;
-+	if (count == 3000) {
-+		extern void houji_sample_start(void);
-+		houji_sample_start();
-+	}
- 	if (count == 3600) {
- 		houji_start_watchdog_late();
- 	}
 diff --git a/osfmk/kern/exception.c b/osfmk/kern/exception.c
 index 5c88e69..86aaa13 100644
 --- a/osfmk/kern/exception.c
