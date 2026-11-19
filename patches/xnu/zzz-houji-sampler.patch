@@ -12,19 +12,18 @@ index 19b4065..bf468e0 100644
  bsd/dev/unix_startup.c			standard
 diff --git a/bsd/dev/houji_sample.c b/bsd/dev/houji_sample.c
 new file mode 100644
-index 0000000..d87cb6e
+index 0000000..a4a0c52
 --- /dev/null
 +++ b/bsd/dev/houji_sample.c
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,84 @@
 +/*
 + * HOUJI process sampler: where is a daemon stuck?
 + *
-+ * The phone has no debugger and daemons log nowhere readable. Every interval a
-+ * kernel thread prints, for each process named in boot-arg houji-sample
-+ * (comma separated, default "SpringBoard,backboardd"; "-" = off) and for each
-+ * of its threads, the user pc/lr/sp and a frame-pointer backtrace as
-+ * "SMP name[pid] tN pc ... lr ... bt ..." (header line with the shared region
-+ * slide and the main binary's mach header, to symbolicate offline).
++ * Every interval a kernel thread walks the process list and, for each process
++ * named in boot-arg houji-sample (comma separated, default
++ * "SpringBoard,backboardd"; "-" = off), prints one line per thread with the
++ * user pc/lr/sp and a frame-pointer backtrace. The task walk itself lives in
++ * osfmk/kern/exception.c, where the task and vm internals are visible.
 + */
 +#include <sys/param.h>
 +#include <sys/systm.h>
@@ -32,14 +31,11 @@ index 0000000..d87cb6e
 +#include <sys/proc_internal.h>
 +#include <kern/task.h>
 +#include <kern/thread.h>
-+#include <kern/assert.h>
-+#include <vm/vm_map.h>
-+#include <vm/vm_shared_region.h>
-+#include <arm/thread.h>
 +#include <pexpert/pexpert.h>
 +
 +extern task_t proc_task(proc_t);
 +extern int hz;
++extern void houji_sample_task(const char *name, int pid, task_t task);
 +
 +static char houji_sample_names[128];
 +
@@ -60,51 +56,6 @@ index 0000000..d87cb6e
 +		t = end + 1;
 +	}
 +	return false;
-+}
-+
-+static void
-+houji_sample_task(const char *name, int pid, task_t task)
-+{
-+	vm_map_t map = get_task_map(task);
-+	uint64_t slide = 0;
-+	int tn = 0;
-+	thread_t thread;
-+	vm_shared_region_t sr = vm_shared_region_get(task);
-+
-+	if (sr != NULL) {
-+		slide = sr->sr_slide;
-+		vm_shared_region_deallocate(sr);
-+	}
-+	printf("SMP %s[%d] slide 0x%llx mh 0x%llx\n", name, pid, slide,
-+	    task->mach_header_vm_address);
-+
-+	task_lock(task);
-+	queue_iterate(&task->threads, thread, thread_t, task_threads) {
-+		arm_saved_state_t *ss = find_user_regs(thread);
-+		char line[220];
-+		int n;
-+		uint64_t fp;
-+
-+		if (ss == NULL || !is_saved_state64(ss)) {
-+			continue;
-+		}
-+		fp = get_saved_state_fp(ss);
-+		n = snprintf(line, sizeof(line), "SMP %s t%d pc 0x%llx lr 0x%llx sp 0x%llx bt",
-+		    name, tn++, get_saved_state_pc(ss), get_saved_state_lr(ss), get_saved_state_sp(ss));
-+		for (int i = 0; i < 8 && fp != 0 && (fp & 7) == 0 && n < (int)sizeof(line) - 20; i++) {
-+			uint64_t frame[2];
-+			if (vm_map_read_user(map, fp, frame, sizeof(frame)) != KERN_SUCCESS) {
-+				break;
-+			}
-+			n += snprintf(line + n, sizeof(line) - n, " 0x%llx", frame[1]);
-+			if (frame[0] <= fp) {
-+				break;
-+			}
-+			fp = frame[0];
-+		}
-+		printf("%s\n", line);
-+	}
-+	task_unlock(task);
 +}
 +
 +static int
@@ -164,3 +115,71 @@ index 5393fc5..8e8fa25 100644
  	if (count == 3600) {
  		houji_start_watchdog_late();
  	}
+diff --git a/osfmk/kern/exception.c b/osfmk/kern/exception.c
+index 5c88e69..86aaa13 100644
+--- a/osfmk/kern/exception.c
++++ b/osfmk/kern/exception.c
+@@ -88,6 +88,10 @@
+ #include <kern/task_ident.h>
+ 
+ #include <vm/vm_map.h>
++#include <vm/vm_shared_region.h>
++#include <mach/arm/thread_status.h>
++
++extern arm_saved_state_t *find_user_regs(thread_t);
+ 
+ #include <security/mac_mach_internal.h>
+ #include <string.h>
+@@ -926,3 +930,52 @@ sys_perf_notify(thread_t thread, int pid)
+ 
+ 	return ret;
+ }
++
++/*
++ * HOUJI sampler: one line per thread of a task, with the saved user state and a
++ * frame-pointer backtrace. Called from bsd/dev/houji_sample.c.
++ */
++void
++houji_sample_task(const char *name, int pid, task_t task)
++{
++	vm_map_t map = get_task_map(task);
++	uint64_t slide = 0;
++	int tn = 0;
++	thread_t thread;
++	vm_shared_region_t sr = vm_shared_region_get(task);
++
++	if (sr != NULL) {
++		slide = sr->sr_slide;
++		vm_shared_region_deallocate(sr);
++	}
++	printf("SMP %s[%d] slide 0x%llx mh 0x%llx\n", name, pid, slide,
++	    task->mach_header_vm_address);
++
++	task_lock(task);
++	queue_iterate(&task->threads, thread, thread_t, task_threads) {
++		arm_saved_state_t *ss = find_user_regs(thread);
++		char line[220];
++		int n;
++		uint64_t fp;
++
++		if (ss == NULL || !is_saved_state64(ss)) {
++			continue;
++		}
++		fp = get_saved_state_fp(ss);
++		n = snprintf(line, sizeof(line), "SMP %s t%d pc 0x%llx lr 0x%llx sp 0x%llx bt",
++		    name, tn++, get_saved_state_pc(ss), get_saved_state_lr(ss), get_saved_state_sp(ss));
++		for (int i = 0; i < 8 && fp != 0 && (fp & 7) == 0 && n < (int)sizeof(line) - 20; i++) {
++			uint64_t frame[2];
++			if (vm_map_read_user(map, fp, frame, sizeof(frame)) != KERN_SUCCESS) {
++				break;
++			}
++			n += snprintf(line + n, sizeof(line) - n, " 0x%llx", frame[1]);
++			if (frame[0] <= fp) {
++				break;
++			}
++			fp = frame[0];
++		}
++		printf("%s\n", line);
++	}
++	task_unlock(task);
++}
