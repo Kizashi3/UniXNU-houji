@@ -86,3 +86,39 @@ Questions to settle next:
   before their HID/work-interval/system-shell-check-in patches.
 * Note: the compiled driver is the copy inside `patches/xnu/sweet-display.patch`;
   `vendor/drivers/SweetDisplay/*` is a stale mirror, so edits belong in the patch.
+
+## 2026-11-19 daytime: why SpringBoard never draws
+
+Confirmed by probing the presented frames (`nonzero=0/3150` every time): backboardd
+composites an empty root layer.  The pipeline itself is fine - display surface,
+`sel 3`, SwapEnd and the panel copy all run - but no client ever publishes a scene.
+
+Things ruled out on device:
+
+* `display-scale=1` vs `3`: with 1 the mode is rejected (scale 0 pattern), with 3
+  backboardd builds surfaces and swaps, still empty.
+* `sel 74`: returning one zero record and returning none behave the same (no content).
+* iPhone X identity (`model=iPhone10,3`, `compatible[0]=D22AP` in the ADT): no change.
+* PRIV_WORK_INTERVAL grant in `priv_check_cred`: SpringBoard never calls 499 anyway.
+* data migration: the daemon spawns and exits(0) repeatedly; letting it run for 40 min
+  still produces no progress UI, so it is not drawing either.
+* `sweetfb_noconsole=1` + a `vcputc` mute: the console does stop, so the panel shows
+  whatever was composited - which is black.
+
+Useful diagnostics added along the way (all kept):
+
+* `houji-owner-override.patch` - stat reports root ownership for the 99:99 root.
+* `houji-priv-work-interval.patch` - grants PRIV_WORK_INTERVAL.
+* `houji-null-tee.patch` - prints SpringBoard/backboardd stderr writes to /dev/null
+  into the kernel log (backboardd only complains about AppleM2ScalerCSCDriver).
+* `houji-console-mute.patch` - stops panel text once the GUI presents.
+* boot guard + relative autoreboot deadline.
+* seed prefs are written with owners on; launchd needs root-owned files.
+
+Remaining suspects, in order:
+
+1. IOHIDSystem is absent from this kernel (`IOHIDSystem services=0`), while
+   ios-sweet's 0058 ports Apple IOHIDFamily.  SpringBoard's event plumbing may be
+   what stalls its UI bring-up.
+2. The Data volume is a synthetic seed, not a pulled iPhone X /private/var; the
+   workspace/scene state SpringBoard expects is missing (Setup never launches either).
