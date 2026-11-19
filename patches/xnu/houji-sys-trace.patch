@@ -1,5 +1,5 @@
 diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
-index 8a1ec42..6e90d0e 100644
+index 8a1ec42..4799ed0 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
 @@ -79,6 +79,94 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
@@ -141,7 +141,7 @@ index 8a1ec42..6e90d0e 100644
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
-@@ -180,6 +305,52 @@ unix_syscall(
+@@ -180,6 +305,77 @@ unix_syscall(
  	AUDIT_SYSCALL_ENTER(code, proc, uthread);
  	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
  	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
@@ -155,6 +155,31 @@ index 8a1ec42..6e90d0e 100644
 +			    (unsigned long long)saved_state64(state)->pc,
 +			    (unsigned long long)saved_state64(state)->lr,
 +			    (unsigned long long)saved_state64(state)->x[0]);
++		}
++	}
++
++	/* HOUJI-SYSPATH: name the file behind a failed open/stat/connect. */
++	if (error != 0 && houji_sys_pid > 0 && pid == houji_sys_pid &&
++	    is_saved_state64(state)) {
++		static unsigned houji_sys_paths;
++		user_addr_t up = 0;
++		switch (code) {
++		case 5: case 398: case 338: case 220: case 266:
++			up = saved_state64(state)->x[0];
++			break;
++		case 463:
++			up = saved_state64(state)->x[1];
++			break;
++		default:
++			break;
++		}
++		if (up != 0 && houji_sys_paths < 120) {
++			char pbuf[96];
++			if (copyinstr(up, pbuf, sizeof(pbuf), NULL) == 0) {
++				houji_sys_paths++;
++				printf("HOUJI-SYSPATH: code %u err %d path %s\n",
++				    (unsigned)code, error, pbuf);
++			}
 +		}
 +	}
 +
