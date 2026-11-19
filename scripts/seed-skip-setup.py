@@ -24,6 +24,7 @@ DISABLED = (
     # checked-in daemons long before data migration finishes and takes the whole
     # system down with panic-on-crash.
     'com.apple.watchdogd',
+    'com.apple.datamigrator',
 )
 MINI = (
     'ShouldRunDiagnosticsMiniBuddy',
@@ -84,6 +85,10 @@ def main():
             'SBDontDimOrLockOnAC': True,
             'SBDisableIdleSleep': True,
         })
+        # DataMigration.framework reads its own preference domain, not just the
+        # migration one; without it the daemon runs on every boot and holds the
+        # system shell check-in.
+        merge_pref(mount, 'com.apple.DataMigration', {'LastSystemVersion': BUILD})
         merge_pref(mount, 'com.apple.migration', {
             'LastSystemVersion': BUILD,
             'DMUserDataDisposition': {
