@@ -24,10 +24,6 @@ extern const uint8_t verified_root_key[];
 #include <libkern/c++/OSIterator.h>
 #include <IOKit/IOBSD.h>
 #include <kern/thread.h>
-#include <kern/task.h>
-#include <sys/proc.h>
-#include <sys/proc_internal.h>
-#include <mach/arm/thread_status.h>
 #include <IOKit/IOLib.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include <IOKit/IOMemoryDescriptor.h>
@@ -2035,10 +2031,10 @@ extern "C" void houji_sample_pid (const char *name, int pid)
         mach_msg_type_number_t sc = ARM_THREAD_STATE64_COUNT;
         if (thread_get_state (threads[i], ARM_THREAD_STATE64, (thread_state_t) &st, &sc) == KERN_SUCCESS) {
           IOLog ("HOUJI-SAMPLE: %s t%u pc=%#llx lr=%#llx\n", name, (unsigned) i,
-              (unsigned long long) __darwin_arm_thread_state64_get_pc (st),
-              (unsigned long long) __darwin_arm_thread_state64_get_lr (st));
+              (unsigned long long) arm_thread_state64_get_pc (st),
+              (unsigned long long) arm_thread_state64_get_lr (st));
         }
-        thread_deallocate ((thread_t) threads[i]);
+        thread_deallocate (threads[i]);
       }
       kmem_free (kernel_map, (vm_offset_t) threads, count * sizeof (thread_t));
     }
