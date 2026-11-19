@@ -1,8 +1,8 @@
 diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
-index 8a1ec42..afd06c9 100644
+index 8a1ec42..6e90d0e 100644
 --- a/bsd/dev/arm/systemcalls.c
 +++ b/bsd/dev/arm/systemcalls.c
-@@ -79,6 +79,80 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
+@@ -79,6 +79,94 @@ __XNU_PRIVATE_EXTERN    int             syscalls_log[SYS_MAXSYSCALL];
  extern int mach_trap_count;
  #endif
  
@@ -12,6 +12,20 @@ index 8a1ec42..afd06c9 100644
 +static int houji_sys_pid = -1;
 +
 +void houji_sys_dump(int pid);
++
++static int
++houji_is_springboard(const char *name)
++{
++	static const char want[] = "SpringBoard";
++	int i;
++
++	for (i = 0; want[i] != 0; i++) {
++		if (name[i] != want[i]) {
++			return 0;
++		}
++	}
++	return name[i] == 0;
++}
 +
 +static void
 +houji_sys_record(unsigned code, int32_t error, uint64_t pc, uint64_t lr, uint64_t x0)
@@ -83,7 +97,7 @@ index 8a1ec42..afd06c9 100644
  /*
   * Function:	unix_syscall
   *
-@@ -102,6 +176,39 @@ unix_syscall(
+@@ -102,6 +190,43 @@ unix_syscall(
  
  	code = arm_get_syscall_number(state);
  
@@ -96,6 +110,10 @@ index 8a1ec42..afd06c9 100644
 +			int v = 0;
 +			PE_parse_boot_argn("houji-sys-pid", &v, sizeof(v));
 +			houji_sys_pid = v;
++		}
++		if (houji_sys_pid == 0 && houji_is_springboard(proc->p_comm)) {
++			houji_sys_pid = proc_getpid(proc);
++			printf("HOUJI-SYS: attached to SpringBoard pid %d\n", houji_sys_pid);
 +		}
 +		if (houji_sys_pid > 0 && proc_getpid(proc) == houji_sys_pid &&
 +		    is_saved_state64(state)) {
@@ -123,10 +141,23 @@ index 8a1ec42..afd06c9 100644
  #define unix_syscall_kprintf(x...)      /* kprintf("unix_syscall: " x) */
  
  	if (kdebug_enable && !code_is_kdebug_trace(code)) {
-@@ -180,6 +287,39 @@ unix_syscall(
+@@ -180,6 +305,52 @@ unix_syscall(
  	AUDIT_SYSCALL_ENTER(code, proc, uthread);
  	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
  	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
++	/* HOUJI-SYSX: the first calls with the error each one returned. */
++	if (houji_sys_pid > 0 && pid == houji_sys_pid && is_saved_state64(state)) {
++		static unsigned houji_sys_xcount;
++		if (houji_sys_xcount < 200) {
++			houji_sys_xcount++;
++			printf("HOUJI-SYSX: code %u err %d pc=%#llx lr=%#llx x0=%#llx\n",
++			    (unsigned)code, error,
++			    (unsigned long long)saved_state64(state)->pc,
++			    (unsigned long long)saved_state64(state)->lr,
++			    (unsigned long long)saved_state64(state)->x[0]);
++		}
++	}
++
 +	/* HOUJI-SYSRING: record the sampled process's calls with their errors. */
 +	if (houji_sys_pid > 0 && pid == houji_sys_pid && is_saved_state64(state)) {
 +		struct houji_sys_rec *ring = &houji_sys_ring[houji_sys_ring_at++ % 64];
