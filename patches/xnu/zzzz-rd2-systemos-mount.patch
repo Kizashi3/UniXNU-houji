@@ -9,7 +9,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,541 @@
+@@ -7138,6 +7139,537 @@
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -535,10 +535,6 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	    (error = copyout(fallback, scratch + 0x480, strlen(fallback) + 1)) != 0 ||
 +	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
 +		return error;
-+	}
-+	{
-+		extern int houji_sandbox_policy_register(void);
-+		(void) houji_sandbox_policy_register();
 +	}
 +	{
 +		extern void native_ufs_boot_progress(void);

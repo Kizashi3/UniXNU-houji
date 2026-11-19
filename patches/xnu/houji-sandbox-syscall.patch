@@ -1,0 +1,54 @@
+diff --git a/security/mac_base.c b/security/mac_base.c
+index 9f90247..e24936a 100644
+--- a/security/mac_base.c
++++ b/security/mac_base.c
+@@ -1560,6 +1560,38 @@ mac_proc_check_mac_syscall(proc_t p, const char *target, int callnum)
+  *                !0                      Not success
+  *
+  */
++/*
++ * HOUJI-SANDBOX: libsystem_sandbox calls __mac_syscall("Sandbox", op, arg).  The policy
++ * slot of that name exists but carries no handler here, so every call came back as an
++ * ENOPOLICY and launchd reported mach lookups as "error = 159: Sandbox restriction",
++ * which kept backboardd away from mobilegestalt and iohideventsystem.  Answer the calls
++ * directly: allow the operations, and return ENOENT only for the ones that must yield a
++ * path or a token.
++ */
++static uint64_t houji_sandbox_seen;
++
++static int
++houji_sandbox_syscall(proc_t p, int call, user_addr_t arg)
++{
++	(void) arg;
++	if (call >= 0 && call < 64 && !(houji_sandbox_seen & (1ULL << call))) {
++		char name[32];
++
++		houji_sandbox_seen |= 1ULL << call;
++		proc_name(proc_pid(p), name, sizeof(name));
++		printf("HOUJI-SANDBOX: %s op %d\n", name, call);
++	}
++	switch (call) {
++	case 4:    /* container path */
++	case 5:    /* extension issue */
++	case 6:    /* extension consume */
++	case 0x43: /* container expected */
++		return ENOENT;
++	default:
++		return 0;
++	}
++}
++
+ int
+ __mac_syscall(proc_t p, struct __mac_syscall_args *uap, int *retv __unused)
+ {
+@@ -1581,6 +1613,10 @@ __mac_syscall(proc_t p, struct __mac_syscall_args *uap, int *retv __unused)
+ 		return error;
+ 	}
+ 
++	if (strcmp(target, "Sandbox") == 0) {
++		return houji_sandbox_syscall(p, uap->call, uap->arg);
++	}
++
+ 	error = ENOPOLICY;
+ 
+ 	for (i = 0; i < mac_policy_list.staticmax; i++) {
