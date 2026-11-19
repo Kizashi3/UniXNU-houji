@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/data-seed-big.yml"
       - "scripts/make-data-seed.py"
+      - "scripts/seed-skip-setup.py"
 
 permissions:
   contents: write
