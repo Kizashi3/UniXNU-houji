@@ -4,6 +4,6 @@ enum : uint32_t {
   kRspOffset = 512,
   kPrdtOffset = 1024,
   kDataOffset = 8192,
-  kDataMax = 1048576,   /* one SCSI READ per MiB instead of per 128 KiB */
+  kDataMax = 262144,    /* one PRDT entry tops out at 256 KiB */
   kDmaBytes = kDataOffset + kDataMax,
 };
