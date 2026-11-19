@@ -826,13 +826,20 @@ jobs:
           python3 "$DEVICE_DIR/scripts/patch-unixnu-kernel-firehose.py" scripts/unixnu/kernel.py
           python3 -m py_compile scripts/unixnu/kernel.py
           # SM8650 numbers cores in MPIDR Aff1; the reset vector must compare
-          # Aff0|Aff1 against /cpus reg, so widen the mask in the upstream SMP patch.
-          for f in patches/xnu/native-smp-secondary.patch out/houji/tree/patches/xnu/native-smp-secondary.patch; do
-            if [ -f "$f" ]; then
-              sed -i 's/#if HAS_CLUSTER || defined(BCM2837)/#if HAS_CLUSTER || defined(BCM2837) || defined(ARM64_BOARD_CONFIG_BCM2837)/' "$f"
-            fi
-          done
-          grep -q ARM64_BOARD_CONFIG_BCM2837 patches/xnu/native-smp-secondary.patch
+          # Aff0|Aff1 against /cpus reg, so widen the mask in the upstream patch.
+          python3 - <<'PY'
+          from pathlib import Path
+          old = "#if HAS_CLUSTER || defined(BCM2837)"
+          new = "#if HAS_CLUSTER || defined(BCM2837) || defined(ARM64_BOARD_CONFIG_BCM2837)"
+          for name in ("patches/xnu/native-smp-secondary.patch",
+                       "out/houji/tree/patches/xnu/native-smp-secondary.patch"):
+              path = Path(name)
+              if path.is_file():
+                  text = path.read_text()
+                  if new not in text and old in text:
+                      path.write_text(text.replace(old, new, 1))
+          assert new in Path("patches/xnu/native-smp-secondary.patch").read_text()
+          PY
           set +e
           ./unixnu build kernel -D "$DEVICE_DIR" -j 3 2>&1 | tee out/houji/logs/github-build.log
           build_status=${PIPESTATUS[0]}
