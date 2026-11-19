@@ -1,0 +1,33 @@
+diff --git a/iokit/Kernel/IOPlatformExpert.cpp b/iokit/Kernel/IOPlatformExpert.cpp
+index d0149a6..be68bbb 100644
+--- a/iokit/Kernel/IOPlatformExpert.cpp
++++ b/iokit/Kernel/IOPlatformExpert.cpp
+@@ -2218,7 +2218,19 @@ IOPlatformExpertDevice::generatePlatformUUID( void )
+ 			OSData * data2;
+ 
+ 			data2 = OSDynamicCast( OSData, entry->getProperty( "chip-id" ));
++			/*
++			 * HOUJI-CHIPID: the houji device tree carries unique-chip-id only, and the
++			 * framework refuses to derive IOPlatformUUID without a 4-byte chip-id.
++			 * Substitute a constant so the platform UUID exists at all.
++			 */
++			uint32_t syntheticChipId = 0x484F554A; /* "HOUJ" */
++			const void * chipIdBytes = &syntheticChipId;
++			uint32_t chipIdLength = sizeof(syntheticChipId);
+ 			if (data2 && data2->getLength() == 4) {
++				chipIdBytes = data2->getBytesNoCopy();
++				chipIdLength = 4;
++			}
++			{
+ 				SHA1_CTX     context;
+ 				uint8_t      digest[SHA_DIGEST_LENGTH];
+ 				const uuid_t space = { 0xA6, 0xDD, 0x4C, 0xCB, 0xB5, 0xE8, 0x4A, 0xF5, 0xAC, 0xDD, 0xB6, 0xDC, 0x6A, 0x05, 0x42, 0xB8 };
+@@ -2226,7 +2238,7 @@ IOPlatformExpertDevice::generatePlatformUUID( void )
+ 				SHA1Init( &context );
+ 				SHA1Update( &context, space, sizeof(space));
+ 				SHA1Update( &context, data1->getBytesNoCopy(), data1->getLength());
+-				SHA1Update( &context, data2->getBytesNoCopy(), data2->getLength());
++				SHA1Update( &context, chipIdBytes, chipIdLength);
+ 				SHA1Final( digest, &context );
+ 
+ 				digest[6] = (digest[6] & 0x0F) | 0x50;
