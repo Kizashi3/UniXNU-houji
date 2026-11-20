@@ -1,4 +1,5 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index 8bba078..ffcbe53 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
 @@ -94,6 +94,7 @@
@@ -9,7 +10,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,537 @@
+@@ -7138,6 +7139,772 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -151,11 +152,241 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	vfs_context_rele(ctx);
 +}
 +
++#include <sys/vnode_if.h>
++
++static void
++houji_install_mobileactivation_plist(void)
++{
++	static const char plist[] =
++	    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
++	    "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
++	    "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>Label</key><string>com.apple.mobileactivationd</string>"
++	    "<key>ProgramArguments</key><array>"
++	    "<string>/usr/libexec/mobileactivationd</string></array>"
++	    "<key>MachServices</key><dict>"
++	    "<key>com.apple.mobileactivationd</key><true/>"
++	    "<key>com.apple.mobileactivationd.lockdown</key><true/>"
++	    "</dict>"
++	    "<key>POSIXSpawnType</key><string>Adaptive</string>"
++	    "<key>UserName</key><string>mobile</string>"
++	    "<key>EnableTransactions</key><true/>"
++	    "<key>EnablePressuredExit</key><true/>"
++	    "</dict></plist>\n";
++	const char *path = "/System/Library/LaunchDaemons/com.apple.mobileactivationd.plist";
++	vfs_context_t ctx = vfs_context_create(NULL);
++	vnode_t vp = NULLVP;
++	uio_t uio;
++	int error;
++
++	if (vnode_lookup(path, 0, &vp, ctx) == 0) {
++		vnode_put(vp);
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: plist already present\n");
++		return;
++	}
++	error = vnode_open(path, O_CREAT | O_TRUNC | FWRITE, 0644, 0, &vp, ctx);
++	if (error != 0) {
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: open err=%d\n", error);
++		return;
++	}
++	uio = uio_create(1, 0, UIO_SYSSPACE, UIO_WRITE);
++	if (uio == NULL) {
++		vnode_close(vp, FWRITE, ctx);
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: uio alloc failed\n");
++		return;
++	}
++	uio_addiov(uio, (uintptr_t)plist, sizeof(plist) - 1);
++	error = VNOP_WRITE(vp, uio, 0, ctx);
++	uio_free(uio);
++	if (error == 0) {
++		error = VNOP_FSYNC(vp, MNT_WAIT, ctx);
++	}
++	vnode_close(vp, FWRITE, ctx);
++	houji_own_one(path, 0);
++	vfs_context_rele(ctx);
++	printf("HOUJI-ACTIVATION: plist install err=%d len=%u\n",
++	    error, (unsigned)(sizeof(plist) - 1));
++}
++
++/*
++ * HOUJI-DATA-TWEAK: the System volume is read-only and the merged root cannot
++ * be remounted, but /private/var is the writable Data volume.  Write the
++ * post-Setup preferences there before launchd starts.  The Data seed already
++ * contains the activation ark; replacing disabled.plist is what re-enables
++ * CommCenter, identityservicesd, locationd, and icon services for the Home
++ * Screen path, while keeping watchdogd and datamigrator out of the boot.
++ */
++#define HOUJI_PLIST_HEADER \
++	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" \
++	"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " \
++	"\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
++
++static int
++houji_write_data_file(const char *path, const char *data, size_t len,
++    uid_t uid, gid_t gid, mode_t mode)
++{
++	vfs_context_t ctx = vfs_context_create(NULL);
++	vnode_t vp = NULLVP;
++	uio_t uio;
++	int error;
++
++	error = vnode_open(path, O_CREAT | O_TRUNC | FWRITE, mode, 0, &vp, ctx);
++	if (error != 0) {
++		printf("HOUJI-DATA-TWEAK: open %s err=%d\n", path, error);
++		vfs_context_rele(ctx);
++		return error;
++	}
++	uio = uio_create(1, 0, UIO_SYSSPACE, UIO_WRITE);
++	if (uio == NULL) {
++		vnode_close(vp, FWRITE, ctx);
++		vfs_context_rele(ctx);
++		printf("HOUJI-DATA-TWEAK: uio alloc failed for %s\n", path);
++		return ENOMEM;
++	}
++	uio_addiov(uio, (uintptr_t)data, len);
++	error = VNOP_WRITE(vp, uio, 0, ctx);
++	uio_free(uio);
++	if (error == 0) {
++		error = VNOP_FSYNC(vp, MNT_WAIT, ctx);
++	}
++	vnode_close(vp, FWRITE, ctx);
++	if (vnode_lookup(path, 0, &vp, ctx) == 0) {
++		struct vnode_attr va;
++
++		VATTR_INIT(&va);
++		VATTR_WANTED(&va, va_uid);
++		VATTR_WANTED(&va, va_gid);
++		VATTR_WANTED(&va, va_mode);
++		VATTR_SET(&va, va_uid, uid);
++		VATTR_SET(&va, va_gid, gid);
++		VATTR_SET(&va, va_mode, mode);
++		if (vnode_setattr(vp, &va, ctx) != 0) {
++			printf("HOUJI-DATA-TWEAK: setattr %s failed\n", path);
++		}
++		vnode_put(vp);
++	}
++	printf("HOUJI-DATA-TWEAK: %s write=%d len=%u\n", path, error,
++	    (unsigned)len);
++	vfs_context_rele(ctx);
++	return error;
++}
++
++static void
++houji_apply_data_tweaks(void)
++{
++	static const char disabled_plist[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>com.apple.watchdogd</key><true/>"
++	    "<key>com.apple.datamigrator</key><true/>"
++	    "</dict></plist>\n";
++	static const char purplebuddy[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>SetupDone</key><true/>"
++	    "<key>SetupFinishedAllSteps</key><true/>"
++	    "<key>SetupVersion</key><integer>11</integer>"
++	    "<key>daemonizeNeedsToRun</key><false/>"
++	    "</dict></plist>\n";
++	static const char mini_buddy[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>ShouldRunDiagnosticsMiniBuddy</key><false/>"
++	    "<key>ShouldRunHSA2MiniBuddy</key><false/>"
++	    "<key>ShouldRunKeychainSyncMiniBuddy</key><false/>"
++	    "<key>ShouldRunMesaMiniBuddy</key><false/>"
++	    "<key>ShouldRunPaymentMiniBuddy</key><false/>"
++	    "<key>ShouldRunStandardMiniBuddy</key><false/>"
++	    "<key>SilentICDPUpgrade</key><false/>"
++	    "</dict></plist>\n";
++	static const char managed[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>LockdownActivationIndicatesCloudConfigurationAvailable</key><false/>"
++	    "</dict></plist>\n";
++	static const char springboard[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>BKNoWatchdogs</key><true/>"
++	    "<key>FBLaunchWatchdogExceptions</key><dict>"
++	    "<key>com.apple.purplebuddy</key><real>100</real></dict>"
++	    "<key>MCForceShowCloudConfigurationUI</key><false/>"
++	    "<key>SBDisableAutoDim</key><true/>"
++	    "<key>SBDontDimOrLockOnAC</key><true/>"
++	    "<key>SBDontLockEver</key><true/>"
++	    "<key>SBDisableIdleSleep</key><true/>"
++	    "</dict></plist>\n";
++	static const char migration[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>LastSystemVersion</key><string>20H392</string>"
++	    "<key>DMUserDataDisposition</key><dict>"
++	    "<key>SyntheticDidUpgrade</key><false/>"
++	    "<key>buildVersion</key><string>20H392</string>"
++	    "</dict></dict></plist>\n";
++	static const char datamigration[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>LastSystemVersion</key><string>20H392</string>"
++	    "</dict></plist>\n";
++	static const char data_ark[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>-ActivationState</key><string>Activated</string>"
++	    "<key>-BrickState</key><false/>"
++	    "<key>-BuildVersion</key><string>20H392</string>"
++	    "<key>-ProductVersion</key><string>16.7.16</string>"
++	    "<key>-DataMigrationCompleted</key><true/>"
++	    "<key>-PreSydroDataMigrationCompleted</key><true/>"
++	    "</dict></plist>\n";
++	static const char container_meta[] = HOUJI_PLIST_HEADER
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>MCMMetadataIdentifier</key><string>com.apple.mobileactivationd</string>"
++	    "<key>MCMMetadataUUID</key><string>3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1</string>"
++	    "<key>MCMMetadataContentClass</key><integer>1</integer>"
++	    "<key>MCMMetadataSchemaVersion</key><integer>1</integer>"
++	    "</dict></plist>\n";
++	const char *prefs = "/private/var/mobile/Library/Preferences/";
++	char path[256];
++
++	houji_write_data_file(
++	    "/private/var/db/com.apple.xpc.launchd/disabled.plist",
++	    disabled_plist, sizeof(disabled_plist) - 1, 0, 0, 0644);
++	snprintf(path, sizeof(path), "%scom.apple.purplebuddy.plist", prefs);
++	houji_write_data_file(path, purplebuddy, sizeof(purplebuddy) - 1,
++	    501, 501, 0600);
++	snprintf(path, sizeof(path), "%scom.apple.purplebuddy.notbackedup.plist",
++	    prefs);
++	houji_write_data_file(path, mini_buddy, sizeof(mini_buddy) - 1,
++	    501, 501, 0600);
++	snprintf(path, sizeof(path),
++	    "%scom.apple.managedconfiguration.notbackedup.plist", prefs);
++	houji_write_data_file(path, managed, sizeof(managed) - 1,
++	    501, 501, 0600);
++	snprintf(path, sizeof(path), "%scom.apple.springboard.plist", prefs);
++	houji_write_data_file(path, springboard, sizeof(springboard) - 1,
++	    501, 501, 0600);
++	snprintf(path, sizeof(path), "%scom.apple.migration.plist", prefs);
++	houji_write_data_file(path, migration, sizeof(migration) - 1,
++	    501, 501, 0600);
++	snprintf(path, sizeof(path), "%scom.apple.DataMigration.plist", prefs);
++	houji_write_data_file(path, datamigration, sizeof(datamigration) - 1,
++	    501, 501, 0600);
++	houji_write_data_file(
++	    "/private/var/containers/Data/System/"
++	    "3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1/Library/internal/data_ark.plist",
++	    data_ark, sizeof(data_ark) - 1, 501, 501, 0600);
++	houji_write_data_file(
++	    "/private/var/containers/Data/System/"
++	    "3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1/"
++	    ".com.apple.mobile_container_manager.metadata.plist",
++	    container_meta, sizeof(container_meta) - 1, 0, 0, 0644);
++	printf("HOUJI-DATA-TWEAK: post-Setup state applied\n");
++}
++
 +static void
 +houji_own_thread(void *arg, wait_result_t wr)
 +{
 +	(void)arg;
 +	(void)wr;
++	houji_install_mobileactivation_plist();
++	houji_apply_data_tweaks();
 +	houji_own_tree("/System/Library/LaunchDaemons", 0);
 +	houji_own_tree("/System/Library/LaunchAgents", 0);
 +	printf("HOUJI-OWN-FIX: launchd trees re-owned\n");
@@ -524,6 +755,11 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			printf("HOUJI-OWN: root flags 0x%x (ignore-ownership not set)\n",
 +			    rootfs ? vfs_flags(rootfs) : 0);
 +		}
++		if (rootfs && (vfs_flags(rootfs) & MNT_RDONLY)) {
++			vfs_clearflags(rootfs, MNT_RDONLY);
++			printf("HOUJI-ROOTFIX: forced writable flags=0x%x\n",
++			    vfs_flags(rootfs));
++		}
 +	}
 +	houji_own_run();
 +	/* HOUJI-FB: publish the display nub once the platform is up. */
@@ -547,11 +783,10 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7509,17 @@
- 		}
+@@ -7183,6 +7781,17 @@ load_init_program(proc_t p)
  	}
  #endif
-+
+ 
 +	{
 +		user_addr_t rd2_envp = USER_ADDR_NULL;
 +		if (houji_rd2_mount(p, (user_addr_t)scratch_addr, &rd2_envp) == 0) {
@@ -562,6 +797,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			printf("HOUJI-RD2: continuing without the SystemOS mount\n");
 +		}
 +	}
- 
++
  	error = ENOENT;
  	for (i = 0; i < sizeof(init_programs) / sizeof(init_programs[0]); i++) {
+ 		printf("load_init_program: attempting to load %s\n", init_programs[i]);
