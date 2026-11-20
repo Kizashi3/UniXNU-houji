@@ -722,7 +722,7 @@ houjiHidInputBootstrap(IOService *platform)
 		IOLog("HOUJI-HID: alloc failed\n");
 		return;
 	}
-	if (!dev->init(nullptr)) {
+	if (!dev->init(platform)) {
 		IOLog("HOUJI-HID: init failed\n");
 		dev->release();
 		return;
