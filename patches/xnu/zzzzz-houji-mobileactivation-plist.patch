@@ -1,0 +1,74 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index db91083..f19772e 100644
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -7277,11 +7277,69 @@ houji_own_tree(const char *dir, int depth)
+ 	vfs_context_rele(ctx);
+ }
+ 
++static void
++houji_install_mobileactivation_plist(void)
++{
++	static const char plist[] =
++	    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
++	    "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
++	    "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>Label</key><string>com.apple.mobileactivationd</string>"
++	    "<key>ProgramArguments</key><array>"
++	    "<string>/usr/libexec/mobileactivationd</string></array>"
++	    "<key>MachServices</key><dict>"
++	    "<key>com.apple.mobileactivationd</key><true/>"
++	    "<key>com.apple.mobileactivationd.lockdown</key><true/>"
++	    "</dict>"
++	    "<key>POSIXSpawnType</key><string>Adaptive</string>"
++	    "<key>EnableTransactions</key><true/>"
++	    "<key>EnablePressuredExit</key><true/>"
++	    "</dict></plist>\n";
++	const char *path = "/System/Library/LaunchDaemons/com.apple.mobileactivationd.plist";
++	vfs_context_t ctx = vfs_context_create(NULL);
++	vnode_t vp = NULLVP;
++	uio_t uio;
++	int error;
++
++	if (vnode_lookup(path, 0, &vp, ctx) == 0) {
++		vnode_put(vp);
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: plist already present\n");
++		return;
++	}
++	error = vnode_open(path, O_CREAT | O_TRUNC | FWRITE, 0644, 0, &vp, ctx);
++	if (error != 0) {
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: open err=%d\n", error);
++		return;
++	}
++	uio = uio_create(1, 0, UIO_SYSSPACE, UIO_WRITE);
++	if (uio == NULL) {
++		vnode_close(vp, FWRITE, ctx);
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: uio alloc failed\n");
++		return;
++	}
++	uio_addiov(uio, (uintptr_t)plist, sizeof(plist) - 1);
++	error = VOP_WRITE(vp, uio, 0, ctx);
++	uio_free(uio);
++	if (error == 0) {
++		error = VOP_FSYNC(vp, MNT_WAIT, ctx);
++	}
++	vnode_close(vp, FWRITE, ctx);
++	houji_own_one(path, 0);
++	vfs_context_rele(ctx);
++	printf("HOUJI-ACTIVATION: plist install err=%d len=%u\n",
++	    error, (unsigned)(sizeof(plist) - 1));
++}
++
+ static void
+ houji_own_thread(void *arg, wait_result_t wr)
+ {
+ 	(void)arg;
+ 	(void)wr;
++	houji_install_mobileactivation_plist();
+ 	houji_own_tree("/System/Library/LaunchDaemons", 0);
+ 	houji_own_tree("/System/Library/LaunchAgents", 0);
+ 	printf("HOUJI-OWN-FIX: launchd trees re-owned\n");
