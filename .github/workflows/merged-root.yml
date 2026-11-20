@@ -74,6 +74,17 @@ jobs:
               "$ROOTMNT/Library/Audio/Plug-Ins/HAL.disabled/"
             echo "VirtualAudio disabled"
           fi
+          # mobileactivationd hangs in a synchronous container lookup, so SpringBoard's
+          # MAE query never returns. Remove the job: the lookup then fails at once and
+          # SpringBoard proceeds with an activation error instead of waiting forever.
+          sudo mkdir -p "$ROOTMNT/private/var/db/houji-disabled-jobs"
+          for f in "$ROOTMNT/System/Library/LaunchDaemons/com.apple.mobileactivationd.plist" \
+                   "$ROOTMNT/System/Library/LaunchAgents/com.apple.mobileactivationd.plist"; do
+            if sudo test -f "$f"; then
+              sudo mv "$f" "$ROOTMNT/private/var/db/houji-disabled-jobs/$(basename "$f")"
+              echo "mobileactivationd job removed: $f"
+            fi
+          done
           for f in "$ROOTMNT"/System/Library/Frameworks/MediaToolbox.framework/*/SubServerConfiguration.plist; do
             if sudo test -f "$f"; then
               sudo plutil -replace StartRecorderServer -bool NO "$f" 2>/dev/null || \
