@@ -96,6 +96,7 @@ def main():
             'MCForceShowCloudConfigurationUI': False,
             'SBDisableAutoDim': True,
             'SBDontDimOrLockOnAC': True,
+            'SBDontLockEver': True,
             'SBDisableIdleSleep': True,
         })
         # ios-sweet v12: claiming the current build is what stops the one-hour data
