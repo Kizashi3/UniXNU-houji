@@ -64,6 +64,23 @@ jobs:
           sudo rsync -aH --numeric-ids "$SYSMNT/" "$ROOTMNT/" || true
           df -h "$ROOTMNT"
           if [ -f "$OSMNT/usr/lib/dyld" ]; then sudo cp -p "$OSMNT/usr/lib/dyld" "$ROOTMNT/usr/lib/dyld"; fi
+          # ios-sweet: no AOP audio controller and no audio hardware, so the
+          # voice-trigger recorder server must not start and VirtualAudio has to
+          # disappear; otherwise mediaserverd SIGSEGVs in a loop and SpringBoard
+          # blocks in MediaExperience.
+          sudo mkdir -p "$ROOTMNT/Library/Audio/Plug-Ins/HAL.disabled"
+          if sudo test -d "$ROOTMNT/Library/Audio/Plug-Ins/HAL/VirtualAudio.plugin"; then
+            sudo mv "$ROOTMNT/Library/Audio/Plug-Ins/HAL/VirtualAudio.plugin" \
+              "$ROOTMNT/Library/Audio/Plug-Ins/HAL.disabled/"
+            echo "VirtualAudio disabled"
+          fi
+          for f in "$ROOTMNT"/System/Library/Frameworks/MediaToolbox.framework/*/SubServerConfiguration.plist; do
+            if sudo test -f "$f"; then
+              sudo plutil -replace StartRecorderServer -bool NO "$f" 2>/dev/null || \
+                sudo plutil -insert StartRecorderServer -bool NO "$f" 2>/dev/null || true
+              echo "recorder off $f"
+            fi
+          done
           echo "service inventory"
           for rel in sbin/launchd usr/lib/dyld \
               System/Library/CoreServices/SpringBoard.app/SpringBoard \
