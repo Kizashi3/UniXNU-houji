@@ -12,10 +12,10 @@ index 19b4065..bf468e0 100644
  bsd/dev/unix_startup.c			standard
 diff --git a/bsd/dev/houji_sample.c b/bsd/dev/houji_sample.c
 new file mode 100644
-index 0000000..82a05a1
+index 0000000..b88ba2d
 --- /dev/null
 +++ b/bsd/dev/houji_sample.c
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,119 @@
 +/*
 + * HOUJI process sampler: where is a daemon stuck?
 + *
@@ -93,7 +93,8 @@ index 0000000..82a05a1
 +	char name[32];
 +
 +	proc_name(proc_pid(p), name, sizeof(name));
-+	if (strncmp(name, "mobileactivation", 16) == 0 && houji_mad_prints < 40) {
++	if ((strncmp(name, "mobileactivation", 16) == 0 ||
++	    strncmp(name, "mediaserverd", 12) == 0) && houji_mad_prints < 60) {
 +		task_t task = proc_task(p);
 +		if (task != TASK_NULL) {
 +			houji_mad_prints++;
