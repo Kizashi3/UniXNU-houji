@@ -1,5 +1,5 @@
 diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
-index bb558ee..b631fd3 100644
+index 470ff47..6bfad05 100644
 --- a/bsd/kern/bsd_init.c
 +++ b/bsd/kern/bsd_init.c
 @@ -87,6 +87,9 @@
@@ -12,9 +12,9 @@ index bb558ee..b631fd3 100644
  #include <sys/conf.h>
  #include <sys/buf_internal.h>
  #include <sys/user.h>
-@@ -1070,6 +1073,72 @@ bsd_init(void)
- 	bsd_init_kprintf("done\n");
+@@ -1250,6 +1253,72 @@ native_owner_root_checkpoint(int apple, int owner, dev_t device)
  }
+ #endif
  
 +static void
 +houji_install_mobileactivation_plist(void)
@@ -85,7 +85,7 @@ index bb558ee..b631fd3 100644
  void
  bsdinit_task(void)
  {
-@@ -1096,6 +1165,7 @@ bsdinit_task(void)
+@@ -1276,6 +1345,7 @@ bsdinit_task(void)
  
  	bsd_init_kprintf("bsd_do_post - done");
  
