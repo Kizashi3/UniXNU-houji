@@ -26,14 +26,11 @@ DISABLED = (
     # system down with panic-on-crash.
     'com.apple.watchdogd',
     'com.apple.datamigrator',
-    # ios-sweet's proven first-boot list plus the activation daemon: SpringBoard
-    # blocks in a synchronous MobileActivation XPC that never answers while the
-    # daemon traps on every request.
+    # ios-sweet proven first-boot list; keep mobileactivationd for SpringBoard home.
     'com.apple.identityservicesd',
     'com.apple.locationd',
     'com.apple.CommCenter',
     'com.apple.iconservices.iconservicesagent',
-    'com.apple.mobileactivationd',
 )
 MINI = (
     'ShouldRunDiagnosticsMiniBuddy',
