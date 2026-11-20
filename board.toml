@@ -42,7 +42,7 @@ archives = [
   "build-native-aes-bindings.py",
   "build-arm-driver.py NativeRamBlock",
   "build-native-ram-block-bindings.py",
-  "build-arm-driver.py NativeHidInput",
+  "build-native-hid-input.py",
 ]
 
 [kernel.prelink]
