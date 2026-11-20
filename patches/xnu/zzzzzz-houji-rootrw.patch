@@ -1,0 +1,12 @@
+diff --git a/bsd/vfs/vfs_subr.c b/bsd/vfs/vfs_subr.c
+--- a/bsd/vfs/vfs_subr.c
++++ b/bsd/vfs/vfs_subr.c
+@@ -1151,6 +1151,7 @@ vfs_rootmountalloc_internal(struct vfstable *vfsp, const char *devname)
+ 	mp->mnt_vtable = vfsp;
+ 	mp->mnt_op = vfsp->vfc_vfsops;
+-	mp->mnt_flag = MNT_RDONLY | MNT_ROOTFS;
++	mp->mnt_flag = MNT_ROOTFS;
++	printf("HOUJI-ROOTMOUNT: writable root requested\n");
+ 	mp->mnt_vnodecovered = NULLVP;
+ 	//mp->mnt_stat.f_type = vfsp->vfc_typenum;
+ 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
