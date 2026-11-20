@@ -799,6 +799,13 @@ jobs:
           mkdir -p "$DIAG_DIR"
           DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-nativeramblock.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
 
+      - name: Overlay NativeHidInput
+        working-directory: unixnu
+        run: |
+          set -o pipefail
+          mkdir -p "$DIAG_DIR"
+          DEVICE_DIR="$DEVICE_DIR" python3 "$DEVICE_DIR/vendor/enable-nativehidinput.py" 2>&1 | tee -a "$DIAG_DIR/early-steps.log"
+
       - name: Overlay houji framebuffer
         working-directory: unixnu
         run: |
