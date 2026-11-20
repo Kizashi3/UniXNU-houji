@@ -26,11 +26,12 @@ DISABLED = (
     # system down with panic-on-crash.
     'com.apple.watchdogd',
     'com.apple.datamigrator',
-    # ios-sweet proven first-boot list; keep mobileactivationd for SpringBoard home.
+    # Keep icon services available: SpringBoard needs them to build Home Screen
+    # scenes after SetupDone, even though the Setup Hello screen does not.
+    # mobileactivationd also stays available for the post-Setup path.
     'com.apple.identityservicesd',
     'com.apple.locationd',
     'com.apple.CommCenter',
-    'com.apple.iconservices.iconservicesagent',
 )
 MINI = (
     'ShouldRunDiagnosticsMiniBuddy',
