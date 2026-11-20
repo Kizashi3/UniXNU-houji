@@ -1,4 +1,5 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index 8bba078..ffcbe53 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
 @@ -94,6 +94,7 @@
@@ -9,7 +10,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,537 @@
+@@ -7138,6 +7139,603 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -151,11 +152,72 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +	vfs_context_rele(ctx);
 +}
 +
++#include <sys/vnode_if.h>
++
++static void
++houji_install_mobileactivation_plist(void)
++{
++	static const char plist[] =
++	    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
++	    "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
++	    "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
++	    "<plist version=\"1.0\"><dict>"
++	    "<key>Label</key><string>com.apple.mobileactivationd</string>"
++	    "<key>ProgramArguments</key><array>"
++	    "<string>/usr/libexec/mobileactivationd</string></array>"
++	    "<key>MachServices</key><dict>"
++	    "<key>com.apple.mobileactivationd</key><true/>"
++	    "<key>com.apple.mobileactivationd.lockdown</key><true/>"
++	    "</dict>"
++	    "<key>POSIXSpawnType</key><string>Adaptive</string>"
++	    "<key>UserName</key><string>mobile</string>"
++	    "<key>EnableTransactions</key><true/>"
++	    "<key>EnablePressuredExit</key><true/>"
++	    "</dict></plist>\n";
++	const char *path = "/System/Library/LaunchDaemons/com.apple.mobileactivationd.plist";
++	vfs_context_t ctx = vfs_context_create(NULL);
++	vnode_t vp = NULLVP;
++	uio_t uio;
++	int error;
++
++	if (vnode_lookup(path, 0, &vp, ctx) == 0) {
++		vnode_put(vp);
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: plist already present\n");
++		return;
++	}
++	error = vnode_open(path, O_CREAT | O_TRUNC | FWRITE, 0644, 0, &vp, ctx);
++	if (error != 0) {
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: open err=%d\n", error);
++		return;
++	}
++	uio = uio_create(1, 0, UIO_SYSSPACE, UIO_WRITE);
++	if (uio == NULL) {
++		vnode_close(vp, FWRITE, ctx);
++		vfs_context_rele(ctx);
++		printf("HOUJI-ACTIVATION: uio alloc failed\n");
++		return;
++	}
++	uio_addiov(uio, (uintptr_t)plist, sizeof(plist) - 1);
++	error = VNOP_WRITE(vp, uio, 0, ctx);
++	uio_free(uio);
++	if (error == 0) {
++		error = VNOP_FSYNC(vp, MNT_WAIT, ctx);
++	}
++	vnode_close(vp, FWRITE, ctx);
++	houji_own_one(path, 0);
++	vfs_context_rele(ctx);
++	printf("HOUJI-ACTIVATION: plist install err=%d len=%u\n",
++	    error, (unsigned)(sizeof(plist) - 1));
++}
++
 +static void
 +houji_own_thread(void *arg, wait_result_t wr)
 +{
 +	(void)arg;
 +	(void)wr;
++	houji_install_mobileactivation_plist();
 +	houji_own_tree("/System/Library/LaunchDaemons", 0);
 +	houji_own_tree("/System/Library/LaunchAgents", 0);
 +	printf("HOUJI-OWN-FIX: launchd trees re-owned\n");
@@ -524,6 +586,11 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			printf("HOUJI-OWN: root flags 0x%x (ignore-ownership not set)\n",
 +			    rootfs ? vfs_flags(rootfs) : 0);
 +		}
++		if (rootfs && (vfs_flags(rootfs) & MNT_RDONLY)) {
++			vfs_clearflags(rootfs, MNT_RDONLY);
++			printf("HOUJI-ROOTFIX: forced writable flags=0x%x\n",
++			    vfs_flags(rootfs));
++		}
 +	}
 +	houji_own_run();
 +	/* HOUJI-FB: publish the display nub once the platform is up. */
@@ -547,11 +614,10 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
  void
  load_init_program(proc_t p)
  {
-@@ -7182,6 +7509,17 @@
- 		}
+@@ -7183,6 +7781,17 @@ load_init_program(proc_t p)
  	}
  #endif
-+
+ 
 +	{
 +		user_addr_t rd2_envp = USER_ADDR_NULL;
 +		if (houji_rd2_mount(p, (user_addr_t)scratch_addr, &rd2_envp) == 0) {
@@ -562,6 +628,7 @@ diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 +			printf("HOUJI-RD2: continuing without the SystemOS mount\n");
 +		}
 +	}
- 
++
  	error = ENOENT;
  	for (i = 0; i < sizeof(init_programs) / sizeof(init_programs[0]); i++) {
+ 		printf("load_init_program: attempting to load %s\n", init_programs[i]);
