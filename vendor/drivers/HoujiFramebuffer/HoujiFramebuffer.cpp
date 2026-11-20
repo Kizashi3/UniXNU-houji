@@ -699,6 +699,49 @@ AppleKeyStoreUserClient::externalMethod(uint32_t selector, IOExternalMethodArgum
 }
 
 
+extern "C" IOService *native_hid_input_allocate(void);
+extern "C" bool native_hid_input_requested(void) { return true; }
+extern "C" void native_hid_input_observed(unsigned what, int result)
+{
+	if (what == 2) {
+		IOLog("HOUJI-HID: device start observed result=%d\n", result);
+	}
+}
+extern "C" void native_hid_live_checkpoint(IOService *) {}
+
+static void
+houjiHidInputBootstrap(IOService *platform)
+{
+	int on = 0;
+	PE_parse_boot_argn("houji-hid-input", &on, sizeof(on));
+	if (on == 0) {
+		return;
+	}
+	IOService *dev = native_hid_input_allocate();
+	if (dev == nullptr) {
+		IOLog("HOUJI-HID: alloc failed\n");
+		return;
+	}
+	if (!dev->init(platform)) {
+		IOLog("HOUJI-HID: init failed\n");
+		dev->release();
+		return;
+	}
+	if (!dev->attach(platform)) {
+		IOLog("HOUJI-HID: attach failed\n");
+		dev->release();
+		return;
+	}
+	if (!dev->start(platform)) {
+		IOLog("HOUJI-HID: start failed\n");
+		dev->detach(platform);
+		dev->release();
+		return;
+	}
+	dev->registerService();
+	IOLog("HOUJI-HID: published IOHIDDevice matches=%u\n", houjiCountServices("IOHIDDevice"));
+}
+
 static void
 houjiKeyEventsBootstrap(IOService *platform)
 {
@@ -884,6 +927,7 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	houjiKeyEventsBootstrap(platform);
+	houjiHidInputBootstrap(platform);
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
