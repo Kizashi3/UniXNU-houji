@@ -148,6 +148,27 @@ def main():
         os.chmod(internal / 'data_ark.plist', 0o600)
         os.chown(internal / 'data_ark.plist', MOBILE, MOBILE)
         print('activation ark', ark_uuid)
+        # The merged root carries /usr/libexec/mobileactivationd but its
+        # LaunchDaemon plist is absent. Register the same signed binary in the
+        # user bootstrap so SpringBoard and Setup can reach it.
+        agents = mount / 'mobile' / 'Library' / 'LaunchAgents'
+        agents.mkdir(parents=True, exist_ok=True)
+        os.chmod(agents, 0o755)
+        os.chown(agents, MOBILE, MOBILE)
+        activation_agent = agents / 'com.apple.mobileactivationd.plist'
+        activation_agent.write_bytes(plistlib.dumps({
+            'Label': 'com.apple.mobileactivationd',
+            'ProgramArguments': ['/usr/libexec/mobileactivationd'],
+            'MachServices': {
+                'com.apple.mobileactivationd': True,
+                'com.apple.mobileactivationd.lockdown': True,
+            },
+            'POSIXSpawnType': 'Adaptive',
+            'EnableTransactions': True,
+            'EnablePressuredExit': True,
+        }, fmt=plistlib.FMT_BINARY))
+        os.chmod(activation_agent, 0o644)
+        os.chown(activation_agent, MOBILE, MOBILE)
 
         db = mount / 'db/com.apple.xpc.launchd'
         db.mkdir(parents=True, exist_ok=True)
