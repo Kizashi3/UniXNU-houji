@@ -1,19 +1,13 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index db91083..1c1e30a 100644
+index db91083..ffcbe53 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -94,6 +94,7 @@
- #include <sys/namei.h>
- #include <sys/mount_internal.h>
- #include <sys/vnode_internal.h>
-+#include <sys/vnode_if.h>
- #include <sys/fcntl.h>
- #include <sys/file_internal.h>
- #include <sys/stat.h>
-@@ -7277,11 +7278,70 @@ houji_own_tree(const char *dir, int depth)
+@@ -7277,11 +7277,72 @@ houji_own_tree(const char *dir, int depth)
  	vfs_context_rele(ctx);
  }
  
++#include <sys/vnode_if.h>
++
 +static void
 +houji_install_mobileactivation_plist(void)
 +{
@@ -81,7 +75,7 @@ index db91083..1c1e30a 100644
  	houji_own_tree("/System/Library/LaunchDaemons", 0);
  	houji_own_tree("/System/Library/LaunchAgents", 0);
  	printf("HOUJI-OWN-FIX: launchd trees re-owned\n");
-@@ -7650,6 +7710,11 @@ houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
+@@ -7650,6 +7711,11 @@ houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
  			printf("HOUJI-OWN: root flags 0x%x (ignore-ownership not set)\n",
  			    rootfs ? vfs_flags(rootfs) : 0);
  		}
