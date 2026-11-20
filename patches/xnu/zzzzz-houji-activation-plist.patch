@@ -1,13 +1,21 @@
-diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index db91083..ffcbe53 100644
---- a/bsd/kern/kern_exec.c
-+++ b/bsd/kern/kern_exec.c
-@@ -7277,11 +7277,72 @@ houji_own_tree(const char *dir, int depth)
- 	vfs_context_rele(ctx);
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+index bb558ee..b631fd3 100644
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -87,6 +87,9 @@
+ #include <sys/kauth.h>
+ #include <sys/systm.h>
+ #include <sys/vnode_internal.h>
++#include <sys/vnode_if.h>
++#include <sys/fcntl.h>
++#include <sys/uio.h>
+ #include <sys/conf.h>
+ #include <sys/buf_internal.h>
+ #include <sys/user.h>
+@@ -1070,6 +1073,72 @@ bsd_init(void)
+ 	bsd_init_kprintf("done\n");
  }
  
-+#include <sys/vnode_if.h>
-+
 +static void
 +houji_install_mobileactivation_plist(void)
 +{
@@ -31,6 +39,7 @@ index db91083..ffcbe53 100644
 +	const char *path = "/System/Library/LaunchDaemons/com.apple.mobileactivationd.plist";
 +	vfs_context_t ctx = vfs_context_create(NULL);
 +	vnode_t vp = NULLVP;
++	struct vnode_attr va;
 +	uio_t uio;
 +	int error;
 +
@@ -59,31 +68,28 @@ index db91083..ffcbe53 100644
 +	if (error == 0) {
 +		error = VNOP_FSYNC(vp, MNT_WAIT, ctx);
 +	}
++	VATTR_INIT(&va);
++	VATTR_WANTED(&va, va_uid);
++	VATTR_WANTED(&va, va_gid);
++	VATTR_WANTED(&va, va_mode);
++	VATTR_SET(&va, va_uid, 0);
++	VATTR_SET(&va, va_gid, 0);
++	VATTR_SET(&va, va_mode, 0644);
++	(void)vnode_setattr(vp, &va, ctx);
 +	vnode_close(vp, FWRITE, ctx);
-+	houji_own_one(path, 0);
 +	vfs_context_rele(ctx);
-+	printf("HOUJI-ACTIVATION: plist install err=%d len=%u\n",
++	printf("HOUJI-ACTIVATION: bsdinit plist install err=%d len=%u\n",
 +	    error, (unsigned)(sizeof(plist) - 1));
 +}
 +
- static void
- houji_own_thread(void *arg, wait_result_t wr)
+ void
+ bsdinit_task(void)
  {
- 	(void)arg;
- 	(void)wr;
+@@ -1096,6 +1165,7 @@ bsdinit_task(void)
+ 
+ 	bsd_init_kprintf("bsd_do_post - done");
+ 
 +	houji_install_mobileactivation_plist();
- 	houji_own_tree("/System/Library/LaunchDaemons", 0);
- 	houji_own_tree("/System/Library/LaunchAgents", 0);
- 	printf("HOUJI-OWN-FIX: launchd trees re-owned\n");
-@@ -7650,6 +7711,11 @@ houji_rd2_mount(proc_t p, user_addr_t scratch, user_addr_t *envp)
- 			printf("HOUJI-OWN: root flags 0x%x (ignore-ownership not set)\n",
- 			    rootfs ? vfs_flags(rootfs) : 0);
- 		}
-+		if (rootfs && (vfs_flags(rootfs) & MNT_RDONLY)) {
-+			vfs_clearflags(rootfs, MNT_RDONLY);
-+			printf("HOUJI-ROOTFIX: forced writable flags=0x%x\n",
-+			    vfs_flags(rootfs));
-+		}
- 	}
- 	houji_own_run();
- 	/* HOUJI-FB: publish the display nub once the platform is up. */
+ 	load_init_program(p);
+ 	lock_trace = 1;
+ }
