@@ -520,50 +520,184 @@ houjiCountServices(const char *cls)
 	return n;
 }
 
+/* libaks selectors (AppleKeyStore.framework, iOS 16.7). */
+enum {
+	kAKSOpen = 0,
+	kAKSCreateBag = 2,
+	kAKSSaveBag = 3,
+	kAKSUnloadBag = 4,
+	kAKSSetSystem = 5,
+	kAKSLoadBag = 6,
+	kAKSGetLockState = 7,
+	kAKSUnlockDevice = 9,
+	kAKSWrapKey = 10,
+	kAKSUnwrapKey = 11,
+	kAKSUnlockBag = 12,
+	kAKSLockBag = 13,
+	kAKSGetSystem = 14,
+	kAKSGetDeviceState = 17,
+	kAKSAssertHold = 26,
+	kAKSAssertDrop = 27,
+	kAKSGetExtDeviceState = 35,
+	kAKSUnloadSessionBags = 55,
+	kAKSAssertConsume = 101,
+	kAKSNotifyStateSet = 102,
+};
+
+#define HOUJI_AKS_SYSTEM_HANDLE 0
+/* bit 2: unlocked since boot; lock bits clear: unlocked */
+#define HOUJI_AKS_LOCK_STATE 0x4
+
 class AppleKeyStore final : public IOService {
-    OSDeclareDefaultStructors(AppleKeyStore)
-    unsigned interestReports = 0;
-    unsigned openReports = 0;
+	OSDeclareDefaultStructors(AppleKeyStore)
 public:
-    bool start(IOService *provider) override
-    {
-        if (!IOService::start(provider))
-            return false;
-        setName("HoujiKeyStoreEvents");
-        if (!setProperty("HoujiKeyStoreEvents", true) ||
-            !setProperty("KeyOperationsAvailable", false)) {
-            IOService::stop(provider);
-            return false;
-        }
-        return true;
-    }
-
-    OSPtr<IONotifier> registerInterest(const OSSymbol *type, IOServiceInterestHandler handler,
-        void *target, void *ref = nullptr) override
-    {
-        auto notifier = IOService::registerInterest(type, handler, target, ref);
-        if (__atomic_fetch_add(&interestReports, 1U, __ATOMIC_RELAXED) < 12)
-            IOLog("HOUJI-KEYEVENTS: interest=%s registered=%u\n",
-                type == nullptr ? "null" : type->getCStringNoCopy(), static_cast<bool>(notifier));
-        return notifier;
-    }
-
-    IOReturn newUserClient(task_t, void *, UInt32 type, IOUserClient **out) override
-    {
-        if (out != nullptr)
-            *out = nullptr;
-        if (__atomic_fetch_add(&openReports, 1U, __ATOMIC_RELAXED) < 8)
-            IOLog("HOUJI-KEYEVENTS: client-open type=%u rc=unsupported key-operations=0\n", type);
-        return kIOReturnUnsupported;
-    }
-
-    IOReturn newUserClient(task_t task, void *security, UInt32 type,
-        OSDictionary *, IOUserClient **out) override
-    {
-        return newUserClient(task, security, type, out);
-    }
+	bool start(IOService *provider) override
+	{
+		if (!IOService::start(provider))
+			return false;
+		setName("AppleKeyStore");
+		setProperty(kIOUserClientClassKey, "AppleKeyStoreUserClient");
+		setProperty("KeyOperationsAvailable", true);
+		registerService();
+		IOLog("HOUJI-AKS: AppleKeyStore registered (unlocked, no passcode)\n");
+		return true;
+	}
 };
 OSDefineMetaClassAndStructors(AppleKeyStore, IOService)
+
+class AppleKeyStoreUserClient final : public IOUserClient {
+	OSDeclareDefaultStructors(AppleKeyStoreUserClient)
+public:
+	IOReturn clientClose(void) override
+	{
+		terminate();
+		return kIOReturnSuccess;
+	}
+	IOReturn externalMethod(uint32_t selector, IOExternalMethodArguments *args,
+	    IOExternalMethodDispatch *dispatch, OSObject *target, void *reference) override;
+};
+OSDefineMetaClassAndStructors(AppleKeyStoreUserClient, IOUserClient)
+
+static IOReturn
+houjiAksStructOut(IOExternalMethodArguments *args, const void *buf, uint32_t len)
+{
+	if (args->structureOutputDescriptor != nullptr) {
+		if (len > args->structureOutputDescriptor->getLength()) {
+			return kIOReturnNoSpace;
+		}
+		args->structureOutputDescriptor->writeBytes(0, buf, len);
+		args->structureOutputDescriptorSize = len;
+		return kIOReturnSuccess;
+	}
+	if (args->structureOutput == nullptr || len > args->structureOutputSize) {
+		return kIOReturnNoSpace;
+	}
+	memcpy(args->structureOutput, buf, len);
+	args->structureOutputSize = len;
+	return kIOReturnSuccess;
+}
+
+static uint32_t
+houjiAksDerPair(uint8_t *p, const char *key, uint8_t value)
+{
+	uint32_t klen = (uint32_t)strlen(key);
+	uint32_t n = 0;
+
+	p[n++] = 0x30;
+	p[n++] = (uint8_t)(2 + klen + 3);
+	p[n++] = 0x0c;
+	p[n++] = (uint8_t)klen;
+	memcpy(p + n, key, klen);
+	n += klen;
+	p[n++] = 0x02;
+	p[n++] = 0x01;
+	p[n++] = value;
+	return n;
+}
+
+static IOReturn
+houjiAksDeviceState(IOExternalMethodArguments *args)
+{
+	static const struct {
+		const char *key;
+		uint8_t value;
+	} fields[] = {
+		{ "ss", HOUJI_AKS_LOCK_STATE }, { "sls", 0 }, { "sb", 0 }, { "sfa", 0 },
+		{ "sgs", 0 }, { "sas", 0 }, { "sgpe", 0 }, { "srcd", 0 },
+	};
+	uint8_t buf[128];
+	uint32_t n = 2;
+
+	for (unsigned int i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+		n += houjiAksDerPair(buf + n, fields[i].key, fields[i].value);
+	}
+	buf[0] = 0x31;
+	buf[1] = (uint8_t)(n - 2);
+	return houjiAksStructOut(args, buf, n);
+}
+
+static uint32_t
+houjiAksStructOutSize(IOExternalMethodArguments *args)
+{
+	return args->structureOutputDescriptor != nullptr ?
+	       (uint32_t)args->structureOutputDescriptor->getLength() : args->structureOutputSize;
+}
+
+IOReturn
+AppleKeyStoreUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments *args,
+    __unused IOExternalMethodDispatch *dispatch, __unused OSObject *target, __unused void *reference)
+{
+	IOReturn ret = kIOReturnSuccess;
+	uint32_t inStruct = args->structureInputDescriptor != nullptr ?
+	    (uint32_t)args->structureInputDescriptor->getLength() : args->structureInputSize;
+	uint32_t outScalars = args->scalarOutputCount;
+	uint32_t outStruct = houjiAksStructOutSize(args);
+
+	switch (selector) {
+	case kAKSOpen:
+	case kAKSUnloadBag:
+	case kAKSSetSystem:
+	case kAKSUnlockDevice:
+	case kAKSUnlockBag:
+	case kAKSLockBag:
+	case kAKSAssertHold:
+	case kAKSAssertDrop:
+	case kAKSAssertConsume:
+	case kAKSUnloadSessionBags:
+	case kAKSNotifyStateSet:
+		args->scalarOutputCount = 0;
+		break;
+	case kAKSGetSystem:
+		if (outScalars < 1) {
+			ret = kIOReturnBadArgument;
+			break;
+		}
+		args->scalarOutput[0] = HOUJI_AKS_SYSTEM_HANDLE;
+		args->scalarOutputCount = 1;
+		break;
+	case kAKSGetLockState:
+		if (outScalars < 1) {
+			ret = kIOReturnBadArgument;
+			break;
+		}
+		args->scalarOutput[0] = HOUJI_AKS_LOCK_STATE;
+		args->scalarOutputCount = 1;
+		break;
+	case kAKSGetDeviceState:
+	case kAKSGetExtDeviceState:
+		args->scalarOutputCount = 0;
+		ret = houjiAksDeviceState(args);
+		break;
+	default:
+		ret = kIOReturnUnsupported;
+		break;
+	}
+
+	IOLog("HOUJI-AKS: sel %u in %u/%u out %u/%u -> 0x%x\n", selector,
+	    args->scalarInputCount, inStruct, outScalars, outStruct, ret);
+	return ret;
+}
+
 
 static void
 houjiKeyEventsBootstrap(IOService *platform)
