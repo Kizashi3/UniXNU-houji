@@ -13,6 +13,10 @@ entries = [
     'iokit/Kernel/arm/SweetFramebuffer.cpp optional iokitcpp',
     'iokit/Kernel/arm/SweetDisplayStubs.cpp optional iokitcpp',
     'iokit/Kernel/arm/HoujiWeakStubs.cpp optional iokitcpp',
+    'iokit/Kernel/arm/hid/SweetHID.cpp optional iokitcpp',
+    'iokit/Kernel/arm/hid/IOHIDEvent.cpp optional iokitcpp',
+    'iokit/Kernel/arm/hid/IOHIDEventServiceQueue.cpp optional iokitcpp',
+    'iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp optional iokitcpp',
 ]
 missing = [e for e in entries if Path(e.split()[0]).name not in t]
 if missing:
@@ -33,6 +37,19 @@ if 'IOCoreSurfaceRoot' not in k:
         "    \"     'IOClass'         = IOCoreSurfaceRoot;\"",
         "    \"     'IOProviderClass' = IOResources;\"",
         "    \"     'IOMatchCategory' = IOCoreSurfaceRoot;\"",
+        '    "   },"',
+    ]
+if 'SweetHIDButtons' not in k:
+    lines += [
+        '    "   {"',
+        "    \"     'IOClass'         = SweetHIDButtons;\"",
+        "    \"     'IOProviderClass' = IOResources;\"",
+        "    \"     'IOMatchCategory' = SweetHIDButtons;\"",
+        '    "   },"',
+        '    "   {"',
+        "    \"     'IOClass'         = SweetHIDTouch;\"",
+        "    \"     'IOProviderClass' = IOResources;\"",
+        "    \"     'IOMatchCategory' = SweetHIDTouch;\"",
         '    "   },"',
     ]
 if lines:
