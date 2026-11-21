@@ -1,0 +1,31 @@
+{
+  "files": {
+    "HIDDriverKit/IOHIDDevice.h": "stub",
+    "HIDDriverKit/IOHIDEventService.h": "stub",
+    "IOKit/hid/AppleHIDUsageTables.h": "9ea9d9b9f656ef95c4e54e66ce695189ce1a60d3d3483c4061e60c50fef3cc5e",
+    "IOKit/hid/IOHIDDevice.h": "308379e4743ca0b6dc10f5634ee821c3ba214cc3d67f01f91d9115163f804aa5",
+    "IOKit/hid/IOHIDDeviceKeys.h": "7b01abda6a4cb4c55eda286a68b2bb4c0e2f7cb756ea68e600131c254aaec11b",
+    "IOKit/hid/IOHIDDeviceTypes.h": "8bff213705ca11a8cfcc00893736b4253ea51ea2f99cc8ab1131b92f77291375",
+    "IOKit/hid/IOHIDElement.h": "43a2ae5ff6b89c53684fd571f5c2e60d25ea7181ad6da53fe0d608fe342b83d5",
+    "IOKit/hid/IOHIDEvent.h": "78caacdbf4d71284f507d0e0daeaf80bcd8999572e7740f3b6f7df240b575191",
+    "IOKit/hid/IOHIDEventData.h": "9d94cda1e246b73eed1de3139fd8673a838b6c73f85c61d19867d3e98ebd5b94",
+    "IOKit/hid/IOHIDEventDriver.h": "bd6b6ef5d5e0bbf0afba671d707709f8a53cc6a2527e99ef97c73539de28651e",
+    "IOKit/hid/IOHIDEventFieldDefs.h": "0eca82052c47abc921ac39b08303c2e9ab79c2fc23cf50c65786b8c0fd9ce366",
+    "IOKit/hid/IOHIDEventMacroDefs.h": "d8b143bc12157b0f6e9c07522b5023f03970e09e06fd5fb0f3196232d7132e5c",
+    "IOKit/hid/IOHIDEventService.h": "b51d6b233ca89f2a5e33e131db0fceef55bba497ffd05765e2f6c50d78ec4bbf",
+    "IOKit/hid/IOHIDEventTypes.h": "64153cf34f01447cbc4dfe2f01741ba9b106acc4f1931f4b016250805f4fcbc3",
+    "IOKit/hid/IOHIDInterface.h": "4a192eab27cfb830ec0555838a3f5c7bb5b94101943cf37103c4c5e0d72a55db",
+    "IOKit/hid/IOHIDKeys.h": "d36d93c8c9cd314a2ebd233829ea3e14aae5f1669db55cb4169ec225df1e2870",
+    "IOKit/hid/IOHIDProperties.h": "ea1699a5172ad33ba00733cb3200fe240c7da5c3580361b866d751763de68522",
+    "IOKit/hid/IOHIDUsageTables.h": "cd1bee5b7c9936e0483611ed7160c13d937e3554134424d9e1e949e10300217b",
+    "IOKit/hidsystem/IOHIDParameter.h": "724ad6f052cc698f700a5c75bca412fd6f9f20f93ab7e10ece4a895041a15820",
+    "IOKit/hidsystem/IOHIDTypes.h": "561a86388ac87c209381a038012ee0d9fe3b414aa7e71cb77611018107d95504",
+    "IOKit/hidsystem/IOLLEvent.h": "d4678012e68b7738e460693441ef82d271828a0632f844757c69b5b662287377",
+    "TargetConditionals.h": "stub"
+  },
+  "matched_by": "IOHIDFamily-1915.140.3.702.1 in the 20H392 kernelcache",
+  "policy": "declarations only; no .cpp is vendored, so the vtable is Apple's",
+  "source": "apple-oss-distributions/IOHIDFamily",
+  "tag": "IOHIDFamily-1915.140.3",
+  "tag_commit": "2365347f5147a1e2a46de21acd08d27fe0906e85"
+}
