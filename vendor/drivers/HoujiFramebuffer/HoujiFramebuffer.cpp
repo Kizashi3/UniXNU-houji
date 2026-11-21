@@ -1489,18 +1489,14 @@ houjiTouchProbe(void)
 	int r = geni_spi_read_info(&s);
 	HOUJI_FB_LOG("touch v15: read_info=%d proto=%u depth=%u width=%u fifo_disabled=%d",
 	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled);
-	IOSleep(6000);
 	wr(&s, SE_GENI_CGC_CTRL, rd(&s, SE_GENI_CGC_CTRL) | GENI_DEFAULT_CGC_EN);
 	HOUJI_FB_LOG("touch v15: cgc ok");
-	IOSleep(6000);
 	wr(&s, GENI_OUTPUT_CTRL, GENI_DEFAULT_IO_OUTPUT_CTRL);
 	HOUJI_FB_LOG("touch v15: output ctrl ok");
-	IOSleep(6000);
 	wr(&s, SE_IRQ_EN, 0);
 	wr(&s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
 	wr(&s, SE_GENI_S_IRQ_CLEAR, 0xffffffffu);
 	HOUJI_FB_LOG("touch v15: irq cleared");
-	IOSleep(6000);
 	wr(&s, SE_SPI_LOOPBACK, 0);
 	wr(&s, SE_SPI_DEMUX_SEL, 0);
 	wr(&s, SE_SPI_CPHA, 0);
