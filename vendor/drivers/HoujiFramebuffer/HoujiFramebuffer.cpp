@@ -1596,8 +1596,7 @@ houjiTouchPrepare(struct geni_spi *s)
 	houjiTouchWriteStep(s, SE_IRQ_EN, 0, "irq-en");
 	wr(s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
 	wr(s, SE_GENI_S_IRQ_CLEAR, 0xffffffffu);
-	HOUJI_FB_LOG("touch v20: irq cleared m=%08x s=%08x", rd(s, SE_GENI_M_IRQ_STATUS),
-	    rd(s, SE_GENI_S_IRQ_STATUS));
+	HOUJI_FB_LOG("touch v20: irq cleared m=%08x", rd(s, SE_GENI_M_IRQ_STATUS));
 	v = rd(s, SE_GENI_DMA_MODE_EN);
 	houjiTouchWriteStep(s, SE_GENI_DMA_MODE_EN, v & ~GENI_DMA_MODE_EN, "dma-mode");
 	houjiTouchWriteStep(s, SE_GSI_EVENT_EN, 0, "gsi-event");
