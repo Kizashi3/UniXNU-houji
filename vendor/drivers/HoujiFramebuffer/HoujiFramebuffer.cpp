@@ -1681,7 +1681,8 @@ houjiTouchPinConfig(volatile uint8_t *tlmm, unsigned pin, unsigned mux, unsigned
 static void
 houjiTouchBitDelay(void)
 {
-	for (volatile unsigned i = 0; i < 40; i++) {
+	for (unsigned i = 0; i < 40; i++) {
+		__asm__ volatile("nop");
 	}
 }
 
@@ -1702,7 +1703,7 @@ houjiTouchBitTransfer(volatile uint8_t *tlmm, const uint8_t *tx, uint8_t *rx, un
 			houjiTouchBitDelay();
 			*clk = *clk | 2u;
 			houjiTouchBitDelay();
-			in = (uint8_t)((in << 1) | (*miso & 1u));
+			in = (uint8_t)(((unsigned)in << 1) | (*miso & 1u));
 			*clk = *clk & ~2u;
 			houjiTouchBitDelay();
 		}
@@ -1769,8 +1770,8 @@ houjiTouchProbe(void)
 	HOUJI_FB_LOG("touch v26: bitbang probe start");
 	HOUJI_FB_LOG("touch v26: power about to run");
 	IOSleep(6000);
-	int power = houjiTouchPowerOn();
-	HOUJI_FB_LOG("touch v26: power=%d", power);
+	int bbPower = houjiTouchPowerOn();
+	HOUJI_FB_LOG("touch v26: power=%d", bbPower);
 	HOUJI_FB_LOG("touch v26: reset about to run");
 	IOSleep(6000);
 	houjiTouchReset();
