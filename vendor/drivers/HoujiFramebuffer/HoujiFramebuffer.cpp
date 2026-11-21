@@ -1426,19 +1426,25 @@ houjiTouchProbe(void)
 	{
 		uint64_t rcg = HOUJI_TOUCH_GCC + 0x183c8;
 		uint32_t before = houjiTouchRead32(rcg);
-		HOUJI_FB_LOG("touch v11: rcg before=%08x root_off=%u", before, (before >> 31) & 1u);
+		HOUJI_FB_LOG("touch v12: rcg cmd before=%08x root_off=%u cfg=%08x",
+		    before, (before >> 31) & 1u, houjiTouchRead32(rcg + 0x4));
 		IOSleep(6000);
 		if (((before >> 31) & 1u) != 0) {
 			houjiTouchWrite32(rcg + 0x8, 0);
 			houjiTouchWrite32(rcg + 0xc, 0);
 			houjiTouchWrite32(rcg + 0x10, 0);
-			houjiTouchWrite32(rcg + 0x4, 2u << 8);
-			houjiTouchWrite32(rcg, 1u);
-			HOUJI_FB_LOG("touch v11: rcg programmed, waiting for root");
+			houjiTouchWrite32(rcg + 0x4, 0);
+			HOUJI_FB_LOG("touch v12: cfg=0 written");
 			IOSleep(6000);
-			uint32_t after = houjiTouchRead32(rcg);
-			HOUJI_FB_LOG("touch v11: rcg after=%08x root_off=%u", after, (after >> 31) & 1u);
+			houjiTouchWrite32(rcg, 0x3u);
+			HOUJI_FB_LOG("touch v12: cmd root_en|update written");
 			IOSleep(6000);
+			for (unsigned i = 0; i < 3; i++) {
+				uint32_t after = houjiTouchRead32(rcg);
+				HOUJI_FB_LOG("touch v12: rcg cmd=%08x root_off=%u", after,
+				    (after >> 31) & 1u);
+				IOSleep(3000);
+			}
 		}
 	}
 	HOUJI_FB_LOG("touch v10: before geni_init use_dma=%d", s.use_dma);
