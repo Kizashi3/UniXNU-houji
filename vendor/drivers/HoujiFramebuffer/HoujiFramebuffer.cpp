@@ -1389,7 +1389,7 @@ houjiTouchProbe(void)
 	for (unsigned i = 0; i < 2; i++) {
 		dmab[i] = IOBufferMemoryDescriptor::inTaskWithPhysicalMask(
 		    kernel_task,
-		    kIODirectionInOut | kIOMemoryPhysicallyContiguous,
+		    (IOOptionBits)kIODirectionInOut | (IOOptionBits)kIOMemoryPhysicallyContiguous,
 		    0x1000, 0x00000000fffff000ULL);
 		if (dmab[i] != nullptr && dmab[i]->prepare(kIODirectionInOut) == kIOReturnSuccess) {
 			dmav[i] = (uint8_t *)dmab[i]->getBytesNoCopy();
