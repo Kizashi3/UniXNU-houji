@@ -754,11 +754,14 @@ houjiTouchProbe(void)
 		    pins[i], c, c & 7u, io, (io >> 12) & 7u, (io >> 6) & 7u, okCtl && okIo);
 	}
 
-	if (((ctl >> 26) & 1u) != 0) {
+	/* Voted is not running: the branch reports halted through HALT bit31 while the
+	 * CTL enable bit is already set, and reading a serial engine whose functional
+	 * clock is gated stalls the bus and freezes the boot. */
+	if (((halt >> 31) & 1u) == 0 && ((ctl >> 26) & 1u) != 0) {
 		uint32_t st = houjiPeRead32(HOUJI_TOUCH_SE_STATUS, &ok);
 		HOUJI_FB_LOG("touch se_status=%08x read=%d", st, ok);
 	} else {
-		HOUJI_FB_LOG("touch se not read: clock down");
+		HOUJI_FB_LOG("touch se not read: voted=%u halted=%u", (ctl >> 26) & 1u, (halt >> 31) & 1u);
 	}
 }
 
