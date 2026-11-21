@@ -699,6 +699,723 @@ AppleKeyStoreUserClient::externalMethod(uint32_t selector, IOExternalMethodArgum
 }
 
 
+/* ---- inlined NativeGeniSpi (UniXNU, BSD-2-Clause-Patent) ---- */
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+// Qualcomm GENI serial-engine SPI master, FIFO (PIO) mode. Register layout and sequences follow the study of the
+// Linux spi-geni-qcom / qcom-geni-se drivers (no code copied). No board addresses, clocks or pins here.
+#ifndef GENI_SPI_H
+#define GENI_SPI_H
+#include <stdint.h>
+#include <stddef.h>
+
+// Serial-engine registers (offsets from the SE base).
+#define GENI_FORCE_DEFAULT_REG 0x20
+#define GENI_OUTPUT_CTRL 0x24
+#define SE_GENI_CGC_CTRL 0x28
+#define SE_GENI_STATUS 0x40
+#define GENI_SER_M_CLK_CFG 0x48
+#define GENI_IF_DISABLE_RO 0x64
+#define GENI_FW_REVISION_RO 0x68
+#define SE_GENI_CLK_SEL 0x7c
+#define SE_GENI_BYTE_GRAN 0x254
+#define SE_GENI_DMA_MODE_EN 0x258
+#define SE_GENI_TX_PACKING_CFG0 0x260
+#define SE_GENI_TX_PACKING_CFG1 0x264
+#define SE_GENI_RX_PACKING_CFG0 0x284
+#define SE_GENI_RX_PACKING_CFG1 0x288
+#define SE_SPI_CPHA 0x224
+#define SE_SPI_LOOPBACK 0x22c
+#define SE_SPI_CPOL 0x230
+#define SE_SPI_DEMUX_OUTPUT_INV 0x24c
+#define SE_SPI_DEMUX_SEL 0x250
+#define SE_SPI_TRANS_CFG 0x25c
+#define SE_SPI_WORD_LEN 0x268
+#define SE_SPI_TX_TRANS_LEN 0x26c
+#define SE_SPI_RX_TRANS_LEN 0x270
+#define SE_GENI_M_CMD0 0x600
+#define SE_GENI_M_CMD_CTRL_REG 0x604
+#define SE_GENI_M_IRQ_STATUS 0x610
+#define SE_GENI_M_IRQ_EN 0x614
+#define SE_GENI_M_IRQ_CLEAR 0x618
+#define SE_GENI_S_IRQ_EN 0x644
+#define SE_GENI_S_IRQ_CLEAR 0x648
+#define SE_DMA_TX_IRQ_CLR 0xc44
+#define SE_DMA_RX_IRQ_CLR 0xd44
+#define SE_GENI_TX_FIFOn 0x700
+#define SE_GENI_RX_FIFOn 0x780
+#define SE_GENI_TX_FIFO_STATUS 0x800
+#define SE_GENI_RX_FIFO_STATUS 0x804
+#define SE_GENI_TX_WATERMARK_REG 0x80c
+#define SE_GENI_RX_WATERMARK_REG 0x810
+#define SE_GENI_RX_RFR_WATERMARK_REG 0x814
+#define SE_IRQ_EN 0xe1c
+#define SE_HW_PARAM_0 0xe24
+#define SE_DMA_GENERAL_CFG 0xe30
+#define SE_GSI_EVENT_EN 0xe18
+// Serial-engine DMA registers (qcom-geni-se.c / geni-se.h of the pinned mainline tree).
+#define SE_DMA_TX_PTR_L 0xc30
+#define SE_DMA_TX_PTR_H 0xc34
+#define SE_DMA_TX_ATTR 0xc38
+#define SE_DMA_TX_LEN 0xc3c
+#define SE_DMA_TX_IRQ_STAT 0xc40
+#define SE_DMA_TX_IRQ_EN_SET 0xc4c
+#define SE_DMA_TX_LEN_IN 0xc54
+#define SE_DMA_TX_FSM_RST 0xc58
+#define SE_DMA_RX_PTR_L 0xd30
+#define SE_DMA_RX_PTR_H 0xd34
+#define SE_DMA_RX_ATTR 0xd38
+#define SE_DMA_RX_LEN 0xd3c
+#define SE_DMA_RX_IRQ_STAT 0xd40
+#define SE_DMA_RX_IRQ_EN_SET 0xd4c
+#define SE_DMA_RX_LEN_IN 0xd54
+#define SE_DMA_RX_FSM_RST 0xd58
+// SE_DMA_{TX,RX}_IRQ_STAT / _EN_SET fields
+#define GENI_DMA_DONE (1u<<0)
+#define GENI_DMA_EOT (1u<<1)
+#define GENI_DMA_AHB_ERR (1u<<2)        // TX_SBE / RX_SBE
+#define GENI_DMA_RESET_DONE (1u<<3)
+#define GENI_DMA_TX_ATTR_EOT_BUF (1u<<0)
+// Wrapper register (offset from the QUP wrapper base).
+#define QUPV3_HW_VER_REG 0x4
+
+#define GENI_PROTO_NONE 0
+#define GENI_PROTO_SPI 1
+#define GENI_PROTO_INVALID 255
+
+#define GENI_M_CMD_TX_ONLY 1
+#define GENI_M_CMD_RX_ONLY 2
+#define GENI_M_CMD_TX_RX 3              // full duplex: spi-geni-qcom.c issues SPI_TX_ONLY|SPI_RX_ONLY (its SPI_TX_RX=7 is never used)
+#define GENI_M_PARAM_FRAGMENTATION (1u<<2)
+
+// Register field values.
+#define GENI_FORCE_DEFAULT (1u<<0)
+#define GENI_SER_CLK_EN (1u<<0)
+#define GENI_CLK_DIV_SHIFT 4
+#define GENI_CLK_DIV_MAX 0xfffu
+#define GENI_FIFO_IF_DISABLE (1u<<0)
+#define GENI_FW_PROTO_SHIFT 8
+#define GENI_DMA_MODE_EN (1u<<0)
+#define GENI_DEFAULT_CGC_EN 0x7fu
+#define GENI_DEFAULT_IO_OUTPUT_CTRL 0x7fu
+#define GENI_M_OPCODE_SHIFT 27
+#define GENI_M_PARAMS_MASK 0x7ffffffu
+#define GENI_M_CMD_CANCEL (1u<<2)
+#define GENI_M_CMD_ABORT (1u<<1)
+#define GENI_STATUS_M_ACTIVE (1u<<0)
+#define GENI_TRANS_LEN_MASK 0xffffffu
+#define GENI_WORD_LEN_MIN 4
+#define GENI_CS_TOGGLE (1u<<1)
+#define GENI_CPHA_BIT (1u<<0)
+#define GENI_CPOL_BIT (1u<<2)
+#define GENI_LOOPBACK_ENABLE 1u
+// SE_IRQ_EN
+#define GENI_IRQ_DMA_RX (1u<<0)
+#define GENI_IRQ_DMA_TX (1u<<1)
+#define GENI_IRQ_M (1u<<2)
+#define GENI_IRQ_S (1u<<3)
+// SE_DMA_GENERAL_CFG
+#define GENI_DMA_RX_CGC_ON (1u<<0)
+#define GENI_DMA_TX_CGC_ON (1u<<1)
+#define GENI_DMA_AHB_SLV_CGC_ON (1u<<2)
+#define GENI_AHB_SEC_SLV_CGC_ON (1u<<3)
+// M_IRQ bits
+#define GENI_M_CMD_DONE (1u<<0)
+#define GENI_M_CMD_OVERRUN (1u<<1)
+#define GENI_M_ILLEGAL_CMD (1u<<2)
+#define GENI_M_CMD_FAILURE (1u<<3)
+#define GENI_M_CMD_CANCEL_DONE (1u<<4)
+#define GENI_M_CMD_ABORT_DONE (1u<<5)
+#define GENI_M_IO_DATA_DEASSERT (1u<<22)
+#define GENI_M_IO_DATA_ASSERT (1u<<23)
+#define GENI_M_RX_FIFO_RD_ERR (1u<<24)
+#define GENI_M_RX_FIFO_WR_ERR (1u<<25)
+#define GENI_M_RX_FIFO_WATERMARK (1u<<26)
+#define GENI_M_RX_FIFO_LAST (1u<<27)
+#define GENI_M_TX_FIFO_RD_ERR (1u<<28)
+#define GENI_M_TX_FIFO_WR_ERR (1u<<29)
+#define GENI_M_TX_FIFO_WATERMARK (1u<<30)
+#define GENI_M_COMMON_IRQ_EN (0x7eu | GENI_M_IO_DATA_DEASSERT | GENI_M_IO_DATA_ASSERT | GENI_M_RX_FIFO_RD_ERR | \
+                              GENI_M_RX_FIFO_WR_ERR | GENI_M_TX_FIFO_RD_ERR | GENI_M_TX_FIFO_WR_ERR)
+#define GENI_S_COMMON_IRQ_EN (0x3eu | 0x3e00u | (1u<<24) | (1u<<25))
+#define GENI_M_ERRORS (GENI_M_CMD_OVERRUN | GENI_M_ILLEGAL_CMD | GENI_M_CMD_FAILURE | GENI_M_RX_FIFO_RD_ERR | \
+                       GENI_M_RX_FIFO_WR_ERR | GENI_M_TX_FIFO_RD_ERR | GENI_M_TX_FIFO_WR_ERR)
+// RX_FIFO_STATUS
+#define GENI_RX_LAST (1u<<31)
+#define GENI_RX_LAST_VALID_SHIFT 28
+#define GENI_RX_LAST_VALID_MASK 7u
+#define GENI_RX_WC_MASK 0x1ffffffu
+// Packing vector fields
+#define GENI_PACK_START_SHIFT 5
+#define GENI_PACK_DIR_SHIFT 4
+#define GENI_PACK_LEN_SHIFT 1
+#define GENI_PACK_STOP (1u<<0)
+#define GENI_PACK_VECTOR_SHIFT 10
+#define GENI_PACK_VECTORS 4
+
+#define GENI_SPI_CPHA 0x01
+#define GENI_SPI_CPOL 0x02
+#define GENI_SPI_CS_HIGH 0x04
+#define GENI_SPI_LSB_FIRST 0x08
+#define GENI_SPI_LOOP 0x20
+
+#define GENI_ERR_PARAM (-22)
+#define GENI_ERR_PROTO (-71)
+#define GENI_ERR_NODEV (-19)
+#define GENI_ERR_TIMEOUT (-110)
+#define GENI_ERR_IO (-5)
+#define GENI_ERR_NOTSUP (-95)
+
+struct geni_io {
+    void *ctx;
+    uint32_t (*rd)(void *ctx, uint32_t reg);
+    void (*wr)(void *ctx, uint32_t reg, uint32_t value);
+    void (*delay_us)(void *ctx, unsigned us);
+};
+
+struct geni_spi_info {
+    uint32_t fw_revision, protocol, if_disable, hw_param0, geni_status;
+    uint32_t qup_hw_version;
+    unsigned tx_fifo_depth, fifo_width_bits;
+    int fifo_disabled;
+};
+
+struct geni_dma {
+        void *ctx;
+        void (*clean)(void *ctx, void *virt, size_t len);        // write back CPU-dirty lines before the engine reads
+        void (*clean_inval)(void *ctx, void *virt, size_t len);  // write back and drop before the engine writes
+        void (*inval)(void *ctx, void *virt, size_t len);        // drop stale lines after the engine wrote
+        uint8_t *tx_virt, *rx_virt;
+        uint64_t tx_phys, rx_phys;
+        size_t size;
+};
+
+struct geni_spi {
+    struct geni_io se;                  // serial engine registers
+    struct geni_io wrapper;             // QUP wrapper registers (hardware version only)
+    struct geni_spi_info info;
+    unsigned oversampling, tx_wm;
+    unsigned cur_bpw;
+    unsigned cur_speed_hz;
+    uint32_t last_mode;
+    int last_cs;
+    unsigned poll_limit;                // iterations of the completion poll before cancel/abort
+    int poll_only;                      // 1: switch the engine interrupt outputs off after init (completion polled); 2: leave them on
+    uint32_t snap_irq, snap_status, snap_txfs, snap_rxfs;  // registers read just before a timed-out transfer is cancelled
+    uint32_t snap_dma_tx, snap_dma_rx, snap_dma_txin, snap_dma_rxin;
+    int snap_valid;
+    uint32_t last_tx_in, last_rx_in;                  // SE_DMA_{TX,RX}_LEN_IN after the latest DMA transfer: bytes the engine moved
+    // SE DMA mode (for engines whose FIFO interface is disabled and that cannot be re-enabled from the host): transfers go
+    // through two caller-provided buffers that the serial engine's DMA master can reach at tx_phys/rx_phys. The caller owns
+    // the translation (SMMU) and cache policy; the callbacks maintain the CPU caches around each transfer.
+    int use_dma;
+    struct geni_dma dma;
+    int allow_fifo_disabled;            // try FIFO mode even when FIFO_IF_DISABLE is set (the Linux fallback when no GPI channel exists)
+};
+
+// Read-only: protocol, FIFO geometry, FIFO-disable flag, version. Safe to run before any register write; only valid when
+// the SE clocks are already running (the caller must know that).
+int geni_spi_read_info(struct geni_spi *s);
+// Select FIFO mode and program the controller defaults. Refuses engines that are not configured for SPI or whose FIFO
+// interface is disabled (those need the GPI DMA path, which this driver does not implement).
+int geni_spi_init(struct geni_spi *s);
+int geni_spi_setup(struct geni_spi *s, unsigned mode, unsigned chip_select);
+// Program the serial clock: divider from the SE source clock (sclk_hz) and the requested rate; clk_sel is the source index.
+int geni_spi_set_clock(struct geni_spi *s, unsigned speed_hz, unsigned sclk_hz, unsigned clk_sel);
+// With use_dma set the transfer runs through the SE DMA engine.
+// One full-duplex (rx!=NULL, tx!=NULL), TX-only or RX-only transfer of len bytes (8 bits per word), polled.
+int geni_spi_transfer(struct geni_spi *s, const uint8_t *tx, uint8_t *rx, size_t len, int keep_cs);
+#endif
+
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+
+static uint32_t rd(struct geni_spi *s, uint32_t reg) { return s->se.rd(s->se.ctx, reg); }
+static void wr(struct geni_spi *s, uint32_t reg, uint32_t v) { s->se.wr(s->se.ctx, reg, v); }
+static void rmw_set(struct geni_spi *s, uint32_t reg, uint32_t bits) { wr(s, reg, rd(s, reg) | bits); }
+
+static void irq_clear(struct geni_spi *s) {
+    wr(s, SE_GSI_EVENT_EN, 0);
+    wr(s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
+    wr(s, SE_GENI_S_IRQ_CLEAR, 0xffffffffu);
+    wr(s, SE_DMA_TX_IRQ_CLR, 0xffffffffu);
+    wr(s, SE_DMA_RX_IRQ_CLR, 0xffffffffu);
+    wr(s, SE_IRQ_EN, 0xffffffffu);
+}
+
+// FIFO words hold fifo_width_bits/8 packed bytes at 8 bits per word.
+static unsigned bytes_per_word(const struct geni_spi *s) { return s->info.fifo_width_bits / 8; }
+
+int geni_spi_read_info(struct geni_spi *s) {
+    if (!s || !s->se.rd || !s->wrapper.rd) return GENI_ERR_PARAM;
+    uint32_t fw = rd(s, GENI_FW_REVISION_RO);
+    s->info.fw_revision = fw;
+    s->info.protocol = (fw >> GENI_FW_PROTO_SHIFT) & 0xff;
+    s->info.if_disable = rd(s, GENI_IF_DISABLE_RO);
+    s->info.fifo_disabled = (s->info.if_disable & GENI_FIFO_IF_DISABLE) != 0;
+    s->info.geni_status = rd(s, SE_GENI_STATUS);
+    s->info.hw_param0 = rd(s, SE_HW_PARAM_0);
+    s->info.qup_hw_version = s->wrapper.rd(s->wrapper.ctx, QUPV3_HW_VER_REG);
+    uint32_t major = s->info.qup_hw_version >> 28, minor = (s->info.qup_hw_version >> 16) & 0xfff;
+    uint32_t mask = ((major == 3 && minor >= 10) || major > 3) ? 0xff0000u : 0x3f0000u;
+    s->info.tx_fifo_depth = (s->info.hw_param0 & mask) >> 16;
+    s->info.fifo_width_bits = (s->info.hw_param0 >> 24) & 0x3f;
+    return 0;
+}
+
+// Packing for 8-bit words, 4 per FIFO word, MSB first inside each byte; same values the vendor sequence programs.
+static void config_packing(struct geni_spi *s, unsigned bpw, unsigned pack_words, int msb_first) {
+    uint32_t cfg[GENI_PACK_VECTORS] = {0};
+    int idx_start = msb_first ? (int)bpw - 1 : 0, idx = idx_start;
+    int idx_delta = msb_first ? -8 : 8;
+    unsigned ceil_bpw = (bpw + 7) & ~7u;
+    unsigned iter = ceil_bpw * pack_words / 8;
+    int temp_bpw = (int)bpw;
+    if (iter == 0 || iter > GENI_PACK_VECTORS) return;
+    for (unsigned i = 0; i < iter; i++) {
+        int len = (temp_bpw < 8 ? temp_bpw : 8) - 1;
+        cfg[i] = ((uint32_t)idx << GENI_PACK_START_SHIFT) | ((uint32_t)(msb_first != 0) << GENI_PACK_DIR_SHIFT) |
+                 ((uint32_t)len << GENI_PACK_LEN_SHIFT);
+        if (temp_bpw <= 8) {
+            idx = (int)(i + 1) * 8 + idx_start;
+            temp_bpw = (int)bpw;
+        } else {
+            idx += idx_delta;
+            temp_bpw -= 8;
+        }
+    }
+    cfg[iter - 1] |= GENI_PACK_STOP;
+    uint32_t cfg0 = cfg[0] | (cfg[1] << GENI_PACK_VECTOR_SHIFT);
+    uint32_t cfg1 = cfg[2] | (cfg[3] << GENI_PACK_VECTOR_SHIFT);
+    wr(s, SE_GENI_TX_PACKING_CFG0, cfg0);
+    wr(s, SE_GENI_TX_PACKING_CFG1, cfg1);
+    wr(s, SE_GENI_RX_PACKING_CFG0, cfg0);
+    wr(s, SE_GENI_RX_PACKING_CFG1, cfg1);
+    if (pack_words || bpw == 32) wr(s, SE_GENI_BYTE_GRAN, bpw / 16);
+}
+
+static void set_word_len(struct geni_spi *s, unsigned bpw, int msb_first) {
+    unsigned pack = (s->info.fifo_width_bits % bpw) ? 1 : s->info.fifo_width_bits / bpw;
+    config_packing(s, bpw, pack, msb_first);
+    wr(s, SE_SPI_WORD_LEN, (bpw - GENI_WORD_LEN_MIN) & 0x3ff);
+}
+
+int geni_spi_init(struct geni_spi *s) {
+    int r = geni_spi_read_info(s);
+    if (r) return r;
+    if (s->info.protocol != GENI_PROTO_SPI) return GENI_ERR_PROTO;
+    if (s->use_dma && (!s->dma.tx_virt || !s->dma.rx_virt || !s->dma.tx_phys || !s->dma.rx_phys || !s->dma.size))
+        return GENI_ERR_PARAM;
+    if (s->info.fifo_disabled && !s->allow_fifo_disabled && !s->use_dma) return GENI_ERR_NOTSUP;   // GPI DMA path not implemented
+    if (s->info.tx_fifo_depth < 4 || s->info.fifo_width_bits != 32) return GENI_ERR_NODEV;
+    // geni_se_init
+    irq_clear(s);
+    rmw_set(s, SE_GENI_CGC_CTRL, GENI_DEFAULT_CGC_EN);
+    rmw_set(s, SE_DMA_GENERAL_CFG, GENI_AHB_SEC_SLV_CGC_ON | GENI_DMA_AHB_SLV_CGC_ON | GENI_DMA_TX_CGC_ON | GENI_DMA_RX_CGC_ON);
+    wr(s, GENI_OUTPUT_CTRL, GENI_DEFAULT_IO_OUTPUT_CTRL);
+    wr(s, GENI_FORCE_DEFAULT_REG, GENI_FORCE_DEFAULT);
+    rmw_set(s, SE_IRQ_EN, GENI_IRQ_M | GENI_IRQ_S | GENI_IRQ_DMA_TX | GENI_IRQ_DMA_RX);
+    wr(s, SE_GENI_DMA_MODE_EN, rd(s, SE_GENI_DMA_MODE_EN) & ~GENI_DMA_MODE_EN);
+    wr(s, SE_GSI_EVENT_EN, 0);
+    wr(s, SE_GENI_RX_WATERMARK_REG, s->info.tx_fifo_depth - 3);
+    wr(s, SE_GENI_RX_RFR_WATERMARK_REG, s->info.tx_fifo_depth - 2);
+    rmw_set(s, SE_GENI_M_IRQ_EN, GENI_M_COMMON_IRQ_EN);
+    rmw_set(s, SE_GENI_S_IRQ_EN, GENI_S_COMMON_IRQ_EN);
+    s->tx_wm = 1;
+    uint32_t major = s->info.qup_hw_version >> 28, minor = (s->info.qup_hw_version >> 16) & 0xfff;
+    s->oversampling = (major == 1 && minor == 0) ? 2 : 1;
+    // FIFO mode selection
+    irq_clear(s);
+    rmw_set(s, SE_GENI_M_IRQ_EN, GENI_M_CMD_DONE | GENI_M_TX_FIFO_WATERMARK | GENI_M_RX_FIFO_WATERMARK | GENI_M_RX_FIFO_LAST);
+    wr(s, SE_GENI_DMA_MODE_EN, rd(s, SE_GENI_DMA_MODE_EN) & ~GENI_DMA_MODE_EN);
+    wr(s, SE_SPI_LOOPBACK, 0);
+    wr(s, SE_SPI_DEMUX_SEL, 0);
+    wr(s, SE_SPI_CPHA, 0);
+    wr(s, SE_SPI_CPOL, 0);
+    wr(s, SE_SPI_DEMUX_OUTPUT_INV, 0);
+    wr(s, SE_SPI_TRANS_CFG, rd(s, SE_SPI_TRANS_CFG) & ~GENI_CS_TOGGLE);   // chip select is never driven manually
+    s->cur_bpw = 0;
+    s->cur_speed_hz = 0;
+    s->last_mode = 0;
+    s->last_cs = 0;
+    if (!s->poll_limit) s->poll_limit = 1000000;
+    if (s->use_dma) {
+        // geni_se_select_dma_mode: drop the FIFO interrupt sources and switch the engine to its DMA master.
+        irq_clear(s);
+        wr(s, SE_GENI_M_IRQ_EN, rd(s, SE_GENI_M_IRQ_EN) & ~(GENI_M_CMD_DONE | GENI_M_TX_FIFO_WATERMARK | GENI_M_RX_FIFO_WATERMARK | GENI_M_RX_FIFO_LAST));
+        wr(s, SE_GENI_DMA_MODE_EN, rd(s, SE_GENI_DMA_MODE_EN) | GENI_DMA_MODE_EN);
+    }
+    if (s->poll_only == 1) wr(s, SE_IRQ_EN, 0);     // status registers stay pollable; no unhandled interrupt reaches the GIC
+    return 0;
+}
+
+int geni_spi_setup(struct geni_spi *s, unsigned mode, unsigned chip_select) {
+    if (chip_select > 15) return GENI_ERR_PARAM;
+    unsigned changed = s->last_mode ^ mode;
+    int cs_changed = ((unsigned)s->last_cs != chip_select);
+    s->last_cs = (int)chip_select;
+    s->last_mode = mode;
+    if (changed & GENI_SPI_LSB_FIRST) s->cur_bpw = 0;
+    if (changed & GENI_SPI_LOOP) wr(s, SE_SPI_LOOPBACK, (mode & GENI_SPI_LOOP) ? GENI_LOOPBACK_ENABLE : 0);
+    if (cs_changed) wr(s, SE_SPI_DEMUX_SEL, chip_select);
+    if (changed & GENI_SPI_CPHA) wr(s, SE_SPI_CPHA, (mode & GENI_SPI_CPHA) ? GENI_CPHA_BIT : 0);
+    if (changed & GENI_SPI_CPOL) wr(s, SE_SPI_CPOL, (mode & GENI_SPI_CPOL) ? GENI_CPOL_BIT : 0);
+    if ((changed & GENI_SPI_CS_HIGH) || (cs_changed && (mode & GENI_SPI_CS_HIGH)))
+        wr(s, SE_SPI_DEMUX_OUTPUT_INV, (mode & GENI_SPI_CS_HIGH) ? (1u << chip_select) : 0);
+    return 0;
+}
+
+int geni_spi_set_clock(struct geni_spi *s, unsigned speed_hz, unsigned sclk_hz, unsigned clk_sel) {
+    if (!speed_hz || !sclk_hz || clk_sel > 7 || !s->oversampling) return GENI_ERR_PARAM;
+    unsigned long long denom = (unsigned long long)s->oversampling * speed_hz;
+    unsigned long long div = (sclk_hz + denom - 1) / denom;
+    if (div == 0 || div > GENI_CLK_DIV_MAX) return GENI_ERR_PARAM;
+    wr(s, SE_GENI_CLK_SEL, clk_sel);
+    wr(s, GENI_SER_M_CLK_CFG, ((uint32_t)div << GENI_CLK_DIV_SHIFT) | GENI_SER_CLK_EN);
+    s->cur_speed_hz = speed_hz;
+    return 0;
+}
+
+struct xfer {
+    const uint8_t *tx;
+    uint8_t *rx;
+    size_t tx_rem, rx_rem, len;
+};
+
+static int handle_tx(struct geni_spi *s, struct xfer *x) {
+    unsigned bpw = bytes_per_word(s);
+    size_t max = (size_t)(s->info.tx_fifo_depth - s->tx_wm) * bpw;
+    if (x->tx_rem < max) max = x->tx_rem;
+    const uint8_t *p = x->tx + (x->len - x->tx_rem);
+    size_t i = 0;
+    while (i < max) {
+        uint32_t word = 0;
+        size_t n = max - i < bpw ? max - i : bpw;
+        for (size_t j = 0; j < n; j++) word |= (uint32_t)p[i++] << (8 * j);
+        wr(s, SE_GENI_TX_FIFOn, word);
+    }
+    x->tx_rem -= max;
+    if (!x->tx_rem) {
+        wr(s, SE_GENI_TX_WATERMARK_REG, 0);
+        return 0;
+    }
+    return 1;
+}
+
+static void handle_rx(struct geni_spi *s, struct xfer *x) {
+    unsigned bpw = bytes_per_word(s);
+    uint32_t st = rd(s, SE_GENI_RX_FIFO_STATUS);
+    size_t bytes = (size_t)(st & GENI_RX_WC_MASK) * bpw;
+    if (st & GENI_RX_LAST) {
+        unsigned valid = (st >> GENI_RX_LAST_VALID_SHIFT) & GENI_RX_LAST_VALID_MASK;
+        if (valid && valid < 4) bytes -= bpw - valid;
+    }
+    if (!x->rx) {
+        for (size_t i = 0; i < (bytes + bpw - 1) / bpw; i++) (void)rd(s, SE_GENI_RX_FIFOn);
+        return;
+    }
+    if (x->rx_rem < bytes) bytes = x->rx_rem;
+    uint8_t *p = x->rx + (x->len - x->rx_rem);
+    size_t i = 0;
+    while (i < bytes) {
+        uint32_t word = rd(s, SE_GENI_RX_FIFOn);
+        size_t n = bytes - i < bpw ? bytes - i : bpw;
+        for (size_t j = 0; j < n; j++) p[i++] = (uint8_t)(word >> (8 * j));
+    }
+    x->rx_rem -= bytes;
+}
+
+static int wait_bit(struct geni_spi *s, uint32_t bit) {
+    for (unsigned n = 0; n < s->poll_limit; n++) {
+        uint32_t st = rd(s, SE_GENI_M_IRQ_STATUS);
+        if (st & bit) {
+            wr(s, SE_GENI_M_IRQ_CLEAR, st);
+            return 0;
+        }
+        if (s->se.delay_us) s->se.delay_us(s->se.ctx, 1);
+    }
+    return GENI_ERR_TIMEOUT;
+}
+
+static void recover(struct geni_spi *s) {
+    wr(s, SE_GENI_TX_WATERMARK_REG, 0);
+    wr(s, SE_GENI_M_CMD_CTRL_REG, GENI_M_CMD_CANCEL);
+    if (wait_bit(s, GENI_M_CMD_CANCEL_DONE | GENI_M_CMD_DONE) == 0) return;
+    wr(s, SE_GENI_M_CMD_CTRL_REG, GENI_M_CMD_ABORT);
+    (void)wait_bit(s, GENI_M_CMD_ABORT_DONE | GENI_M_CMD_DONE);
+}
+
+static int transfer_dma(struct geni_spi *s, const uint8_t *tx, uint8_t *rx, size_t len, int keep_cs) {
+    struct geni_dma *d = &s->dma;
+    if (len > d->size) return GENI_ERR_PARAM;
+    uint32_t cmd = 0;
+    if (tx) {
+        volatile uint8_t *tv = d->tx_virt;   // volatile: the buffer may be an uncached device-type mapping, so no merged stores
+        for (size_t i = 0; i < len; i++) tv[i] = tx[i];
+        if (d->clean) d->clean(d->ctx, d->tx_virt, len);
+        cmd |= GENI_M_CMD_TX_ONLY;
+        wr(s, SE_SPI_TX_TRANS_LEN, (uint32_t)len);
+    }
+    if (rx) {
+        volatile uint8_t *rv0 = d->rx_virt;
+        for (size_t i = 0; i < len; i++) rv0[i] = 0x5a;   // canary: bytes the engine never wrote stay recognisable
+        if (d->clean_inval) d->clean_inval(d->ctx, d->rx_virt, len);
+        cmd |= GENI_M_CMD_RX_ONLY;
+        wr(s, SE_SPI_RX_TRANS_LEN, (uint32_t)len);
+    }
+    if (cmd == (GENI_M_CMD_TX_ONLY | GENI_M_CMD_RX_ONLY)) cmd = GENI_M_CMD_TX_RX;
+    wr(s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
+    wr(s, SE_DMA_TX_IRQ_CLR, 0xffffffffu);
+    wr(s, SE_DMA_RX_IRQ_CLR, 0xffffffffu);
+    wr(s, SE_GENI_M_CMD0, (cmd << GENI_M_OPCODE_SHIFT) | (keep_cs ? GENI_M_PARAM_FRAGMENTATION : 0));
+    // geni_se_rx_init_dma / geni_se_tx_init_dma: the LEN write starts each direction.
+    if (rx) {
+        wr(s, SE_DMA_RX_IRQ_EN_SET, GENI_DMA_DONE | GENI_DMA_EOT | GENI_DMA_AHB_ERR);
+        wr(s, SE_DMA_RX_PTR_L, (uint32_t)d->rx_phys);
+        wr(s, SE_DMA_RX_PTR_H, (uint32_t)(d->rx_phys >> 32));
+        wr(s, SE_DMA_RX_ATTR, 0);
+        wr(s, SE_DMA_RX_LEN, (uint32_t)len);
+    }
+    if (tx) {
+        wr(s, SE_DMA_TX_IRQ_EN_SET, GENI_DMA_DONE | GENI_DMA_EOT | GENI_DMA_AHB_ERR);
+        wr(s, SE_DMA_TX_PTR_L, (uint32_t)d->tx_phys);
+        wr(s, SE_DMA_TX_PTR_H, (uint32_t)(d->tx_phys >> 32));
+        wr(s, SE_DMA_TX_ATTR, GENI_DMA_TX_ATTR_EOT_BUF);
+        wr(s, SE_DMA_TX_LEN, (uint32_t)len);
+    }
+    int tx_done = !tx, rx_done = !rx, status = GENI_ERR_TIMEOUT;
+    for (unsigned n = 0; n < s->poll_limit; n++) {
+        uint32_t ts = tx ? rd(s, SE_DMA_TX_IRQ_STAT) : 0, rs = rx ? rd(s, SE_DMA_RX_IRQ_STAT) : 0;
+        uint32_t ms = rd(s, SE_GENI_M_IRQ_STATUS);
+        if (ts) wr(s, SE_DMA_TX_IRQ_CLR, ts);
+        if (rs) wr(s, SE_DMA_RX_IRQ_CLR, rs);
+        if (ms) wr(s, SE_GENI_M_IRQ_CLEAR, ms);
+        if ((ts & GENI_DMA_AHB_ERR) || (rs & GENI_DMA_AHB_ERR) || (ms & GENI_M_ERRORS)) { status = GENI_ERR_IO; break; }
+        if (ts & GENI_DMA_DONE) tx_done = 1;
+        if (rs & GENI_DMA_DONE) rx_done = 1;
+        if (tx_done && rx_done) { status = 0; break; }
+        if (s->se.delay_us) s->se.delay_us(s->se.ctx, 1);
+    }
+    s->last_tx_in = tx ? rd(s, SE_DMA_TX_LEN_IN) : 0;
+    s->last_rx_in = rx ? rd(s, SE_DMA_RX_LEN_IN) : 0;
+    if (status == 0) {
+        if (rx) {
+            if (d->inval) d->inval(d->ctx, d->rx_virt, len);
+            volatile uint8_t *rv = d->rx_virt;
+            for (size_t i = 0; i < len; i++) rx[i] = rv[i];
+        }
+        return 0;
+    }
+    s->snap_dma_tx = rd(s, SE_DMA_TX_IRQ_STAT);
+    s->snap_dma_rx = rd(s, SE_DMA_RX_IRQ_STAT);
+    s->snap_dma_txin = rd(s, SE_DMA_TX_LEN_IN);
+    s->snap_dma_rxin = rd(s, SE_DMA_RX_LEN_IN);
+    s->snap_irq = rd(s, SE_GENI_M_IRQ_STATUS);
+    s->snap_status = rd(s, SE_GENI_STATUS);
+    s->snap_txfs = rd(s, SE_GENI_TX_FIFO_STATUS);
+    s->snap_rxfs = rd(s, SE_GENI_RX_FIFO_STATUS);
+    s->snap_valid = 1;
+    recover(s);
+    wr(s, SE_DMA_TX_FSM_RST, 1);
+    wr(s, SE_DMA_RX_FSM_RST, 1);
+    return status;
+}
+
+int geni_spi_transfer(struct geni_spi *s, const uint8_t *tx, uint8_t *rx, size_t len, int keep_cs) {
+    if (!s || !len || len > GENI_TRANS_LEN_MASK || (!tx && !rx) || !s->cur_speed_hz) return GENI_ERR_PARAM;
+    if (s->cur_bpw != 8) {
+        set_word_len(s, 8, !(s->last_mode & GENI_SPI_LSB_FIRST));
+        s->cur_bpw = 8;
+    }
+    if (s->use_dma) return transfer_dma(s, tx, rx, len, keep_cs);
+    struct xfer x = {tx, rx, tx ? len : 0, rx ? len : 0, len};
+    uint32_t cmd = 0;
+    if (tx) {
+        cmd |= GENI_M_CMD_TX_ONLY;
+        wr(s, SE_SPI_TX_TRANS_LEN, (uint32_t)len);
+    }
+    if (rx) {
+        cmd |= GENI_M_CMD_RX_ONLY;
+        wr(s, SE_SPI_RX_TRANS_LEN, (uint32_t)len);
+    }
+    if (cmd == (GENI_M_CMD_TX_ONLY | GENI_M_CMD_RX_ONLY)) cmd = GENI_M_CMD_TX_RX;
+    wr(s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
+    wr(s, SE_GENI_M_CMD0, (cmd << GENI_M_OPCODE_SHIFT) | (keep_cs ? GENI_M_PARAM_FRAGMENTATION : 0));
+    if (tx && handle_tx(s, &x)) wr(s, SE_GENI_TX_WATERMARK_REG, s->tx_wm);
+    int status = GENI_ERR_TIMEOUT;
+    for (unsigned n = 0; n < s->poll_limit; n++) {
+        uint32_t st = rd(s, SE_GENI_M_IRQ_STATUS);
+        if (!st) {
+            if (s->se.delay_us) s->se.delay_us(s->se.ctx, 1);
+            continue;
+        }
+        wr(s, SE_GENI_M_IRQ_CLEAR, st);
+        if (st & GENI_M_ERRORS) {
+            status = GENI_ERR_IO;
+            break;
+        }
+        if (st & (GENI_M_RX_FIFO_WATERMARK | GENI_M_RX_FIFO_LAST)) handle_rx(s, &x);
+        if ((st & GENI_M_TX_FIFO_WATERMARK) && tx) handle_tx(s, &x);
+        if (st & GENI_M_CMD_DONE) {
+            if (rx && x.rx_rem) handle_rx(s, &x);
+            status = (x.tx_rem || x.rx_rem) ? GENI_ERR_IO : 0;
+            if (x.tx_rem) wr(s, SE_GENI_TX_WATERMARK_REG, 0);
+            return status;
+        }
+    }
+    s->snap_dma_tx = rd(s, SE_DMA_TX_IRQ_STAT);
+    s->snap_dma_rx = rd(s, SE_DMA_RX_IRQ_STAT);
+    s->snap_dma_txin = rd(s, SE_DMA_TX_LEN_IN);
+    s->snap_dma_rxin = rd(s, SE_DMA_RX_LEN_IN);
+    s->snap_irq = rd(s, SE_GENI_M_IRQ_STATUS);
+    s->snap_status = rd(s, SE_GENI_STATUS);
+    s->snap_txfs = rd(s, SE_GENI_TX_FIFO_STATUS);
+    s->snap_rxfs = rd(s, SE_GENI_RX_FIFO_STATUS);
+    s->snap_valid = 1;
+    recover(s);
+    return status;
+}
+
+/* ---- end NativeGeniSpi ---- */
+
+/* HOUJI-TOUCH v7: the branch clock and GENI identity are confirmed (proto SPI,
+ * 32-bit FIFO, depth 41).  Bring the serial engine up and send the first read
+ * command to the Synaptics part, logging every result. */
+#define HOUJI_TOUCH_GCC		0x00100000ULL
+#define HOUJI_TOUCH_BRANCH	(HOUJI_TOUCH_GCC + 0x52008)
+#define HOUJI_TOUCH_SE		0x00a90000ULL
+#define HOUJI_TOUCH_WRAP		0x00ac0000ULL
+
+static uint32_t
+houjiGeniRd(void *ctx, uint32_t reg)
+{
+	return *(volatile uint32_t *)((uint8_t *)ctx + reg);
+}
+
+static void
+houjiGeniWr(void *ctx, uint32_t reg, uint32_t value)
+{
+	*(volatile uint32_t *)((uint8_t *)ctx + reg) = value;
+}
+
+static void
+houjiGeniDelay(void *ctx, unsigned us)
+{
+	IOSleep(us ? (us + 999) / 1000 : 0);
+}
+
+static uint8_t *
+houjiTouchMap(uint64_t phys, uint32_t size)
+{
+	IOMemoryDescriptor *mem = IOMemoryDescriptor::withPhysicalAddress(
+	    (IOPhysicalAddress)phys, size, kIODirectionOut);
+	if (mem == nullptr) { return nullptr; }
+	IOMemoryMap *map = mem->map();
+	mem->release();
+	if (map == nullptr) { return nullptr; }
+	return (uint8_t *)map->getVirtualAddress();
+}
+
+static int
+houjiTouchWrite32(uint64_t phys, uint32_t value)
+{
+	IOMemoryDescriptor *mem = IOMemoryDescriptor::withPhysicalAddress(
+	    (IOPhysicalAddress)phys, 4, kIODirectionOut);
+	if (mem == nullptr) { return 0; }
+	IOMemoryMap *map = mem->map();
+	mem->release();
+	if (map == nullptr) { return 0; }
+	*(volatile uint32_t *)map->getVirtualAddress() = value;
+	map->release();
+	return 1;
+}
+
+static uint32_t
+houjiTouchRead32(uint64_t phys)
+{
+	uint32_t value = 0;
+	IOMemoryDescriptor *mem = IOMemoryDescriptor::withPhysicalAddress(
+	    (IOPhysicalAddress)phys, 4, kIODirectionIn);
+	if (mem == nullptr) { return 0; }
+	IOMemoryMap *map = mem->map();
+	mem->release();
+	if (map == nullptr) { return 0; }
+	value = *(volatile uint32_t *)map->getVirtualAddress();
+	map->release();
+	return value;
+}
+
+static void
+houjiTouchProbe(void)
+{
+	uint32_t on = 0;
+
+	PE_parse_boot_argn("houji-touchprobe", &on, sizeof(on));
+	if (on != 1) {
+		return;
+	}
+
+	HOUJI_FB_LOG("touch v7 start");
+	uint32_t branch = houjiTouchRead32(HOUJI_TOUCH_BRANCH);
+	if ((branch & 1u) == 0) {
+		houjiTouchWrite32(HOUJI_TOUCH_BRANCH, branch | 1u);
+		branch = houjiTouchRead32(HOUJI_TOUCH_BRANCH);
+	}
+	HOUJI_FB_LOG("touch v7 branch=%08x en=%u off=%u", branch, branch & 1u,
+	    (branch >> 31) & 1u);
+
+	uint8_t *se = houjiTouchMap(HOUJI_TOUCH_SE, 0x4000);
+	uint8_t *wrap = houjiTouchMap(HOUJI_TOUCH_WRAP, 0x1000);
+	HOUJI_FB_LOG("touch v7 maps se=%d wrap=%d", se != nullptr, wrap != nullptr);
+	if (se == nullptr || wrap == nullptr) {
+		return;
+	}
+	HOUJI_FB_LOG("touch v7 wrapper_ver=%08x if_disable=%08x",
+	    houjiGeniRd(wrap, QUPV3_HW_VER_REG), houjiGeniRd(se, GENI_IF_DISABLE_RO));
+
+	struct geni_spi s;
+	memset(&s, 0, sizeof(s));
+	s.se.ctx = se;
+	s.se.rd = houjiGeniRd;
+	s.se.wr = houjiGeniWr;
+	s.se.delay_us = houjiGeniDelay;
+	s.wrapper.ctx = wrap;
+	s.wrapper.rd = houjiGeniRd;
+	s.wrapper.wr = houjiGeniWr;
+	s.poll_only = 1;
+	s.poll_limit = 200000;
+
+	int r = geni_spi_init(&s);
+	HOUJI_FB_LOG("touch v7 geni_init=%d proto=%u depth=%u width=%u fifo_disabled=%d",
+	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled);
+	if (r != 0) {
+		return;
+	}
+
+	r = geni_spi_setup(&s, 0, 0);
+	HOUJI_FB_LOG("touch v7 geni_setup=%d", r);
+	r = geni_spi_set_clock(&s, 4800000, 19200000, 0);
+	HOUJI_FB_LOG("touch v7 geni_set_clock=%d", r);
+
+	uint8_t tx[2] = {0x00, 0x00};
+	uint8_t rx[32];
+	memset(rx, 0xcc, sizeof(rx));
+	r = geni_spi_transfer(&s, tx, rx, sizeof(tx), 0);
+	HOUJI_FB_LOG("touch v7 transfer write2=%d", r);
+
+	uint8_t tx0[1] = {0x00};
+	uint8_t rx0[32];
+	memset(rx0, 0xcc, sizeof(rx0));
+	r = geni_spi_transfer(&s, tx0, rx0, sizeof(rx0), 0);
+	HOUJI_FB_LOG("touch v7 transfer read32=%d", r);
+	for (unsigned i = 0; i < 8; i++) {
+		HOUJI_FB_LOG("touch v7 rx[%u]=%02x %02x %02x %02x", i * 4,
+		    rx0[i * 4], rx0[i * 4 + 1], rx0[i * 4 + 2], rx0[i * 4 + 3]);
+	}
+	HOUJI_FB_LOG("touch v7 geni_status=%08x irq=%08x txfs=%08x rxfs=%08x",
+	    houjiGeniRd(se, SE_GENI_STATUS), houjiGeniRd(se, SE_GENI_M_IRQ_STATUS),
+	    houjiGeniRd(se, SE_GENI_TX_FIFO_STATUS), houjiGeniRd(se, SE_GENI_RX_FIFO_STATUS));
+	HOUJI_FB_LOG("touch v7 done");
+}
+
 static void
 houjiKeyEventsBootstrap(IOService *platform)
 {
@@ -884,6 +1601,7 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	houjiKeyEventsBootstrap(platform);
+	houjiTouchProbe();
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
