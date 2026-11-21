@@ -22,6 +22,11 @@
 #include <kern/clock.h>
 #include <mach/mach_time.h>
 #include <kern/task.h>
+
+#include <kern/thread.h>
+extern "C" kern_return_t kernel_thread_start(thread_continue_t continuation,
+    void *parameter, thread_t *new_thread);
+extern "C" void thread_deallocate(thread_t thread);
 #include <libkern/c++/OSKext.h>
 #include <libkern/c++/OSData.h>
 #include <IOKit/IOMemoryDescriptor.h>
@@ -1364,6 +1369,15 @@ houjiTouchRead32(uint64_t phys)
 }
 
 static void
+houjiTouchThreadMain(void *arg, wait_result_t wr)
+{
+	IOSleep(120000);
+	HOUJI_FB_LOG("touch v15: deferred probe starting");
+	houjiTouchProbe();
+	thread_terminate(current_thread());
+}
+
+static void
 houjiTouchProbe(void)
 {
 	uint32_t on = 0;
@@ -1470,7 +1484,28 @@ houjiTouchProbe(void)
 	s.allow_fifo_disabled = 1; /* Linux falls back to FIFO when GPI DMA is absent */
 	HOUJI_FB_LOG("touch v10: before geni_init use_dma=%d", s.use_dma);
 	IOSleep(6000);
-	int r = geni_spi_init(&s);
+	int r = geni_spi_read_info(&s);
+	HOUJI_FB_LOG("touch v15: read_info=%d proto=%u depth=%u width=%u fifo_disabled=%d",
+	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled);
+	IOSleep(6000);
+	wr(&s, SE_GENI_CGC_CTRL, rd(&s, SE_GENI_CGC_CTRL) | GENI_DEFAULT_CGC_EN);
+	HOUJI_FB_LOG("touch v15: cgc ok");
+	IOSleep(6000);
+	wr(&s, GENI_OUTPUT_CTRL, GENI_DEFAULT_IO_OUTPUT_CTRL);
+	HOUJI_FB_LOG("touch v15: output ctrl ok");
+	IOSleep(6000);
+	wr(&s, SE_IRQ_EN, 0);
+	wr(&s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
+	wr(&s, SE_GENI_S_IRQ_CLEAR, 0xffffffffu);
+	HOUJI_FB_LOG("touch v15: irq cleared");
+	IOSleep(6000);
+	wr(&s, SE_SPI_LOOPBACK, 0);
+	wr(&s, SE_SPI_DEMUX_SEL, 0);
+	wr(&s, SE_SPI_CPHA, 0);
+	wr(&s, SE_SPI_CPOL, 0);
+	wr(&s, SE_SPI_DEMUX_OUTPUT_INV, 0);
+	r = 0;
+	HOUJI_FB_LOG("touch v15: spi config ok");
 	HOUJI_FB_LOG("touch v7 geni_init=%d proto=%u depth=%u width=%u fifo_disabled=%d dma=%d",
 	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled, s.use_dma);
 	if (r != 0) {
@@ -1688,7 +1723,13 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	houjiKeyEventsBootstrap(platform);
-	houjiTouchProbe();
+	{
+		thread_t touchThread = nullptr;
+		if (kernel_thread_start((thread_continue_t)houjiTouchThreadMain, nullptr,
+		    &touchThread) == KERN_SUCCESS) {
+			thread_deallocate(touchThread);
+		}
+	}
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
