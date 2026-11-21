@@ -1368,6 +1368,8 @@ houjiTouchRead32(uint64_t phys)
 	return value;
 }
 
+static void houjiTouchProbe(void);
+
 static void
 houjiTouchThreadMain(void *arg, wait_result_t wr)
 {
