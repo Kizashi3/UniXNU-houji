@@ -336,6 +336,7 @@ void
 HoujiFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 {
 	fVsyncCount++;
+	{ extern "C" void native_ufs_heartbeat (void); native_ufs_heartbeat (); }
 	if ((fVsyncCount % 600) == 0) {
 		HOUJI_FB_LOG("vsync %llu swaps %u", fVsyncCount, fSwapCount);
 		if (houjiLegacyCheckpoint != nullptr)
@@ -950,6 +951,15 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	houjiKeyEventsBootstrap(platform);
+	{
+		/* The round tag is what proves an exported log belongs to this boot: an image that
+		 * never reached XNU leaves the previous round's window on the medium untouched. */
+		char round[32] = { 0 };
+		if (PE_parse_boot_argn ("houji-round", round, sizeof (round)) && round[0] != '\0')
+			HOUJI_FB_LOG ("round %s", round);
+		else
+			HOUJI_FB_LOG ("round missing");
+	}
 	houjiTouchProbe();
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);

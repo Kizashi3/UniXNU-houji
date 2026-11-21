@@ -1980,28 +1980,61 @@ static void houjiExitCheck (void)
  * init has not reported progress, and native_ufs_exit() flushes the log snapshot first.
  */
 static volatile int gInitReached;
+/* Continuous liveness clock: anything still making progress stamps it. The guard used to
+ * disarm the moment init reported progress, which left every later wedge - including a
+ * stalled MMIO read on another core - with nobody left to reset the board. */
+static volatile uint64_t gHoujiAlive;
+
+extern "C" void native_ufs_heartbeat (void);
 
 extern "C" void native_ufs_boot_progress (void)
 {
   __atomic_store_n (&gInitReached, 1, __ATOMIC_RELEASE);
+  native_ufs_heartbeat ();
+}
+
+extern "C" void native_ufs_heartbeat (void)
+{
+  __atomic_store_n (&gHoujiAlive, mach_absolute_time (), __ATOMIC_RELEASE);
 }
 
 static void houjiBootGuardThread (void *arg, wait_result_t wr)
 {
   uint32_t seconds = 150;
+  uint32_t silence = 0;
   (void) arg; (void) wr;
   if (!PE_parse_boot_argn ("houji-bootguard", &seconds, sizeof (seconds)) || seconds < 30 ||
       seconds > 3600) {
     seconds = 150;
   }
+  // houji-deadman=<seconds of silence that resets>; absent or out of range keeps the old
+  // one-shot behaviour, so no existing image changes shape.
+  if (!PE_parse_boot_argn ("houji-deadman", &silence, sizeof (silence)) || silence < 5 ||
+      silence > 600) {
+    silence = 0;
+  }
   for (uint32_t i = 0; i < seconds * 10; i++) {
     if (__atomic_load_n (&gInitReached, __ATOMIC_ACQUIRE)) {
-      return;
+      break;
     }
     IOSleep (100);
   }
   if (!__atomic_load_n (&gInitReached, __ATOMIC_ACQUIRE)) {
     native_ufs_exit ("boot-guard");
+  }
+  if (silence == 0) {
+    IOLog ("HOUJI-BOOTGUARD: init reached, deadman off\n");
+    return;
+  }
+  IOLog ("HOUJI-BOOTGUARD: deadman armed at %u s of silence\n", silence);
+  for (;;) {
+    IOSleep (1000);
+    const uint64_t last = __atomic_load_n (&gHoujiAlive, __ATOMIC_ACQUIRE);
+    const uint64_t now = mach_absolute_time ();
+    if (last != 0 && now > last + (uint64_t) silence * 1000000000ULL) {
+      IOLog ("HOUJI-BOOTGUARD: %u s without a heartbeat, exiting\n", silence);
+      native_ufs_exit ("deadman");
+    }
   }
 }
 
