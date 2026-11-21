@@ -1374,7 +1374,7 @@ static void
 houjiTouchThreadMain(void *arg, wait_result_t wr)
 {
 	IOSleep(120000);
-	HOUJI_FB_LOG("touch v20: deferred probe starting");
+	HOUJI_FB_LOG("touch v21: deferred probe starting");
 	houjiTouchProbe();
 	thread_terminate(current_thread());
 }
@@ -1450,7 +1450,7 @@ houjiCmdFind(const uint8_t *db, uint32_t bytes, const char *name, uint32_t *addr
 				return -2;
 			}
 			*address = addr;
-			HOUJI_FB_LOG("touch v20: cmd-db %s addr=%08x slave=%u", name, addr, id);
+			HOUJI_FB_LOG("touch v21: cmd-db %s addr=%08x slave=%u", name, addr, id);
 			return 0;
 		}
 	}
@@ -1467,10 +1467,10 @@ houjiRpmhVote3(uint8_t *rsc, const HoujiRscLayout &l, uint32_t address, uint32_t
 	uint32_t enable = *(volatile uint32_t *)(rsc + base + l.cmd_enable);
 	uint32_t wait = *(volatile uint32_t *)(rsc + base + l.wait_for_cmpl);
 	uint32_t irq = *(volatile uint32_t *)(rsc + HOUJI_TOUCH_RSC_TCS + l.irq_status);
-	HOUJI_FB_LOG("touch v20: rpmh %s tcs%u status=%08x enable=%08x wait=%08x irq=%08x",
+	HOUJI_FB_LOG("touch v21: rpmh %s tcs%u status=%08x enable=%08x wait=%08x irq=%08x",
 	    name, tcs, status, enable, wait, irq);
 	if (!status || status == 0xffffffffu || enable || wait || (irq & (1u << tcs))) {
-		HOUJI_FB_LOG("touch v20: rpmh %s tcs%u not idle", name, tcs);
+		HOUJI_FB_LOG("touch v21: rpmh %s tcs%u not idle", name, tcs);
 		return -1;
 	}
 	volatile uint32_t *control = (volatile uint32_t *)(rsc + base + l.control);
@@ -1508,7 +1508,7 @@ houjiRpmhVote3(uint8_t *rsc, const HoujiRscLayout &l, uint32_t address, uint32_t
 		}
 		IOSleep(1);
 	}
-	HOUJI_FB_LOG("touch v20: rpmh %s done=%d irq=%08x status=%08x cmd=%08x/%08x/%08x",
+	HOUJI_FB_LOG("touch v21: rpmh %s done=%d irq=%08x status=%08x cmd=%08x/%08x/%08x",
 	    name, done, irq, status, command[0], command[1], command[2]);
 	if (!done) {
 		return -2;
@@ -1524,28 +1524,28 @@ houjiTouchPowerOn(void)
 {
 	uint8_t *rsc = houjiTouchMap(HOUJI_TOUCH_RSC_DRV, 0x10000);
 	uint8_t *db = houjiTouchMap(HOUJI_TOUCH_CMDB, HOUJI_TOUCH_CMDB_SIZE);
-	HOUJI_FB_LOG("touch v20: rpmh maps rsc=%d db=%d", rsc != nullptr, db != nullptr);
+	HOUJI_FB_LOG("touch v21: rpmh maps rsc=%d db=%d", rsc != nullptr, db != nullptr);
 	if (rsc == nullptr || db == nullptr) {
 		return -1;
 	}
 	uint32_t id = *(volatile uint32_t *)rsc;
 	HoujiRscLayout layout = houjiRscLayout(id);
-	HOUJI_FB_LOG("touch v20: rsc id=%08x tcs_stride=%u cmd_stride=%u", id,
+	HOUJI_FB_LOG("touch v21: rsc id=%08x tcs_stride=%u cmd_stride=%u", id,
 	    layout.tcs_stride, layout.cmd_stride);
 	uint32_t l9 = 0, l12 = 0;
 	int e9 = houjiCmdFind(db, HOUJI_TOUCH_CMDB_SIZE, "ldob9", &l9);
 	int e12 = houjiCmdFind(db, HOUJI_TOUCH_CMDB_SIZE, "ldob12", &l12);
-	HOUJI_FB_LOG("touch v20: lookup ldob9=%d ldob12=%d", e9, e12);
+	HOUJI_FB_LOG("touch v21: lookup ldob9=%d ldob12=%d", e9, e12);
 	if (e9 || e12) {
 		return -2;
 	}
 	IOSleep(6000);
 	int r = houjiRpmhVote3(rsc, layout, l9, 3000, "ldob9");
-	HOUJI_FB_LOG("touch v20: ldob9 3000mV vote=%d", r);
+	HOUJI_FB_LOG("touch v21: ldob9 3000mV vote=%d", r);
 	IOSleep(6000);
 	if (r == 0) {
 		r = houjiRpmhVote3(rsc, layout, l12, 1800, "ldob12");
-		HOUJI_FB_LOG("touch v20: ldob12 1800mV vote=%d", r);
+		HOUJI_FB_LOG("touch v21: ldob12 1800mV vote=%d", r);
 	}
 	IOSleep(6000);
 	return r;
@@ -1557,16 +1557,16 @@ houjiTouchReset(void)
 	uint64_t irq = HOUJI_TOUCH_TLMM + 0x1000ULL * 162;
 	uint64_t rst = HOUJI_TOUCH_TLMM + 0x1000ULL * 161;
 	uint32_t v = houjiTouchRead32(irq);
-	HOUJI_FB_LOG("touch v20: gpio162 cfg=%08x io=%08x", v, houjiTouchRead32(irq + 4));
+	HOUJI_FB_LOG("touch v21: gpio162 cfg=%08x io=%08x", v, houjiTouchRead32(irq + 4));
 	houjiTouchWrite32(irq, (v & ~0x3ffu) | (3u << 6) | 3u);
 	v = houjiTouchRead32(rst);
 	houjiTouchWrite32(rst + 4, houjiTouchRead32(rst + 4) & ~2u);
 	houjiTouchWrite32(rst, (v & ~0x3ffu) | (3u << 6) | 0x200u);
-	HOUJI_FB_LOG("touch v20: reset low cfg=%08x io=%08x", houjiTouchRead32(rst),
+	HOUJI_FB_LOG("touch v21: reset low cfg=%08x io=%08x", houjiTouchRead32(rst),
 	    houjiTouchRead32(rst + 4));
 	IOSleep(10);
 	houjiTouchWrite32(rst + 4, houjiTouchRead32(rst + 4) | 2u);
-	HOUJI_FB_LOG("touch v20: reset high cfg=%08x io=%08x", houjiTouchRead32(rst),
+	HOUJI_FB_LOG("touch v21: reset high cfg=%08x io=%08x", houjiTouchRead32(rst),
 	    houjiTouchRead32(rst + 4));
 	IOSleep(250);
 }
@@ -1578,13 +1578,13 @@ houjiTouchWriteStep(struct geni_spi *s, uint32_t reg, uint32_t value, const char
 {
 	uint32_t old = rd(s, reg);
 	if (old == value) {
-		HOUJI_FB_LOG("touch v20: %s already %08x", name, old);
+		HOUJI_FB_LOG("touch v21: %s already %08x", name, old);
 		return;
 	}
-	HOUJI_FB_LOG("touch v20: %s about to write %08x -> %08x", name, old, value);
+	HOUJI_FB_LOG("touch v21: %s about to write %08x -> %08x", name, old, value);
 	IOSleep(6000);
 	wr(s, reg, value);
-	HOUJI_FB_LOG("touch v20: %s wrote now=%08x", name, rd(s, reg));
+	HOUJI_FB_LOG("touch v21: %s wrote now=%08x", name, rd(s, reg));
 }
 
 static void
@@ -1596,7 +1596,7 @@ houjiTouchPrepare(struct geni_spi *s)
 	houjiTouchWriteStep(s, SE_IRQ_EN, 0, "irq-en");
 	wr(s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
 	wr(s, SE_GENI_S_IRQ_CLEAR, 0xffffffffu);
-	HOUJI_FB_LOG("touch v20: irq cleared m=%08x", rd(s, SE_GENI_M_IRQ_STATUS));
+	HOUJI_FB_LOG("touch v21: irq cleared m=%08x", rd(s, SE_GENI_M_IRQ_STATUS));
 	v = rd(s, SE_GENI_DMA_MODE_EN);
 	houjiTouchWriteStep(s, SE_GENI_DMA_MODE_EN, v & ~GENI_DMA_MODE_EN, "dma-mode");
 	houjiTouchWriteStep(s, SE_GSI_EVENT_EN, 0, "gsi-event");
@@ -1617,7 +1617,7 @@ static void
 houjiTouchDump(const char *tag, const uint8_t *buf, unsigned bytes)
 {
 	for (unsigned i = 0; i < bytes; i += 4) {
-		HOUJI_FB_LOG("touch v20: %s[%u]=%02x %02x %02x %02x", tag, i,
+		HOUJI_FB_LOG("touch v21: %s[%u]=%02x %02x %02x %02x", tag, i,
 		    buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
 	}
 }
@@ -1632,10 +1632,10 @@ houjiTouchProbe(void)
 		return;
 	}
 
-	HOUJI_FB_LOG("touch v20: probe start");
+	HOUJI_FB_LOG("touch v21: probe start");
 	uint8_t *se = houjiTouchMap(HOUJI_TOUCH_SE, 0x4000);
 	uint8_t *wrap = houjiTouchMap(HOUJI_TOUCH_WRAP, 0x1000);
-	HOUJI_FB_LOG("touch v20: maps se=%d wrap=%d", se != nullptr, wrap != nullptr);
+	HOUJI_FB_LOG("touch v21: maps se=%d wrap=%d", se != nullptr, wrap != nullptr);
 	if (se == nullptr || wrap == nullptr) {
 		return;
 	}
@@ -1656,24 +1656,24 @@ houjiTouchProbe(void)
 	s.tx_wm = 1;
 
 	int r = geni_spi_read_info(&s);
-	HOUJI_FB_LOG("touch v20: read_info=%d proto=%u depth=%u width=%u fifo_disabled=%d",
+	HOUJI_FB_LOG("touch v21: read_info=%d proto=%u depth=%u width=%u fifo_disabled=%d",
 	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled);
-	HOUJI_FB_LOG("touch v20: survey cgc=%08x out=%08x irqen=%08x dma=%08x gsi=%08x",
+	HOUJI_FB_LOG("touch v21: survey cgc=%08x out=%08x irqen=%08x dma=%08x gsi=%08x",
 	    rd(&s, SE_GENI_CGC_CTRL), rd(&s, GENI_OUTPUT_CTRL), rd(&s, SE_IRQ_EN),
 	    rd(&s, SE_GENI_DMA_MODE_EN), rd(&s, SE_GSI_EVENT_EN));
-	HOUJI_FB_LOG("touch v20: survey loop=%08x demux=%08x cpha=%08x cpol=%08x inv=%08x",
+	HOUJI_FB_LOG("touch v21: survey loop=%08x demux=%08x cpha=%08x cpol=%08x inv=%08x",
 	    rd(&s, SE_SPI_LOOPBACK), rd(&s, SE_SPI_DEMUX_SEL), rd(&s, SE_SPI_CPHA),
 	    rd(&s, SE_SPI_CPOL), rd(&s, SE_SPI_DEMUX_OUTPUT_INV));
-	HOUJI_FB_LOG("touch v20: survey trans=%08x word=%08x mclk=%08x mcmd=%08x status=%08x",
+	HOUJI_FB_LOG("touch v21: survey trans=%08x word=%08x mclk=%08x mcmd=%08x status=%08x",
 	    rd(&s, SE_SPI_TRANS_CFG), rd(&s, SE_SPI_WORD_LEN), rd(&s, GENI_SER_M_CLK_CFG),
 	    rd(&s, SE_GENI_M_CMD0), rd(&s, SE_GENI_STATUS));
 	IOSleep(6000);
 
 	uint64_t rcg = HOUJI_TOUCH_GCC + 0x183c8;
 	uint32_t cmd = houjiTouchRead32(rcg);
-	HOUJI_FB_LOG("touch v20: rcg cmd=%08x root_off=%u", cmd, (cmd >> 31) & 1u);
+	HOUJI_FB_LOG("touch v21: rcg cmd=%08x root_off=%u", cmd, (cmd >> 31) & 1u);
 	if (((cmd >> 31) & 1u) != 0) {
-		HOUJI_FB_LOG("touch v20: rcg about to enable");
+		HOUJI_FB_LOG("touch v21: rcg about to enable");
 		IOSleep(6000);
 		houjiTouchWrite32(rcg + 0x8, 0);
 		houjiTouchWrite32(rcg + 0xc, 0);
@@ -1681,48 +1681,56 @@ houjiTouchProbe(void)
 		houjiTouchWrite32(rcg + 0x4, 0);
 		houjiTouchWrite32(rcg, 0x3u);
 		cmd = houjiTouchRead32(rcg);
-		HOUJI_FB_LOG("touch v20: rcg after=%08x root_off=%u", cmd, (cmd >> 31) & 1u);
+		HOUJI_FB_LOG("touch v21: rcg after=%08x root_off=%u", cmd, (cmd >> 31) & 1u);
 	}
 
 	uint32_t branch = houjiTouchRead32(HOUJI_TOUCH_BRANCH);
-	HOUJI_FB_LOG("touch v20: branch=%08x", branch);
+	HOUJI_FB_LOG("touch v21: branch=%08x", branch);
 	if ((branch & 1u) == 0) {
-		HOUJI_FB_LOG("touch v20: branch about to enable");
+		HOUJI_FB_LOG("touch v21: branch about to enable");
 		IOSleep(6000);
 		houjiTouchWrite32(HOUJI_TOUCH_BRANCH, branch | 1u);
-		HOUJI_FB_LOG("touch v20: branch now=%08x", houjiTouchRead32(HOUJI_TOUCH_BRANCH));
+		HOUJI_FB_LOG("touch v21: branch now=%08x", houjiTouchRead32(HOUJI_TOUCH_BRANCH));
 	}
 	IOSleep(6000);
 
 	houjiTouchPrepare(&s);
-	HOUJI_FB_LOG("touch v20: se prepared");
+	HOUJI_FB_LOG("touch v21: se prepared");
 
-	HOUJI_FB_LOG("touch v20: setup about to run");
+	HOUJI_FB_LOG("touch v21: setup about to run");
 	IOSleep(6000);
 	r = geni_spi_setup(&s, 0, 0);
-	HOUJI_FB_LOG("touch v20: setup=%d", r);
-	HOUJI_FB_LOG("touch v20: set_clock about to run");
-	IOSleep(6000);
-	r = geni_spi_set_clock(&s, 1000000, 19200000, 0);
-	HOUJI_FB_LOG("touch v20: set_clock=%d oversampling=%u mclk=%08x", r, s.oversampling,
-	    rd(&s, GENI_SER_M_CLK_CFG));
+	HOUJI_FB_LOG("touch v21: setup=%d", r);
+	uint32_t clock_select = rd(&s, SE_GENI_CLK_SEL);
+	uint32_t clock_config = rd(&s, GENI_SER_M_CLK_CFG);
+	HOUJI_FB_LOG("touch v21: clock sel=%08x cfg=%08x", clock_select, clock_config);
+	if (clock_config & GENI_SER_CLK_EN) {
+		s.cur_speed_hz = 1000000;
+		HOUJI_FB_LOG("touch v21: clock kept as bootloader left it");
+	} else {
+		HOUJI_FB_LOG("touch v21: set_clock about to run");
+		IOSleep(6000);
+		r = geni_spi_set_clock(&s, 1000000, 19200000, 0);
+		HOUJI_FB_LOG("touch v21: set_clock=%d oversampling=%u cfg=%08x", r,
+		    s.oversampling, rd(&s, GENI_SER_M_CLK_CFG));
+	}
 
 	uint8_t tx16[16];
 	uint8_t rx16[16];
 	memset(tx16, 0, sizeof(tx16));
 	memset(rx16, 0xcc, sizeof(rx16));
-	HOUJI_FB_LOG("touch v20: pre-power transfer about to run");
+	HOUJI_FB_LOG("touch v21: pre-power transfer about to run");
 	IOSleep(6000);
 	r = geni_spi_transfer(&s, tx16, rx16, sizeof(rx16), 0);
-	HOUJI_FB_LOG("touch v20: pre-power transfer=%d status=%08x irq=%08x txfs=%08x rxfs=%08x",
+	HOUJI_FB_LOG("touch v21: pre-power transfer=%d status=%08x irq=%08x txfs=%08x rxfs=%08x",
 	    r, houjiGeniRd(se, SE_GENI_STATUS), houjiGeniRd(se, SE_GENI_M_IRQ_STATUS),
 	    houjiGeniRd(se, SE_GENI_TX_FIFO_STATUS), houjiGeniRd(se, SE_GENI_RX_FIFO_STATUS));
 	houjiTouchDump("pre", rx16, 8);
 	IOSleep(6000);
 
 	int power = houjiTouchPowerOn();
-	HOUJI_FB_LOG("touch v20: power=%d", power);
-	HOUJI_FB_LOG("touch v20: reset about to run");
+	HOUJI_FB_LOG("touch v21: power=%d", power);
+	HOUJI_FB_LOG("touch v21: reset about to run");
 	IOSleep(6000);
 	houjiTouchReset();
 	IOSleep(6000);
@@ -1732,7 +1740,7 @@ houjiTouchProbe(void)
 	memset(tx32, 0, sizeof(tx32));
 	memset(rx32, 0xcc, sizeof(rx32));
 	r = geni_spi_transfer(&s, tx32, rx32, sizeof(rx32), 0);
-	HOUJI_FB_LOG("touch v20: read32=%d status=%08x irq=%08x txfs=%08x rxfs=%08x",
+	HOUJI_FB_LOG("touch v21: read32=%d status=%08x irq=%08x txfs=%08x rxfs=%08x",
 	    r, houjiGeniRd(se, SE_GENI_STATUS), houjiGeniRd(se, SE_GENI_M_IRQ_STATUS),
 	    houjiGeniRd(se, SE_GENI_TX_FIFO_STATUS), houjiGeniRd(se, SE_GENI_RX_FIFO_STATUS));
 	houjiTouchDump("read", rx32, 16);
@@ -1741,9 +1749,9 @@ houjiTouchProbe(void)
 	memset(rx32, 0xcc, sizeof(rx32));
 	int w = geni_spi_transfer(&s, get_report, nullptr, sizeof(get_report), 1);
 	int q = geni_spi_transfer(&s, tx32, rx32, sizeof(rx32), 0);
-	HOUJI_FB_LOG("touch v20: get_report write=%d read=%d", w, q);
+	HOUJI_FB_LOG("touch v21: get_report write=%d read=%d", w, q);
 	houjiTouchDump("report", rx32, 16);
-	HOUJI_FB_LOG("touch v20: done");
+	HOUJI_FB_LOG("touch v21: done");
 }
 
 static void
