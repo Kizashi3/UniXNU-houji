@@ -1507,7 +1507,14 @@ houjiTouchProbe(void)
 	wr(&s, SE_SPI_CPOL, 0);
 	wr(&s, SE_SPI_DEMUX_OUTPUT_INV, 0);
 	r = 0;
-	HOUJI_FB_LOG("touch v15: spi config ok");
+	s.oversampling = 1;
+	s.tx_wm = 1;
+	if (!s.poll_limit) s.poll_limit = 200000;
+	if (s.cur_bpw != 8) {
+		set_word_len(&s, 8, !(s.last_mode & GENI_SPI_LSB_FIRST));
+		s.cur_bpw = 8;
+	}
+	HOUJI_FB_LOG("touch v16: spi config ok oversampling=%u", s.oversampling);
 	HOUJI_FB_LOG("touch v7 geni_init=%d proto=%u depth=%u width=%u fifo_disabled=%d dma=%d",
 	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled, s.use_dma);
 	if (r != 0) {
