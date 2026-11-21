@@ -933,6 +933,8 @@ static void wr(struct geni_spi *s, uint32_t reg, uint32_t v) { s->se.wr(s->se.ct
 static void rmw_set(struct geni_spi *s, uint32_t reg, uint32_t bits) { wr(s, reg, rd(s, reg) | bits); }
 
 static void irq_clear(struct geni_spi *s) {
+	HOUJI_FB_LOG("touch v14: step8 gsi_event_en");
+	IOSleep(6000);
     wr(s, SE_GSI_EVENT_EN, 0);
     wr(s, SE_GENI_M_IRQ_CLEAR, 0xffffffffu);
     wr(s, SE_GENI_S_IRQ_CLEAR, 0xffffffffu);
@@ -1006,17 +1008,35 @@ int geni_spi_init(struct geni_spi *s) {
         return GENI_ERR_PARAM;
     if (s->info.fifo_disabled && !s->allow_fifo_disabled && !s->use_dma) return GENI_ERR_NOTSUP;   // GPI DMA path not implemented
     if (s->info.tx_fifo_depth < 4 || s->info.fifo_width_bits != 32) return GENI_ERR_NODEV;
+	HOUJI_FB_LOG("touch v14: step1 irq_clear");
+	IOSleep(6000);
     // geni_se_init
     irq_clear(s);
+	HOUJI_FB_LOG("touch v14: step2 cgc_ctrl");
+	IOSleep(6000);
     rmw_set(s, SE_GENI_CGC_CTRL, GENI_DEFAULT_CGC_EN);
+	HOUJI_FB_LOG("touch v14: step3 dma_general_cfg");
+	IOSleep(6000);
     rmw_set(s, SE_DMA_GENERAL_CFG, GENI_AHB_SEC_SLV_CGC_ON | GENI_DMA_AHB_SLV_CGC_ON | GENI_DMA_TX_CGC_ON | GENI_DMA_RX_CGC_ON);
+	HOUJI_FB_LOG("touch v14: step4 output_ctrl");
+	IOSleep(6000);
     wr(s, GENI_OUTPUT_CTRL, GENI_DEFAULT_IO_OUTPUT_CTRL);
+	HOUJI_FB_LOG("touch v14: step5 force_default");
+	IOSleep(6000);
     wr(s, GENI_FORCE_DEFAULT_REG, GENI_FORCE_DEFAULT);
+	HOUJI_FB_LOG("touch v14: step6 se_irq_en");
+	IOSleep(6000);
     rmw_set(s, SE_IRQ_EN, GENI_IRQ_M | GENI_IRQ_S | GENI_IRQ_DMA_TX | GENI_IRQ_DMA_RX);
+	HOUJI_FB_LOG("touch v14: step7 dma_mode_en");
+	IOSleep(6000);
     wr(s, SE_GENI_DMA_MODE_EN, rd(s, SE_GENI_DMA_MODE_EN) & ~GENI_DMA_MODE_EN);
     wr(s, SE_GSI_EVENT_EN, 0);
+	HOUJI_FB_LOG("touch v14: step9 rx_watermark");
+	IOSleep(6000);
     wr(s, SE_GENI_RX_WATERMARK_REG, s->info.tx_fifo_depth - 3);
     wr(s, SE_GENI_RX_RFR_WATERMARK_REG, s->info.tx_fifo_depth - 2);
+	HOUJI_FB_LOG("touch v14: step10 m_irq_en");
+	IOSleep(6000);
     rmw_set(s, SE_GENI_M_IRQ_EN, GENI_M_COMMON_IRQ_EN);
     rmw_set(s, SE_GENI_S_IRQ_EN, GENI_S_COMMON_IRQ_EN);
     s->tx_wm = 1;
