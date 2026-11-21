@@ -1664,6 +1664,99 @@ houjiTouchDump(const char *tag, const uint8_t *buf, unsigned bytes)
 }
 
 static void
+houjiTouchPinConfig(volatile uint8_t *tlmm, unsigned pin, unsigned mux, unsigned pull,
+    unsigned drive, bool output, bool high)
+{
+	volatile uint32_t *cfg = (volatile uint32_t *)(tlmm + 0x1000ULL * pin);
+	volatile uint32_t *io = (volatile uint32_t *)(tlmm + 0x1000ULL * pin + 4);
+	if (output) {
+		*io = (*io & ~2u) | (high ? 2u : 0u);
+	}
+	uint32_t v = *cfg;
+	v &= ~0x3ffu;
+	v |= (mux << 2) | (pull & 3u) | ((drive & 7u) << 6) | (output ? 0x200u : 0u);
+	*cfg = v;
+}
+
+static void
+houjiTouchBitDelay(void)
+{
+	for (volatile unsigned i = 0; i < 40; i++) {
+	}
+}
+
+static void
+houjiTouchBitTransfer(volatile uint8_t *tlmm, const uint8_t *tx, uint8_t *rx, unsigned len)
+{
+	volatile uint32_t *cs = (volatile uint32_t *)(tlmm + 0x1000ULL * 51 + 4);
+	volatile uint32_t *clk = (volatile uint32_t *)(tlmm + 0x1000ULL * 50 + 4);
+	volatile uint32_t *mosi = (volatile uint32_t *)(tlmm + 0x1000ULL * 49 + 4);
+	volatile uint32_t *miso = (volatile uint32_t *)(tlmm + 0x1000ULL * 48 + 4);
+	*cs = *cs & ~2u;
+	houjiTouchBitDelay();
+	for (unsigned i = 0; i < len; i++) {
+		uint8_t out = tx ? tx[i] : 0;
+		uint8_t in = 0;
+		for (int b = 7; b >= 0; b--) {
+			*mosi = (*mosi & ~2u) | (((out >> b) & 1u) ? 2u : 0u);
+			houjiTouchBitDelay();
+			*clk = *clk | 2u;
+			houjiTouchBitDelay();
+			in = (uint8_t)((in << 1) | (*miso & 1u));
+			*clk = *clk & ~2u;
+			houjiTouchBitDelay();
+		}
+		if (rx) {
+			rx[i] = in;
+		}
+	}
+	*cs = *cs | 2u;
+	houjiTouchBitDelay();
+}
+
+static int
+houjiTouchBitBang(void)
+{
+	uint8_t *tlmm = houjiTouchMap(HOUJI_TOUCH_TLMM, 0x200000);
+	HOUJI_FB_LOG("touch v26: bitbang map=%d", tlmm != nullptr);
+	if (tlmm == nullptr) {
+		return -1;
+	}
+	houjiTouchPinConfig(tlmm, 48, 0, 1, 3, false, false); /* MISO input, pull-down */
+	houjiTouchPinConfig(tlmm, 49, 0, 0, 3, true, false);  /* MOSI idle low */
+	houjiTouchPinConfig(tlmm, 50, 0, 0, 3, true, false);  /* CLK idle low */
+	houjiTouchPinConfig(tlmm, 51, 0, 0, 3, true, true);   /* CS idle high */
+	HOUJI_FB_LOG("touch v26: bitbang pins ready");
+	IOSleep(6000);
+
+	uint8_t raw[76];
+	memset(raw, 0xcc, sizeof(raw));
+	houjiTouchBitTransfer(tlmm, nullptr, raw, 72);
+	HOUJI_FB_LOG("touch v26: raw read done");
+	for (unsigned i = 0; i < 72; i += 4) {
+		HOUJI_FB_LOG("touch v26: raw[%u]=%02x %02x %02x %02x", i,
+		    raw[i], raw[i + 1], raw[i + 2], raw[i + 3]);
+	}
+	IOSleep(6000);
+
+	uint8_t tx[76];
+	uint8_t rx[76];
+	memset(tx, 0, sizeof(tx));
+	memset(rx, 0xcc, sizeof(rx));
+	tx[0] = 0x0a;
+	tx[1] = 0x00;
+	tx[2] = 0x00;
+	tx[3] = 0x5a;
+	houjiTouchBitTransfer(tlmm, tx, rx, sizeof(tx));
+	HOUJI_FB_LOG("touch v26: get_report done");
+	for (unsigned i = 0; i < 76; i += 4) {
+		HOUJI_FB_LOG("touch v26: report[%u]=%02x %02x %02x %02x", i,
+		    rx[i], rx[i + 1], rx[i + 2], rx[i + 3]);
+	}
+	return 0;
+}
+
+static void
 houjiTouchProbe(void)
 {
 	uint32_t on = 0;
@@ -1672,6 +1765,19 @@ houjiTouchProbe(void)
 	if (on != 1) {
 		return;
 	}
+
+	HOUJI_FB_LOG("touch v26: bitbang probe start");
+	HOUJI_FB_LOG("touch v26: power about to run");
+	IOSleep(6000);
+	int power = houjiTouchPowerOn();
+	HOUJI_FB_LOG("touch v26: power=%d", power);
+	HOUJI_FB_LOG("touch v26: reset about to run");
+	IOSleep(6000);
+	houjiTouchReset();
+	IOSleep(6000);
+	houjiTouchBitBang();
+	HOUJI_FB_LOG("touch v26: done");
+	return;
 
 	HOUJI_FB_LOG("touch v25: probe start");
 	uint8_t *se = houjiTouchMap(HOUJI_TOUCH_SE, 0x4000);
