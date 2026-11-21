@@ -1383,9 +1383,35 @@ houjiTouchProbe(void)
 	s.poll_only = 1;
 	s.poll_limit = 200000;
 
+	uint8_t *dmav[2] = {nullptr, nullptr};
+	uint64_t dmap[2] = {0, 0};
+	IOBufferMemoryDescriptor *dmab[2] = {nullptr, nullptr};
+	for (unsigned i = 0; i < 2; i++) {
+		dmab[i] = IOBufferMemoryDescriptor::inTaskWithPhysicalMask(
+		    kernel_task,
+		    kIODirectionInOut | kIOMemoryPhysicallyContiguous,
+		    0x1000, 0x00000000fffff000ULL);
+		if (dmab[i] != nullptr && dmab[i]->prepare(kIODirectionInOut) == kIOReturnSuccess) {
+			dmav[i] = (uint8_t *)dmab[i]->getBytesNoCopy();
+			dmap[i] = (uint64_t)dmab[i]->getPhysicalAddress();
+		}
+	}
+	HOUJI_FB_LOG("touch v9 dma tx=%llx/%d rx=%llx/%d",
+	    (unsigned long long)dmap[0], dmav[0] != nullptr,
+	    (unsigned long long)dmap[1], dmav[1] != nullptr);
+	if (dmav[0] != nullptr && dmav[1] != nullptr && dmap[0] && dmap[1]) {
+		s.use_dma = 1;
+		s.dma.ctx = nullptr;
+		s.dma.tx_virt = dmav[0];
+		s.dma.tx_phys = dmap[0];
+		s.dma.rx_virt = dmav[1];
+		s.dma.rx_phys = dmap[1];
+		s.dma.size = 0x1000;
+	}
+
 	int r = geni_spi_init(&s);
-	HOUJI_FB_LOG("touch v7 geni_init=%d proto=%u depth=%u width=%u fifo_disabled=%d",
-	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled);
+	HOUJI_FB_LOG("touch v7 geni_init=%d proto=%u depth=%u width=%u fifo_disabled=%d dma=%d",
+	    r, s.info.protocol, s.info.tx_fifo_depth, s.info.fifo_width_bits, s.info.fifo_disabled, s.use_dma);
 	if (r != 0) {
 		return;
 	}
