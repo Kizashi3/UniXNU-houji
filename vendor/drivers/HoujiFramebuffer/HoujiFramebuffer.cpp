@@ -699,6 +699,69 @@ AppleKeyStoreUserClient::externalMethod(uint32_t selector, IOExternalMethodArgum
 }
 
 
+/* Read-only touch-controller presence probe. houji-touchprobe=1 reads a fixed
+ * whitelist of clock, pinmux and serial-engine registers and never writes
+ * anything: an unvoted GENI serial engine is not read at all, because its
+ * bus interface can stall while the functional clock is down. */
+#define HOUJI_TOUCH_TLMM	0x0f000000ULL
+#define HOUJI_TOUCH_GCC		0x00100000ULL
+#define HOUJI_TOUCH_SE		0x00a90000ULL
+#define HOUJI_TOUCH_CLK_CTL	(HOUJI_TOUCH_GCC + 0x52008)
+#define HOUJI_TOUCH_CLK_HALT	(HOUJI_TOUCH_GCC + 0x183bc)
+#define HOUJI_TOUCH_CLK_SRC	(HOUJI_TOUCH_GCC + 0x183c8)
+#define HOUJI_TOUCH_SE_STATUS	(HOUJI_TOUCH_SE + 0x40)
+
+static uint32_t
+houjiPeRead32(uint64_t phys, bool *read)
+{
+	IOMemoryDescriptor *mem = IOMemoryDescriptor::withPhysicalAddress(
+	    (IOPhysicalAddress)phys, 4, kIODirectionIn);
+	if (mem == nullptr) { *read = false; return 0; }
+	IOMemoryMap *map = mem->map();
+	mem->release();
+	if (map == nullptr) { *read = false; return 0; }
+	uint32_t value = *(volatile uint32_t *)map->getVirtualAddress();
+	map->release();
+	*read = true;
+	return value;
+}
+
+static void
+houjiTouchProbe(void)
+{
+	uint32_t on = 0;
+	PE_parse_boot_argn("houji-touchprobe", &on, sizeof(on));
+	if (on != 1)
+		return;
+
+	bool ok = false;
+	uint32_t ctl = houjiPeRead32(HOUJI_TOUCH_CLK_CTL, &ok);
+	HOUJI_FB_LOG("touch gcc_clk_ctl=%08x read=%d enable=%u", ctl, ok, (ctl >> 26) & 1u);
+	uint32_t halt = houjiPeRead32(HOUJI_TOUCH_CLK_HALT, &ok);
+	HOUJI_FB_LOG("touch gcc_halt=%08x read=%d halted=%u", halt, ok, (halt >> 31) & 1u);
+	uint32_t src = houjiPeRead32(HOUJI_TOUCH_CLK_SRC, &ok);
+	HOUJI_FB_LOG("touch gcc_clk_src=%08x read=%d src=%u cfg=%u", src, ok,
+	    (src >> 8) & 7u, src & 3u);
+
+	static const uint32_t pins[] = {48, 49, 50, 51, 161, 162};
+	for (unsigned i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
+		uint64_t reg = HOUJI_TOUCH_TLMM + 0x1000ULL * pins[i];
+		bool okCtl = false;
+		uint32_t c = houjiPeRead32(reg, &okCtl);
+		bool okIo = false;
+		uint32_t io = houjiPeRead32(reg + 4, &okIo);
+		HOUJI_FB_LOG("touch gpio%u ctl=%08x mux=%u io=%08x pull=%u drv=%u read=%d",
+		    pins[i], c, c & 7u, io, (io >> 12) & 7u, (io >> 6) & 7u, okCtl && okIo);
+	}
+
+	if (((ctl >> 26) & 1u) != 0) {
+		uint32_t st = houjiPeRead32(HOUJI_TOUCH_SE_STATUS, &ok);
+		HOUJI_FB_LOG("touch se_status=%08x read=%d", st, ok);
+	} else {
+		HOUJI_FB_LOG("touch se not read: clock down");
+	}
+}
+
 static void
 houjiKeyEventsBootstrap(IOService *platform)
 {
@@ -884,6 +947,7 @@ houji_fb_bootstrap(void)
 		return;
 	}
 	houjiKeyEventsBootstrap(platform);
+	houjiTouchProbe();
 	IOService *provider = platform;
 	IORegistryEntry *armIO = IORegistryEntry::fromPath("/arm-io", gIODTPlane);
 	if (armIO) {
