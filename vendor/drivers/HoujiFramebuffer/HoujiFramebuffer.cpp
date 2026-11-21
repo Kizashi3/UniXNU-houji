@@ -1387,7 +1387,7 @@ houjiTouchProbe(void)
 	PE_parse_boot_argn("houji-touchdma", &dmaOn, sizeof(dmaOn));
 	HOUJI_FB_LOG("touch v10: dma arg=%u", dmaOn);
 	IOSleep(6000);
-	if (dmaOn == 1) {
+	if (dmaOn == 2) {
 		uint8_t *dmav[2] = {nullptr, nullptr};
 		uint64_t dmap[2] = {0, 0};
 		IOBufferMemoryDescriptor *dmab[2] = {nullptr, nullptr};
@@ -1447,6 +1447,7 @@ houjiTouchProbe(void)
 			}
 		}
 	}
+	s.allow_fifo_disabled = 1; /* Linux falls back to FIFO when GPI DMA is absent */
 	HOUJI_FB_LOG("touch v10: before geni_init use_dma=%d", s.use_dma);
 	IOSleep(6000);
 	int r = geni_spi_init(&s);
