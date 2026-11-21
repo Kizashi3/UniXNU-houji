@@ -46,6 +46,31 @@ houji_fb_set_legacy_publisher(bool (*publisher)(IOService *))
 
 #define HOUJI_FB_LOG(fmt, ...) IOLog("HOUJI-FB: " fmt "\n", ##__VA_ARGS__)
 
+extern "C" void native_ufs_heartbeat (void);
+
+/* Not-set sentinel is parsed once: PE_parse_boot_argn on every vsync tick would make
+ * the harness itself perturb the thing it measures. */
+static uint64_t gHoujiStallLoopAt;
+
+static void
+houjiMaybeStallLoop (uint64_t vsyncCount)
+{
+	if (gHoujiStallLoopAt == 0) {
+		uint32_t seconds = 0;
+		if (PE_parse_boot_argn ("houji-stall-loop", &seconds, sizeof (seconds))
+		    && seconds >= 5 && seconds <= 600)
+			gHoujiStallLoopAt = (uint64_t) seconds * 60ULL;
+		else
+			gHoujiStallLoopAt = (uint64_t) -1;
+	}
+	if (gHoujiStallLoopAt != (uint64_t) -1 && vsyncCount == gHoujiStallLoopAt) {
+		IOLog ("HOUJI-FB: stall-loop wedging the vsync work loop\n");
+		for (;;) {
+			__asm__ volatile ("yield");
+		}
+	}
+}
+
 static unsigned houjiCountServices(const char *cls);
 
 /*
@@ -336,7 +361,8 @@ void
 HoujiFramebuffer::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
 {
 	fVsyncCount++;
-	{ extern "C" void native_ufs_heartbeat (void); native_ufs_heartbeat (); }
+	native_ufs_heartbeat ();
+	houjiMaybeStallLoop (fVsyncCount);
 	if ((fVsyncCount % 600) == 0) {
 		HOUJI_FB_LOG("vsync %llu swaps %u", fVsyncCount, fSwapCount);
 		if (houjiLegacyCheckpoint != nullptr)

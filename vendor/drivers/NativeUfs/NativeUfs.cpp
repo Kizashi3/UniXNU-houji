@@ -1993,9 +1993,26 @@ extern "C" void native_ufs_boot_progress (void)
   native_ufs_heartbeat ();
 }
 
+static volatile int gHoujiStallBeat;
+
 extern "C" void native_ufs_heartbeat (void)
 {
+  if (__atomic_load_n (&gHoujiStallBeat, __ATOMIC_ACQUIRE)) {
+    return;
+  }
   __atomic_store_n (&gHoujiAlive, mach_absolute_time (), __ATOMIC_RELEASE);
+}
+
+static void houjiStallBeatThread (void *arg, wait_result_t wr)
+{
+  const uint32_t seconds = (uint32_t) (uintptr_t) arg;
+  (void) wr;
+  IOSleep (seconds * 1000U);
+  __atomic_store_n (&gHoujiStallBeat, 1, __ATOMIC_RELEASE);
+  IOLog ("HOUJI-BOOTGUARD: heartbeat stopped at %u s\n", seconds);
+  for (;;) {
+    IOSleep (60000);
+  }
 }
 
 static void houjiBootGuardThread (void *arg, wait_result_t wr)
@@ -2012,6 +2029,18 @@ static void houjiBootGuardThread (void *arg, wait_result_t wr)
   if (!PE_parse_boot_argn ("houji-deadman", &silence, sizeof (silence)) || silence < 5 ||
       silence > 600) {
     silence = 0;
+  }
+  {
+    uint32_t stall = 0;
+    if (PE_parse_boot_argn ("houji-stall", &stall, sizeof (stall)) && stall >= 5 && stall <= 600) {
+      thread_t th = NULL;
+      if (kernel_thread_start (houjiStallBeatThread, (void *) (uintptr_t) stall, &th) == KERN_SUCCESS) {
+        thread_deallocate (th);
+        IOLog ("HOUJI-BOOTGUARD: heartbeat will stop at %u s\n", stall);
+      } else {
+        IOLog ("HOUJI-BOOTGUARD: stall harness could not start\n");
+      }
+    }
   }
   for (uint32_t i = 0; i < seconds * 10; i++) {
     if (__atomic_load_n (&gInitReached, __ATOMIC_ACQUIRE)) {
