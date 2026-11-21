@@ -1423,6 +1423,24 @@ houjiTouchProbe(void)
 			s.dma.size = 0x1000;
 		}
 	}
+	{
+		uint64_t rcg = HOUJI_TOUCH_GCC + 0x183c8;
+		uint32_t before = houjiTouchRead32(rcg);
+		HOUJI_FB_LOG("touch v11: rcg before=%08x root_off=%u", before, (before >> 31) & 1u);
+		IOSleep(6000);
+		if (((before >> 31) & 1u) != 0) {
+			houjiTouchWrite32(rcg + 0x8, 0);
+			houjiTouchWrite32(rcg + 0xc, 0);
+			houjiTouchWrite32(rcg + 0x10, 0);
+			houjiTouchWrite32(rcg + 0x4, 2u << 8);
+			houjiTouchWrite32(rcg, 1u);
+			HOUJI_FB_LOG("touch v11: rcg programmed, waiting for root");
+			IOSleep(6000);
+			uint32_t after = houjiTouchRead32(rcg);
+			HOUJI_FB_LOG("touch v11: rcg after=%08x root_off=%u", after, (after >> 31) & 1u);
+			IOSleep(6000);
+		}
+	}
 	HOUJI_FB_LOG("touch v10: before geni_init use_dma=%d", s.use_dma);
 	IOSleep(6000);
 	int r = geni_spi_init(&s);
