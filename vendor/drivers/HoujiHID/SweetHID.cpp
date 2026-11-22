@@ -588,13 +588,6 @@ sweet_hid_start(IOService *provider)
 	}
 	IOLog("SWEET HID: start super start\n");
 	IOSleep(6000);
-	IOWorkLoop *wl = IOWorkLoop::workLoop();
-	IOLog("SWEET HID: start workloop=%p\n", wl);
-	if (wl != nullptr) {
-		touch->setWorkLoop(wl);
-		wl->release();
-	}
-	IOSleep(6000);
 	if (!touch->start(provider)) {
 		touch->detach(provider);
 		touch->release();
