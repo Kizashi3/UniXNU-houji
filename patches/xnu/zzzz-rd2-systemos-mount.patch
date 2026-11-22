@@ -338,7 +338,7 @@ index 8bba078..ffcbe53 100644
 +	static const char container_meta[] = HOUJI_PLIST_HEADER
 +	    "<plist version=\"1.0\"><dict>"
 +	    "<key>MCMMetadataIdentifier</key><string>com.apple.mobileactivationd</string>"
-+	    "<key>MCMMetadataUUID</key><string>3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1</string>"
++	    "<key>MCMMetadataUUID</key><string>62339402-23CD-44D6-A850-53E6216F1EBC1</string>"
 +	    "<key>MCMMetadataContentClass</key><integer>1</integer>"
 +	    "<key>MCMMetadataSchemaVersion</key><integer>1</integer>"
 +	    "</dict></plist>\n";
@@ -370,11 +370,11 @@ index 8bba078..ffcbe53 100644
 +	    501, 501, 0600);
 +	houji_write_data_file(
 +	    "/private/var/containers/Data/System/"
-+	    "3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1/Library/internal/data_ark.plist",
++	    "62339402-23CD-44D6-A850-53E6216F1EBC1/Library/internal/data_ark.plist",
 +	    data_ark, sizeof(data_ark) - 1, 501, 501, 0600);
 +	houji_write_data_file(
 +	    "/private/var/containers/Data/System/"
-+	    "3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1/"
++	    "62339402-23CD-44D6-A850-53E6216F1EBC1/"
 +	    ".com.apple.mobile_container_manager.metadata.plist",
 +	    container_meta, sizeof(container_meta) - 1, 0, 0, 0644);
 +	printf("HOUJI-DATA-TWEAK: post-Setup state applied\n");
