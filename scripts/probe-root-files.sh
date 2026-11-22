@@ -13,7 +13,7 @@ set -x
 
 SRC=${1:?system-source directory required}
 OUT=${OUT:-/tmp/root-probe}
-TOKENS='SetupDone|SetupFinishedAllSteps|daemonizeNeedsToRun|ShouldRun[A-Za-z]*MiniBuddy|should_hactivate|ActivationState|activation-state|IsActivated|isActivated|com\.apple\.springboard\.setup-ui|LoginSession|BBSSetLoginSession|com\.apple\.mobileactivationd|bypassActivation|NeedsActivation|setupComplete|isSetupComplete|SetupVersion|SilentICDPUpgrade|SBSetupManager|isSetupNeeded|SBSetupState|deviceSetup|setupState|SBDeviceSetup|SetupAssistant|setupAssistant'
+TOKENS='SetupDone|SetupFinishedAllSteps|daemonizeNeedsToRun|ShouldRun[A-Za-z]*MiniBuddy|should_hactivate|ActivationState|activation-state|IsActivated|isActivated|com\.apple\.springboard\.setup-ui|LoginSession|BBSSetLoginSession|com\.apple\.mobileactivationd|bypassActivation|NeedsActivation|setupComplete|isSetupComplete|SetupVersion|SilentICDPUpgrade'
 
 rm -rf "$OUT"
 mkdir -p "$OUT/plists" "$OUT/report"

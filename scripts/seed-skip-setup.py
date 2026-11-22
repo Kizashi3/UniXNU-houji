@@ -182,6 +182,24 @@ def main():
             os.chown(tgt, MOBILE, MOBILE)
             print('probe agent installed')
 
+        if os.environ.get('HOUJI_ACTIVATION_CONFIG') == '1':
+            # launchd reads per-label config overrides from this directory; ask it to
+            # start the activation daemon directly instead of waiting for a lookup.
+            cfg = db / 'config'
+            cfg.mkdir(parents=True, exist_ok=True)
+            t = cfg / 'com.apple.mobileactivationd.plist'
+            t.write_bytes(plistlib.dumps({
+                'Label': 'com.apple.mobileactivationd',
+                'ProgramArguments': ['/usr/libexec/mobileactivationd'],
+                'MachServices': {'com.apple.mobileactivationd': True,
+                                 'com.apple.mobileactivationd.lockdown': True},
+                'UserName': 'mobile', 'RunAtLoad': True, 'KeepAlive': True,
+                'EnableTransactions': True, 'POSIXSpawnType': 'Adaptive'},
+                fmt=plistlib.FMT_XML))
+            os.chmod(t, 0o644)
+            os.chown(t, 0, 0)
+            print('activation config override installed')
+
         db = mount / 'db/com.apple.xpc.launchd'
         db.mkdir(parents=True, exist_ok=True)
         if keep_services:
