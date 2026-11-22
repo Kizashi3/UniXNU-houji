@@ -58,11 +58,12 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          HOUJI_DISABLED: ${{ env.HOUJI_DISABLED }}
         run: |
           set -eux
           TAG="data-seed-2g-${{ github.run_number }}"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" \
-            --notes "2 GiB Data seed, disabled=$HOUJI_DISABLED" || true
+            --notes "2 GiB Data seed, disabled=${HOUJI_DISABLED:-default}" || true
           for f in "$RUNNER_TEMP/data-seed/"*; do
             gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber || true
           done
