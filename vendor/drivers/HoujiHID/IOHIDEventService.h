@@ -19,7 +19,7 @@
 #include <IOKit/IOCommandGate.h>
 #include "IOHIDEventTypes.h"
 
-class IOHIDEvent;
+class HoujiHIDEvent;
 
 /* dispatchEvent options (IOHIDFamily IOHIDEventService.h) */
 enum {
@@ -27,9 +27,9 @@ enum {
 	kHIDDispatchOptionDeliveryNotificationSuppress      = (1 << 13)
 };
 
-class IOHIDEventService : public IOService
+class HoujiHIDEventService : public IOService
 {
-	OSDeclareDefaultStructors(IOHIDEventService);
+	OSDeclareDefaultStructors(HoujiHIDEventService);
 
 public:
 	typedef void (*Action)(OSObject *target, OSObject *sender, void *context, OSObject *event, IOOptionBits options);
@@ -40,8 +40,8 @@ public:
 	virtual bool            open(IOService *client, IOOptionBits options, void *context, Action action);
 	virtual void            close(IOService *forClient, IOOptionBits options = 0) APPLE_KEXT_OVERRIDE;
 
-	virtual IOHIDEvent *    copyEvent(IOHIDEventType type, IOHIDEvent *matching = 0, IOOptionBits options = 0);
-	virtual IOHIDEvent *    copyMatchingEvent(OSDictionary *matching);
+	virtual HoujiHIDEvent *    copyEvent(IOHIDEventType type, HoujiHIDEvent *matching = 0, IOOptionBits options = 0);
+	virtual HoujiHIDEvent *    copyMatchingEvent(OSDictionary *matching);
 	virtual IOReturn        setElementValue(UInt32 usagePage, UInt32 usage, UInt32 value);
 	virtual IOReturn        setProperties(OSObject *properties) APPLE_KEXT_OVERRIDE;
 
@@ -57,7 +57,7 @@ protected:
 	virtual bool            handleIsOpen(const IOService *client) const APPLE_KEXT_OVERRIDE;
 
 	bool                    handleIsOpenLocked(const IOService *client) const;
-	virtual void            dispatchEvent(IOHIDEvent *event, IOOptionBits options = 0);
+	virtual void            dispatchEvent(HoujiHIDEvent *event, IOOptionBits options = 0);
 
 	/* Published as HID properties by start(). */
 	virtual OSString *      getTransport();

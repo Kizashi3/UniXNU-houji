@@ -32,15 +32,15 @@ enum {
     kIOHIDEventServiceQueueOptionNoFullNotification = 0x2,
 };
 
-class IOHIDEvent;
+class HoujiHIDEvent;
 //---------------------------------------------------------------------------
 // IOHIDEventSeviceQueue class.
 //
 // IOHIDEventServiceQueue is a subclass of IOSharedDataQueue.
 
-class IOHIDEventServiceQueue: public IOSharedDataQueue
+class HoujiHIDEventServiceQueue: public IOSharedDataQueue
 {
-    OSDeclareDefaultStructors( IOHIDEventServiceQueue )
+    OSDeclareDefaultStructors( HoujiHIDEventServiceQueue )
     
 protected:
     IOMemoryDescriptor *    _descriptor;
@@ -52,8 +52,8 @@ protected:
     virtual void sendDataAvailableNotification() APPLE_KEXT_OVERRIDE;
 
 public:
-    static IOHIDEventServiceQueue *withCapacity(UInt32 size, UInt32 options = 0);
-    static IOHIDEventServiceQueue *withCapacity(OSObject *owner, UInt32 size, UInt32 options = 0);
+    static HoujiHIDEventServiceQueue *withCapacity(UInt32 size, UInt32 options = 0);
+    static HoujiHIDEventServiceQueue *withCapacity(OSObject *owner, UInt32 size, UInt32 options = 0);
     
     virtual void free(void) APPLE_KEXT_OVERRIDE;
     
@@ -62,7 +62,7 @@ public:
     
     inline OSObject *getOwner() { return _owner; }
 
-    virtual Boolean enqueueEvent(IOHIDEvent * event);
+    virtual Boolean enqueueEvent(HoujiHIDEvent * event);
 
     virtual IOMemoryDescriptor *getMemoryDescriptor(void) APPLE_KEXT_OVERRIDE;
     virtual void setNotificationPort(mach_port_t port) APPLE_KEXT_OVERRIDE;

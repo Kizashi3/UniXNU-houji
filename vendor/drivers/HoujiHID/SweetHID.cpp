@@ -39,15 +39,16 @@ public:
 	bool                       initClient() { return OSObject::init(); }
 	IOService                 *client;
 	void                      *context;
-	IOHIDEventService::Action  action;
+	HoujiHIDEventService::Action  action;
 };
 OSDefineMetaClassAndStructors(IOHIDEventServiceClient, OSObject);
 
+// The prelinked IOHIDFamily registers the original IOHID class names.
 #define super IOService
-OSDefineMetaClassAndStructors(IOHIDEventService, IOService);
+OSDefineMetaClassAndStructors(HoujiHIDEventService, IOService);
 
 bool
-IOHIDEventService::start(IOService *provider)
+HoujiHIDEventService::start(IOService *provider)
 {
 	IOLog("SWEET HID: base start super provider=%p\n", provider);
 	IOSleep(6000);
@@ -114,12 +115,12 @@ IOHIDEventService::start(IOService *provider)
 
 	/* What IOHIDFamily's "IOHIDEventServiceUserClient" personality merges in. */
 	setProperty("HIDServiceSupport", kOSBooleanTrue);
-	setProperty("IOUserClientClass", "IOHIDEventServiceUserClient");
+	setProperty("IOUserClientClass", "HoujiHIDEventServiceUserClient");
 	return true;
 }
 
 void
-IOHIDEventService::free(void)
+HoujiHIDEventService::free(void)
 {
 	if (_hidGate && _hidWorkLoop) {
 		_hidWorkLoop->removeEventSource(_hidGate);
@@ -135,7 +136,7 @@ IOHIDEventService::free(void)
 }
 
 bool
-IOHIDEventService::open(IOService *client, IOOptionBits options, void *context, Action action)
+HoujiHIDEventService::open(IOService *client, IOOptionBits options, void *context, Action action)
 {
 	IOHIDEventServiceClient *data = OSTypeAlloc(IOHIDEventServiceClient);
 	bool ok = false;
@@ -152,13 +153,13 @@ IOHIDEventService::open(IOService *client, IOOptionBits options, void *context, 
 }
 
 void
-IOHIDEventService::close(IOService *forClient, IOOptionBits options)
+HoujiHIDEventService::close(IOService *forClient, IOOptionBits options)
 {
 	super::close(forClient, options);
 }
 
 bool
-IOHIDEventService::handleOpen(IOService *client, IOOptionBits options __unused, void *argument)
+HoujiHIDEventService::handleOpen(IOService *client, IOOptionBits options __unused, void *argument)
 {
 	IOHIDEventServiceClient *data = OSDynamicCast(IOHIDEventServiceClient, (OSObject *)argument);
 	bool ok = false;
@@ -183,7 +184,7 @@ IOHIDEventService::handleOpen(IOService *client, IOOptionBits options __unused, 
 }
 
 void
-IOHIDEventService::handleClose(IOService *client, IOOptionBits options __unused)
+HoujiHIDEventService::handleClose(IOService *client, IOOptionBits options __unused)
 {
 	IOLockLock(_clientLock);
 	OSArray *next = OSArray::withCapacity(_clients->getCount());
@@ -201,7 +202,7 @@ IOHIDEventService::handleClose(IOService *client, IOOptionBits options __unused)
 }
 
 bool
-IOHIDEventService::handleIsOpenLocked(const IOService *client) const
+HoujiHIDEventService::handleIsOpenLocked(const IOService *client) const
 {
 	for (unsigned int i = 0; i < _clients->getCount(); i++) {
 		IOHIDEventServiceClient *data = (IOHIDEventServiceClient *)_clients->getObject(i);
@@ -213,7 +214,7 @@ IOHIDEventService::handleIsOpenLocked(const IOService *client) const
 }
 
 bool
-IOHIDEventService::handleIsOpen(const IOService *client) const
+HoujiHIDEventService::handleIsOpen(const IOService *client) const
 {
 	IOLockLock(_clientLock);
 	bool open = handleIsOpenLocked(client);
@@ -222,7 +223,7 @@ IOHIDEventService::handleIsOpen(const IOService *client) const
 }
 
 void
-IOHIDEventService::dispatchEvent(IOHIDEvent *event, IOOptionBits options)
+HoujiHIDEventService::dispatchEvent(HoujiHIDEvent *event, IOOptionBits options)
 {
 	OSArray *clients;
 
@@ -241,75 +242,75 @@ IOHIDEventService::dispatchEvent(IOHIDEvent *event, IOOptionBits options)
 	clients->release();
 }
 
-IOHIDEvent *
-IOHIDEventService::copyEvent(IOHIDEventType type __unused, IOHIDEvent *matching __unused, IOOptionBits options __unused)
+HoujiHIDEvent *
+HoujiHIDEventService::copyEvent(IOHIDEventType type __unused, HoujiHIDEvent *matching __unused, IOOptionBits options __unused)
 {
 	return NULL;
 }
 
-IOHIDEvent *
-IOHIDEventService::copyMatchingEvent(OSDictionary *matching __unused)
+HoujiHIDEvent *
+HoujiHIDEventService::copyMatchingEvent(OSDictionary *matching __unused)
 {
 	return NULL;
 }
 
 IOReturn
-IOHIDEventService::setElementValue(UInt32 usagePage __unused, UInt32 usage __unused, UInt32 value __unused)
+HoujiHIDEventService::setElementValue(UInt32 usagePage __unused, UInt32 usage __unused, UInt32 value __unused)
 {
 	return kIOReturnUnsupported;
 }
 
 IOReturn
-IOHIDEventService::setProperties(OSObject *properties)
+HoujiHIDEventService::setProperties(OSObject *properties)
 {
 	/* The event system pushes its settings here; nothing to configure. */
 	return OSDynamicCast(OSDictionary, properties) ? kIOReturnSuccess : kIOReturnBadArgument;
 }
 
 UInt32
-IOHIDEventService::getPrimaryUsagePage()
+HoujiHIDEventService::getPrimaryUsagePage()
 {
 	return 0;
 }
 
 UInt32
-IOHIDEventService::getPrimaryUsage()
+HoujiHIDEventService::getPrimaryUsage()
 {
 	return 0;
 }
 
 OSString *
-IOHIDEventService::getTransport()
+HoujiHIDEventService::getTransport()
 {
 	return OSString::withCString("SPU");
 }
 
 OSString *
-IOHIDEventService::getProduct()
+HoujiHIDEventService::getProduct()
 {
 	return OSString::withCString(getName());
 }
 
 UInt32
-IOHIDEventService::getVendorID()
+HoujiHIDEventService::getVendorID()
 {
 	return 0x05ac;
 }
 
 UInt32
-IOHIDEventService::getProductID()
+HoujiHIDEventService::getProductID()
 {
 	return 0;
 }
 
 UInt32
-IOHIDEventService::getReportInterval()
+HoujiHIDEventService::getReportInterval()
 {
 	return 10000;	/* us */
 }
 
 IOReturn
-IOHIDEventService::newUserClient(task_t owningTask, void *securityID, UInt32 type,
+HoujiHIDEventService::newUserClient(task_t owningTask, void *securityID, UInt32 type,
     OSDictionary *properties, IOUserClient **handler)
 {
 	IOUserClient *client;
@@ -318,7 +319,7 @@ IOHIDEventService::newUserClient(task_t owningTask, void *securityID, UInt32 typ
 		IOLog("SWEET HID: %s user client type 0x%x unsupported\n", getName(), (unsigned)type);
 		return super::newUserClient(owningTask, securityID, type, properties, handler);
 	}
-	client = OSTypeAlloc(IOHIDEventServiceUserClient);
+	client = OSTypeAlloc(HoujiHIDEventServiceUserClient);
 	if (!client) {
 		return kIOReturnNoMemory;
 	}
@@ -344,7 +345,7 @@ IOHIDEventService::newUserClient(task_t owningTask, void *securityID, UInt32 typ
  * Buttons. iOS takes the side/volume/home buttons as consumer-control
  * keyboard events (AppleM68Buttons publishes the same usage pair).
  */
-class SweetHIDButtons : public IOHIDEventService {
+class SweetHIDButtons : public HoujiHIDEventService {
 	OSDeclareDefaultStructors(SweetHIDButtons);
 public:
 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
@@ -359,7 +360,7 @@ private:
 	UInt32 fTestSecs;
 	UInt32 fTestCount;
 };
-OSDefineMetaClassAndStructors(SweetHIDButtons, IOHIDEventService);
+OSDefineMetaClassAndStructors(SweetHIDButtons, HoujiHIDEventService);
 
 /*
  * Touch screen: digitizer collection events with finger children,
@@ -367,7 +368,7 @@ OSDefineMetaClassAndStructors(SweetHIDButtons, IOHIDEventService);
  * absolute digitizers.
  */
 #define SWEET_TOUCH_FINGERS 10
-class SweetHIDTouch : public IOHIDEventService {
+class SweetHIDTouch : public HoujiHIDEventService {
 	OSDeclareDefaultStructors(SweetHIDTouch);
 public:
 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
@@ -382,7 +383,7 @@ private:
 	IOFixed fX[SWEET_TOUCH_FINGERS];
 	IOFixed fY[SWEET_TOUCH_FINGERS];
 };
-OSDefineMetaClassAndStructors(SweetHIDTouch, IOHIDEventService);
+OSDefineMetaClassAndStructors(SweetHIDTouch, HoujiHIDEventService);
 
 static SweetHIDButtons *gSweetButtons;
 static SweetHIDTouch *gSweetTouch;
@@ -390,7 +391,7 @@ static SweetHIDTouch *gSweetTouch;
 bool
 SweetHIDButtons::start(IOService *provider)
 {
-	if (!IOHIDEventService::start(provider)) {
+	if (!HoujiHIDEventService::start(provider)) {
 		return false;
 	}
 	if (PE_parse_boot_argn("sweethidtest", &fTestSecs, sizeof(fTestSecs)) && fTestSecs) {
@@ -408,7 +409,7 @@ SweetHIDButtons::start(IOService *provider)
 void
 SweetHIDButtons::key(UInt32 usage, bool down)
 {
-	IOHIDEvent *event = IOHIDEvent::keyboardEvent(mach_absolute_time(), kHIDPage_Consumer, usage, down);
+	HoujiHIDEvent *event = HoujiHIDEvent::keyboardEvent(mach_absolute_time(), kHIDPage_Consumer, usage, down);
 
 	if (event) {
 		IOLog("SWEET HID: key 0x%x %s (%u clients)\n", (unsigned)usage, down ? "down" : "up",
@@ -438,7 +439,7 @@ bool
 SweetHIDTouch::start(IOService *provider)
 {
 	fLock = IOLockAlloc();
-	if (!fLock || !IOHIDEventService::start(provider)) {
+	if (!fLock || !HoujiHIDEventService::start(provider)) {
 		return false;
 	}
 	/* The digitizer covers the main display (backboardd maps it 1:1). */
@@ -455,7 +456,7 @@ void
 SweetHIDTouch::touch(int finger, bool down, int x, int y)
 {
 	uint64_t now = mach_absolute_time();
-	IOHIDEvent *collection;
+	HoujiHIDEvent *collection;
 	bool any = false;
 
 	if (finger < 0 || finger >= SWEET_TOUCH_FINGERS) {
@@ -474,7 +475,7 @@ SweetHIDTouch::touch(int finger, bool down, int x, int y)
 		return;
 	}
 
-	collection = IOHIDEvent::digitizerEvent(now, 0, kIOHIDDigitizerTransducerTypeHand, false, 0, 0, 0);
+	collection = HoujiHIDEvent::digitizerEvent(now, 0, kIOHIDDigitizerTransducerTypeHand, false, 0, 0, 0);
 	if (!collection) {
 		IOLockUnlock(fLock);
 		return;
@@ -489,7 +490,7 @@ SweetHIDTouch::touch(int finger, bool down, int x, int y)
 		}
 		IOFixed fx = (i == finger && down) ? nx : fX[i];
 		IOFixed fy = (i == finger && down) ? ny : fY[i];
-		IOHIDEvent *child = IOHIDEvent::digitizerEvent(now, (UInt32)i + 2, kIOHIDDigitizerTransducerTypeFinger,
+		HoujiHIDEvent *child = HoujiHIDEvent::digitizerEvent(now, (UInt32)i + 2, kIOHIDDigitizerTransducerTypeFinger,
 		    d, d ? 1 : 0, fx, fy);
 		if (!child) {
 			continue;

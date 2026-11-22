@@ -46,12 +46,12 @@
 #define super OSObject
 #define COMPILER_BARRIER() __asm__ __volatile__("" ::: "memory")
 
-OSDefineMetaClassAndStructors(IOHIDEvent, OSObject)
+OSDefineMetaClassAndStructors(HoujiHIDEvent, OSObject)
 
 //==============================================================================
 // IOHIDEvent::initWithCapacity
 //==============================================================================
-bool IOHIDEvent::initWithCapacity(IOByteCount capacity)
+bool HoujiHIDEvent::initWithCapacity(IOByteCount capacity)
 {
     if (!super::init())
         return false;
@@ -83,7 +83,7 @@ bool IOHIDEvent::initWithCapacity(IOByteCount capacity)
 //==============================================================================
 // IOHIDEvent::initWithType
 //==============================================================================
-bool IOHIDEvent::initWithType(IOHIDEventType type, IOByteCount additionalCapacity)
+bool HoujiHIDEvent::initWithType(IOHIDEventType type, IOByteCount additionalCapacity)
 {
     size_t capacity = 0;
 
@@ -101,7 +101,7 @@ bool IOHIDEvent::initWithType(IOHIDEventType type, IOByteCount additionalCapacit
 //==============================================================================
 // IOHIDEvent::initWithTypeTimeStamp
 //==============================================================================
-bool IOHIDEvent::initWithTypeTimeStamp(IOHIDEventType type, UInt64 timeStamp, IOOptionBits options, IOByteCount additionalCapacity)
+bool HoujiHIDEvent::initWithTypeTimeStamp(IOHIDEventType type, UInt64 timeStamp, IOOptionBits options, IOByteCount additionalCapacity)
 {
     if ( !initWithType(type, additionalCapacity))
         return false;
@@ -117,7 +117,7 @@ bool IOHIDEvent::initWithTypeTimeStamp(IOHIDEventType type, UInt64 timeStamp, IO
 //==============================================================================
 // IOHIDEvent::free
 //==============================================================================
-void IOHIDEvent::free()
+void HoujiHIDEvent::free()
 {
     if (_capacity != EXTERNAL && _data && _capacity) {
         IOFreeData(_data, _capacity);
@@ -136,7 +136,7 @@ void IOHIDEvent::free()
 //==============================================================================
 // IOHIDEvent::getTimeStamp
 //==============================================================================
-AbsoluteTime IOHIDEvent::getTimeStamp()
+AbsoluteTime HoujiHIDEvent::getTimeStamp()
 {
 #if KERNEL
     return _options & kIOHIDEventOptionContinuousTime ? continuoustime_to_absolutetime(_timeStamp) : _timeStamp;
@@ -150,7 +150,7 @@ AbsoluteTime IOHIDEvent::getTimeStamp()
 //==============================================================================
 // IOHIDEvent::setTimeStamp
 //==============================================================================
-void IOHIDEvent::setTimeStamp( AbsoluteTime timeStamp )
+void HoujiHIDEvent::setTimeStamp( AbsoluteTime timeStamp )
 {
     _timeStamp = timeStamp;
     _options &= ~kIOHIDEventOptionContinuousTime;
@@ -159,7 +159,7 @@ void IOHIDEvent::setTimeStamp( AbsoluteTime timeStamp )
 //==============================================================================
 // IOHIDEvent::getTimeStampOfType
 //==============================================================================
-UInt64 IOHIDEvent::getTimeStampOfType( IOHIDEventTimestampType type )
+UInt64 HoujiHIDEvent::getTimeStampOfType( IOHIDEventTimestampType type )
 {
     UInt64 time = _timeStamp;
 #if KERNEL
@@ -175,7 +175,7 @@ UInt64 IOHIDEvent::getTimeStampOfType( IOHIDEventTimestampType type )
 //==============================================================================
 // IOHIDEvent::setTimeStampOfType
 //==============================================================================
-void IOHIDEvent::setTimeStampOfType( UInt64                  timeStamp,
+void HoujiHIDEvent::setTimeStampOfType( UInt64                  timeStamp,
                                      IOHIDEventTimestampType type)
 {
     _timeStamp = timeStamp;
@@ -189,10 +189,10 @@ void IOHIDEvent::setTimeStampOfType( UInt64                  timeStamp,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::withType
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::withType(      IOHIDEventType          type,
+HoujiHIDEvent * HoujiHIDEvent::withType(      IOHIDEventType          type,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithType(type)) {
         me->release();
@@ -207,13 +207,13 @@ IOHIDEvent * IOHIDEvent::withType(      IOHIDEventType          type,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::keyboardEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::keyboardEvent( UInt64                  timeStamp,
+HoujiHIDEvent * HoujiHIDEvent::keyboardEvent( UInt64                  timeStamp,
                                         UInt32                  usagePage,
                                         UInt32                  usage,
                                         Boolean                 down,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeKeyboard, timeStamp, options | kIOHIDEventOptionIsAbsolute)) {
         me->release();
@@ -233,7 +233,7 @@ IOHIDEvent * IOHIDEvent::keyboardEvent( UInt64                  timeStamp,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::keyboardEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::keyboardEvent( UInt64                  timeStamp,
+HoujiHIDEvent * HoujiHIDEvent::keyboardEvent( UInt64                  timeStamp,
                                         UInt32                  usagePage,
                                         UInt32                  usage,
                                         Boolean                 down,
@@ -242,9 +242,9 @@ IOHIDEvent * IOHIDEvent::keyboardEvent( UInt64                  timeStamp,
                                         UInt8                   clickSpeed,
                                         IOOptionBits            options)
 {
-    IOHIDEvent * me = NULL;
+    HoujiHIDEvent * me = NULL;
     
-    me = IOHIDEvent::keyboardEvent(timeStamp, usagePage, usage, down, options);
+    me = HoujiHIDEvent::keyboardEvent(timeStamp, usagePage, usage, down, options);
     
     if (me) {
         IOHIDKeyboardEventData * keyboard = (IOHIDKeyboardEventData *)me->_data;
@@ -260,10 +260,10 @@ IOHIDEvent * IOHIDEvent::keyboardEvent( UInt64                  timeStamp,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::unicodeEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::unicodeEvent(UInt64 timeStamp, UInt8 * payload, UInt32 length, IOHIDUnicodeEncodingType encoding, IOFixed quality, IOOptionBits options)
+HoujiHIDEvent * HoujiHIDEvent::unicodeEvent(UInt64 timeStamp, UInt8 * payload, UInt32 length, IOHIDUnicodeEncodingType encoding, IOFixed quality, IOOptionBits options)
 {
-    IOHIDEvent *            event   = new IOHIDEvent;
-    IOHIDEvent *            result  = NULL;
+    HoujiHIDEvent *            event   = new HoujiHIDEvent;
+    HoujiHIDEvent *            result  = NULL;
     IOHIDUnicodeEventData * data    = NULL;
     
     require(payload && length, exit);
@@ -290,14 +290,14 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::_axisEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::_axisEvent(    IOHIDEventType          type,
+HoujiHIDEvent * HoujiHIDEvent::_axisEvent(    IOHIDEventType          type,
                                         UInt64                  timeStamp,
                                         IOFixed                 x,
                                         IOFixed                 y,
                                         IOFixed                 z,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(type, timeStamp, options)) {
         me->release();
@@ -315,7 +315,7 @@ IOHIDEvent * IOHIDEvent::_axisEvent(    IOHIDEventType          type,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::_motionEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::_motionEvent ( IOHIDEventType          type,
+HoujiHIDEvent * HoujiHIDEvent::_motionEvent ( IOHIDEventType          type,
                                         UInt64                  timeStamp,
                                         IOFixed                 x,
                                         IOFixed                 y,
@@ -325,10 +325,10 @@ IOHIDEvent * IOHIDEvent::_motionEvent ( IOHIDEventType          type,
                                         UInt32                  sequence,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *            event;
+    HoujiHIDEvent *            event;
     IOHIDMotionEventData *  data;
 
-    event = IOHIDEvent::_axisEvent( type,
+    event = HoujiHIDEvent::_axisEvent( type,
                                     timeStamp,
                                     x,
                                     y,
@@ -349,14 +349,14 @@ IOHIDEvent * IOHIDEvent::_motionEvent ( IOHIDEventType          type,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::translationEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::translationEvent(
+HoujiHIDEvent * HoujiHIDEvent::translationEvent(
                                         UInt64                  timeStamp,
                                         IOFixed                 x,
                                         IOFixed                 y,
                                         IOFixed                 z,
                                         IOOptionBits            options)
 {
-    return IOHIDEvent::_axisEvent(      kIOHIDEventTypeTranslation,
+    return HoujiHIDEvent::_axisEvent(      kIOHIDEventTypeTranslation,
                                         timeStamp,
                                         x,
                                         y,
@@ -367,14 +367,14 @@ IOHIDEvent * IOHIDEvent::translationEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::scrollEvet
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::scrollEventWithFixed(
+HoujiHIDEvent * HoujiHIDEvent::scrollEventWithFixed(
                                         UInt64                  timeStamp,
                                         IOFixed                 x,
                                         IOFixed                 y,
                                         IOFixed                 z,
                                         IOOptionBits            options)
 {
-    return IOHIDEvent::_axisEvent(      kIOHIDEventTypeScroll,
+    return HoujiHIDEvent::_axisEvent(      kIOHIDEventTypeScroll,
                                         timeStamp,
                                         x,
                                         y,
@@ -385,14 +385,14 @@ IOHIDEvent * IOHIDEvent::scrollEventWithFixed(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::scrollEvet
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::scrollEvent(
+HoujiHIDEvent * HoujiHIDEvent::scrollEvent(
                                         UInt64                  timeStamp,
                                         SInt32                  x,
                                         SInt32                  y,
                                         SInt32                  z,
                                         IOOptionBits            options)
 {
-    return IOHIDEvent::_axisEvent(      kIOHIDEventTypeScroll,
+    return HoujiHIDEvent::_axisEvent(      kIOHIDEventTypeScroll,
                                         timeStamp,
                                         x<<16,
                                         y<<16,
@@ -403,14 +403,14 @@ IOHIDEvent * IOHIDEvent::scrollEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::zoomEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::zoomEvent(
+HoujiHIDEvent * HoujiHIDEvent::zoomEvent(
                                         UInt64                  timeStamp,
                                         IOFixed                 x,
                                         IOFixed                 y,
                                         IOFixed                 z,
                                         IOOptionBits            options)
 {
-    return IOHIDEvent::_axisEvent(      kIOHIDEventTypeZoom,
+    return HoujiHIDEvent::_axisEvent(      kIOHIDEventTypeZoom,
                                         timeStamp,
                                         x,
                                         y,
@@ -422,7 +422,7 @@ IOHIDEvent * IOHIDEvent::zoomEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::accelerometerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::accelerometerEvent(
+HoujiHIDEvent * HoujiHIDEvent::accelerometerEvent(
                                     UInt64                  timeStamp,
                                     IOFixed                 x,
                                     IOFixed                 y,
@@ -432,7 +432,7 @@ IOHIDEvent * IOHIDEvent::accelerometerEvent(
                                     UInt32                  sequence,
                                     IOOptionBits            options)
 {
-    return IOHIDEvent::_motionEvent( kIOHIDEventTypeAccelerometer,
+    return HoujiHIDEvent::_motionEvent( kIOHIDEventTypeAccelerometer,
                                     timeStamp,
                                     x,
                                     y,
@@ -446,7 +446,7 @@ IOHIDEvent * IOHIDEvent::accelerometerEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::gyroEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::gyroEvent(
+HoujiHIDEvent * HoujiHIDEvent::gyroEvent(
                                     UInt64                  timeStamp,
                                     IOFixed                 x,
                                     IOFixed                 y,
@@ -456,7 +456,7 @@ IOHIDEvent * IOHIDEvent::gyroEvent(
                                     UInt32                  sequence,
                                     IOOptionBits            options)
 {
-    return IOHIDEvent::_motionEvent( kIOHIDEventTypeGyro,
+    return HoujiHIDEvent::_motionEvent( kIOHIDEventTypeGyro,
                                     timeStamp,
                                     x,
                                     y,
@@ -470,7 +470,7 @@ IOHIDEvent * IOHIDEvent::gyroEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::compassEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::compassEvent(
+HoujiHIDEvent * HoujiHIDEvent::compassEvent(
                                    UInt64                   timeStamp,
                                    IOFixed                  x,
                                    IOFixed                  y,
@@ -480,7 +480,7 @@ IOHIDEvent * IOHIDEvent::compassEvent(
                                    UInt32                   sequence,
                                    IOOptionBits             options)
 {
-    return IOHIDEvent::_motionEvent( kIOHIDEventTypeCompass,
+    return HoujiHIDEvent::_motionEvent( kIOHIDEventTypeCompass,
                                     timeStamp,
                                     x,
                                     y,
@@ -494,7 +494,7 @@ IOHIDEvent * IOHIDEvent::compassEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::ambientLightSensorEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::ambientLightSensorEvent(
+HoujiHIDEvent * HoujiHIDEvent::ambientLightSensorEvent(
                                         UInt64                  timeStamp,
                                         UInt32                  level,
                                         UInt32                  channel0,
@@ -503,7 +503,7 @@ IOHIDEvent * IOHIDEvent::ambientLightSensorEvent(
 										UInt32                  channel3,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeAmbientLightSensor, timeStamp, options)) {
         me->release();
@@ -523,7 +523,7 @@ IOHIDEvent * IOHIDEvent::ambientLightSensorEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::ambientLightSensorEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::ambientLightSensorEvent(
+HoujiHIDEvent * HoujiHIDEvent::ambientLightSensorEvent(
                                         UInt64                  timeStamp,
                                         UInt32                  level,
                                         IOHIDEventColorSpace    colorSpace,
@@ -532,7 +532,7 @@ IOHIDEvent * IOHIDEvent::ambientLightSensorEvent(
                                         IOHIDDouble             colorComponent2,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeAmbientLightSensor, timeStamp, options)) {
         me->release();
@@ -551,13 +551,13 @@ IOHIDEvent * IOHIDEvent::ambientLightSensorEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::proximityEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::proximityEvent (
+HoujiHIDEvent * HoujiHIDEvent::proximityEvent (
                                         UInt64      				timeStamp,
                                         IOHIDProximityDetectionMask	mask,
 										UInt32						level,
                                         IOOptionBits				options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeProximity, timeStamp, options)) {
         me->release();
@@ -575,13 +575,13 @@ IOHIDEvent * IOHIDEvent::proximityEvent (
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::proximityEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::proximityEventWithProbability(
+HoujiHIDEvent * HoujiHIDEvent::proximityEventWithProbability(
                                             UInt64                      timeStamp,
                                             IOHIDProximityDetectionMask mask,
                                             UInt32                      probability,
                                             IOOptionBits                options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeProximity, timeStamp, options)) {
         me->release();
@@ -600,12 +600,12 @@ IOHIDEvent * IOHIDEvent::proximityEventWithProbability(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::temperatureEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::temperatureEvent(
+HoujiHIDEvent * HoujiHIDEvent::temperatureEvent(
                                         UInt64                  timeStamp,
                                         IOFixed                 temperature,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeTemperature, timeStamp, options)) {
         me->release();
@@ -621,14 +621,14 @@ IOHIDEvent * IOHIDEvent::temperatureEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::buttonEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::buttonEvent(
+HoujiHIDEvent * HoujiHIDEvent::buttonEvent(
                                         UInt64                  timeStamp,
                                         UInt32                  mask,
                                         UInt8                   number,
                                         bool                    state,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *            event   = new IOHIDEvent;
+    HoujiHIDEvent *            event   = new HoujiHIDEvent;
     IOHIDButtonEventData *  data    = NULL;
     
     require(event, exit);
@@ -657,14 +657,14 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::buttonEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::buttonEvent(
+HoujiHIDEvent * HoujiHIDEvent::buttonEvent(
                                         UInt64                  timeStamp,
                                         UInt32                  mask,
                                         UInt8                   number,
                                         IOFixed                 pressure,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *            event   = NULL;
+    HoujiHIDEvent *            event   = NULL;
     IOHIDButtonEventData *  data    = NULL;
     bool                    state   = (pressure>>16) & 0x1;
 
@@ -683,7 +683,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::relativePointerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::absolutePointerEvent(
+HoujiHIDEvent * HoujiHIDEvent::absolutePointerEvent(
                                               UInt64                  timeStamp,
                                               IOFixed                 x,
                                               IOFixed                 y,
@@ -692,11 +692,11 @@ IOHIDEvent * IOHIDEvent::absolutePointerEvent(
                                               UInt32                  oldButtonState,
                                               IOOptionBits            options)
 {
-    IOHIDEvent *            event   = NULL;
+    HoujiHIDEvent *            event   = NULL;
     IOHIDPointerEventData * data    = NULL;
     UInt32                  index, delta;
     
-    event = new IOHIDEvent;
+    event = new HoujiHIDEvent;
     require(event, exit);
     
     require(event->initWithTypeTimeStamp(kIOHIDEventTypePointer, timeStamp, options | kIOHIDEventOptionIsAbsolute), exit);
@@ -712,7 +712,7 @@ IOHIDEvent * IOHIDEvent::absolutePointerEvent(
     
     delta = buttonState ^ oldButtonState;
     for ( index=0; delta; delta>>=1, buttonState>>=1) {
-        IOHIDEvent * subEvent;
+        HoujiHIDEvent * subEvent;
         
         if ( (delta & 0x1) == 0 )
             continue;
@@ -740,7 +740,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::relativePointerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::relativePointerEventWithFixed(
+HoujiHIDEvent * HoujiHIDEvent::relativePointerEventWithFixed(
                                         UInt64                  timeStamp,
                                         IOFixed                 x,
                                         IOFixed                 y,
@@ -751,11 +751,11 @@ IOHIDEvent * IOHIDEvent::relativePointerEventWithFixed(
 
 {
 
-    IOHIDEvent *            event   = NULL;
+    HoujiHIDEvent *            event   = NULL;
     IOHIDPointerEventData * data    = NULL;
     UInt32                  index, delta;
     
-    event = new IOHIDEvent;
+    event = new HoujiHIDEvent;
     require(event, exit);
 
     require(event->initWithTypeTimeStamp(kIOHIDEventTypePointer, timeStamp, options), exit);
@@ -771,7 +771,7 @@ IOHIDEvent * IOHIDEvent::relativePointerEventWithFixed(
     
     delta = buttonState ^ oldButtonState;
     for ( index=0; delta; delta>>=1, buttonState>>=1) {
-        IOHIDEvent * subEvent;
+        HoujiHIDEvent * subEvent;
         
         if ( (delta & 0x1) == 0 )
             continue;
@@ -798,7 +798,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::relativePointerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::relativePointerEvent(
+HoujiHIDEvent * HoujiHIDEvent::relativePointerEvent(
                                         UInt64                  timeStamp,
                                         SInt32                  x,
                                         SInt32                  y,
@@ -813,7 +813,7 @@ IOHIDEvent * IOHIDEvent::relativePointerEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::multiAxisPointerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::multiAxisPointerEvent(
+HoujiHIDEvent * HoujiHIDEvent::multiAxisPointerEvent(
                                         UInt64                  timeStamp,
                                         IOFixed                 x,
                                         IOFixed                 y,
@@ -825,11 +825,11 @@ IOHIDEvent * IOHIDEvent::multiAxisPointerEvent(
                                         UInt32                  oldButtonState,
                                         IOOptionBits            options)
 {
-    IOHIDEvent *                        event   = NULL;
+    HoujiHIDEvent *                        event   = NULL;
     IOHIDMultiAxisPointerEventData *    data    = NULL;
     UInt32                              index, delta;
     
-    event = new IOHIDEvent;
+    event = new HoujiHIDEvent;
     require(event, exit);
     
     require(event->initWithTypeTimeStamp(kIOHIDEventTypeMultiAxisPointer, timeStamp, options | kIOHIDEventOptionIsAbsolute | kIOHIDEventOptionIsCenterOrigin), exit);
@@ -847,7 +847,7 @@ IOHIDEvent * IOHIDEvent::multiAxisPointerEvent(
     
     delta = buttonState ^ oldButtonState;
     for ( index=0; delta; delta>>=1, buttonState>>=1) {
-        IOHIDEvent * subEvent;
+        HoujiHIDEvent * subEvent;
         
         if ( (delta & 0x1) == 0 )
             continue;
@@ -874,7 +874,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::digitizerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::digitizerEvent(
+HoujiHIDEvent * HoujiHIDEvent::digitizerEvent(
                                         UInt64                          timeStamp,
                                         UInt32                          transducerID,
                                         IOHIDDigitizerTransducerType    type,
@@ -888,7 +888,7 @@ IOHIDEvent * IOHIDEvent::digitizerEvent(
                                         IOFixed                         twist,
                                         IOOptionBits                    options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeDigitizer, timeStamp, options | kIOHIDEventOptionIsAbsolute)) {
         me->release();
@@ -937,7 +937,7 @@ IOHIDEvent * IOHIDEvent::digitizerEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::digitizerEventWithTiltOrientation
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::digitizerEventWithTiltOrientation(
+HoujiHIDEvent * HoujiHIDEvent::digitizerEventWithTiltOrientation(
                                         UInt64                          timeStamp,
                                         UInt32                          transducerID,
                                         IOHIDDigitizerTransducerType    type,
@@ -953,10 +953,10 @@ IOHIDEvent * IOHIDEvent::digitizerEventWithTiltOrientation(
                                         IOFixed                         yTilt __unused,
                                         IOOptionBits                    options)
 {
-    IOHIDEvent * me                 = NULL;
+    HoujiHIDEvent * me                 = NULL;
     IOHIDDigitizerEventData * event = NULL;
 
-    me = IOHIDEvent::digitizerEvent(timeStamp, transducerID, type, inRange, buttonState, x, y, tipPressure, auxPressure, twist, options);
+    me = HoujiHIDEvent::digitizerEvent(timeStamp, transducerID, type, inRange, buttonState, x, y, tipPressure, auxPressure, twist, options);
     require(me, exit);
 
     event = (IOHIDDigitizerEventData *)me->_data;
@@ -974,7 +974,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::digitizerEventWithPolarOrientation
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::digitizerEventWithPolarOrientation(
+HoujiHIDEvent * HoujiHIDEvent::digitizerEventWithPolarOrientation(
                                         UInt64                          timeStamp,
                                         UInt32                          transducerID,
                                         IOHIDDigitizerTransducerType    type,
@@ -990,10 +990,10 @@ IOHIDEvent * IOHIDEvent::digitizerEventWithPolarOrientation(
                                         IOFixed                         azimuth,
                                         IOOptionBits                    options)
 {
-    IOHIDEvent * me                 = NULL;
+    HoujiHIDEvent * me                 = NULL;
     IOHIDDigitizerEventData * event = NULL;
 
-    me = IOHIDEvent::digitizerEvent(timeStamp, transducerID, type, inRange, buttonState, x, y, tipPressure, auxPressure, twist, options);
+    me = HoujiHIDEvent::digitizerEvent(timeStamp, transducerID, type, inRange, buttonState, x, y, tipPressure, auxPressure, twist, options);
     require(me, exit);
 
     event = (IOHIDDigitizerEventData *)me->_data;
@@ -1011,7 +1011,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::digitizerEventWithPolarOrientation
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::digitizerEventWithPolarOrientation(
+HoujiHIDEvent * HoujiHIDEvent::digitizerEventWithPolarOrientation(
                                         UInt64                          timeStamp,
                                         UInt32                          transducerID,
                                         IOHIDDigitizerTransducerType    type,
@@ -1031,7 +1031,7 @@ IOHIDEvent * IOHIDEvent::digitizerEventWithPolarOrientation(
 {
     IOHIDDigitizerEventData * event = NULL;
 
-    IOHIDEvent * me = IOHIDEvent::digitizerEventWithPolarOrientation(timeStamp, transducerID, type, inRange, buttonState, x, y, z, tipPressure, auxPressure, twist, altitude, azimuth, options);
+    HoujiHIDEvent * me = HoujiHIDEvent::digitizerEventWithPolarOrientation(timeStamp, transducerID, type, inRange, buttonState, x, y, z, tipPressure, auxPressure, twist, altitude, azimuth, options);
     require(me, exit);
  
     event = (IOHIDDigitizerEventData *)me->_data;
@@ -1046,7 +1046,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::digitizerEventWithPolarOrientation
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::digitizerEventWithPolarOrientation(
+HoujiHIDEvent * HoujiHIDEvent::digitizerEventWithPolarOrientation(
                                         UInt64                          timeStamp,
                                         UInt32                          transducerID,
                                         IOHIDDigitizerTransducerType    type,
@@ -1068,7 +1068,7 @@ IOHIDEvent * IOHIDEvent::digitizerEventWithPolarOrientation(
 {
     IOHIDDigitizerEventData * event = NULL;
 
-    IOHIDEvent * me = IOHIDEvent::digitizerEventWithPolarOrientation(timeStamp, transducerID, type, inRange, buttonState, x, y, z, tipPressure, auxPressure, twist, altitude, azimuth, quality, density, options);
+    HoujiHIDEvent * me = HoujiHIDEvent::digitizerEventWithPolarOrientation(timeStamp, transducerID, type, inRange, buttonState, x, y, z, tipPressure, auxPressure, twist, altitude, azimuth, quality, density, options);
     require(me, exit);
 
     event = (IOHIDDigitizerEventData *)me->_data;
@@ -1084,7 +1084,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::digitizerEventWithQualityOrientation
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::digitizerEventWithQualityOrientation(
+HoujiHIDEvent * HoujiHIDEvent::digitizerEventWithQualityOrientation(
                                         UInt64                          timeStamp,
                                         UInt32                          transducerID,
                                         IOHIDDigitizerTransducerType    type,
@@ -1103,10 +1103,10 @@ IOHIDEvent * IOHIDEvent::digitizerEventWithQualityOrientation(
                                         IOFixed                         minorRadius,
                                         IOOptionBits                    options)
 {
-    IOHIDEvent * me                 = NULL;
+    HoujiHIDEvent * me                 = NULL;
     IOHIDDigitizerEventData * event = NULL;
 
-    me = IOHIDEvent::digitizerEvent(timeStamp, transducerID, type, inRange, buttonState, x, y, tipPressure, auxPressure, twist, options);
+    me = HoujiHIDEvent::digitizerEvent(timeStamp, transducerID, type, inRange, buttonState, x, y, tipPressure, auxPressure, twist, options);
     require(me, exit);
 
     event = (IOHIDDigitizerEventData *)me->_data;
@@ -1127,14 +1127,14 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::powerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::powerEvent(
+HoujiHIDEvent * HoujiHIDEvent::powerEvent(
                                    UInt64                  timeStamp,
                                    int64_t                 measurement,
                                    IOHIDPowerType          powerType,
                                    IOHIDPowerSubType       powerSubType,
                                    IOOptionBits            options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypePower, timeStamp, options)) {
         me->release();
@@ -1154,7 +1154,7 @@ IOHIDEvent * IOHIDEvent::powerEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::vendorDefinedEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::vendorDefinedEvent(
+HoujiHIDEvent * HoujiHIDEvent::vendorDefinedEvent(
                                            UInt64                  timeStamp,
                                            UInt32                  usagePage,
                                            UInt32                  usage,
@@ -1164,7 +1164,7 @@ IOHIDEvent * IOHIDEvent::vendorDefinedEvent(
                                            IOOptionBits            options)
 {
     UInt32      dataLength  = length;
-    IOHIDEvent * me         = new IOHIDEvent;
+    HoujiHIDEvent * me         = new HoujiHIDEvent;
  
     //dataLength = ALIGNED_DATA_SIZE(dataLength, sizeof(uint32_t));
   
@@ -1188,9 +1188,9 @@ IOHIDEvent * IOHIDEvent::vendorDefinedEvent(
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::biometricEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::biometricEvent(UInt64 timeStamp, IOFixed level, IOHIDBiometricEventType eventType, IOOptionBits options)
+HoujiHIDEvent * HoujiHIDEvent::biometricEvent(UInt64 timeStamp, IOFixed level, IOHIDBiometricEventType eventType, IOOptionBits options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
 
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeBiometric, timeStamp, options | kIOHIDEventOptionIsAbsolute)) {
         me->release();
@@ -1211,9 +1211,9 @@ IOHIDEvent * IOHIDEvent::biometricEvent(UInt64 timeStamp, IOFixed level, IOHIDBi
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::biometricEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::biometricEvent(UInt64 timeStamp, IOFixed level, IOHIDBiometricEventType eventType, UInt32 usagePage, UInt32 usage, UInt8 tapCount, IOOptionBits options)
+HoujiHIDEvent * HoujiHIDEvent::biometricEvent(UInt64 timeStamp, IOFixed level, IOHIDBiometricEventType eventType, UInt32 usagePage, UInt32 usage, UInt8 tapCount, IOOptionBits options)
 {
-    IOHIDEvent *me = IOHIDEvent::biometricEvent(timeStamp, level, eventType, options);
+    HoujiHIDEvent *me = HoujiHIDEvent::biometricEvent(timeStamp, level, eventType, options);
     
     if (!me)
         return 0;
@@ -1231,9 +1231,9 @@ IOHIDEvent * IOHIDEvent::biometricEvent(UInt64 timeStamp, IOFixed level, IOHIDBi
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::atmosphericPressureEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::atmosphericPressureEvent(UInt64 timeStamp, IOFixed level, UInt32 sequence, IOOptionBits options)
+HoujiHIDEvent * HoujiHIDEvent::atmosphericPressureEvent(UInt64 timeStamp, IOFixed level, UInt32 sequence, IOOptionBits options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
     
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeAtmosphericPressure, timeStamp, options | kIOHIDEventOptionIsAbsolute)) {
         me->release();
@@ -1251,7 +1251,7 @@ IOHIDEvent * IOHIDEvent::atmosphericPressureEvent(UInt64 timeStamp, IOFixed leve
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::standardGameControllerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::standardGameControllerEvent(UInt64                          timeStamp,
+HoujiHIDEvent * HoujiHIDEvent::standardGameControllerEvent(UInt64                          timeStamp,
                                                      IOFixed                         dpadUp,
                                                      IOFixed                         dpadDown,
                                                      IOFixed                         dpadLeft,
@@ -1264,7 +1264,7 @@ IOHIDEvent * IOHIDEvent::standardGameControllerEvent(UInt64                     
                                                      IOFixed                         shoulderR,
                                                      IOOptionBits                    options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
     IOHIDGameControllerEventData *event = NULL;
     
     require(me, exit);
@@ -1291,7 +1291,7 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::extendedGameControllerEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::extendedGameControllerEvent(UInt64                          timeStamp,
+HoujiHIDEvent * HoujiHIDEvent::extendedGameControllerEvent(UInt64                          timeStamp,
                                                      IOFixed                         dpadUp,
                                                      IOFixed                         dpadDown,
                                                      IOFixed                         dpadLeft,
@@ -1310,7 +1310,7 @@ IOHIDEvent * IOHIDEvent::extendedGameControllerEvent(UInt64                     
                                                      IOFixed                         joystickRz,
                                                      IOOptionBits                    options)
 {
-    IOHIDEvent *me = standardGameControllerEvent(timeStamp, dpadUp, dpadDown, dpadLeft, dpadRight, faceX, faceY, faceA, faceB, shoulderL1, shoulderR1, options);
+    HoujiHIDEvent *me = standardGameControllerEvent(timeStamp, dpadUp, dpadDown, dpadLeft, dpadRight, faceX, faceY, faceA, faceB, shoulderL1, shoulderR1, options);
     IOHIDGameControllerEventData *event = NULL;
     require(me, exit);
     
@@ -1331,9 +1331,9 @@ exit:
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::humidityEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::humidityEvent(UInt64 timeStamp, IOFixed rh, UInt32 sequence, IOOptionBits options)
+HoujiHIDEvent * HoujiHIDEvent::humidityEvent(UInt64 timeStamp, IOFixed rh, UInt32 sequence, IOOptionBits options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
     
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeHumidity, timeStamp, options | kIOHIDEventOptionIsAbsolute)) {
         me->release();
@@ -1351,9 +1351,9 @@ IOHIDEvent * IOHIDEvent::humidityEvent(UInt64 timeStamp, IOFixed rh, UInt32 sequ
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::brightnessEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::brightnessEvent(UInt64 timeStamp, IOFixed currentBrightness, IOFixed targetBrightness, UInt64 transitionTime, IOOptionBits options)
+HoujiHIDEvent * HoujiHIDEvent::brightnessEvent(UInt64 timeStamp, IOFixed currentBrightness, IOFixed targetBrightness, UInt64 transitionTime, IOOptionBits options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
     
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeBrightness, timeStamp, options)) {
         me->release();
@@ -1372,9 +1372,9 @@ IOHIDEvent * IOHIDEvent::brightnessEvent(UInt64 timeStamp, IOFixed currentBright
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::orienrationEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent *   IOHIDEvent::orientationEvent(UInt64 timeStamp, UInt32 orientationType, IOOptionBits options)
+HoujiHIDEvent *   HoujiHIDEvent::orientationEvent(UInt64 timeStamp, UInt32 orientationType, IOOptionBits options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
     
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeOrientation, timeStamp, options)) {
         me->release();
@@ -1391,9 +1391,9 @@ IOHIDEvent *   IOHIDEvent::orientationEvent(UInt64 timeStamp, UInt32 orientation
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IOHIDEvent::genericGestureEvent
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-IOHIDEvent * IOHIDEvent::genericGestureEvent(UInt64 timeStamp, IOHIDGenericGestureType gestureType, IOOptionBits options)
+HoujiHIDEvent * HoujiHIDEvent::genericGestureEvent(UInt64 timeStamp, IOHIDGenericGestureType gestureType, IOOptionBits options)
 {
-    IOHIDEvent *me = new IOHIDEvent;
+    HoujiHIDEvent *me = new HoujiHIDEvent;
     
     if (me && !me->initWithTypeTimeStamp(kIOHIDEventTypeGenericGesture, timeStamp, options)) {
         me->release();
@@ -1411,7 +1411,7 @@ IOHIDEvent * IOHIDEvent::genericGestureEvent(UInt64 timeStamp, IOHIDGenericGestu
 //==============================================================================
 // IOHIDEvent::appendChild
 //==============================================================================
-void IOHIDEvent::appendChild(IOHIDEvent *childEvent)
+void HoujiHIDEvent::appendChild(HoujiHIDEvent *childEvent)
 {
     if (!_children) {
         const OSObject *events[] = { childEvent };
@@ -1427,7 +1427,7 @@ void IOHIDEvent::appendChild(IOHIDEvent *childEvent)
 //==============================================================================
 // IOHIDEvent::getType
 //==============================================================================
-IOHIDEventType IOHIDEvent::getType()
+IOHIDEventType HoujiHIDEvent::getType()
 {
     return _data->type;
 }
@@ -1435,7 +1435,7 @@ IOHIDEventType IOHIDEvent::getType()
 //==============================================================================
 // IOHIDEvent::setType
 //==============================================================================
-void IOHIDEvent::setType(IOHIDEventType type)
+void HoujiHIDEvent::setType(IOHIDEventType type)
 {
     initWithType(type);
 }
@@ -1443,7 +1443,7 @@ void IOHIDEvent::setType(IOHIDEventType type)
 //==============================================================================
 // IOHIDEvent::getEvent
 //==============================================================================
-IOHIDEvent * IOHIDEvent::getEvent(      IOHIDEventType          type,
+HoujiHIDEvent * HoujiHIDEvent::getEvent(      IOHIDEventType          type,
                                         IOOptionBits            options __unused)
 {
     return (_data->type == type) ? this : NULL;
@@ -1452,7 +1452,7 @@ IOHIDEvent * IOHIDEvent::getEvent(      IOHIDEventType          type,
 //==============================================================================
 // IOHIDEvent::getIntegerValue
 //==============================================================================
-SInt32 IOHIDEvent::getIntegerValue(     IOHIDEventField         key,
+SInt32 HoujiHIDEvent::getIntegerValue(     IOHIDEventField         key,
                                         IOOptionBits            options)
 {
     SInt32 value = 0;
@@ -1465,7 +1465,7 @@ SInt32 IOHIDEvent::getIntegerValue(     IOHIDEventField         key,
 //==============================================================================
 // IOHIDEvent::getDoubleValue
 //==============================================================================
-IOHIDDouble IOHIDEvent::getDoubleValue( IOHIDEventField         key,
+IOHIDDouble HoujiHIDEvent::getDoubleValue( IOHIDEventField         key,
                                         IOOptionBits            options)
 {
     IOHIDDouble value = 0;
@@ -1481,7 +1481,7 @@ IOHIDDouble IOHIDEvent::getDoubleValue( IOHIDEventField         key,
 //==============================================================================
 // IOHIDEvent::getFixedValue
 //==============================================================================
-IOFixed IOHIDEvent::getFixedValue(      IOHIDEventField         key,
+IOFixed HoujiHIDEvent::getFixedValue(      IOHIDEventField         key,
                                         IOOptionBits            options)
 {
     IOFixed value = 0;
@@ -1494,7 +1494,7 @@ IOFixed IOHIDEvent::getFixedValue(      IOHIDEventField         key,
 //==============================================================================
 // IOHIDEvent::getDataValue
 //==============================================================================
-UInt8 * IOHIDEvent::getDataValue(IOHIDEventField key, IOOptionBits options)
+UInt8 * HoujiHIDEvent::getDataValue(IOHIDEventField key, IOOptionBits options)
 {
     UInt8 * value = NULL;
 
@@ -1507,7 +1507,7 @@ UInt8 * IOHIDEvent::getDataValue(IOHIDEventField key, IOOptionBits options)
 //==============================================================================
 // IOHIDEvent::setIntegerValue
 //==============================================================================
-void IOHIDEvent::setIntegerValue(       IOHIDEventField         key,
+void HoujiHIDEvent::setIntegerValue(       IOHIDEventField         key,
                                         SInt32                  value,
                                         IOOptionBits            options)
 {
@@ -1517,7 +1517,7 @@ void IOHIDEvent::setIntegerValue(       IOHIDEventField         key,
 //==============================================================================
 // IOHIDEvent::setFixedValue
 //==============================================================================
-void IOHIDEvent::setFixedValue(         IOHIDEventField         key,
+void HoujiHIDEvent::setFixedValue(         IOHIDEventField         key,
                                         IOFixed                 value,
                                         IOOptionBits            options)
 {
@@ -1527,7 +1527,7 @@ void IOHIDEvent::setFixedValue(         IOHIDEventField         key,
 //==============================================================================
 // IOHIDEvent::setDoubleValue
 //==============================================================================
-void IOHIDEvent::setDoubleValue( IOHIDEventField         key,
+void HoujiHIDEvent::setDoubleValue( IOHIDEventField         key,
                                  IOHIDDouble             value,
                                  IOOptionBits            options)
 {
@@ -1537,7 +1537,7 @@ void IOHIDEvent::setDoubleValue( IOHIDEventField         key,
 //==============================================================================
 // IOHIDEvent::getLength
 //==============================================================================
-size_t IOHIDEvent::getLength()
+size_t HoujiHIDEvent::getLength()
 {
     _eventCount = 0;
     return getLength(&_eventCount);
@@ -1546,7 +1546,7 @@ size_t IOHIDEvent::getLength()
 //==============================================================================
 // IOHIDEvent::getLength
 //==============================================================================
-IOByteCount IOHIDEvent::getLength(UInt32 * count)
+IOByteCount HoujiHIDEvent::getLength(UInt32 * count)
 {
     IOByteCount length = _data->size;
 
@@ -1555,12 +1555,12 @@ IOByteCount IOHIDEvent::getLength(UInt32 * count)
     if ( _children )
     {
         UInt32          i, childCount;
-        IOHIDEvent *    child;
+        HoujiHIDEvent *    child;
 
         childCount = _children->getCount();
 
         for(i=0 ;i<childCount; i++) {
-            if ( (child = (IOHIDEvent *)_children->getObject(i)) ) {
+            if ( (child = (HoujiHIDEvent *)_children->getObject(i)) ) {
                 length += child->getLength(count) - sizeof(IOHIDSystemQueueElement);
             }
         }
@@ -1575,7 +1575,7 @@ IOByteCount IOHIDEvent::getLength(UInt32 * count)
 //==============================================================================
 // IOHIDEvent::appendBytes
 //==============================================================================
-IOByteCount IOHIDEvent::appendBytes(UInt8 * bytes, IOByteCount withLength)
+IOByteCount HoujiHIDEvent::appendBytes(UInt8 * bytes, IOByteCount withLength)
 {
     IOByteCount size = 0;
 
@@ -1589,12 +1589,12 @@ IOByteCount IOHIDEvent::appendBytes(UInt8 * bytes, IOByteCount withLength)
     if ( _children )
     {
         UInt32          i, childCount;
-        IOHIDEvent *    child;
+        HoujiHIDEvent *    child;
 
         childCount = _children->getCount();
 
         for(i=0 ;i<childCount; i++) {
-            if ( (child = (IOHIDEvent *)_children->getObject(i)) ) {
+            if ( (child = (HoujiHIDEvent *)_children->getObject(i)) ) {
                 size += child->appendBytes(bytes + size, withLength - size);
             }
         }
@@ -1606,11 +1606,11 @@ IOByteCount IOHIDEvent::appendBytes(UInt8 * bytes, IOByteCount withLength)
 //==============================================================================
 // IOHIDEvent::withBytes
 //==============================================================================
-IOHIDEvent * IOHIDEvent::withBytes(     const void *            bytes,
+HoujiHIDEvent * HoujiHIDEvent::withBytes(     const void *            bytes,
                                         IOByteCount             size)
 {
     IOHIDSystemQueueElement *   queueElement= NULL;
-    IOHIDEvent *                parent      = NULL;
+    HoujiHIDEvent *                parent      = NULL;
     UInt32                      index       = 0;
     UInt32                      total       = 0;
     UInt32                      offset      = 0;
@@ -1673,7 +1673,7 @@ IOHIDEvent * IOHIDEvent::withBytes(     const void *            bytes,
             break;
         }
         
-        IOHIDEvent *event = new IOHIDEvent;
+        HoujiHIDEvent *event = new HoujiHIDEvent;
 
         if ( !event ) {
             break;
@@ -1712,14 +1712,14 @@ IOHIDEvent * IOHIDEvent::withBytes(     const void *            bytes,
 //==============================================================================
 // IOHIDEvent::getChildren
 //==============================================================================
-OSArray* IOHIDEvent::getChildren()
+OSArray* HoujiHIDEvent::getChildren()
 {
     return _children;
 }
 //==============================================================================
 // IOHIDEvent::readBytes
 //==============================================================================
-IOByteCount IOHIDEvent::readBytes(void * bytes, IOByteCount withLength)
+IOByteCount HoujiHIDEvent::readBytes(void * bytes, IOByteCount withLength)
 {
     IOHIDSystemQueueElement *   queueElement= NULL;
     
@@ -1740,7 +1740,7 @@ IOByteCount IOHIDEvent::readBytes(void * bytes, IOByteCount withLength)
     return appendBytes((UInt8 *)queueElement->payload, withLength);
 }
 
-OSData *IOHIDEvent::createBytes()
+OSData *HoujiHIDEvent::createBytes()
 {
     OSData *result = NULL;
     IOHIDSystemQueueElement queueElement = { 0 };
@@ -1760,7 +1760,7 @@ OSData *IOHIDEvent::createBytes()
     require_quiet(_children, exit);
     
     for (unsigned int i = 0; i < _children->getCount(); i++) {
-        IOHIDEvent *child = (IOHIDEvent *)_children->getObject(i);
+        HoujiHIDEvent *child = (HoujiHIDEvent *)_children->getObject(i);
         if (!child) {
             continue;
         }
@@ -1775,7 +1775,7 @@ exit:
 //==============================================================================
 // IOHIDEvent::getPhase
 //==============================================================================
-IOHIDEventPhaseBits IOHIDEvent::getPhase()
+IOHIDEventPhaseBits HoujiHIDEvent::getPhase()
 {
     return (_data->options >> kIOHIDEventEventOptionPhaseShift) & kIOHIDEventEventPhaseMask;
 }
@@ -1783,7 +1783,7 @@ IOHIDEventPhaseBits IOHIDEvent::getPhase()
 //==============================================================================
 // IOHIDEvent::setPhase
 //==============================================================================
-void IOHIDEvent::setPhase(IOHIDEventPhaseBits phase)
+void HoujiHIDEvent::setPhase(IOHIDEventPhaseBits phase)
 {
     _data->options &= ~(kIOHIDEventEventPhaseMask << kIOHIDEventEventOptionPhaseShift);
     _data->options |= ((phase & kIOHIDEventEventPhaseMask) << kIOHIDEventEventOptionPhaseShift);
@@ -1792,7 +1792,7 @@ void IOHIDEvent::setPhase(IOHIDEventPhaseBits phase)
 //==============================================================================
 // IOHIDEvent::setSenderID
 //==============================================================================
-void IOHIDEvent::setSenderID(uint64_t senderID)
+void HoujiHIDEvent::setSenderID(uint64_t senderID)
 {
     _senderID = senderID;
 }
@@ -1800,7 +1800,7 @@ void IOHIDEvent::setSenderID(uint64_t senderID)
 //==============================================================================
 // IOHIDEvent::getLatency
 //==============================================================================
-uint64_t IOHIDEvent::getLatency(uint32_t scaleFactor)
+uint64_t HoujiHIDEvent::getLatency(uint32_t scaleFactor)
 {
     AbsoluteTime    delta = mach_absolute_time();
     AbsoluteTime    ts = getTimeStamp();

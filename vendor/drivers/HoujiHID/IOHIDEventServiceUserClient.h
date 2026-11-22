@@ -40,11 +40,11 @@ enum IOHIDEventServiceUserClientCommandCodes {
 #include "IOHIDEventService.h"
 #include <IOKit/IOCommandGate.h>
 
-class IOHIDEventServiceQueue;
+class HoujiHIDEventServiceQueue;
 
-class IOHIDEventServiceUserClient : public IOUserClient2022
+class HoujiHIDEventServiceUserClient : public IOUserClient2022
 {
-    OSDeclareDefaultStructors(IOHIDEventServiceUserClient)
+    OSDeclareDefaultStructors(HoujiHIDEventServiceUserClient)
 
 private:
   
@@ -55,8 +55,8 @@ private:
   
     static const IOExternalMethodDispatch2022 sMethods[kIOHIDEventServiceUserClientNumCommands];
 
-    IOHIDEventService *         _owner;
-    IOHIDEventServiceQueue *    _queue;
+    HoujiHIDEventService *         _owner;
+    HoujiHIDEventServiceQueue *    _queue;
     IOOptionBits                _options;
     IOCommandGate *             _commandGate;
     uint32_t                    _state;
@@ -67,35 +67,35 @@ private:
     uint64_t                    _eventCount;
     mach_port_t                 _queuePort;
   
-    void eventServiceCallback(  IOHIDEventService *             sender,
+    void eventServiceCallback(  HoujiHIDEventService *             sender,
                                 void *                          context,
-                                IOHIDEvent *                    event, 
+                                HoujiHIDEvent *                    event,
                                 IOOptionBits                    options);
 
-    static IOReturn _open(      IOHIDEventServiceUserClient *   target, 
+    static IOReturn _open(      HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference, 
                                 IOExternalMethodArguments *     arguments);
                                 
-    static IOReturn _close(     IOHIDEventServiceUserClient *   target, 
+    static IOReturn _close(     HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference, 
                                 IOExternalMethodArguments *     arguments);
 
     static IOReturn _copyEvent(
-                                IOHIDEventServiceUserClient *   target, 
+                                HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference, 
                                 IOExternalMethodArguments *     arguments);
 
     static IOReturn _setElementValue(
-                                IOHIDEventServiceUserClient *   target, 
+                                HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference, 
                                 IOExternalMethodArguments *     arguments);
     
     static IOReturn _copyMatchingEvent(
-                               IOHIDEventServiceUserClient *   target,
+                               HoujiHIDEventServiceUserClient *   target,
                                void *                          reference,
                                IOExternalMethodArguments *     arguments);
 
-    void enqueueEventGated( IOHIDEvent * event);
+    void enqueueEventGated( HoujiHIDEvent * event);
 
     bool   serializeDebugState(void * ref, OSSerialize * serializer);
 
@@ -138,7 +138,7 @@ public:
     virtual IOReturn setProperties( OSObject * properties ) APPLE_KEXT_OVERRIDE;
     virtual IOReturn open(IOOptionBits options);
     virtual IOReturn close();
-    virtual IOReturn copyEvent(IOHIDEventType type, IOHIDEvent * matching, IOHIDEvent ** event, IOOptionBits options = 0);
+    virtual IOReturn copyEvent(IOHIDEventType type, HoujiHIDEvent * matching, HoujiHIDEvent ** event, IOOptionBits options = 0);
     virtual IOReturn setElementValue(UInt32 usagePage, UInt32 usage, UInt32 value);
     virtual IOReturn copyMatchingEvent(OSDictionary *matching, OSData **eventData);
 };

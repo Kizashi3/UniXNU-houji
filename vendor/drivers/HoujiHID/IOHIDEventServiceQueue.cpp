@@ -35,11 +35,11 @@
 #include <pexpert/pexpert.h>
 
 #define super IOSharedDataQueue
-OSDefineMetaClassAndStructors( IOHIDEventServiceQueue, super )
+OSDefineMetaClassAndStructors( HoujiHIDEventServiceQueue, super )
 
-IOHIDEventServiceQueue *IOHIDEventServiceQueue::withCapacity(UInt32 size, UInt32 options)
+HoujiHIDEventServiceQueue *HoujiHIDEventServiceQueue::withCapacity(UInt32 size, UInt32 options)
 {
-    IOHIDEventServiceQueue *dataQueue = new IOHIDEventServiceQueue;
+    HoujiHIDEventServiceQueue *dataQueue = new HoujiHIDEventServiceQueue;
     bool noFullMsg = false;
 
     if (dataQueue) {
@@ -59,9 +59,9 @@ IOHIDEventServiceQueue *IOHIDEventServiceQueue::withCapacity(UInt32 size, UInt32
     return dataQueue;
 }
 
-IOHIDEventServiceQueue *IOHIDEventServiceQueue::withCapacity(OSObject *owner, UInt32 size, UInt32 options)
+HoujiHIDEventServiceQueue *HoujiHIDEventServiceQueue::withCapacity(OSObject *owner, UInt32 size, UInt32 options)
 {
-    IOHIDEventServiceQueue *dataQueue = IOHIDEventServiceQueue::withCapacity(size, options);
+    HoujiHIDEventServiceQueue *dataQueue = HoujiHIDEventServiceQueue::withCapacity(size, options);
     
     if (dataQueue) {
         dataQueue->_owner = owner;
@@ -70,7 +70,7 @@ IOHIDEventServiceQueue *IOHIDEventServiceQueue::withCapacity(OSObject *owner, UI
     return dataQueue;
 }
 
-void IOHIDEventServiceQueue::free()
+void HoujiHIDEventServiceQueue::free()
 {
     if ( _descriptor )
     {
@@ -85,7 +85,7 @@ void IOHIDEventServiceQueue::free()
 //---------------------------------------------------------------------------
 // Add event to the queue.
 
-Boolean IOHIDEventServiceQueue::enqueueEvent( IOHIDEvent * event )
+Boolean HoujiHIDEventServiceQueue::enqueueEvent( HoujiHIDEvent * event )
 {
     IOByteCount         eventSize = event->getLength();
     IOByteCount         dataSize  = ALIGNED_DATA_SIZE (eventSize, sizeof(uint32_t));
@@ -214,7 +214,7 @@ Boolean IOHIDEventServiceQueue::enqueueEvent( IOHIDEvent * event )
                 sendDataAvailableNotification();
             }
             else {
-                HIDLogError("IOHIDEventServiceQueue::enqueueEvent - Queue is full! %p", _owner);
+                HIDLogError("HoujiHIDEventServiceQueue::enqueueEvent - Queue is full! %p", _owner);
             }
         }
     }
@@ -226,7 +226,7 @@ Boolean IOHIDEventServiceQueue::enqueueEvent( IOHIDEvent * event )
 //---------------------------------------------------------------------------
 // set the notification port
 
-void IOHIDEventServiceQueue::setNotificationPort(mach_port_t port) {
+void HoujiHIDEventServiceQueue::setNotificationPort(mach_port_t port) {
     super::setNotificationPort(port);
 
     if (dataQueue->head != dataQueue->tail)
@@ -235,7 +235,7 @@ void IOHIDEventServiceQueue::setNotificationPort(mach_port_t port) {
 
 //---------------------------------------------------------------------------
 
-void IOHIDEventServiceQueue::sendDataAvailableNotification()
+void HoujiHIDEventServiceQueue::sendDataAvailableNotification()
 {
     _notificationCount++;
     super::sendDataAvailableNotification();
@@ -244,7 +244,7 @@ void IOHIDEventServiceQueue::sendDataAvailableNotification()
 //---------------------------------------------------------------------------
 // get a mem descriptor.  replacing default behavior
 
-IOMemoryDescriptor * IOHIDEventServiceQueue::getMemoryDescriptor()
+IOMemoryDescriptor * HoujiHIDEventServiceQueue::getMemoryDescriptor()
 {
     if (!_descriptor)
         _descriptor = super::getMemoryDescriptor();
@@ -254,7 +254,7 @@ IOMemoryDescriptor * IOHIDEventServiceQueue::getMemoryDescriptor()
 
 //---------------------------------------------------------------------------
 
-bool IOHIDEventServiceQueue::serialize(OSSerialize * serializer) const {
+bool HoujiHIDEventServiceQueue::serialize(OSSerialize * serializer) const {
     
     bool ret;
     

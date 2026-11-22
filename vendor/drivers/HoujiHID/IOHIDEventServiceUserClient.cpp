@@ -45,38 +45,38 @@
 
 #define super IOUserClient2022
 
-OSDefineMetaClassAndStructors(IOHIDEventServiceUserClient, IOUserClient2022)
+OSDefineMetaClassAndStructors(HoujiHIDEventServiceUserClient, IOUserClient2022)
 
 //==============================================================================
 // IOHIDEventServiceUserClient::sMethods
 //==============================================================================
-const IOExternalMethodDispatch2022 IOHIDEventServiceUserClient::sMethods[kIOHIDEventServiceUserClientNumCommands] = {
+const IOExternalMethodDispatch2022 HoujiHIDEventServiceUserClient::sMethods[kIOHIDEventServiceUserClientNumCommands] = {
     { //    kIOHIDEventServiceUserClientOpen
-	(IOExternalMethodAction) &IOHIDEventServiceUserClient::_open,
+	(IOExternalMethodAction) &HoujiHIDEventServiceUserClient::_open,
 	1, 0,
     0, 0,
     false
     },
     { //    kIOHIDEventServiceUserClientClose
-	(IOExternalMethodAction) &IOHIDEventServiceUserClient::_close,
+	(IOExternalMethodAction) &HoujiHIDEventServiceUserClient::_close,
 	1, 0,
     0, 0,
     false
     },
     { //    kIOHIDEventServiceUserClientCopyEvent
-	(IOExternalMethodAction) &IOHIDEventServiceUserClient::_copyEvent,
+	(IOExternalMethodAction) &HoujiHIDEventServiceUserClient::_copyEvent,
     2, kIOUCVariableStructureSize,
     0, kIOUCVariableStructureSize,
     false
     },
     { //    kIOHIDEventServiceUserClientSetElementValue
-	(IOExternalMethodAction) &IOHIDEventServiceUserClient::_setElementValue,
+	(IOExternalMethodAction) &HoujiHIDEventServiceUserClient::_setElementValue,
 	3, 0,
     0, 0,
     false
     },
     { //    kIOHIDEventServiceUserClientCopyMatchingEvent
-    (IOExternalMethodAction) &IOHIDEventServiceUserClient::_copyMatchingEvent,
+    (IOExternalMethodAction) &HoujiHIDEventServiceUserClient::_copyMatchingEvent,
     0, kIOUCVariableStructureSize,
     0, kIOUCVariableStructureSize,
     false
@@ -91,7 +91,7 @@ enum {
 //==============================================================================
 // IOHIDEventServiceUserClient::getService
 //==============================================================================
-IOService * IOHIDEventServiceUserClient::getService( void )
+IOService * HoujiHIDEventServiceUserClient::getService( void )
 {
     return _owner;
 }
@@ -99,7 +99,7 @@ IOService * IOHIDEventServiceUserClient::getService( void )
 //==============================================================================
 // IOHIDEventServiceUserClient::clientClose
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::clientClose( void )
+IOReturn HoujiHIDEventServiceUserClient::clientClose( void )
 {
     terminate();
     
@@ -109,7 +109,7 @@ IOReturn IOHIDEventServiceUserClient::clientClose( void )
 //==============================================================================
 // IOHIDEventServiceUserClient::registerNotificationPort
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::registerNotificationPort(
+IOReturn HoujiHIDEventServiceUserClient::registerNotificationPort(
                             mach_port_t                 port, 
                             UInt32                      type,
                             UInt32                      refCon __unused )
@@ -119,7 +119,7 @@ IOReturn IOHIDEventServiceUserClient::registerNotificationPort(
     
     require_action(!isInactive(), exit, result=kIOReturnOffline);
     
-    result = _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &IOHIDEventServiceUserClient::registerNotificationPortGated), port, (void *)(intptr_t)type);
+    result = _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &HoujiHIDEventServiceUserClient::registerNotificationPortGated), port, (void *)(intptr_t)type);
     
 exit:
 
@@ -127,7 +127,7 @@ exit:
 }
 
 
-IOReturn IOHIDEventServiceUserClient::registerNotificationPortGated(mach_port_t port, UInt32 type __unused, UInt32 refCon __unused)
+IOReturn HoujiHIDEventServiceUserClient::registerNotificationPortGated(mach_port_t port, UInt32 type __unused, UInt32 refCon __unused)
 {
     releaseNotificationPort(_queuePort);
     _queuePort = port;
@@ -142,7 +142,7 @@ IOReturn IOHIDEventServiceUserClient::registerNotificationPortGated(mach_port_t 
 //==============================================================================
 // IOHIDEventServiceUserClient::clientMemoryForType
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::clientMemoryForType(
+IOReturn HoujiHIDEventServiceUserClient::clientMemoryForType(
                                                                UInt32                      type __unused,
                                                                IOOptionBits *              options,
                                                                IOMemoryDescriptor **       memory )
@@ -152,7 +152,7 @@ IOReturn IOHIDEventServiceUserClient::clientMemoryForType(
     
     require_action(!isInactive(), exit, result=kIOReturnOffline);
     
-    result = _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &IOHIDEventServiceUserClient::clientMemoryForTypeGated), options, memory);
+    result = _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &HoujiHIDEventServiceUserClient::clientMemoryForTypeGated), options, memory);
   
 exit:
   
@@ -162,7 +162,7 @@ exit:
 //==============================================================================
 // IOHIDEventServiceUserClient::clientMemoryForType
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::clientMemoryForTypeGated(
+IOReturn HoujiHIDEventServiceUserClient::clientMemoryForTypeGated(
                             IOOptionBits *              options,
                             IOMemoryDescriptor **       memory )
 {
@@ -195,12 +195,12 @@ IOReturn IOHIDEventServiceUserClient::clientMemoryForTypeGated(
 //==============================================================================
 // IOHIDEventServiceUserClient::externalMethod
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::externalMethod(uint32_t selector, IOExternalMethodArgumentsOpaque * args)
+IOReturn HoujiHIDEventServiceUserClient::externalMethod(uint32_t selector, IOExternalMethodArgumentsOpaque * args)
 {
     ExternalMethodGatedArguments gatedArguments = {selector, args};
     IOReturn result;
 
-    result = _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &IOHIDEventServiceUserClient::externalMethodGated), &gatedArguments);
+    result = _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &HoujiHIDEventServiceUserClient::externalMethodGated), &gatedArguments);
 
     return result;
 }
@@ -208,7 +208,7 @@ IOReturn IOHIDEventServiceUserClient::externalMethod(uint32_t selector, IOExtern
 //==============================================================================
 // IOHIDEventServiceUserClient::externalMethodGated
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::externalMethodGated(ExternalMethodGatedArguments * arguments)
+IOReturn HoujiHIDEventServiceUserClient::externalMethodGated(ExternalMethodGatedArguments * arguments)
 {
     IOReturn result = kIOReturnOffline;
   
@@ -224,7 +224,7 @@ exit:
 //==============================================================================
 // IOHIDEventServiceUserClient::initWithTask
 //==============================================================================
-bool IOHIDEventServiceUserClient::initWithTask(task_t owningTask, void * security_id, UInt32 type)
+bool HoujiHIDEventServiceUserClient::initWithTask(task_t owningTask, void * security_id, UInt32 type)
 {
     bool result = false;
     OSObject* entitlement = NULL;
@@ -258,7 +258,7 @@ exit:
 //==============================================================================
 // IOHIDEventServiceUserClient::start
 //==============================================================================
-bool IOHIDEventServiceUserClient::start( IOService * provider )
+bool HoujiHIDEventServiceUserClient::start( IOService * provider )
 {
     OSObject *    object;
     OSNumber *    num;
@@ -272,7 +272,7 @@ bool IOHIDEventServiceUserClient::start( IOService * provider )
   
     require (super::start(provider), exit);
   
-    _owner = OSDynamicCast(IOHIDEventService, provider);
+    _owner = OSDynamicCast(HoujiHIDEventService, provider);
     require (_owner, exit);
 
     _owner->retain();
@@ -302,7 +302,7 @@ bool IOHIDEventServiceUserClient::start( IOService * provider )
     }
 
     if ( queueSize ) {
-        _queue = IOHIDEventServiceQueue::withCapacity(this, queueSize, qOptions);
+        _queue = HoujiHIDEventServiceQueue::withCapacity(this, queueSize, qOptions);
         require(_queue, exit);
     }
   
@@ -314,7 +314,7 @@ bool IOHIDEventServiceUserClient::start( IOService * provider )
     require(_commandGate, exit);
     require(workLoop->addEventSource(_commandGate) == kIOReturnSuccess, exit);
   
-    debugStateSerializer = OSSerializer::forTarget(this, OSMemberFunctionCast(OSSerializerCallback, this, &IOHIDEventServiceUserClient::serializeDebugState));
+    debugStateSerializer = OSSerializer::forTarget(this, OSMemberFunctionCast(OSSerializerCallback, this, &HoujiHIDEventServiceUserClient::serializeDebugState));
     if (debugStateSerializer) {
         setProperty("DebugState", debugStateSerializer);
         debugStateSerializer->release();
@@ -332,7 +332,7 @@ exit:
     return result;
 }
 
-void IOHIDEventServiceUserClient::stop( IOService * provider )
+void HoujiHIDEventServiceUserClient::stop( IOService * provider )
 {
     close();
     
@@ -351,8 +351,8 @@ void IOHIDEventServiceUserClient::stop( IOService * provider )
 //==============================================================================
 // IOHIDEventServiceUserClient::_open
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::_open(
-                                IOHIDEventServiceUserClient *   target, 
+IOReturn HoujiHIDEventServiceUserClient::_open(
+                                HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference __unused,
                                 IOExternalMethodArguments *     arguments)
 {
@@ -362,7 +362,7 @@ IOReturn IOHIDEventServiceUserClient::_open(
 //==============================================================================
 // IOHIDEventServiceUserClient::open
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::open(IOOptionBits options)
+IOReturn HoujiHIDEventServiceUserClient::open(IOOptionBits options)
 {
     if (!_owner) {
         return kIOReturnOffline;
@@ -377,8 +377,8 @@ IOReturn IOHIDEventServiceUserClient::open(IOOptionBits options)
     if (!_owner->open(  this,
                         options,
                         NULL, 
-                        OSMemberFunctionCast(IOHIDEventService::Action, 
-                        this, &IOHIDEventServiceUserClient::eventServiceCallback)) ) {
+                        OSMemberFunctionCast(HoujiHIDEventService::Action,
+                        this, &HoujiHIDEventServiceUserClient::eventServiceCallback)) ) {
        return kIOReturnExclusiveAccess;
     }
     
@@ -390,8 +390,8 @@ IOReturn IOHIDEventServiceUserClient::open(IOOptionBits options)
 //==============================================================================
 // IOHIDEventServiceUserClient::_close
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::_close(
-                                IOHIDEventServiceUserClient *   target, 
+IOReturn HoujiHIDEventServiceUserClient::_close(
+                                HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference __unused,
                                 IOExternalMethodArguments *     arguments __unused)
 {
@@ -401,7 +401,7 @@ IOReturn IOHIDEventServiceUserClient::_close(
 //==============================================================================
 // IOHIDEventServiceUserClient::close
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::close()
+IOReturn HoujiHIDEventServiceUserClient::close()
 {
     
     
@@ -416,20 +416,20 @@ IOReturn IOHIDEventServiceUserClient::close()
 //==============================================================================
 // IOHIDEventServiceUserClient::_copyEvent
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::_copyEvent(
-                                IOHIDEventServiceUserClient *   target, 
+IOReturn HoujiHIDEventServiceUserClient::_copyEvent(
+                                HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference __unused, 
                                 IOExternalMethodArguments *     arguments)
 {
-    IOHIDEvent *    inEvent     = NULL;
-    IOHIDEvent *    outEvent    = NULL;
+    HoujiHIDEvent *    inEvent     = NULL;
+    HoujiHIDEvent *    outEvent    = NULL;
     IOReturn        ret         = kIOReturnError;
     IOByteCount     length      = 0;
     
     require_action(arguments->structureInputSize < kEventSizeMax, exit, ret = kIOReturnNoMemory);
 
     if ( arguments->structureInput && arguments->structureInputSize) {
-        inEvent = IOHIDEvent::withBytes(arguments->structureInput, arguments->structureInputSize);
+        inEvent = HoujiHIDEvent::withBytes(arguments->structureInput, arguments->structureInputSize);
     }
 
     do { 
@@ -465,7 +465,7 @@ exit:
 //==============================================================================
 // IOHIDEventServiceUserClient::copyEvent
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::copyEvent(IOHIDEventType type, IOHIDEvent * matching, IOHIDEvent ** event, IOOptionBits options)
+IOReturn HoujiHIDEventServiceUserClient::copyEvent(IOHIDEventType type, HoujiHIDEvent * matching, HoujiHIDEvent ** event, IOOptionBits options)
 {
     if (!event) {
         return kIOReturnBadArgument;
@@ -485,8 +485,8 @@ IOReturn IOHIDEventServiceUserClient::copyEvent(IOHIDEventType type, IOHIDEvent 
 //==============================================================================
 // IOHIDEventServiceUserClient::_setElementValue
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::_setElementValue(
-                                IOHIDEventServiceUserClient *   target, 
+IOReturn HoujiHIDEventServiceUserClient::_setElementValue(
+                                HoujiHIDEventServiceUserClient *   target,
                                 void *                          reference __unused,
                                 IOExternalMethodArguments *     arguments)
 {
@@ -497,7 +497,7 @@ IOReturn IOHIDEventServiceUserClient::_setElementValue(
 //==============================================================================
 // IOHIDEventServiceUserClient::setElementValue
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::setElementValue(UInt32 usagePage, UInt32 usage, UInt32 value)
+IOReturn HoujiHIDEventServiceUserClient::setElementValue(UInt32 usagePage, UInt32 usage, UInt32 value)
 {
     if (_owner && _state == kUserClientStateOpen) {
         return _owner->setElementValue(usagePage, usage, value);
@@ -508,8 +508,8 @@ IOReturn IOHIDEventServiceUserClient::setElementValue(UInt32 usagePage, UInt32 u
 //==============================================================================
 // IOHIDEventServiceUserClient::_copyMatchingEvent
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::_copyMatchingEvent(
-                                                 IOHIDEventServiceUserClient *   target,
+IOReturn HoujiHIDEventServiceUserClient::_copyMatchingEvent(
+                                                 HoujiHIDEventServiceUserClient *   target,
                                                  void *                          reference __unused,
                                                  IOExternalMethodArguments *     arguments)
 {
@@ -544,10 +544,10 @@ exit:
 //==============================================================================
 // IOHIDEventServiceUserClient::copyMatchingEvent
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::copyMatchingEvent(OSDictionary *matching, OSData **eventData)
+IOReturn HoujiHIDEventServiceUserClient::copyMatchingEvent(OSDictionary *matching, OSData **eventData)
 {
     IOReturn ret = kIOReturnError;
-    IOHIDEvent *event = NULL;
+    HoujiHIDEvent *event = NULL;
     
     require_action(eventData, exit, ret = kIOReturnBadArgument);
     require_action(_owner && _state == kUserClientStateOpen, exit, ret = kIOReturnNotOpen);
@@ -569,7 +569,7 @@ exit:
 //==============================================================================
 // IOHIDEventServiceUserClient::didTerminate
 //==============================================================================
-bool IOHIDEventServiceUserClient::didTerminate(IOService *provider, IOOptionBits options, bool *defer)
+bool HoujiHIDEventServiceUserClient::didTerminate(IOService *provider, IOOptionBits options, bool *defer)
 {
 
     close ();
@@ -580,7 +580,7 @@ bool IOHIDEventServiceUserClient::didTerminate(IOService *provider, IOOptionBits
 //==============================================================================
 // IOHIDEventServiceUserClient::free
 //==============================================================================
-void IOHIDEventServiceUserClient::free()
+void HoujiHIDEventServiceUserClient::free()
 {
     OSSafeReleaseNULL(_queue);
     OSSafeReleaseNULL(_owner);
@@ -592,7 +592,7 @@ void IOHIDEventServiceUserClient::free()
 //==============================================================================
 // IOHIDEventServiceUserClient::setProperties
 //==============================================================================
-IOReturn IOHIDEventServiceUserClient::setProperties( OSObject * properties )
+IOReturn HoujiHIDEventServiceUserClient::setProperties( OSObject * properties )
 {
     return _owner ? _owner->setProperties(properties) : kIOReturnOffline;
 }
@@ -601,10 +601,10 @@ IOReturn IOHIDEventServiceUserClient::setProperties( OSObject * properties )
 //==============================================================================
 // IOHIDEventServiceUserClient::eventServiceCallback
 //==============================================================================
-void IOHIDEventServiceUserClient::eventServiceCallback(
-                                IOHIDEventService *             sender __unused,
+void HoujiHIDEventServiceUserClient::eventServiceCallback(
+                                HoujiHIDEventService *             sender __unused,
                                 void *                          context __unused,
-                                IOHIDEvent *                    event, 
+                                HoujiHIDEvent *                    event,
                                 IOOptionBits                    options __unused)
 {
     if (!_queue || _state != kUserClientStateOpen) {
@@ -617,14 +617,14 @@ void IOHIDEventServiceUserClient::eventServiceCallback(
     }
 #endif
     
-    _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &IOHIDEventServiceUserClient::enqueueEventGated), event);
+    _commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &HoujiHIDEventServiceUserClient::enqueueEventGated), event);
   
 }
 
 //==============================================================================
 // IOHIDEventServiceUserClient::enqueueEventGated
 //==============================================================================
-void IOHIDEventServiceUserClient::enqueueEventGated( IOHIDEvent * event)
+void HoujiHIDEventServiceUserClient::enqueueEventGated( HoujiHIDEvent * event)
 {
   //enqueue the event
     if (_queue) {
@@ -644,7 +644,7 @@ void IOHIDEventServiceUserClient::enqueueEventGated( IOHIDEvent * event)
 //====================================================================================================
 // IOHIDEventServiceUserClient::serializeDebugState
 //====================================================================================================
-bool   IOHIDEventServiceUserClient::serializeDebugState(void * ref __unused, OSSerialize * serializer) {
+bool   HoujiHIDEventServiceUserClient::serializeDebugState(void * ref __unused, OSSerialize * serializer) {
     bool          result = false;
     uint64_t      currentTime, deltaTime;
     uint64_t      nanoTime;

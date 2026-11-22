@@ -36,7 +36,7 @@
 #ifdef KERNEL
 #include <IOKit/IOLib.h>
 
-#define IOHIDEventRef IOHIDEvent *
+#define IOHIDEventRef HoujiHIDEvent *
 #else
 //#include "IOHIDEvent.h"
 typedef struct IOHIDEventData IOHIDEventData;
