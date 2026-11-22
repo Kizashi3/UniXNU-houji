@@ -28,7 +28,7 @@ jobs:
 
       - name: Build a 2 GiB Data seed with every service enabled
         env:
-          HOUJI_DISABLED: "com.apple.watchdogd,com.apple.datamigrator,com.apple.identityservicesd,com.apple.locationd,com.apple.CommCenter,com.apple.iconservices.iconservicesagent,com.apple.purplebuddy.budd"
+          HOUJI_DISABLED: "com.apple.watchdogd,com.apple.datamigrator,com.apple.identityservicesd,com.apple.locationd,com.apple.CommCenter,com.apple.iconservices.iconservicesagent"
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eux

@@ -63,6 +63,15 @@ def merge_pref(root, name, values):
     # ignores a root-owned 0600 file it cannot read.
     os.chown(path, MOBILE, MOBILE)
     print('pref', name, sorted(values))
+    # iOS keeps the system-preference domain at /private/var/preferences and some
+    # consumers copy the any-user value only; keep both copies identical so the
+    # per-user file and the system file never disagree.
+    anyuser = root / 'preferences'
+    if anyuser.is_dir():
+        tgt = anyuser / (name + '.plist')
+        tgt.write_bytes(plistlib.dumps(data, fmt=plistlib.FMT_BINARY))
+        os.chmod(tgt, 0o644)
+        os.chown(tgt, 0, 0)
 
 
 def main():
