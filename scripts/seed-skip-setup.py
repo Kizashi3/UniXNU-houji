@@ -26,14 +26,14 @@ DISABLED = (
     # system down with panic-on-crash.
     'com.apple.watchdogd',
     'com.apple.datamigrator',
-    # ios-sweet's proven first-boot list plus the activation daemon: SpringBoard
-    # blocks in a synchronous MobileActivation XPC that never answers while the
-    # daemon traps on every request.
+    # ios-sweet's proven first-boot list.  mobileactivationd is deliberately NOT
+    # disabled here: with the prefs below plus the ADT development tuple it takes
+    # its native activation path, and while it is absent SpringBoard's synchronous
+    # MobileActivation call never gets an answer from anyone.
     'com.apple.identityservicesd',
     'com.apple.locationd',
     'com.apple.CommCenter',
     'com.apple.iconservices.iconservicesagent',
-    'com.apple.mobileactivationd',
 )
 MINI = (
     'ShouldRunDiagnosticsMiniBuddy',
