@@ -1381,6 +1381,267 @@ houjiOwnershipProbe (void)
 	}
 }
 
+/* HOUJI-FS-DUMP: name what a boot actually sees on its own volumes.
+ *
+ * Two offline routes have both produced false "the root is missing X" verdicts:
+ * the roottree extraction corrupts every small decmpfs file, and the ownership
+ * walk in kern_exec stops early (375 of 491 LaunchDaemons, and it also missed
+ * com.apple.apsd.plist, which demonstrably runs).  A Data volume booted for days
+ * is likewise no longer its seed.  So a round has to read the mounted volumes by
+ * itself:
+ *
+ *   houji-ls=/dir,/dir2        entries with uid/gid/mode/size
+ *   houji-ls-depth=N           recurse N levels (max 4, default 1)
+ *   houji-cat=/file,/file2     printable runs of a file body
+ *   houji-cat-bytes=N          bytes per file (max 4096, default 2048)
+ *
+ * With neither argument nothing runs.  Output is budgeted so one round cannot
+ * fill the log window.
+ */
+#include <sys/dirent.h>
+#include <sys/uio.h>
+
+#define HOUJI_FS_READ		4096	/* bytes per houji-cat file */
+#define HOUJI_FS_BUDGET		700	/* printed entries per run */
+#define HOUJI_FS_MAX_DEPTH	4
+
+static int houji_fs_left = HOUJI_FS_BUDGET;
+
+static void
+houji_fs_strings (const char *path, const uint8_t *buf, uint64_t len)
+{
+	static char line[700];
+	uint64_t i = 0;
+	size_t n = 0;
+
+	while (i < len) {
+		uint64_t start;
+
+		if (buf[i] < 0x20 || buf[i] >= 0x7f) {
+			i++;
+			continue;
+		}
+		start = i;
+		while (i < len && buf[i] >= 0x20 && buf[i] < 0x7f) {
+			i++;
+		}
+		if (i - start < 5) {
+			continue;
+		}
+		if (n + (i - start) + 1 >= sizeof (line)) {
+			line[n] = 0;
+			IOLog ("HOUJI-FS-DATA: %s %s\n", path, line);
+			n = 0;
+		}
+		memcpy (line + n, buf + start, (size_t) (i - start));
+		n += (size_t) (i - start);
+		line[n++] = ' ';
+	}
+	if (n != 0) {
+		line[n] = 0;
+		IOLog ("HOUJI-FS-DATA: %s %s\n", path, line);
+	}
+}
+
+static void
+houji_fs_cat (const char *path, uint64_t want)
+{
+	static uint8_t buf[HOUJI_FS_READ];
+	vfs_context_t ctx = vfs_context_kernel ();
+	struct vnode_attr va;
+	vnode_t vp = NULL;
+	uio_t uio;
+	uint64_t got = 0;
+
+	if (vnode_lookup (path, 0, &vp, ctx) != 0) {
+		IOLog ("HOUJI-FS-DATA: %s missing\n", path);
+		vfs_context_rele (ctx);
+		return;
+	}
+	VATTR_INIT (&va);
+	VATTR_WANTED (&va, va_data_size);
+	VATTR_WANTED (&va, va_uid);
+	VATTR_WANTED (&va, va_mode);
+	if (vnode_getattr (vp, &va, ctx) == 0 && (uint64_t) va.va_data_size < want) {
+		want = (uint64_t) va.va_data_size;
+	}
+	if (want > HOUJI_FS_READ) {
+		want = HOUJI_FS_READ;
+	}
+	uio = uio_create (1, 0, UIO_SYSSPACE, UIO_READ);
+	if (uio != NULL) {
+		int err;
+
+		uio_addiov (uio, (uintptr_t) buf, want);
+		err = VNOP_READ (vp, uio, 0, ctx);
+		got = want - uio_resid (uio);
+		IOLog ("HOUJI-FS-DATA: %s uid=%u mode=0%o size=%lld err=%d got=%llu\n", path,
+		    (unsigned) va.va_uid, (unsigned) va.va_mode, (long long) va.va_data_size,
+		    err, (unsigned long long) got);
+		if (err == 0 && got != 0) {
+			houji_fs_strings (path, buf, got);
+		}
+		uio_free (uio);
+	}
+	vnode_put (vp);
+	vfs_context_rele (ctx);
+}
+
+static void
+houji_fs_ls (const char *dir, int depth)
+{
+	/* one buffer per level: a deeper call must not clobber the parent's */
+	static char bufs[HOUJI_FS_MAX_DEPTH + 1][4096];
+	char *buf = bufs[depth < 0 ? 0 : (depth > HOUJI_FS_MAX_DEPTH ? HOUJI_FS_MAX_DEPTH : depth)];
+	vfs_context_t ctx = vfs_context_kernel ();
+	vnode_t dvp = NULL;
+	uint64_t off = 0;
+	int shown = 0;
+
+	if (houji_fs_left <= 0) {
+		return;
+	}
+	if (vnode_lookup (dir, 0, &dvp, ctx) != 0) {
+		IOLog ("HOUJI-FS: %s missing\n", dir);
+		vfs_context_rele (ctx);
+		return;
+	}
+	for (;;) {
+		uint64_t pos, used;
+		int eofflag = 0, numdirent = 0;
+		uio_t uio = uio_create (1, off, UIO_SYSSPACE, UIO_READ);
+
+		if (uio == NULL) {
+			break;
+		}
+		uio_addiov (uio, (uintptr_t) buf, 4096);
+		if (vnode_readdir64 (dvp, uio, 0, &eofflag, &numdirent, ctx) != 0) {
+			uio_free (uio);
+			break;
+		}
+		used = 4096 - uio_resid (uio);
+		off = (uint64_t) uio_offset (uio);
+		uio_free (uio);
+		if (used == 0) {
+			break;
+		}
+		for (pos = 0; pos + sizeof (struct dirent) <= used; ) {
+			struct dirent *de = (struct dirent *) (void *) (buf + pos);
+			char child[768];
+			vnode_t cvp = NULL;
+			struct vnode_attr va;
+			int isdir = 0;
+			int err;
+
+			if (de->d_reclen == 0) {
+				break;
+			}
+			if (!(de->d_namlen != 0 && !(de->d_name[0] == '.' &&
+			    (de->d_namlen == 1 || (de->d_name[1] == '.' && de->d_namlen == 2))))) {
+				pos += de->d_reclen;
+				continue;
+			}
+			snprintf (child, sizeof (child), "%s/%s", dir, de->d_name);
+			VATTR_INIT (&va);
+			VATTR_WANTED (&va, va_type);
+			VATTR_WANTED (&va, va_uid);
+			VATTR_WANTED (&va, va_gid);
+			VATTR_WANTED (&va, va_mode);
+			VATTR_WANTED (&va, va_data_size);
+			err = vnode_lookup (child, 0, &cvp, ctx);
+			if (err == 0) {
+				int gerr = vnode_getattr (cvp, &va, ctx);
+
+				if (gerr == 0 && va.va_type == VDIR) {
+					isdir = 1;
+				}
+				IOLog ("HOUJI-FS: %s %s uid=%u gid=%u mode=0%o size=%lld%s\n", child,
+				    isdir ? "dir" : "file", (unsigned) va.va_uid,
+				    (unsigned) va.va_gid, (unsigned) va.va_mode,
+				    (long long) va.va_data_size, gerr != 0 ? " getattr-err" : "");
+				vnode_put (cvp);
+				cvp = NULL;
+				if (isdir && depth > 0 && houji_fs_left > 0) {
+					houji_fs_ls (child, depth - 1);
+				}
+			} else {
+				IOLog ("HOUJI-FS: %s lookup-err=%d\n", child, err);
+			}
+			shown++;
+			if (--houji_fs_left <= 0) {
+				IOLog ("HOUJI-FS: budget exhausted in %s\n", dir);
+				vnode_put (dvp);
+				vfs_context_rele (ctx);
+				return;
+			}
+			pos += de->d_reclen;
+		}
+		if (eofflag) {
+			break;
+		}
+	}
+	IOLog ("HOUJI-FS: %s listed %d\n", dir, shown);
+	vnode_put (dvp);
+	vfs_context_rele (ctx);
+}
+
+static void
+houji_fs_each (const char *arg, int depth, uint64_t bytes, int isdir)
+{
+	const char *p = arg;
+
+	while (p != NULL && *p != 0) {
+		char path[768];
+		const char *comma = strchr (p, ',');
+		size_t n = comma ? (size_t) (comma - p) : strlen (p);
+
+		if (n != 0 && n < sizeof (path)) {
+			memcpy (path, p, n);
+			path[n] = 0;
+			if (isdir) {
+				houji_fs_ls (path, depth);
+			} else {
+				houji_fs_cat (path, bytes);
+			}
+		}
+		p = comma ? comma + 1 : NULL;
+	}
+}
+
+static void
+houjiFsDumpOnce (void)
+{
+	static int done;
+	char dirs[1024], files[1024];
+	uint32_t depth = 1, bytes = 2048;
+
+	if (done) {
+		return;
+	}
+	done = 1;
+	dirs[0] = files[0] = 0;
+	if (!PE_parse_boot_argn ("houji-ls", dirs, sizeof (dirs)) &&
+	    !PE_parse_boot_argn ("houji-cat", files, sizeof (files))) {
+		return;
+	}
+	PE_parse_boot_argn ("houji-ls-depth", &depth, sizeof (depth));
+	PE_parse_boot_argn ("houji-cat-bytes", &bytes, sizeof (bytes));
+	if (depth > HOUJI_FS_MAX_DEPTH) {
+		depth = HOUJI_FS_MAX_DEPTH;
+	}
+	if (bytes == 0 || bytes > HOUJI_FS_READ) {
+		bytes = HOUJI_FS_READ;
+	}
+	IOLog ("HOUJI-FS: dump start depth=%u bytes=%u\n", depth, bytes);
+	if (dirs[0] != 0) {
+		houji_fs_each (dirs, (int) depth, bytes, 1);
+	}
+	if (files[0] != 0) {
+		houji_fs_each (files, 0, bytes, 0);
+	}
+	IOLog ("HOUJI-FS: dump done\n");
+}
+
 /* HOUJI-KEXT-PROBE: the graphics family ships prelinked but unstarted; start it. */
 static void
 houjiKextProbe (void)
@@ -1586,6 +1847,9 @@ houjiLogThread (void *param, wait_result_t wr)
 		if (!houji_own_probed && tick >= 1) {
 			houji_own_probed = 1;
 			houjiOwnershipProbe ();
+		}
+		if (tick >= 3) {
+			houjiFsDumpOnce ();
 		}
 		if (houji_fb_probe_on && !houji_vfs_probed_late && tick >= 12) {
 			houji_vfs_probed_late = 1;

@@ -5,6 +5,7 @@ on:
     branches:
       - kernel-cs-bypass
       - merged-root-kernel
+      - input-houji-r591
   workflow_dispatch:
     inputs:
       xcode:
