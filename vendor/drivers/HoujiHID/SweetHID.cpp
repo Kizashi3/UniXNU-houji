@@ -48,20 +48,33 @@ OSDefineMetaClassAndStructors(IOHIDEventService, IOService);
 bool
 IOHIDEventService::start(IOService *provider)
 {
+	IOLog("SWEET HID: base start super provider=%p\n", provider);
 	if (!super::start(provider)) {
+		IOLog("SWEET HID: base start super failed\n");
 		return false;
 	}
+	IOLog("SWEET HID: base start locks\n");
 	_clientLock = IOLockAlloc();
 	_clients = OSArray::withCapacity(2);
+	IOLog("SWEET HID: base start workloop lookup\n");
 	_hidWorkLoop = getWorkLoop();
+	IOLog("SWEET HID: base start workloop=%p lock=%p clients=%p\n", _hidWorkLoop, _clientLock, _clients);
 	if (!_clientLock || !_clients || !_hidWorkLoop) {
 		return false;
 	}
 	_hidWorkLoop->retain();
+	IOLog("SWEET HID: base start gate\n");
 	_hidGate = IOCommandGate::commandGate(this);
-	if (!_hidGate || _hidWorkLoop->addEventSource(_hidGate) != kIOReturnSuccess) {
+	if (!_hidGate) {
+		IOLog("SWEET HID: base start gate alloc failed\n");
 		return false;
 	}
+	IOLog("SWEET HID: base start add event source\n");
+	if (_hidWorkLoop->addEventSource(_hidGate) != kIOReturnSuccess) {
+		IOLog("SWEET HID: base start add event source failed\n");
+		return false;
+	}
+	IOLog("SWEET HID: base start properties\n");
 
 	OSString *transport = getTransport();
 	OSString *product = getProduct();
@@ -541,29 +554,35 @@ sweet_hid_touch(int finger, int down, int x, int y)
 extern "C" int
 sweet_hid_start(IOService *provider)
 {
+	IOLog("SWEET HID: start enter provider=%p\n", provider);
 	if (gSweetTouch) {
 		return 0;
 	}
 	if (!provider) {
 		return -1;
 	}
+	IOLog("SWEET HID: start alloc\n");
 	SweetHIDTouch *touch = new SweetHIDTouch;
 	if (!touch) {
 		return -2;
 	}
+	IOLog("SWEET HID: start init\n");
 	if (!touch->init()) {
 		touch->release();
 		return -3;
 	}
+	IOLog("SWEET HID: start attach\n");
 	if (!touch->attach(provider)) {
 		touch->release();
 		return -4;
 	}
+	IOLog("SWEET HID: start super start\n");
 	if (!touch->start(provider)) {
 		touch->detach(provider);
 		touch->release();
 		return -5;
 	}
+	IOLog("SWEET HID: start register\n");
 	touch->registerService();
 	return 0;
 }
