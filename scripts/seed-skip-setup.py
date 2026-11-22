@@ -193,6 +193,13 @@ def main():
             (db / 'disabled.plist').write_bytes(plistlib.dumps(
                 {label: True for label in DISABLED}, fmt=plistlib.FMT_BINARY))
             print('disabled', list(DISABLED))
+            # launchd imports disabled.plist once and then looks for this marker; the
+            # upstream port writes it so the table is taken as already migrated.
+            marker = db / 'disabled.migrated'
+            marker.write_bytes(b'')
+            os.chmod(marker, 0o644)
+            os.chown(marker, 0, 0)
+            print('disabled.migrated written')
     finally:
         subprocess.run(['hdiutil', 'detach', device], check=True)
     data = dst.read_bytes()
