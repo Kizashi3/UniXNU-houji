@@ -2005,6 +2005,28 @@ static void houjiBootGuardThread (void *arg, wait_result_t wr)
   }
 }
 
+static void houjiHardRebootThread (void *arg, wait_result_t wr)
+{
+  uint32_t seconds = 0;
+  (void) arg; (void) wr;
+  if (!PE_parse_boot_argn ("houji-hardreboot", &seconds, sizeof (seconds)) ||
+      seconds < 60 || seconds > 3600) {
+    return;
+  }
+  IOSleep (seconds * 1000);
+  IOLog ("HOUJI-HARDREBOOT: reset after %u s\n", seconds);
+  houjiPsciReset ();
+}
+
+static void houjiStartHardReboot (void)
+{
+  thread_t th = NULL;
+  if (kernel_thread_start (houjiHardRebootThread, NULL, &th) == KERN_SUCCESS) {
+    thread_deallocate (th);
+    IOLog ("HOUJI-HARDREBOOT: armed\n");
+  }
+}
+
 static void houjiStartBootGuard (void)
 {
   thread_t th = NULL;
@@ -2844,6 +2866,7 @@ extern "C" int native_ufs_md_init (void)
   }
   houjiInstallExit ();
   houjiStartBootGuard ();
+  houjiStartHardReboot ();
   return 0;
 }
 
