@@ -185,7 +185,7 @@ def main():
         if os.environ.get('HOUJI_ACTIVATION_CONFIG') == '1':
             # launchd reads per-label config overrides from this directory; ask it to
             # start the activation daemon directly instead of waiting for a lookup.
-            cfg = db / 'config'
+            cfg = mount / 'db/com.apple.xpc.launchd' / 'config'
             cfg.mkdir(parents=True, exist_ok=True)
             t = cfg / 'com.apple.mobileactivationd.plist'
             t.write_bytes(plistlib.dumps({
