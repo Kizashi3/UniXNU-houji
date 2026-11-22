@@ -1,0 +1,5 @@
+type dict len 1998
+sample '/System/Library/PrivateFrameworks/VisionHWAccelerationServices.framework/VisionHWAccelerationServices' -> {'_serviceBundles': []}
+sample '/System/Library/PrivateFrameworks/caulk.framework/caulk' -> {'_serviceBundles': []}
+sample '/System/Library/PrivateFrameworks/UnifiedAssetFramework.framework/UnifiedAssetFramework' -> {'_serviceBundles': []}
+LaunchDaemons entries compared, mismatched: 0

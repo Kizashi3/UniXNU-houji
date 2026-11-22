@@ -1,0 +1,174 @@
++ echo '===== merged root merged-root-23 (/Users/runner/work/_temp/merged.raw)'
+===== merged root merged-root-23 (/Users/runner/work/_temp/merged.raw)
++ ls -la /Users/runner/work/_temp/mnt
++ head -20
+total 0
+drwxr-xr-x   18 runner  staff   576 Apr 30  2026 .
+drwxr-xr-x    8 runner  staff   256 Nov 22 09:43 ..
+drwx------    2 runner  staff    64 Apr 30  2026 .ba
+----------    1 runner  staff     0 Apr 30  2026 .file
+drwx------    2 runner  staff    64 Apr 30  2026 .mb
+drwxrwxr-x  145 runner  staff  4640 Apr 30  2026 Applications
+drwxr-xr-x    4 runner  staff   128 Apr 30  2026 bin
+drwxrwxr-t    2 runner  staff    64 Apr 30  2026 cores
+dr-xr-xr-x    2 runner  staff    64 Apr 30  2026 dev
+drwxrwxr-x    2 runner  staff    64 Apr 30  2026 Developer
+lrwxr-xr-x    1 runner  staff    11 Nov 18 05:58 etc -> private/etc
+drwxr-xr-x   20 runner  staff   640 Apr 30  2026 Library
+drwxr-xr-x    7 runner  staff   224 Apr 30  2026 private
+drwxr-xr-x   19 runner  staff   608 Apr 30  2026 sbin
+drwxr-xr-x    7 runner  staff   224 Apr 30  2026 System
+lrwxr-xr-x    1 runner  staff    15 Nov 18 06:02 tmp -> private/var/tmp
+drwxr-xr-x    8 runner  staff   256 Apr 30  2026 usr
+lrwxr-xr-x    1 runner  staff    11 Nov 18 06:02 var -> private/var
++ echo '-- SystemVersion'
+-- SystemVersion
++ plutil -p /Users/runner/work/_temp/mnt/System/Library/CoreServices/SystemVersion.plist
++ head -12
+{
+  "BuildID" => "87066E3A-4442-11F1-A14D-F16241AA8750"
+  "ProductBuildVersion" => "20H392"
+  "ProductCopyright" => "1983-2026 Apple Inc."
+  "ProductName" => "iPhone OS"
+  "ProductVersion" => "16.7.16"
+  "SystemImageID" => "47CFA5BC-E14B-44A2-B5B7-B3348A370785"
+}
++ echo '-- LaunchDaemons'
+-- LaunchDaemons
++ '[' -d /Users/runner/work/_temp/mnt/System/Library/LaunchDaemons ']'
+++ ls /Users/runner/work/_temp/mnt/System/Library/LaunchDaemons
+++ wc -l
++ echo 'count=     491'
+count=     491
++ ls -l /Users/runner/work/_temp/mnt/System/Library/LaunchDaemons
++ grep -E 'mobileactivationd|purplebuddy|mobile\.lockdown|SpringBoard|apsd|watchdogd|CommCenter'
+-rw-r--r--  1 runner  staff     556 Apr 30  2026 com.apple.apsd.plist
+-rw-r--r--  1 runner  staff    1387 Apr 30  2026 com.apple.CommCenter-noncellular.plist
+-rw-r--r--  1 runner  staff    1446 Apr 30  2026 com.apple.CommCenter.plist
+-rw-r--r--  1 runner  staff     881 Apr 30  2026 com.apple.CommCenterMobileHelper.plist
+-rw-r--r--  1 runner  staff     550 Apr 30  2026 com.apple.CommCenterRootHelper.plist
+-rw-r--r--  1 runner  staff    1661 Apr 30  2026 com.apple.mobile.lockdown.plist
+-rw-r--r--  1 runner  staff     763 Apr 30  2026 com.apple.mobileactivationd.plist
+-rw-r--r--  1 runner  staff    1439 Apr 30  2026 com.apple.purplebuddy.budd.plist
+-rw-r--r--  1 runner  staff    2415 Apr 30  2026 com.apple.SpringBoard.plist
+-rw-r--r--  1 runner  staff     467 Apr 30  2026 com.apple.watchdogd.plist
++ echo '-- decoded mobileactivationd job as the flashed root holds it'
+-- decoded mobileactivationd job as the flashed root holds it
++ plutil -p /Users/runner/work/_temp/mnt/System/Library/LaunchDaemons/com.apple.mobileactivationd.plist
+{
+  "EnablePressuredExit" => 1
+  "EnableTransactions" => 1
+  "Label" => "com.apple.mobileactivationd"
+  "LaunchEvents" => {
+    "com.apple.xpc.activity" => {
+      "com.apple.mobileactivationd.splunklogging" => {
+        "Interval" => 86400
+        "NetworkTransferDirection" => "Bidirectional"
+        "PowerNap" => 1
+        "Priority" => "Utility"
+        "Repeating" => 1
+        "RequireNetworkConnectivity" => 1
+      }
+      "com.apple.mobileactivationd.splunklogging.daily" => {
+        "Interval" => 86400
+        "NetworkTransferDirection" => "Bidirectional"
+        "PowerNap" => 1
+        "Priority" => "Utility"
+        "Repeating" => 1
+        "RequireNetworkConnectivity" => 1
+      }
+      "com.apple.mobileactivationd.splunklogging.rollidentifier" => {
+        "Interval" => 1209600
+        "PowerNap" => 1
+        "Priority" => "Utility"
+        "Repeating" => 1
+        "RequireNetworkConnectivity" => 0
+      }
+    }
+  }
+  "MachServices" => {
+    "com.apple.mobileactivationd" => 1
+    "com.apple.mobileactivationd.lockdown" => 1
+  }
+  "POSIXSpawnType" => "Adaptive"
+  "ProgramArguments" => [
+    0 => "/usr/libexec/mobileactivationd"
+  ]
+  "UserName" => "mobile"
+}
++ echo '-- prefab launchd inventory'
+-- prefab launchd inventory
++ INV=/Users/runner/work/_temp/mnt/System/Library/xpc/launchd.plist
++ '[' -f /Users/runner/work/_temp/mnt/System/Library/xpc/launchd.plist ']'
++ ls -l /Users/runner/work/_temp/mnt/System/Library/xpc/launchd.plist
+-rw-r--r--  1 runner  staff  1456980 Apr 30  2026 /Users/runner/work/_temp/mnt/System/Library/xpc/launchd.plist
++ plutil -convert json -o - /Users/runner/work/_temp/mnt/System/Library/xpc/launchd.plist
++ python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+print("top level keys:", list(d))
+jobs = d.get("LaunchDaemons", {})
+print("LaunchDaemons entries:", len(jobs))
+for probe in ("mobileactivationd", "purplebuddy", "mobile.lockdown", "SpringBoard", "apsd"):
+    hits = [k for k in jobs if probe in k]
+    print("  %-18s %d %s" % (probe, len(hits), hits[:2]))
+one = [k for k in jobs if "mobileactivationd" in k]
+if one:
+    v = dict(jobs[one[0]])
+    print("mobileactivationd entry keys:", sorted(v))
+    for key in ("Label", "MachServices", "RunAtLoad", "UserName", "ProgramArguments", "EnableTransactions"):
+        if key in v:
+            print("   ", key, "=", v[key])
+'
+top level keys: ['AppExtensions', 'LaunchDaemons', 'AppRemovalServices', 'SystemLibraryTreeState', 'Symlinks', 'VersionNumber']
+LaunchDaemons entries: 532
+  mobileactivationd  1 ['/System/Library/LaunchDaemons/com.apple.mobileactivationd.plist']
+  purplebuddy        1 ['/System/Library/LaunchDaemons/com.apple.purplebuddy.budd.plist']
+  mobile.lockdown    1 ['/System/Library/LaunchDaemons/com.apple.mobile.lockdown.plist']
+  SpringBoard        1 ['/System/Library/LaunchDaemons/com.apple.SpringBoard.plist']
+  apsd               1 ['/System/Library/LaunchDaemons/com.apple.apsd.plist']
+mobileactivationd entry keys: ['EnablePressuredExit', 'EnableTransactions', 'Label', 'LaunchEvents', 'MachServices', 'POSIXSpawnType', 'ProgramArguments', 'UserName']
+    Label = com.apple.mobileactivationd
+    MachServices = {'com.apple.mobileactivationd': True, 'com.apple.mobileactivationd.lockdown': True}
+    UserName = mobile
+    ProgramArguments = ['/usr/libexec/mobileactivationd']
+    EnableTransactions = True
++ echo '-- full LaunchDaemons listing (sizes vs the stock DMG)'
+-- full LaunchDaemons listing (sizes vs the stock DMG)
++ ls -l /Users/runner/work/_temp/mnt/System/Library/LaunchDaemons
++ echo '-- launchd inventory tree state vs the files on disk'
+-- launchd inventory tree state vs the files on disk
++ python3 - /Users/runner/work/_temp/mnt/System/Library/xpc/launchd.plist /Users/runner/work/_temp/mnt/System/Library/LaunchDaemons
++ echo '-- MobileGestalt cache and activation places on the root'
+-- MobileGestalt cache and activation places on the root
++ ls -l /Users/runner/work/_temp/mnt/System/Library/MobileGestalt
++ head -5
+ls: /Users/runner/work/_temp/mnt/System/Library/MobileGestalt: No such file or directory
++ find /Users/runner/work/_temp/mnt/private/var -maxdepth 3
++ head -20
+/Users/runner/work/_temp/mnt/private/var
+/Users/runner/work/_temp/mnt/private/var/preferences
+/Users/runner/work/_temp/mnt/private/var/preferences/Logging
+/Users/runner/work/_temp/mnt/private/var/preferences/Logging/Processes
+/Users/runner/work/_temp/mnt/private/var/preferences/Logging/Subsystems
+/Users/runner/work/_temp/mnt/private/var/MobileDevice
+/Users/runner/work/_temp/mnt/private/var/MobileDevice/ProvisioningProfiles
+/Users/runner/work/_temp/mnt/private/var/dextcores
+/Users/runner/work/_temp/mnt/private/var/networkd
+/Users/runner/work/_temp/mnt/private/var/hardware
+/Users/runner/work/_temp/mnt/private/var/Keychains
+/Users/runner/work/_temp/mnt/private/var/empty
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps/AppleTV.app
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps/AppleTV.app/de.lproj
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps/AppleTV.app/_CodeSignature
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps/AppleTV.app/he.lproj
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps/AppleTV.app/en_AU.lproj
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps/AppleTV.app/ar.lproj
+/Users/runner/work/_temp/mnt/private/var/staged_system_apps/AppleTV.app/el.lproj
++ echo '-- cryptex overlay present?'
+-- cryptex overlay present?
++ ls -ld /Users/runner/work/_temp/mnt/System/Library/Caches/com.apple.dyld
+drwxr-xr-x  46 runner  staff  1472 Apr 30  2026 /Users/runner/work/_temp/mnt/System/Library/Caches/com.apple.dyld
++ ls -l /Users/runner/work/_temp/mnt/usr/libexec/mobileactivationd
+-rwxr-xr-x  1 runner  staff  2383376 Apr 30  2026 /Users/runner/work/_temp/mnt/usr/libexec/mobileactivationd

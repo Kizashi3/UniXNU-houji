@@ -1,0 +1,6 @@
++ echo '== attach and mount the raw container'
+== attach and mount the raw container
++ hdiutil attach -imagekey diskimage-class=CRawDiskImage -nobrowse -readonly -mountpoint /Users/runner/work/_temp/mnt /Users/runner/work/_temp/merged.raw
+/dev/disk5          	                               	
+/dev/disk6          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk6s1        	41504653-0000-11AA-AA11-0030654	/Users/runner/work/_temp/mnt

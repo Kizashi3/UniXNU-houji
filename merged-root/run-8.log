@@ -1,0 +1,72 @@
++ OUT=/tmp/merged-root-probe
++ REPO=Kizashi3/UniXNU-houji
++ TAG=merged-root-23
++ rm -rf /tmp/merged-root-probe
++ mkdir -p /tmp/merged-root-probe
++ df -h /Users/runner/work/_temp
++ cat /tmp/merged-root-probe/df.txt
++ ROOT=/Users/runner/work/_temp/merged.raw
++ rm -f /Users/runner/work/_temp/merged.raw
++ :
++ for n in 00 01 02 03 04 05 06 07
++ rm -rf /Users/runner/work/_temp/one
++ mkdir -p /Users/runner/work/_temp/one
++ gh release download merged-root-23 --repo Kizashi3/UniXNU-houji --pattern part-00 --dir /Users/runner/work/_temp/one
++ cat /Users/runner/work/_temp/one/part-00
++ rm -rf /Users/runner/work/_temp/one
++ df -h /Users/runner/work/_temp
++ tail -1
++ for n in 00 01 02 03 04 05 06 07
++ rm -rf /Users/runner/work/_temp/one
++ mkdir -p /Users/runner/work/_temp/one
++ gh release download merged-root-23 --repo Kizashi3/UniXNU-houji --pattern part-01 --dir /Users/runner/work/_temp/one
++ cat /Users/runner/work/_temp/one/part-01
++ rm -rf /Users/runner/work/_temp/one
++ df -h /Users/runner/work/_temp
++ tail -1
++ for n in 00 01 02 03 04 05 06 07
++ rm -rf /Users/runner/work/_temp/one
++ mkdir -p /Users/runner/work/_temp/one
++ gh release download merged-root-23 --repo Kizashi3/UniXNU-houji --pattern part-02 --dir /Users/runner/work/_temp/one
++ cat /Users/runner/work/_temp/one/part-02
++ rm -rf /Users/runner/work/_temp/one
++ tail -1
++ df -h /Users/runner/work/_temp
++ for n in 00 01 02 03 04 05 06 07
++ rm -rf /Users/runner/work/_temp/one
++ mkdir -p /Users/runner/work/_temp/one
++ gh release download merged-root-23 --repo Kizashi3/UniXNU-houji --pattern part-03 --dir /Users/runner/work/_temp/one
++ cat /Users/runner/work/_temp/one/part-03
++ rm -rf /Users/runner/work/_temp/one
++ tail -1
++ df -h /Users/runner/work/_temp
++ for n in 00 01 02 03 04 05 06 07
++ rm -rf /Users/runner/work/_temp/one
++ mkdir -p /Users/runner/work/_temp/one
++ gh release download merged-root-23 --repo Kizashi3/UniXNU-houji --pattern part-04 --dir /Users/runner/work/_temp/one
++ cat /Users/runner/work/_temp/one/part-04
++ rm -rf /Users/runner/work/_temp/one
++ df -h /Users/runner/work/_temp
++ tail -1
++ for n in 00 01 02 03 04 05 06 07
++ rm -rf /Users/runner/work/_temp/one
++ mkdir -p /Users/runner/work/_temp/one
++ gh release download merged-root-23 --repo Kizashi3/UniXNU-houji --pattern part-05 --dir /Users/runner/work/_temp/one
++ cat /Users/runner/work/_temp/one/part-05
++ rm -rf /Users/runner/work/_temp/one
++ df -h /Users/runner/work/_temp
++ tail -1
++ for n in 00 01 02 03 04 05 06 07
++ rm -rf /Users/runner/work/_temp/one
++ mkdir -p /Users/runner/work/_temp/one
++ gh release download merged-root-23 --repo Kizashi3/UniXNU-houji --pattern part-06 --dir /Users/runner/work/_temp/one
+no assets match the file pattern
++ break
++ ls -la /Users/runner/work/_temp/merged.raw
++ cat /tmp/merged-root-probe/parts.txt
++ MNT=/Users/runner/work/_temp/mnt
++ mkdir -p /Users/runner/work/_temp/mnt
++ grep -q /Users/runner/work/_temp/mnt /tmp/merged-root-probe/attach.txt
++ hdiutil detach /Users/runner/work/_temp/mnt
++ du -sh /tmp/merged-root-probe
++ echo PROBE_MERGED_ROOT_DONE
