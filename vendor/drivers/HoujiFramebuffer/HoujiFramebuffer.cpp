@@ -21,6 +21,10 @@
 
 extern "C" int sweet_hid_start(IOService *provider);
 extern "C" void sweet_hid_touch(int finger, int down, int x, int y);
+extern "C" int houji_native_touch_start(IOService *provider);
+extern "C" void houji_native_touch_report(const uint8_t *frame, unsigned size);
+extern "C" void houji_native_touch_release();
+static unsigned useNativeTouch;
 #include <pexpert/pexpert.h>
 #include <kern/clock.h>
 #include <mach/mach_time.h>
@@ -1388,7 +1392,9 @@ houjiTouchThreadMain(void *arg, wait_result_t wr)
 	HOUJI_FB_LOG("touch v46: provider=%p", resources);
 	IOSleep(6000);
 	HOUJI_FB_LOG("touch v46: hid start call");
-	int hr = resources != nullptr ? sweet_hid_start(resources) : -1;
+	PE_parse_boot_argn("houji-native-touch", &useNativeTouch, sizeof(useNativeTouch));
+	int hr = useNativeTouch ? houji_native_touch_start(resources) :
+	    (resources != nullptr ? sweet_hid_start(resources) : -1);
 	HOUJI_FB_LOG("touch v46: hid start rc=%d", hr);
 	IOSleep(6000);
 	HOUJI_FB_LOG("touch v46: probe starting");
@@ -1814,7 +1820,9 @@ houjiTouchBitBang(void)
 				touch++;
 				unsigned active = len > 17 ? frame[4 + 17] : 0;
 				HOUJI_FB_LOG("touch v46: TOUCH%u len=%u active=%u", touch, len, active);
-				if (len >= 27 && active > 0) {
+				if (useNativeTouch) {
+					houji_native_touch_report(frame, sizeof(frame));
+				} else if (len >= 27 && active > 0) {
 					unsigned finger = frame[4 + 18] & 0x0fu;
 					unsigned x = frame[4 + 19] | ((unsigned)frame[4 + 20] << 8);
 					unsigned y = frame[4 + 21] | ((unsigned)frame[4 + 22] << 8);
@@ -1846,6 +1854,9 @@ houjiTouchBitBang(void)
 			}
 		}
 		IOSleep(50);
+	}
+	if (useNativeTouch) {
+		houji_native_touch_release();
 	}
 	HOUJI_FB_LOG("touch v46: loop done idle=%u touch=%u", idle, touch);
 	return 0;
