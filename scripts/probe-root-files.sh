@@ -5,11 +5,6 @@
 # plists start with a stray byte and no longer parse), so the files that decide
 # the Setup/activation behaviour have to come from a real Darwin mount instead.
 # The Setup/purplebuddy code itself lives in the dyld shared cache, which on
-      SYM="$CD/dyld_shared_cache_arm64.symbols"
-      if [ -f "$SYM" ]; then
-        wc -l "$SYM" >"$OUT/report/$name-cache-symbols.txt" 2>&1
-        grep -aiE "BUD|SBSetup|setupState|MobileActivation|MAE|setupShouldRemainAlive|isSetupNeeded" "$SYM" | head -400 >>"$OUT/report/$name-cache-symbols.txt" 2>&1
-      fi
 # iPhone OS is split into per-region files, so probe-cache-tokens.py names the
 # owning image of every gate-looking string by reading the region headers.
 # Nothing is modified and no Apple binary is published: only text reports plus
@@ -114,6 +109,11 @@ for k, v in d.items():
       echo "cached images: $(grep -c '^/' "$OUT/report/$name-cache-list.txt" 2>/dev/null)" >>"$OUT/report/$name-cache.txt"
       grep -iE 'SetupAssistant|purplebuddy|Setup\.app|MobileActivation|BackBoardServices|BoardServices|SpringBoard' \
         "$OUT/report/$name-cache-list.txt" >"$OUT/report/$name-cache-targets.txt" 2>&1
+      SYM="$CD/dyld_shared_cache_arm64.symbols"
+      if [ -f "$SYM" ]; then
+        wc -l "$SYM" >"$OUT/report/$name-cache-symbols.txt" 2>&1
+        grep -aiE "BUD|SBSetup|setupState|MobileActivation|MAE|setupShouldRemainAlive|isSetupNeeded" "$SYM" | head -400 >>"$OUT/report/$name-cache-symbols.txt" 2>&1
+      fi
       python3 "$GITHUB_WORKSPACE/scripts/probe-cache-tokens.py" "$CD" \
         "$OUT/report/$name-cache-tokens.txt" "$TOKENS" >>"$OUT/report/$name-cache.txt" 2>&1
     fi
