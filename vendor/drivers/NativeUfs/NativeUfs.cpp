@@ -1401,6 +1401,12 @@ houjiOwnershipProbe (void)
 #include <sys/dirent.h>
 #include <sys/uio.h>
 
+/* vnode_readdir64 is declared under BSD_KERNEL_PRIVATE in vnode_internal.h, so no
+ * driver translation unit sees it.  This archive is linked straight into the kernel
+ * image, so the reference resolves without an exported KPI. */
+extern "C" errno_t vnode_readdir64 (struct vnode *vp, struct uio *uio, int flags,
+    int *eofflag, int *numdirent, vfs_context_t ctxp);
+
 #define HOUJI_FS_READ		4096	/* bytes per houji-cat file */
 #define HOUJI_FS_BUDGET		700	/* printed entries per run */
 #define HOUJI_FS_MAX_DEPTH	4
