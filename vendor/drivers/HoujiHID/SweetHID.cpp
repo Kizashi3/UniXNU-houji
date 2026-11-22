@@ -113,10 +113,20 @@ HoujiHIDEventService::start(IOService *provider)
 	OSSafeReleaseNULL(page);
 	OSSafeReleaseNULL(usage);
 
-	/* What IOHIDFamily's "IOHIDEventServiceUserClient" personality merges in. */
-	setProperty("HIDServiceSupport", kOSBooleanTrue);
-	setProperty("IOUserClientClass", "HoujiHIDEventServiceUserClient");
-	return true;
+	// The stock property merger matches the Apple IOHIDEventService class.
+	// Publish the embedded IOHIDLib interfaces for this separately named service.
+	OSDictionary *plugins = OSDictionary::withCapacity(2);
+	OSString *plugin = OSString::withCString("IOHIDFamily.kext/PlugIns/IOHIDLib.plugin");
+	bool published = plugins && plugin &&
+	    plugins->setObject("7DDEECA8-A7B4-11DA-8A0E-0014519758EF", plugin) &&
+	    plugins->setObject("FA12FA38-6F1A-11D4-BA0C-0005028F18D5", plugin) &&
+	    setProperty("IOCFPlugInTypes", plugins) &&
+	    setProperty("IOUserClientClass", "HoujiHIDEventServiceUserClient") &&
+	    setProperty("HIDServiceSupport", kOSBooleanTrue);
+	OSSafeReleaseNULL(plugin);
+	OSSafeReleaseNULL(plugins);
+	IOLog("SWEET HID: IOHIDLib properties published=%d\n", published);
+	return published;
 }
 
 void
@@ -315,6 +325,7 @@ HoujiHIDEventService::newUserClient(task_t owningTask, void *securityID, UInt32 
 {
 	IOUserClient *client;
 
+	IOLog("SWEET HID: %s newUserClient type=0x%x\n", getName(), (unsigned)type);
 	if (type != kIOHIDEventServiceUserClientType) {
 		IOLog("SWEET HID: %s user client type 0x%x unsupported\n", getName(), (unsigned)type);
 		return super::newUserClient(owningTask, securityID, type, properties, handler);
@@ -329,15 +340,18 @@ HoujiHIDEventService::newUserClient(task_t owningTask, void *securityID, UInt32 
 		return kIOReturnBadArgument;
 	}
 	if (!client->attach(this)) {
+		IOLog("SWEET HID: %s user client attach refused\n", getName());
 		client->release();
 		return kIOReturnUnsupported;
 	}
 	if (!client->start(this)) {
+		IOLog("SWEET HID: %s user client start refused\n", getName());
 		client->detach(this);
 		client->release();
 		return kIOReturnUnsupported;
 	}
 	*handler = client;
+	IOLog("SWEET HID: %s user client started\n", getName());
 	return kIOReturnSuccess;
 }
 
