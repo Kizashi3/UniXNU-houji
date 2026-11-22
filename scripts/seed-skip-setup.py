@@ -35,6 +35,12 @@ DISABLED = (
     'com.apple.iconservices.iconservicesagent',
     'com.apple.mobileactivationd',
 )
+# A diagnostic build can replace the whole list, e.g. keep the proven entries
+# and add one job to attribute a boot behaviour to it.
+_override = os.environ.get('HOUJI_DISABLED')
+if _override:
+    DISABLED = tuple(x.strip() for x in _override.split(',') if x.strip())
+
 MINI = (
     'ShouldRunDiagnosticsMiniBuddy',
     'ShouldRunHSA2MiniBuddy',

@@ -3,7 +3,7 @@ name: houji 2 GiB Data seed
 on:
   workflow_dispatch:
   push:
-    branches: [kernel-cs-bypass]
+    branches: [kernel-cs-bypass, input-houji-r591]
     paths:
       - ".github/workflows/data-seed-2g.yml"
       - "scripts/make-data-seed.py"
@@ -28,6 +28,7 @@ jobs:
 
       - name: Build a 2 GiB Data seed with every service enabled
         env:
+          HOUJI_DISABLED: "com.apple.watchdogd,com.apple.datamigrator,com.apple.identityservicesd,com.apple.locationd,com.apple.CommCenter,com.apple.iconservices.iconservicesagent,com.apple.purplebuddy.budd"
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eux
@@ -48,7 +49,7 @@ jobs:
           hdiutil detach "$MNT" || true
           ls -la "$RUNNER_TEMP/data-seed"
           cd "$GITHUB_WORKSPACE"
-          sudo env HOUJI_RUN_SETUP=1 python3 scripts/seed-skip-setup.py "$RUNNER_TEMP/data-seed/owner-data-2048.cdr" \
+          sudo env HOUJI_RUN_SETUP=1 HOUJI_DISABLED="$HOUJI_DISABLED" python3 scripts/seed-skip-setup.py "$RUNNER_TEMP/data-seed/owner-data-2048.cdr" \
             "$RUNNER_TEMP/data-seed/owner-data-2048-skip.cdr"
           sudo gzip -f -1 "$RUNNER_TEMP/data-seed/owner-data-2048-skip.cdr"
           ls -la "$RUNNER_TEMP/data-seed"
@@ -61,7 +62,7 @@ jobs:
           set -eux
           TAG="data-seed-2g-${{ github.run_number }}"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" \
-            --notes "2 GiB Data seed, every launchd service enabled" || true
+            --notes "2 GiB Data seed, disabled=$HOUJI_DISABLED" || true
           for f in "$RUNNER_TEMP/data-seed/"*; do
             gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber || true
           done
