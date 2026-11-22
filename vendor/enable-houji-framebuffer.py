@@ -17,6 +17,15 @@ dst = TREE / "drivers" / "HoujiFramebuffer"
 dst.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(SRC / "HoujiFramebuffer.cpp", dst / "HoujiFramebuffer.cpp")
 
+hid_src = DEVICE / "vendor" / "drivers" / "HoujiHID"
+if hid_src.is_dir():
+    shutil.copytree(hid_src, TREE / "drivers" / "HoujiHID", dirs_exist_ok=True)
+    hid_builder = DEVICE / "scripts" / "build-houji-hid.py"
+    if hid_builder.is_file():
+        shutil.copyfile(hid_builder, TREE / "scripts" / "build-houji-hid.py")
+        (TREE / "scripts" / "build-houji-hid.py").chmod(0o755)
+    print("HoujiHID overlay copied")
+
 for script in (DEVICE / "scripts" / "build-arm-driver.py", TREE / "scripts" / "build-arm-driver.py"):
     if not script.is_file():
         continue
@@ -37,6 +46,13 @@ if "build-arm-driver.py HoujiFramebuffer" not in text:
     board.write_text(text)
     print("board.toml: HoujiFramebuffer archive added")
 
+if "build-houji-hid.py" not in text:
+    match = re.search(r"archives = \[\n", text)
+    if match:
+        text = text[:match.end()] + '  "build-houji-hid.py",\n' + text[match.end():]
+        board.write_text(text)
+        print("board.toml: HoujiHID archive added")
+
 conf = DEVICE / "configs" / "houji_defconfig"
 text = conf.read_text()
 if "CONFIG_XNU_EXTRA_LD_ARCHIVES" in text:
@@ -47,13 +63,15 @@ if "CONFIG_XNU_EXTRA_LD_ARCHIVES" in text:
 anchor = '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES ${XNU_EXTRA_LD_ARCHIVES:-}"\n'
 insert = anchor + (
     '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n'
-    '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n')
+    '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n'
+    '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$ROOT/build/houji-hid/libHoujiHID.a"\n'
+    '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-hid/libHoujiHID.a"\n')
 for script in (DEVICE.parent / "unixnu" / "scripts" / "build-xnu-4k-baseline.sh",
                TREE / "scripts" / "build-xnu-4k-baseline.sh"):
     if not script.is_file():
         continue
     t = script.read_text()
-    if "libHoujiFramebuffer.a" in t:
+    if "libHoujiFramebuffer.a" in t and "libHoujiHID.a" in t:
         print(script, ": framebuffer archive already linked")
         continue
     if anchor not in t:
