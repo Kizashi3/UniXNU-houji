@@ -1,0 +1,67 @@
+name: houji root probe
+
+# Read-only survey of the iOS volumes on a Darwin runner: the LaunchDaemon plists
+# our own APFS extractor cannot decode, the stock private/var skeleton, and the
+# Setup/activation strings inside the prelinked binaries.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [input-houji-r591]
+    paths:
+      - ".github/workflows/root-probe.yml"
+      - "scripts/probe-root-files.sh"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch the firmware from the cache release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          SRC="$RUNNER_TEMP/system-source"
+          mkdir -p "$SRC/ipsw/20H392"
+          STAGE="$RUNNER_TEMP/fwstage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
+          gh release download fw-cache-20H392 --repo "$GITHUB_REPOSITORY" --dir "$STAGE"
+          python3 scripts/merged-root-fwcache.py unpack "$STAGE" "$SRC"
+          rm -rf "$STAGE"
+          ls -la "$SRC/ipsw/20H392"
+
+      - name: Survey the volumes
+        run: |
+          set -x
+          OUT=/tmp/root-probe bash "$GITHUB_WORKSPACE/scripts/probe-root-files.sh" \
+            "$RUNNER_TEMP/system-source" 2>/tmp/probe-root-files.log
+          echo "exit=$?"
+          tail -40 /tmp/probe-root-files.log || true
+
+      - name: Publish the bundle on a diagnostics branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -x
+          stage=$(mktemp -d)
+          git init -q "$stage/p"
+          git -C "$stage/p" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$stage/p" config user.name houji-ci
+          git -C "$stage/p" config user.email houji-ci@users.noreply.github.com
+          git -C "$stage/p" checkout -q -B ci-root-probe
+          mkdir -p "$stage/p/root-probe"
+          tar czf "$stage/p/root-probe/run-${GITHUB_RUN_NUMBER}.tar.gz" -C /tmp/root-probe . 2>/dev/null || true
+          cp /tmp/probe-root-files.log "$stage/p/root-probe/run-${GITHUB_RUN_NUMBER}.log" 2>/dev/null || true
+          du -sh "$stage/p/root-probe"
+          git -C "$stage/p" add -f -A
+          git -C "$stage/p" commit -q -m "root probe run ${GITHUB_RUN_NUMBER}" || true
+          git -C "$stage/p" push -f origin ci-root-probe || echo PROBE_PUSH_FAILED
