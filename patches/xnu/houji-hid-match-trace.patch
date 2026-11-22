@@ -1,0 +1,31 @@
+diff --git a/iokit/Kernel/IOUserClient.cpp b/iokit/Kernel/IOUserClient.cpp
+--- a/iokit/Kernel/IOUserClient.cpp
++++ b/iokit/Kernel/IOUserClient.cpp
+@@ -427,6 +427,27 @@
+ static void
+ IOTaskRegistryCompatibilityMatching(task_t task, OSDictionary * matching)
+ {
++	// Record only HID-related matching requests from the iOS event processes.
++	auto provider = OSDynamicCast(OSString, matching->getObject("IOProviderClass"));
++	auto properties = OSDynamicCast(OSDictionary, matching->getObject("IOPropertyMatch"));
++	const char * providerName = provider ? provider->getCStringNoCopy() : "";
++	if (!strncmp(providerName, "IOHID", 5) || !strcmp(providerName, "IOService") ||
++	    matching->getObject("HIDServiceSupport") ||
++	    (properties && properties->getObject("HIDServiceSupport"))) {
++		char name[32] = {};
++		proc_name(proc_selfpid(), name, sizeof(name));
++		if (!strcmp(name, "backboardd") || !strcmp(name, "hidd")) {
++			static unsigned traceCount;
++			if (__atomic_fetch_add(&traceCount, 1, __ATOMIC_RELAXED) < 48) {
++				IOLog("HOUJI-HIDMATCH: caller=%s provider=%s hidProperty=%d "
++				    "hasNameMatch=%d propertyCount=%u\n", name, providerName,
++				    !!(matching->getObject("HIDServiceSupport") ||
++				    (properties && properties->getObject("HIDServiceSupport"))),
++				    !!matching->getObject("IONameMatch"),
++				    properties ? properties->getCount() : 0);
++			}
++		}
++	}
+ 	matching->setObject(gIOServiceNotificationUserKey, kOSBooleanTrue);
+ 	if (!IOTaskRegistryCompatibility(task)) {
+ 		return;
