@@ -21401,21 +21401,6 @@ index 0000000..e6db930
 +} NXParsedKeyMapping;
 +
 +#endif /* !_DEV_EV_KEYMAP_H */
-diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
-index 559a9db..b23d521 100644
---- a/iokit/KernelConfigTables.cpp
-+++ b/iokit/KernelConfigTables.cpp
-@@ -43,5 +43,10 @@ const char * gIOKernelConfigTables =
-     "     'IOClass'         = IOExclaveProxy;"
-     "     'IOProviderClass' = IOService;"
-     "     'IOExclaveProxy'  = 1:32;"
-+    "   },"
-+    "   {"
-+    "     'IOClass'         = SweetHIDTouch;"
-+    "     'IOProviderClass' = IOResources;"
-+    "     'IOMatchCategory' = SweetHIDTouch;"
-     "   }"
-     ")";
 diff --git a/iokit/conf/files.arm64 b/iokit/conf/files.arm64
 index ac071ba..871317b 100644
 --- a/iokit/conf/files.arm64
