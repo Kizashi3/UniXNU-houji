@@ -11,11 +11,52 @@ on:
     paths:
       - ".github/workflows/root-probe.yml"
       - "scripts/probe-root-files.sh"
+      - "scripts/probe-merged-root.sh"
 
 permissions:
   contents: write
 
 jobs:
+  flashed:
+    # Does the root volume that is actually written to the phone still carry the
+    # mobileactivationd job, and the prefab inventory iOS 16 launches from?
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Mount merged-root-23 and read it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -x
+          OUT=/tmp/merged-root-probe bash "$GITHUB_WORKSPACE/scripts/probe-merged-root.sh" \
+            "${MR_TAG:-merged-root-23}" 2>/tmp/merged-root-probe.log
+          echo "exit=$?"
+          tail -60 /tmp/merged-root-probe.log || true
+      - name: Publish the verdict
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -x
+          stage=$(mktemp -d)
+          git init -q "$stage/p"
+          git -C "$stage/p" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$stage/p" config user.name houji-ci
+          git -C "$stage/p" config user.email houji-ci@users.noreply.github.com
+          git -C "$stage/p" checkout -q -B ci-merged-root
+          mkdir -p "$stage/p/merged-root"
+          cp -r /tmp/merged-root-probe/. "$stage/p/merged-root/" 2>/dev/null || true
+          cp /tmp/merged-root-probe.log "$stage/p/merged-root/run-${GITHUB_RUN_NUMBER}.log" 2>/dev/null || true
+          rm -f "$stage/p/merged-root/merged.raw"
+          du -sh "$stage/p/merged-root"
+          git -C "$stage/p" add -f -A
+          git -C "$stage/p" commit -q -m "merged root probe run ${GITHUB_RUN_NUMBER}" || true
+          git -C "$stage/p" push -f origin ci-merged-root || echo MR_PROBE_PUSH_FAILED
+
   probe:
     runs-on: macos-15
     timeout-minutes: 30
