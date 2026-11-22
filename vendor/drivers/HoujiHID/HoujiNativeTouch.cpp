@@ -2,16 +2,67 @@
 #include "OriginalHidDeviceABI.h"
 
 #include <IOKit/IOBufferMemoryDescriptor.h>
+#include <IOKit/IOCatalogue.h>
 #include <IOKit/IOLib.h>
 #include <IOKit/IOWorkLoop.h>
 #include <libkern/c++/OSString.h>
 #include <libkern/c++/OSSymbol.h>
 #include <libkern/c++/OSMetaClass.h>
+#include <libkern/c++/OSUnserialize.h>
 #include <libkern/OSKextLib.h>
 
 extern "C" void houji_native_touch_register_class();
 
 namespace {
+
+/* The embedded Apple catalogue lacks a digitizer personality for this SPI
+ * panel. Use the original event driver only on our device's HID interface. */
+constexpr char kTouchPersonality[] =
+    "<array><dict>"
+    "<key>CFBundleIdentifier</key><string>com.apple.iokit.IOHIDFamily</string>"
+    "<key>IOClass</key><string>IOHIDEventDriver</string>"
+    "<key>IOProviderClass</key><string>IOHIDInterface</string>"
+    "<key>IOParentMatch</key><dict>"
+        "<key>IOProviderClass</key><string>HoujiNativeTouch</string>"
+    "</dict>"
+    "<key>HIDDefaultBehavior</key><string></string>"
+    "<key>DeviceUsagePairs</key><array><dict>"
+        "<key>DeviceUsagePage</key><integer size=\"32\">13</integer>"
+        "<key>DeviceUsage</key><integer size=\"32\">4</integer>"
+    "</dict></array>"
+    "</dict></array>";
+
+bool addTouchPersonality()
+{
+    auto properties = OSUnserializeXML(kTouchPersonality);
+    auto drivers = OSDynamicCast(OSArray, properties);
+    const bool added = drivers && gIOCatalogue && gIOCatalogue->addDrivers(drivers, false);
+    OSSafeReleaseNULL(properties);
+    IOLog("HOUJI-NATIVEHID: digitizer personality added=%d\n", added);
+    return added;
+}
+
+void logTouchClients(IOService *device)
+{
+    auto interfaces = device->getClientIterator();
+    if (!interfaces) {
+        return;
+    }
+    while (auto child = OSDynamicCast(IOService, interfaces->getNextObject())) {
+        IOLog("HOUJI-NATIVEHID: device client=%s\n", child->getMetaClass()->getClassName());
+        auto clients = child->getClientIterator();
+        if (!clients) {
+            continue;
+        }
+        while (auto service = OSDynamicCast(IOService, clients->getNextObject())) {
+            IOLog("HOUJI-NATIVEHID: interface client=%s HIDServiceSupport=%d\n",
+                service->getMetaClass()->getClassName(),
+                service->getProperty("HIDServiceSupport") == kOSBooleanTrue);
+        }
+        clients->release();
+    }
+    interfaces->release();
+}
 
 constexpr uint8_t kReportID = 3;
 constexpr unsigned kContactBytes = 6;
@@ -111,6 +162,9 @@ void HoujiNativeTouch::submitFrame(const HoujiTouchContact *contacts, unsigned c
     if (count > kHoujiTouchContacts || (count == 0 && previousCount == 0)) {
         return;
     }
+    if (reportCount == 0 || reportCount == 40) {
+        logTouchClients(this);
+    }
     uint8_t report[kReportBytes] = {kReportID};
     unsigned slot = 0;
     unsigned active = 0;
@@ -165,6 +219,9 @@ extern "C" int houji_native_touch_start(IOService *provider)
     IOLog("HOUJI-NATIVEHID: metaclass registration status=0x%x\n", registered);
     if (registered != kOSReturnSuccess) {
         return registered;
+    }
+    if (!addTouchPersonality()) {
+        return kIOReturnNoResources;
     }
     auto device = OSTypeAlloc(HoujiNativeTouch);
     if (!device) {
