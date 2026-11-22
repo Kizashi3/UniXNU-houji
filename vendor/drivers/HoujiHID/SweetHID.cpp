@@ -19,6 +19,7 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IOService.h>
 #include <IOKit/IOTimerEventSource.h>
+#include <IOKit/IOWorkLoop.h>
 #include <libkern/c++/OSArray.h>
 #include <pexpert/pexpert.h>
 
@@ -49,14 +50,17 @@ bool
 IOHIDEventService::start(IOService *provider)
 {
 	IOLog("SWEET HID: base start super provider=%p\n", provider);
+	IOSleep(6000);
 	if (!super::start(provider)) {
 		IOLog("SWEET HID: base start super failed\n");
 		return false;
 	}
 	IOLog("SWEET HID: base start locks\n");
+	IOSleep(6000);
 	_clientLock = IOLockAlloc();
 	_clients = OSArray::withCapacity(2);
 	IOLog("SWEET HID: base start workloop lookup\n");
+	IOSleep(6000);
 	_hidWorkLoop = getWorkLoop();
 	IOLog("SWEET HID: base start workloop=%p lock=%p clients=%p\n", _hidWorkLoop, _clientLock, _clients);
 	if (!_clientLock || !_clients || !_hidWorkLoop) {
@@ -64,12 +68,14 @@ IOHIDEventService::start(IOService *provider)
 	}
 	_hidWorkLoop->retain();
 	IOLog("SWEET HID: base start gate\n");
+	IOSleep(6000);
 	_hidGate = IOCommandGate::commandGate(this);
 	if (!_hidGate) {
 		IOLog("SWEET HID: base start gate alloc failed\n");
 		return false;
 	}
 	IOLog("SWEET HID: base start add event source\n");
+	IOSleep(6000);
 	if (_hidWorkLoop->addEventSource(_hidGate) != kIOReturnSuccess) {
 		IOLog("SWEET HID: base start add event source failed\n");
 		return false;
@@ -555,6 +561,7 @@ extern "C" int
 sweet_hid_start(IOService *provider)
 {
 	IOLog("SWEET HID: start enter provider=%p\n", provider);
+	IOSleep(6000);
 	if (gSweetTouch) {
 		return 0;
 	}
@@ -562,21 +569,32 @@ sweet_hid_start(IOService *provider)
 		return -1;
 	}
 	IOLog("SWEET HID: start alloc\n");
+	IOSleep(6000);
 	SweetHIDTouch *touch = new SweetHIDTouch;
 	if (!touch) {
 		return -2;
 	}
 	IOLog("SWEET HID: start init\n");
+	IOSleep(6000);
 	if (!touch->init()) {
 		touch->release();
 		return -3;
 	}
 	IOLog("SWEET HID: start attach\n");
+	IOSleep(6000);
 	if (!touch->attach(provider)) {
 		touch->release();
 		return -4;
 	}
 	IOLog("SWEET HID: start super start\n");
+	IOSleep(6000);
+	IOWorkLoop *wl = IOWorkLoop::workLoop();
+	IOLog("SWEET HID: start workloop=%p\n", wl);
+	if (wl != nullptr) {
+		touch->setWorkLoop(wl);
+		wl->release();
+	}
+	IOSleep(6000);
 	if (!touch->start(provider)) {
 		touch->detach(provider);
 		touch->release();
