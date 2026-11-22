@@ -3283,6 +3283,62 @@ extern "C" boolean_t native_ufs_fill2 (vm_offset_t base, vm_size_t size)
   return true;
 }
 
+
+/* HOUJI-SPMI: read-only dump of the SPMI PMIC arbiter windows with change
+ * detection, gated on houji-spmi=1.  Nothing is written: the arbiter sits in the
+ * always-on domain and ABL already programmed it, so reads are safe while a
+ * command would need the APID mapping first.  A key press that reaches this
+ * layer shows up as a changed word in one of these windows.
+ * Windows and register offsets are the board DT's (qcom,spmi@c42d000 reg-names
+ * cnfg/core/chnls/obsrvr/intr) and Linux drivers/spmi/spmi-pmic-arb.c. */
+static void
+houjiSpmiDumpThread (void *arg, wait_result_t wr)
+{
+  struct Win { const char *name; uint64_t phys; uint32_t words; };
+  static const Win wins[5] = {
+    { "cnfg",   0x0c42d000ULL, 32 },
+    { "core",   0x0c400000ULL, 32 },
+    { "chnls",  0x0c500000ULL, 32 },
+    { "obsrvr", 0x0c440000ULL, 32 },
+    { "intr",   0x0c4c0000ULL, 32 },
+  };
+  OSSharedPtr<IOMemoryMap> keep[5];
+  uintptr_t base[5] = { 0, 0, 0, 0, 0 };
+  uint32_t snap[5][32];
+
+  (void)arg;
+  (void)wr;
+  IOSleep (70000);              /* after launchd is up, before the timed exit */
+  for (int i = 0; i < 5; i++) {
+    base[i] = mapPhys (wins[i].phys, wins[i].words * 4, keep[i]);
+    if (!base[i]) {
+      IOLog ("HOUJI-SPMI: %s map failed\n", wins[i].name);
+      continue;
+    }
+    for (uint32_t j = 0; j < wins[i].words; j++) {
+      snap[i][j] = read32 (base[i], j * 4);
+    }
+    IOLog ("HOUJI-SPMI: %s %016llx w0=%08x w1=%08x w2=%08x w3=%08x w8=%08x\n",
+        wins[i].name, (unsigned long long)wins[i].phys, snap[i][0], snap[i][1],
+        snap[i][2], snap[i][3], snap[i][8]);
+  }
+  for (int t = 0; t < 120; t++) {
+    IOSleep (1000);
+    for (int i = 0; i < 5; i++) {
+      if (!base[i]) continue;
+      for (uint32_t j = 0; j < wins[i].words; j++) {
+        uint32_t v = read32 (base[i], j * 4);
+        if (v != snap[i][j]) {
+          IOLog ("HOUJI-SPMI: %s +%#x %08x -> %08x t=%d\n", wins[i].name, j * 4,
+              snap[i][j], v, t);
+          snap[i][j] = v;
+        }
+      }
+    }
+  }
+  IOLog ("HOUJI-SPMI: dump done\n");
+}
+
 bool NativeUfs::start (IOService *provider)
 {
   unsigned probe = 0, rootMode = 0;
@@ -3296,6 +3352,16 @@ bool NativeUfs::start (IOService *provider)
   }
   unsigned diagnostic = 0;
   PE_parse_boot_argn ("native-ufs-diagnostics", &diagnostic, sizeof (diagnostic));
+  {
+    uint32_t spmi = 0;
+    if (PE_parse_boot_argn ("houji-spmi", &spmi, sizeof (spmi)) && spmi == 1) {
+      thread_t th = NULL;
+      if (kernel_thread_start (houjiSpmiDumpThread, NULL, &th) == KERN_SUCCESS) {
+        thread_deallocate (th);
+        IOLog ("HOUJI-SPMI: dump thread started\n");
+      }
+    }
+  }
   gRootDiagnosticEnabled = diagnostic == 1;
   if (probe == 2) {
     inspect ();
