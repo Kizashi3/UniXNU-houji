@@ -1,16 +1,14 @@
 diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
-index 559a9db..7427caf 100644
+index 2f374b7..65482cb 100644
 --- a/iokit/KernelConfigTables.cpp
 +++ b/iokit/KernelConfigTables.cpp
-@@ -35,6 +35,11 @@
- const char * gIOKernelConfigTables =
-     "("
-     "   {"
+@@ -105,4 +105,9 @@ const char * gIOKernelConfigTables =
+     "     'IOProbeScore'    = 500:32;"
+     "   }"
+ #endif
++    "   ,{"
 +    "     'IOClass'         = SweetHIDTouch;"
 +    "     'IOProviderClass' = IOResources;"
 +    "     'IOMatchCategory' = SweetHIDTouch;"
-+    "   },"
-+    "   {"
-     "     'IOClass'         = IOPanicPlatform;"
-     "     'IOProviderClass' = IOPlatformExpertDevice;"
-     "     'IOProbeScore'    = 0:32;"
++    "   }"
+     ")";
