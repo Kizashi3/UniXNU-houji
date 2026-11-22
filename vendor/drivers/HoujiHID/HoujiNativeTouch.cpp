@@ -7,6 +7,7 @@
 #include <libkern/c++/OSString.h>
 #include <libkern/c++/OSSymbol.h>
 #include <libkern/c++/OSMetaClass.h>
+#include <libkern/OSKextLib.h>
 
 extern "C" void houji_native_touch_register_class();
 
@@ -155,7 +156,7 @@ extern "C" int houji_native_touch_start(IOService *provider)
         IOLog("HOUJI-NATIVEHID: original IOHIDDevice not loaded\n");
         return kIOReturnNotReady;
     }
-    void *registration = OSMetaClass::preModLoad("com.apple.kernel");
+    void *registration = OSMetaClass::preModLoad(kOSKextKernelIdentifier);
     if (!registration) {
         return kIOReturnNoResources;
     }
@@ -169,11 +170,18 @@ extern "C" int houji_native_touch_start(IOService *provider)
     if (!device) {
         return kIOReturnNoMemory;
     }
-    if (!device->init() || !device->attach(provider)) {
+    if (!device->init()) {
+        IOLog("HOUJI-NATIVEHID: IOHIDDevice init failed\n");
+        device->release();
+        return kIOReturnUnsupported;
+    }
+    if (!device->attach(provider)) {
+        IOLog("HOUJI-NATIVEHID: IOHIDDevice attach failed\n");
         device->release();
         return kIOReturnUnsupported;
     }
     if (!device->start(provider)) {
+        IOLog("HOUJI-NATIVEHID: IOHIDDevice start failed\n");
         device->detach(provider);
         device->release();
         return kIOReturnNotReady;
