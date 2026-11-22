@@ -1,4 +1,9 @@
-"""Overlay the HoujiFramebuffer driver and the in-kernel HID stack."""
+"""Overlay our own HoujiFramebuffer driver and link it into the kernel.
+
+The device build compiles drivers as archives (build-arm-driver.py) and links
+them with force_load, so the driver lives under tree/drivers and is wired
+through board.toml and the kernel build script.
+"""
 import os
 import pathlib
 import re
@@ -11,47 +16,6 @@ SRC = DEVICE / "vendor" / "drivers" / "HoujiFramebuffer"
 dst = TREE / "drivers" / "HoujiFramebuffer"
 dst.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(SRC / "HoujiFramebuffer.cpp", dst / "HoujiFramebuffer.cpp")
-
-hid_src = DEVICE / "vendor" / "drivers" / "HoujiHID"
-hid_dst = TREE / "iokit" / "Kernel" / "arm" / "hid"
-if hid_src.is_dir():
-    shutil.copytree(hid_src, hid_dst, dirs_exist_ok=True)
-    files_conf = TREE / "iokit" / "conf" / "files.arm64"
-    if files_conf.is_file():
-        text = files_conf.read_text()
-        for line in (
-            "iokit/Kernel/arm/hid/SweetHID.cpp optional iokitcpp",
-            "iokit/Kernel/arm/hid/IOHIDEvent.cpp optional iokitcpp",
-            "iokit/Kernel/arm/hid/IOHIDEventServiceQueue.cpp optional iokitcpp",
-            "iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp optional iokitcpp",
-        ):
-            if line.split()[0] not in text:
-                text += line + "\n"
-        files_conf.write_text(text)
-        print("iokit/conf/files.arm64: HoujiHID sources added")
-    kct = TREE / "iokit" / "KernelConfigTables.cpp"
-    if kct.is_file():
-        text = kct.read_text()
-        if "SweetHIDTouch" not in text:
-            needle = '    ")";'
-            idx = text.rfind(needle)
-            head = text[:idx]
-            close = '    "   }"'
-            j = head.rfind(close)
-            if idx < 0 or j < 0:
-                raise SystemExit("KernelConfigTables tail not found")
-            head = head[:j] + '    "   },"' + head[j + len(close):]
-            entry = (
-                '    "   {"\n'
-                '    "     \'IOClass\'         = SweetHIDTouch;"\n'
-                '    "     \'IOProviderClass\' = IOResources;"\n'
-                '    "     \'IOMatchCategory\' = SweetHIDTouch;"\n'
-                '    "   }"\n'
-            )
-            text = head + entry + text[idx:]
-            kct.write_text(text)
-            print("KernelConfigTables: SweetHIDTouch entry added")
-    print("HoujiHID compiled into iokit")
 
 for script in (DEVICE / "scripts" / "build-arm-driver.py", TREE / "scripts" / "build-arm-driver.py"):
     if not script.is_file():
