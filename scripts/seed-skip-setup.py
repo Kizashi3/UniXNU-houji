@@ -165,6 +165,23 @@ def main():
         os.chown(internal / 'data_ark.plist', MOBILE, MOBILE)
         print('activation ark', ark_uuid)
 
+        if os.environ.get('HOUJI_PROBE_AGENT') == '1':
+            # A user LaunchAgent that answers questions through the kernel console
+            # ring, which is the only channel we can read back from Linux.
+            la = mount / 'mobile/Library/LaunchAgents'
+            la.mkdir(parents=True, exist_ok=True)
+            cmd = ('sleep 60; { echo HOUJI-PROBE-BEGIN; id; '
+                   'ls -l /private/var/preferences; '
+                   'ls -l /private/var/mobile/Library/LaunchAgents; '
+                   'launchctl list | head -140; echo HOUJI-PROBE-END; } > /dev/console 2>&1')
+            tgt = la / 'com.houji.probe.plist'
+            tgt.write_bytes(plistlib.dumps({'Label': 'com.houji.probe',
+                'ProgramArguments': ['/bin/sh', '-c', cmd],
+                'RunAtLoad': True, 'UserName': 'mobile'}, fmt=plistlib.FMT_XML))
+            os.chmod(tgt, 0o644)
+            os.chown(tgt, MOBILE, MOBILE)
+            print('probe agent installed')
+
         db = mount / 'db/com.apple.xpc.launchd'
         db.mkdir(parents=True, exist_ok=True)
         if keep_services:
