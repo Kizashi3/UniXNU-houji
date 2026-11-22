@@ -1,9 +1,4 @@
-"""Overlay our own HoujiFramebuffer driver and link it into the kernel.
-
-The device build compiles drivers as archives (build-arm-driver.py) and links
-them with force_load, so the driver lives under tree/drivers and is wired
-through board.toml and the kernel build script.
-"""
+"""Overlay the HoujiFramebuffer driver and the in-kernel HID stack."""
 import os
 import pathlib
 import re
@@ -18,13 +13,45 @@ dst.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(SRC / "HoujiFramebuffer.cpp", dst / "HoujiFramebuffer.cpp")
 
 hid_src = DEVICE / "vendor" / "drivers" / "HoujiHID"
+hid_dst = TREE / "iokit" / "Kernel" / "arm" / "hid"
 if hid_src.is_dir():
-    shutil.copytree(hid_src, TREE / "drivers" / "HoujiHID", dirs_exist_ok=True)
-    hid_builder = DEVICE / "scripts" / "build-houji-hid.py"
-    if hid_builder.is_file():
-        shutil.copyfile(hid_builder, TREE / "scripts" / "build-houji-hid.py")
-        (TREE / "scripts" / "build-houji-hid.py").chmod(0o755)
-    print("HoujiHID overlay copied")
+    shutil.copytree(hid_src, hid_dst, dirs_exist_ok=True)
+    files_conf = TREE / "iokit" / "conf" / "files.arm64"
+    if files_conf.is_file():
+        text = files_conf.read_text()
+        for line in (
+            "iokit/Kernel/arm/hid/SweetHID.cpp optional iokitcpp",
+            "iokit/Kernel/arm/hid/IOHIDEvent.cpp optional iokitcpp",
+            "iokit/Kernel/arm/hid/IOHIDEventServiceQueue.cpp optional iokitcpp",
+            "iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp optional iokitcpp",
+        ):
+            if line.split()[0] not in text:
+                text += line + "\n"
+        files_conf.write_text(text)
+        print("iokit/conf/files.arm64: HoujiHID sources added")
+    kct = TREE / "iokit" / "KernelConfigTables.cpp"
+    if kct.is_file():
+        text = kct.read_text()
+        if "SweetHIDTouch" not in text:
+            needle = '    ")";'
+            idx = text.rfind(needle)
+            head = text[:idx]
+            close = '    "   }"'
+            j = head.rfind(close)
+            if idx < 0 or j < 0:
+                raise SystemExit("KernelConfigTables tail not found")
+            head = head[:j] + '    "   },"' + head[j + len(close):]
+            entry = (
+                '    "   {"\n'
+                '    "     \'IOClass\'         = SweetHIDTouch;"\n'
+                '    "     \'IOProviderClass\' = IOResources;"\n'
+                '    "     \'IOMatchCategory\' = SweetHIDTouch;"\n'
+                '    "   }"\n'
+            )
+            text = head + entry + text[idx:]
+            kct.write_text(text)
+            print("KernelConfigTables: SweetHIDTouch entry added")
+    print("HoujiHID compiled into iokit")
 
 for script in (DEVICE / "scripts" / "build-arm-driver.py", TREE / "scripts" / "build-arm-driver.py"):
     if not script.is_file():
@@ -46,13 +73,6 @@ if "build-arm-driver.py HoujiFramebuffer" not in text:
     board.write_text(text)
     print("board.toml: HoujiFramebuffer archive added")
 
-if "build-houji-hid.py" not in text:
-    match = re.search(r"archives = \[\n", text)
-    if match:
-        text = text[:match.end()] + '  "build-houji-hid.py",\n' + text[match.end():]
-        board.write_text(text)
-        print("board.toml: HoujiHID archive added")
-
 conf = DEVICE / "configs" / "houji_defconfig"
 text = conf.read_text()
 if "CONFIG_XNU_EXTRA_LD_ARCHIVES" in text:
@@ -63,15 +83,13 @@ if "CONFIG_XNU_EXTRA_LD_ARCHIVES" in text:
 anchor = '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES ${XNU_EXTRA_LD_ARCHIVES:-}"\n'
 insert = anchor + (
     '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n'
-    '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n'
-    '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$ROOT/build/houji-hid/libHoujiHID.a"\n'
-    '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-hid/libHoujiHID.a"\n')
+    '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n')
 for script in (DEVICE.parent / "unixnu" / "scripts" / "build-xnu-4k-baseline.sh",
                TREE / "scripts" / "build-xnu-4k-baseline.sh"):
     if not script.is_file():
         continue
     t = script.read_text()
-    if "libHoujiFramebuffer.a" in t and "libHoujiHID.a" in t:
+    if "libHoujiFramebuffer.a" in t:
         print(script, ": framebuffer archive already linked")
         continue
     if anchor not in t:
