@@ -84,6 +84,40 @@ if one:
     echo "NO /System/Library/xpc/launchd.plist"
   fi
 
+  echo "-- full LaunchDaemons listing (sizes vs the stock DMG)"
+  ls -l "$MNT/System/Library/LaunchDaemons" >"$OUT/launchdaemons-ls.txt" 2>&1
+
+  echo "-- launchd inventory tree state vs the files on disk"
+  python3 - "$INV" "$MNT/System/Library/LaunchDaemons" >"$OUT/treestate.txt" 2>&1 <<'PY'
+import os, plistlib, sys
+inv, ld = sys.argv[1], sys.argv[2]
+d = plistlib.load(open(inv, 'rb'))
+ts = d.get('SystemLibraryTreeState')
+print('type', type(ts).__name__, 'len', len(ts) if hasattr(ts, '__len__') else '?')
+if isinstance(ts, dict):
+    for i, (k, v) in enumerate(ts.items()):
+        if i < 3:
+            print('sample', repr(k), '->', repr(v)[:300])
+    bad = []
+    for k, v in ts.items():
+        if 'LaunchDaemons' not in str(k):
+            continue
+        p = os.path.join(ld, os.path.basename(str(k)))
+        if not os.path.exists(p):
+            bad.append((str(k), 'missing-on-disk', v))
+            continue
+        sz = os.path.getsize(p)
+        rec = None
+        if isinstance(v, dict):
+            for key in ('size', 'st_size', 'bytes'):
+                if key in v:
+                    rec = v[key]
+        if rec is not None and int(rec) != sz:
+            bad.append((str(k), 'recorded=%s disk=%s' % (rec, sz)))
+    print('LaunchDaemons entries compared, mismatched:', len(bad))
+    for b in bad[:40]:
+        print('  ', b)
+PY
   echo "-- MobileGestalt cache and activation places on the root"
   ls -l "$MNT/System/Library/MobileGestalt" 2>&1 | head -5
   find "$MNT/private/var" -maxdepth 3 2>/dev/null | head -20
