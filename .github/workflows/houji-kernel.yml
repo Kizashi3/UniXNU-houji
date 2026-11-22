@@ -6,6 +6,15 @@ on:
       - kernel-cs-bypass
       - merged-root-kernel
       - input-houji-r591
+    # Seed and probe workflow edits cannot change the kernel image; do not spend a
+    # 13-minute kernel build on them.
+    paths-ignore:
+      - scripts/seed-skip-setup.py
+      - scripts/probe-cache-tokens.py
+      - scripts/probe-root-files.sh
+      - scripts/probe-merged-root.sh
+      - .github/workflows/data-seed-2g.yml
+      - .github/workflows/root-probe.yml
   workflow_dispatch:
     inputs:
       xcode:
