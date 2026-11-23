@@ -14,7 +14,7 @@ out = ROOT / "build/houji-hid"
 out.mkdir(parents=True, exist_ok=True)
 names = ["IOHIDEvent.cpp", "IOHIDEventServiceQueue.cpp", "IOHIDEventServiceUserClient.cpp", "SweetHID.cpp", "HoujiNativeTouch.cpp"]
 hs = src_dir / "hidsystem"
-names += [str(x.relative_to(src_dir)) for x in sorted(hs.glob("*.cpp")) if x.name not in {"IOBSDConsole.cpp", "IOHIDIO.cpp"}]
+names += [str(x.relative_to(src_dir)) for x in sorted(hs.glob("*.cpp")) if x.name not in {"IOBSDConsole.cpp", "IOHIDIO.cpp", "IOHIDDeviceShim.cpp", "IOHIDPointingDevice.cpp", "IOHIDKeyboardDevice.cpp", "IOHIDPointingEventDevice.cpp", "IOHIDKeyboardEventDevice.cpp"}]
 def verify_native_vtable(source, manifest):
     image = source.read_bytes()
     if struct.unpack_from("<IIII", image) != (0xfeedfacf, 0x0100000c, 0, 1):
