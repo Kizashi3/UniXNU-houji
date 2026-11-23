@@ -1,12 +1,12 @@
 name: houji A750 GPU kernel
 
-# Build the GPU-capable Darwin 22 tree from lonzzi/UniXNU-houji on an
-# macOS runner. blacktop/darwin-xnu-build supplies the matching KDK and
-# the Apple-userland fakeroot; this workflow only adds Houji's pinned overlay.
+# Build the pinned Darwin 22 kernel from lonzzi/UniXNU-houji without mixing
+# blacktop's generic Ventura patch series into Houji's own patch. blacktop is
+# used only for the KDK, MIG/CTF tools and fakeroot dependency build.
 on:
   workflow_dispatch:
   push:
-    branches: [codex/gpu-a750-r1]
+    branches: [codex/gpu-a750-r3]
     paths:
       - .github/workflows/houji-gpu-a750-kernel.yml
 
@@ -14,13 +14,19 @@ permissions:
   contents: write
 
 concurrency:
-  group: houji-a750-kernel-${{ github.ref }}
+  group: houji-a750-kernel-r3-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   DXB_REPO: https://github.com/blacktop/darwin-xnu-build
   DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
+  PORT_REPO: https://github.com/lonzzi/UniXNU-houji
   PORT_SHA: 99beb109d66d24d3a1780901cb8958ec3fb24b06
+  XNU_REPO: https://github.com/apple-oss-distributions/xnu
+  # This is the peeled xnu-8796.141.3 commit, the exact revision pinned by
+  # lonzzi/UniXNU-houji. Adreno740 is the historical source directory name;
+  # the hardware and firmware generation here are Adreno 750 / gen70900.
+  XNU_SHA: 1b191cb58250d0705d8a51287127505aa4bc0789
   MACOS_VERSION: "13.5"
   KERNEL_CONFIG: DEVELOPMENT
   MACHINE_CONFIG: SWEET
@@ -37,7 +43,7 @@ jobs:
       - name: Check out pinned Houji GPU sources
         uses: actions/checkout@v4
         with:
-          repository: lonzzi/UniXNU-houji
+          repository: ${{ env.PORT_REPO }}
           ref: ${{ env.PORT_SHA }}
           path: port
           persist-credentials: false
@@ -49,6 +55,16 @@ jobs:
           git -C dxb remote add origin "$DXB_REPO"
           git -C dxb fetch -q --depth 1 origin "$DXB_SHA"
           git -C dxb checkout -q FETCH_HEAD
+
+      - name: Check out the exact XNU revision
+        run: |
+          set -euo pipefail
+          git init -q dxb/xnu
+          git -C dxb/xnu remote add origin "$XNU_REPO"
+          git -C dxb/xnu fetch -q --depth 1 origin "$XNU_SHA"
+          git -C dxb/xnu checkout -q FETCH_HEAD
+          test "$(git -C dxb/xnu rev-parse HEAD)" = "$XNU_SHA"
+          git -C dxb/xnu describe --tags --exact-match
 
       - uses: actions/setup-python@v5
         with:
@@ -62,17 +78,27 @@ jobs:
           sudo chmod +x /usr/local/bin/xcodes
           if compgen -G '/Applications/Xcode_15*.app' >/dev/null; then
             XC=$(ls -d /Applications/Xcode_15*.app | sort -V | tail -1)
-            echo "using Xcode 15.x for the xnu-8796 IORPC ABI"
+            echo "using Xcode 15.x"
           else
             XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
-            echo "warning: Xcode 15.x is absent; trying the newest runner Xcode"
+            echo "warning: Xcode 15.x is absent; using the newest runner Xcode"
           fi
           echo "DEVELOPER_DIR=$XC/Contents/Developer" >> "$GITHUB_ENV"
           sudo xcode-select -s "$XC"
           xcodebuild -version
-          xcrun --find iig
 
-      - name: Prepare firmware headers
+      - name: Apply the original Houji patch and A750 overlay
+        run: |
+          set -euo pipefail
+          git -C dxb/xnu apply --check "$GITHUB_WORKSPACE/port/kernel/patches/local.patch"
+          git -C dxb/xnu apply "$GITHUB_WORKSPACE/port/kernel/patches/local.patch"
+          ditto "$GITHUB_WORKSPACE/port/kernel/overlay/" "$GITHUB_WORKSPACE/dxb/xnu/"
+          grep -q 'houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp' dxb/xnu/iokit/conf/files
+          test -f dxb/xnu/config/MASTER.arm64.sweet
+          test -f dxb/xnu/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
+          python3 port/tools/check-trial-bindings.py dxb/xnu
+
+      - name: Prepare A750 firmware headers
         run: |
           set -euo pipefail
           mkdir -p fw
@@ -106,59 +132,65 @@ jobs:
             --gmu fw/gmu_gen70900.bin \
             --sqe fw/gen70900_sqe.fw \
             --aqe fw/gen70900_aqe.fw \
-            --output port/kernel/overlay/iokit/Kernel/houji-ufs-root
+            --output dxb/xnu/iokit/Kernel/houji-ufs-root
+          grep -q 'gen70900' dxb/xnu/iokit/Kernel/houji-ufs-root/HoujiGmuFirmwareImage.h
 
-      - name: Install GPU patch and overlay hook
+      - name: Build MIG, CTF and fakeroot dependencies
         run: |
           set -euo pipefail
-          cp port/kernel/patches/local.patch dxb/patches/zz-houji-a750.patch
           python3 - <<'PY'
           from pathlib import Path
 
           path = Path("dxb/build.sh")
           text = path.read_text()
-          anchor = "build_bootstrap_cmds() {"
-          assert text.count(anchor) == 1
-          overlay = '''overlay_houji() {
-              running "Overlaying pinned Houji A750 sources"
-              test -d "${HOUJI_OVERLAY:?}"
-              ditto "${HOUJI_OVERLAY}/" "${WORK_DIR}/xnu/"
-              grep -q 'houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp' "${WORK_DIR}/xnu/iokit/conf/files"
-              test -f "${WORK_DIR}/xnu/config/MASTER.arm64.sweet"
-          }
-
-          '''
-          text = text.replace(anchor, overlay + anchor, 1)
           needle = "    patches\n    venv\n"
           assert text.count(needle) == 1
-          text = text.replace(needle, "    patches\n    overlay_houji\n    venv\n", 1)
+          text = text.replace(
+              needle,
+              "    info \"Skipping blacktop generic XNU patches; Houji patch is already applied\"\n    venv\n",
+              1,
+          )
+          needle = "        build_xnu\n"
+          assert text.count(needle) == 1
+          text = text.replace(
+              needle,
+              "        info \"Kernel compile delegated to lonzzi Houji build-kernel.sh\"\n",
+              1,
+          )
           path.write_text(text)
           PY
-          grep -n -A8 -B2 'overlay_houji' dxb/build.sh
+          grep -n -A5 -B3 'Skipping blacktop generic' dxb/build.sh
+          bash dxb/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-deps.log"
 
-      - name: Build XNU with A750 GPU support
+      - name: Compile the pinned A750 kernel
         env:
-          HOUJI_OVERLAY: ${{ github.workspace }}/port/kernel/overlay
-        working-directory: dxb
+          HOUJI_XNU: ${{ github.workspace }}/dxb/xnu
+          HOUJI_KDK: /Library/Developer/KDKs/KDK_13.5_22G74.kdk/Payload
+          HOUJI_FAKEROOT: ${{ github.workspace }}/dxb/fakeroot
+          HOUJI_BUILD_ROOT: ${{ github.workspace }}/dxb/build/houji-kernel
+          HOUJI_JOBS: "8"
         run: |
-          set -o pipefail
-          bash build.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-build.log"
-          status=${PIPESTATUS[0]}
-          exit "$status"
+          set -euo pipefail
+          test -d "$HOUJI_KDK/System/Library/KernelSupport"
+          test -x "$HOUJI_FAKEROOT/usr/local/bin/ctfconvert"
+          test -x port/tools/iig-darwin22.py
+          bash port/tools/build-kernel.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-build.log"
 
       - name: Collect kernel and reports
         if: always()
         run: |
           set -euo pipefail
           mkdir -p out
-          cp -a dxb/build/xnu.obj/kernel.development.sweet out/ 2>/dev/null || true
-          cp -a dxb/fakeroot/System/Library/Kernels/kernel.development.sweet out/ 2>/dev/null || true
-          cp -a a750-kernel-build.log out/ 2>/dev/null || true
-          find dxb/build -maxdepth 3 -type f \( -name 'kernel.*' -o -name '*.log' \) -print > out/files.txt 2>/dev/null || true
+          cp -a dxb/build/houji-kernel/xnu.obj/kernel.development.sweet out/ 2>/dev/null || true
+          cp -a dxb/build/houji-kernel/fakeroot/System/Library/Kernels/kernel.development.sweet out/ 2>/dev/null || true
+          cp -a a750-kernel-build.log a750-kernel-deps.log out/ 2>/dev/null || true
           if test -f out/kernel.development.sweet; then
             file out/kernel.development.sweet
+            lipo -info out/kernel.development.sweet || true
             shasum -a 256 out/kernel.development.sweet | tee out/kernel.development.sweet.sha256
-            strings out/kernel.development.sweet | grep -E 'HoujiAdreno750|HoujiGpu|HOUJI' | tail -40 > out/gpu-markers.txt || true
+            strings out/kernel.development.sweet | grep -E 'HoujiAdreno750|Adreno750|HoujiAdreno|NativeAdreno|gen70900|HOUJI' | sort -u | tail -80 > out/gpu-markers.txt || true
+            grep -E 'HoujiAdreno750|Adreno750|NativeAdreno' out/gpu-markers.txt > out/a750-markers.txt
+            test -s out/a750-markers.txt
           fi
           ls -lah out
 
@@ -180,7 +212,7 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release delete "$tag" --yes
           fi
-          gh release create "$tag" --title "$tag" --notes "A750 GPU Darwin 22 kernel build for $GITHUB_SHA"
+          gh release create "$tag" --title "$tag" --notes "A750 gen70900 GPU Darwin 22 kernel build for $GITHUB_SHA"
           for f in out/*; do
             gh release upload "$tag" "$f" --clobber || true
           done
