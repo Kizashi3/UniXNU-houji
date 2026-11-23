@@ -13,6 +13,8 @@ src_dir = ROOT / "drivers/HoujiHID"
 out = ROOT / "build/houji-hid"
 out.mkdir(parents=True, exist_ok=True)
 names = ["IOHIDEvent.cpp", "IOHIDEventServiceQueue.cpp", "IOHIDEventServiceUserClient.cpp", "SweetHID.cpp", "HoujiNativeTouch.cpp"]
+hs = src_dir / "hidsystem"
+names += [str(x.relative_to(src_dir)) for x in sorted(hs.glob("*.cpp"))]
 def verify_native_vtable(source, manifest):
     image = source.read_bytes()
     if struct.unpack_from("<IIII", image) != (0xfeedfacf, 0x0100000c, 0, 1):
@@ -79,7 +81,7 @@ for name in names:
         elif not value.startswith("-W"):
             cmd.append(value)
         i += 1
-    cmd += ["-I", str(src_dir), "-Wno-error", "-Wno-unused-parameter", "-Wno-sign-conversion",
+    cmd += ["-I", str(src_dir), "-I", str(hs), "-I", str(hs / "IOKit"), "-I", str(hs / "IOKit" / "hidsystem"), "-I", str(hs / "IOHIDFamilyHeaders"), "-Wno-error", "-Wno-unused-parameter", "-Wno-sign-conversion",
             "-Wno-unused-function", "-Wno-deprecated-volatile", "-Wno-missing-field-initializers"]
     if name == "HoujiNativeTouch.cpp":
         cmd += ["-fno-c++-static-destructors"]
