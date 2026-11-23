@@ -105,13 +105,19 @@ jobs:
 
       - name: Install the matching Darwin 22 KDK
         run: |
-          set -euo pipefail
+          set -euxo pipefail
+          exec > >(tee "$GITHUB_WORKSPACE/kdk-install.log") 2>&1
           dmg="$RUNNER_TEMP/${KDK_BUILD}.dmg"
-          curl -L --retry 5 --retry-all-errors --connect-timeout 30 -o "$dmg" "$KDK_URL"
-          echo "$KDK_SHA256  $dmg" | shasum -a 256 -c -
-          attach=$(hdiutil attach -nobrowse -readonly "$dmg")
-          mount=$(printf '%s\n' "$attach" | awk -F '\t' 'NF>=3 && $3 ~ /^\/Volumes\// {print $3}' | tail -1)
-          test -d "$mount"
+          mount="$RUNNER_TEMP/kdk-mount"
+          mkdir -p "$mount"
+          trap 'hdiutil detach "$mount" -force >/dev/null 2>&1 || true' EXIT
+          curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 30 --max-time 900 -o "$dmg" "$KDK_URL"
+          ls -lh "$dmg"
+          actual=$(shasum -a 256 "$dmg" | awk '{print $1}')
+          echo "KDK sha256 actual=$actual expected=$KDK_SHA256"
+          test "$actual" = "$KDK_SHA256"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$dmg"
+          find "$mount" -maxdepth 2 -print
           kdk_root=$(find "$mount" -maxdepth 3 -type d -name "${KDK_BUILD}.kdk" -print -quit)
           if [ -z "$kdk_root" ]; then
             pkg=$(find "$mount" -maxdepth 3 -name '*.pkg' -print -quit)
@@ -125,11 +131,15 @@ jobs:
               kdk_root="/Library/Developer/KDKs/${KDK_BUILD}.kdk"
             fi
           fi
+          if [ -z "$kdk_root" ]; then
+            kdk_root=$(find /Library/Developer/KDKs -maxdepth 1 -type d -name "${KDK_BUILD}*.kdk" -print -quit)
+          fi
           if [ -n "$kdk_root" ] && [ "$kdk_root" != "${kdk_root#$mount}" ]; then
             cp -a "$kdk_root" "$RUNNER_TEMP/${KDK_BUILD}.kdk"
             kdk_root="$RUNNER_TEMP/${KDK_BUILD}.kdk"
           fi
-          hdiutil detach "$mount" -quiet || true
+          hdiutil detach "$mount" -force
+          trap - EXIT
           test -n "$kdk_root"
           test -d "$kdk_root/Payload/System/Library/KernelSupport"
           echo "HOUJI_KDK=$kdk_root/Payload" >> "$GITHUB_ENV"
@@ -242,6 +252,7 @@ jobs:
           cp -a dxb/build/houji-kernel/xnu.obj/kernel.development.sweet out/ 2>/dev/null || true
           cp -a dxb/build/houji-kernel/fakeroot/System/Library/Kernels/kernel.development.sweet out/ 2>/dev/null || true
           cp -a a750-kernel-build.log a750-kernel-deps.log out/ 2>/dev/null || true
+          cp -a kdk-install.log out/ 2>/dev/null || true
           if test -f out/kernel.development.sweet; then
             file out/kernel.development.sweet
             lipo -info out/kernel.development.sweet || true
