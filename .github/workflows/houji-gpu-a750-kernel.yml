@@ -1,0 +1,180 @@
+name: houji A750 GPU kernel
+
+# Build the GPU-capable Darwin 22 tree from lonzzi/UniXNU-houji on an
+# Intel-macOS runner. blacktop/darwin-xnu-build supplies the matching KDK and
+# the Apple-userland fakeroot; this workflow only adds Houji's pinned overlay.
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/gpu-a750-r1]
+    paths:
+      - .github/workflows/houji-gpu-a750-kernel.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: houji-a750-kernel-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DXB_REPO: https://github.com/blacktop/darwin-xnu-build
+  DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
+  PORT_SHA: 99beb109d66d24d3a1780901cb8958ec3fb24b06
+  MACOS_VERSION: "13.5"
+  KERNEL_CONFIG: DEVELOPMENT
+  MACHINE_CONFIG: SWEET
+  QCOM_PKG_URL: https://geo.mirror.pkgbuild.com/core/os/x86_64/linux-firmware-qcom-20261019-1-any.pkg.tar.zst
+
+jobs:
+  kernel:
+    runs-on: macos-14
+    timeout-minutes: 300
+    steps:
+      - name: Check out device repository
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Houji GPU sources
+        uses: actions/checkout@v4
+        with:
+          repository: lonzzi/UniXNU-houji
+          ref: ${{ env.PORT_SHA }}
+          path: port
+          persist-credentials: false
+
+      - name: Check out XNU build helper
+        run: |
+          set -euo pipefail
+          git init -q dxb
+          git -C dxb remote add origin "$DXB_REPO"
+          git -C dxb fetch -q --depth 1 origin "$DXB_SHA"
+          git -C dxb checkout -q FETCH_HEAD
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install host tools
+        run: |
+          set -euo pipefail
+          brew install jq gum bash cmake ninja zstd
+          printf '#!/bin/sh\nexit 0\n' | sudo tee /usr/local/bin/xcodes >/dev/null
+          sudo chmod +x /usr/local/bin/xcodes
+          XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "DEVELOPER_DIR=$XC/Contents/Developer" >> "$GITHUB_ENV"
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+          xcrun --find iig
+
+      - name: Prepare firmware headers
+        run: |
+          set -euo pipefail
+          mkdir -p fw
+          curl -L --retry 4 --connect-timeout 30 -o fw/qcom.pkg.tar.zst "$QCOM_PKG_URL"
+          tar -xf fw/qcom.pkg.tar.zst -C fw \
+            usr/lib/firmware/qcom/gmu_gen70900.bin.zst \
+            usr/lib/firmware/qcom/gen70900_sqe.fw.zst \
+            usr/lib/firmware/qcom/gen70900_aqe.fw.zst
+          zstd -d -f fw/usr/lib/firmware/qcom/gmu_gen70900.bin.zst -o fw/gmu_gen70900.bin
+          zstd -d -f fw/usr/lib/firmware/qcom/gen70900_sqe.fw.zst -o fw/gen70900_sqe.fw
+          zstd -d -f fw/usr/lib/firmware/qcom/gen70900_aqe.fw.zst -o fw/gen70900_aqe.fw
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          pins = Path("port/kernel/firmware-inputs.json")
+          data = json.loads(pins.read_text())
+          for symbol, name in (
+              ("gHoujiGmuFirmwareImage", "gmu_gen70900.bin"),
+              ("gHoujiSqeFirmwareImage", "gen70900_sqe.fw"),
+              ("gHoujiAqeFirmwareImage", "gen70900_aqe.fw"),
+          ):
+              payload = (Path("fw") / name).read_bytes()
+              data[symbol]["bytes"] = len(payload)
+              data[symbol]["sha256"] = hashlib.sha256(payload).hexdigest()
+              print(symbol, len(payload), data[symbol]["sha256"])
+          pins.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+          python3 port/tools/make-firmware-headers.py \
+            --gmu fw/gmu_gen70900.bin \
+            --sqe fw/gen70900_sqe.fw \
+            --aqe fw/gen70900_aqe.fw \
+            --output port/kernel/overlay/iokit/Kernel/houji-ufs-root
+
+      - name: Install GPU patch and overlay hook
+        run: |
+          set -euo pipefail
+          cp port/kernel/patches/local.patch dxb/patches/zz-houji-a750.patch
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("dxb/build.sh")
+          text = path.read_text()
+          anchor = "build_bootstrap_cmds() {"
+          assert text.count(anchor) == 1
+          overlay = '''overlay_houji() {
+              running "Overlaying pinned Houji A750 sources"
+              test -d "${HOUJI_OVERLAY:?}"
+              ditto "${HOUJI_OVERLAY}/" "${WORK_DIR}/xnu/"
+              grep -q 'houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp' "${WORK_DIR}/xnu/iokit/conf/files"
+              test -f "${WORK_DIR}/xnu/config/MASTER.arm64.sweet"
+          }
+
+          '''
+          text = text.replace(anchor, overlay + anchor, 1)
+          needle = "    patches\n    venv\n"
+          assert text.count(needle) == 1
+          text = text.replace(needle, "    patches\n    overlay_houji\n    venv\n", 1)
+          path.write_text(text)
+          PY
+          grep -n -A8 -B2 'overlay_houji' dxb/build.sh
+
+      - name: Build XNU with A750 GPU support
+        env:
+          HOUJI_OVERLAY: ${{ github.workspace }}/port/kernel/overlay
+        working-directory: dxb
+        run: |
+          set -o pipefail
+          bash build.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-build.log"
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Collect kernel and reports
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cp -a dxb/build/xnu.obj/kernel.development.sweet out/ 2>/dev/null || true
+          cp -a dxb/fakeroot/System/Library/Kernels/kernel.development.sweet out/ 2>/dev/null || true
+          cp -a a750-kernel-build.log out/ 2>/dev/null || true
+          find dxb/build -maxdepth 3 -type f \( -name 'kernel.*' -o -name '*.log' \) -print > out/files.txt 2>/dev/null || true
+          if test -f out/kernel.development.sweet; then
+            file out/kernel.development.sweet
+            shasum -a 256 out/kernel.development.sweet | tee out/kernel.development.sweet.sha256
+            strings out/kernel.development.sweet | grep -E 'HoujiAdreno750|HoujiGpu|HOUJI' | tail -40 > out/gpu-markers.txt || true
+          fi
+          ls -lah out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: houji-a750-kernel-r${{ github.run_number }}
+          path: out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish easy-to-fetch kernel release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="a750-kernel-r${GITHUB_RUN_NUMBER}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --yes
+          fi
+          gh release create "$tag" --title "$tag" --notes "A750 GPU Darwin 22 kernel build for $GITHUB_SHA"
+          for f in out/*; do
+            gh release upload "$tag" "$f" --clobber || true
+          done
