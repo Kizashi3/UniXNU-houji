@@ -1,0 +1,5 @@
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiAdsp.cpp:7:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiCmdDb.h:48:38: warning: missing field 'levels' initializer [-Wmissing-field-initializers]
+   48 |             QcomRpmhResource value={0};value.address=houji_cmd_u32(entry+16);
+      |                                      ^
+1 warning generated.

@@ -1,0 +1,1031 @@
+run 734 commit 8b979de84e636bd842469e9630e9af313910dac8
+Submodule 'drivers/Adreno740' (https://github.com/UniXNU/Adreno740.git) registered for path 'drivers/Adreno740'
+Submodule 'drivers/AdrenoMetal' (https://github.com/UniXNU/AdrenoMetal.git) registered for path 'drivers/AdrenoMetal'
+Submodule 'drivers/AppleKeyStoreState' (https://github.com/UniXNU/AppleKeyStoreState.git) registered for path 'drivers/AppleKeyStoreState'
+Submodule 'drivers/ArmCpu' (https://github.com/UniXNU/ArmCpu.git) registered for path 'drivers/ArmCpu'
+Submodule 'drivers/ArmDTPlatform' (https://github.com/UniXNU/ArmDTPlatform.git) registered for path 'drivers/ArmDTPlatform'
+Submodule 'drivers/ArmVirtPlatform' (https://github.com/UniXNU/ArmVirtPlatform.git) registered for path 'drivers/ArmVirtPlatform'
+Submodule 'drivers/DarwinBoot' (https://github.com/UniXNU/DarwinBoot.git) registered for path 'drivers/DarwinBoot'
+Submodule 'drivers/GopFramebuffer' (https://github.com/UniXNU/GopFramebuffer.git) registered for path 'drivers/GopFramebuffer'
+Submodule 'drivers/QcomBaseband' (https://github.com/UniXNU/QcomBaseband.git) registered for path 'drivers/QcomBaseband'
+Submodule 'drivers/QcomGeniSpi' (https://github.com/UniXNU/QcomGeniSpi.git) registered for path 'drivers/QcomGeniSpi'
+Submodule 'drivers/RamBlock' (https://github.com/UniXNU/RamBlock.git) registered for path 'drivers/RamBlock'
+Submodule 'drivers/SoftwareAES' (https://github.com/UniXNU/SoftwareAES.git) registered for path 'drivers/SoftwareAES'
+Submodule 'drivers/VirtioMmioBlock' (https://github.com/UniXNU/VirtioMmioBlock.git) registered for path 'drivers/VirtioMmioBlock'
+Submodule 'drivers/VirtioMmioConsole' (https://github.com/UniXNU/VirtioMmioConsole.git) registered for path 'drivers/VirtioMmioConsole'
+Submodule 'kits/AdrenoFirmware' (https://github.com/UniXNU/AdrenoFirmware.git) registered for path 'kits/AdrenoFirmware'
+Submodule 'kits/AdrenoPM4' (https://github.com/UniXNU/AdrenoPM4.git) registered for path 'kits/AdrenoPM4'
+Submodule 'kits/AirNir' (https://github.com/UniXNU/AirNir.git) registered for path 'kits/AirNir'
+Submodule 'kits/ArmSmmu4K' (https://github.com/UniXNU/ArmSmmu4K.git) registered for path 'kits/ArmSmmu4K'
+Submodule 'kits/VerifiedRoot' (https://github.com/UniXNU/VerifiedRoot.git) registered for path 'kits/VerifiedRoot'
+Submodule 'kits/XnuPrelink' (https://github.com/UniXNU/XnuPrelink.git) registered for path 'kits/XnuPrelink'
+unixnu: retargeting drivers/ArmCpu from the dangling pin to a823383a8e111a22ec153d94373fdae732445bc2
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/Adreno740'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/AdrenoMetal'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/AppleKeyStoreState'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmCpu'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmDTPlatform'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmVirtPlatform'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/DarwinBoot'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/GopFramebuffer'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/QcomBaseband'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/QcomGeniSpi'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/RamBlock'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/SoftwareAES'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/VirtioMmioBlock'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/VirtioMmioConsole'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/AdrenoFirmware'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/AdrenoPM4'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/AirNir'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/ArmSmmu4K'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/VerifiedRoot'...
+Cloning into '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/XnuPrelink'...
+Submodule path 'drivers/Adreno740': checked out '6fa7bae2a5b3b523e790eb3e0348af4d98969e4d'
+Submodule path 'drivers/AdrenoMetal': checked out '6416a76e0a287d85afbcddda21192388460e155c'
+Submodule path 'drivers/AppleKeyStoreState': checked out '42ff83e08b2265fe741d4adaf084bebe003452ba'
+Submodule path 'drivers/ArmCpu': checked out 'a823383a8e111a22ec153d94373fdae732445bc2'
+Submodule path 'drivers/ArmDTPlatform': checked out '417ff95d6a6e8607ddea9309ec45c3bfd4a67c60'
+Submodule path 'drivers/ArmVirtPlatform': checked out 'd1423a8bceac4be0478a93d9173587111c040084'
+Submodule path 'drivers/DarwinBoot': checked out '3c75734014cdab0acd9541e88057b7606ee7ae08'
+Submodule path 'drivers/GopFramebuffer': checked out 'e47c1b8de169cd2bd0b885c7d85e433010e3cdf2'
+Submodule path 'drivers/QcomBaseband': checked out 'dd0199cf3300764ed52b23f4a47761f91fab21a2'
+Submodule path 'drivers/QcomGeniSpi': checked out 'eac47baefe6a5d2368a70351e6ad1b6361bedbe2'
+Submodule path 'drivers/RamBlock': checked out '4be2d7eb05ef5a98126c91e0302c149140c0e3e1'
+Submodule path 'drivers/SoftwareAES': checked out '4a45326da5c2cd6fe6813d79ee43db20805628af'
+Submodule path 'drivers/VirtioMmioBlock': checked out '4e1013eb8c45077b57f8d38d61b389fe899ea1c3'
+Submodule path 'drivers/VirtioMmioConsole': checked out '70253216890b2afcaa6333948726f896f84fc757'
+Submodule path 'kits/AdrenoFirmware': checked out '20ad3d7aca14bd46aecab6335c780f5413fa054b'
+Submodule path 'kits/AdrenoPM4': checked out '282606b528b2595bc4274ea7490b62b323f35a5f'
+Submodule path 'kits/AirNir': checked out 'b356371a74cd158c2902f4886f373ebb0f833a36'
+Submodule path 'kits/ArmSmmu4K': checked out '83969cd874503e65997ff7639f7dcf3d0a92cd17'
+Submodule path 'kits/VerifiedRoot': checked out '974f043d0c71ba2e60331483a41c6c6d35274ee3'
+Submodule path 'kits/XnuPrelink': checked out 'b1888c12456c46a2226d63c794465dfcee08d465'
+a823383
+== configuration houji_defconfig -> /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/.config
+== submodules /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu
+== fetch https://github.com/apple-oss-distributions/xnu.git d8b80295118e
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/xnu-0b4b910d fetch -q --depth 1 origin d8b80295118ef25ac3a784134bcf95cd8e88109f
+== fetch https://github.com/apple-oss-distributions/libplatform.git a00a4cc36da2
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/libplatform-08d11127 fetch -q --depth 1 origin a00a4cc36da2110578bcf3b8eeeeb93dcc7f4e11
+== fetch https://github.com/apple-oss-distributions/libdispatch.git 30fe6a7d9453
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/libdispatch-50d3508d fetch -q --depth 1 origin 30fe6a7d945340ce69cef121132f049e810089a5
+== fetch https://github.com/apple-oss-distributions/AvailabilityVersions.git 933f9360f1b7
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/AvailabilityVersions-1c8ff76f fetch -q --depth 1 origin 933f9360f1b70dfbda5548386a3d65e0358b4f7d
+== fetch https://github.com/apple-oss-distributions/libpthread.git c0e60fb5ecfc
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/libpthread-67dc7894 fetch -q --depth 1 origin c0e60fb5ecfc54cf379c261d3f9572cc22ded891
+== fetch https://github.com/ONLYA/corecrypto-2023.git 11fba65b12d8
++ git -C /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/feeds/corecrypto-2023-5ef10490 fetch -q --depth 1 origin 11fba65b12d8830630e248dfa8344caf8b065f26
+== wrote /Users/runner/work/UniXNU-houji/UniXNU-houji/device/unixnu.lock
+== submodules /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu
+== tree /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree
+NativeAES source: drivers/SoftwareAES/NativeAES.cpp
+Checking patch NativeAES.cpp...
+Applied patch NativeAES.cpp cleanly.
+30:  bool isKeySupported(unsigned selector) override { return selector == 0 || selector == 2212; }
+native AES generators:
+./out/houji/tree/scripts/build-native-aes-bindings.py
+out/houji/tree/scripts/build-native-aes-bindings.py: recorded compile anchor matched 0 times
+native AES base entry points: 4 rewritten, out/houji/tree/scripts/data/native-aes-original-bindings.S
+native AES base entry points: 4 rewritten, scripts/data/native-aes-original-bindings.S
+sitecustomize hook ready
+native AES constructors no longer jump into unpopulated prelink text
+tree: out/houji/tree exists
+driver directories: ['Adreno740', 'AdrenoMetal', 'AppleKeyStoreState', 'ArmCpu', 'ArmDTPlatform', 'ArmVirtPlatform', 'DarwinBoot', 'GopFramebuffer', 'NativeAES', 'NativeAdreno', 'NativeGeniSpi', 'NativeKeyStoreEvents', 'NativeMetal', 'NativeMobileDisplay', 'NativeRamBlock', 'NativeVirtioBlock', 'NativeVirtioConsole', 'QcomBaseband', 'QcomGeniSpi', 'RamBlock', 'SoftwareAES', 'VirtioMmioBlock', 'VirtioMmioConsole']
+bindings scripts in tree: ['audit-target-kext-bindings.py', 'build-native-aes-bindings.py', 'build-native-ram-block-bindings.py', 'build-native-virtio-bindings.py', 'build-software-aes-bindings.py', 'build-virtio-mmio-bindings.py', 'check-adreno-shader-bindings.py', 'patch-native-aes-bindings-script.py']
+literal build-arm-driver.py choices: ['ArmCpu', 'ArmDTPlatform', 'ArmVirtPlatform', 'NativeAES', 'NativeAdreno', 'NativeGOPPresenter', 'NativeHidInput', 'NativeIOGPUProviderProbe', 'NativeKeyStoreEvents', 'NativeLegacyDisplay', 'NativeMobileDisplay', 'NativeOfflineAccelerator', 'NativeOfflineGPU', 'NativeRamBlock', 'NativeUfs', 'NativeVirtioBlock', 'NativeVirtioConsole', 'component']
+aes: driver=build-arm-driver.py NativeAES bindings=build-native-aes-bindings.py objects=out/houji/tree/build/software-aes
+archives rewritten: 9 entries, board.toml still parses
+  archive: build-corecrypto-14.py
+  archive: build-corecrypto-14.py --namespace
+  archive: build-arm-driver.py ArmDTPlatform
+  archive: build-arm-driver.py ArmCpu
+  archive: build-libpthread-kernel.py
+  archive: build-arm-driver.py NativeAES
+  archive: build-native-aes-bindings.py
+  archive: build-arm-driver.py NativeRamBlock
+  archive: build-native-ram-block-bindings.py
+board archive rewrite rc=0
+prepared objects directory out/houji/tree/build/software-aes
+# Xiaomi 14 (houji): XNU first-entry build; no system volume or storage driver yet.
+[board]
+name = "houji"
+soc = "SM8650"
+description = "Xiaomi 14 houji SM8650"
+kit = "houji"
+
+# Read-only live GPT of the connected Xiaomi 14 unit, CRC-checked on 2026-10-21.
+# Specific to the connected 256 GB unit; does not authorize flashing userdata.
+[userdata]
+first_lba = 3920350
+last_lba = 61321210
+lba_bytes = 4096
+windows = [
+  { name = "OS", component = "OS" },
+  { name = "SystemOS", component = "Cryptex1,SystemOS" },
+]
+
+[ipsw]
+url = "https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw"
+product = "iPhone10,3"
+version = "16.7.16"
+build = "20H392"
+device_class = "d22ap"
+chip_id = 0x8015
+board_id = 6
+fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache"]   # the small components
+
+[ipsw.sha256]
+# Raw KernelCache member pin (the local input is the same IM4P member).
+"kernelcache.release.iphone10b" = "2d6a13d040aaf87cec09bb6906d43e9bd8cea951e43d1aa1cd62707dfdc5aaec"
+
+[kernel]
+defconfig = "houji_defconfig"
+patch_series = ["patches/xnu-iorpc-message-from-mach.patch"]
+archives = [
+  "build-corecrypto-14.py",
+  "build-corecrypto-14.py --namespace",
+  "build-arm-driver.py ArmDTPlatform",
+  "build-arm-driver.py ArmCpu",
+  "build-libpthread-kernel.py",
+  "build-arm-driver.py NativeAES",
+  "build-native-aes-bindings.py",
+  "build-arm-driver.py NativeRamBlock",
+  "build-native-ram-block-bindings.py",
+]
+
+[kernel.prelink]
+kernelcache_sha256 = "2ec297bac95bcba01046fd0148e97e7e5885c05a6c18827f39f534ba375c1221"
+tool = "kits/NativePrelink/emit_prelink.py"
+kernel = "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
+# Set after macOS compression_tool decodes the iOS 16.7.16 KernelCache IM4P.
+slide = "-0x1000000"
+# 20H392 AMFI policy initializer; see docs/prelink-20H392-validation.md.
+early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005703c54"
+roots = [
+  "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
+  "com.apple.driver.AppleARMPlatform",
+  "com.apple.driver.AppleARMWatchdogTimer",
+  "com.apple.driver.AppleAudioClockLibs",
+  "com.apple.driver.AppleEffaceableStorage",
+  "com.apple.driver.AppleIISController",
+  # "com.apple.driver.AppleM2ScalerCSCDriver",  # pulls com.apple.iokit.IOSurface; Sweet owns IOSurface
+  "com.apple.driver.AppleMobileFileIntegrity",
+  "com.apple.driver.ApplePMGR",
+  "com.apple.driver.IODARTFamily",
+  "com.apple.filesystems.apfs",
+  "com.apple.iokit.CoreAnalyticsFamily",
+  "com.apple.iokit.IOAVFamily",
+  "com.apple.iokit.IOAudio2Family",
+  "com.apple.iokit.IOCECFamily",
+  "com.apple.iokit.IOCryptoAcceleratorFamily",
+  # "com.apple.iokit.IOGPUFamily",  # pulls com.apple.iokit.IOSurface; Sweet owns IOSurface
+  "com.apple.iokit.IOHDCPFamily",
+  # "com.apple.iokit.IOMobileGraphicsFamily",  # owned by SweetSurface/AppleCLCD
+  "com.apple.iokit.IOReportFamily",
+  "com.apple.iokit.IOSlowAdaptiveClockingFamily",
+  "com.apple.iokit.IOStorageFamily",
+  # "com.apple.iokit.IOSurface",  # owned by SweetSurface/AppleCLCD
+  "com.apple.kec.Libm",
+  "com.apple.kec.corecrypto",
+  "com.apple.kext.AppleMatch",
+  "com.apple.kext.CoreTrust",
+  "com.apple.security.AppleImage4",
+  "com.apple.security.sandbox",
+  "com.apple.iokit.IOHIDFamily",
+  "com.apple.iokit.IOHIDEventDriver",
+]
+
+[payload]
+volume = "GIULIAESP"
+size_mib = 192
+loader = "firmware"
+title = "Xiaomi 14 houji XNU first entry (no system volume)"
+# The first-entry handoff window, not total installed device RAM.
+dram_size = "0x10000000"
+panic_screen = false
+timeout = 0
+kernel_args = ["-v", "serial=3", "debug=0x14e", "-enable_kprintf_spam=1", "armcpu-diagnostics=1", "houji-ufs-probe=2"]
+
+[payload.adt]
+tool = "scripts/make-houji-adt.py"
+owned_memory_size = "0x10000000"
+cpu_regs = "0"
+psci_method = "smc"
+
+[firmware]
+config = "houji"
+prepared out/houji/tree/scripts/build-xnu-4k-baseline.sh
+SVC trace is present in sleh.c
+user fault log is present in sleh.c
+pid-1 user fault probe is present in sleh.c
+NVRAM dedup is present in IONVRAMCHRPHandler.cpp
+shared-cache CS-monitor bypass is present in vm_fault.c
+shared-cache probe is present in vm_unix.c
+shared-cache dynamic page mapping is present in vm_shared_region.c
+shared-cache MACF bypass is present in ubc_subr.c
+deferred entropy SHA-512 init is present in entropy.c
+kernel persistent log now comes from the DT pram region
+out-of-aperture DT ramdisks are mapped with kmem_alloc + pmap_map
+annotated kits/XnuPrelink/native_prelink.py
+Resolved prelink kit: /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/kits/XnuPrelink
+..............................................................
+----------------------------------------------------------------------
+Ran 62 tests in 0.034s
+
+OK
+== ArmCpu tree state ==
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmCpu
+lrwxr-xr-x  1 runner  staff  66 Nov 23 17:00 out/houji/tree/drivers/ArmCpu -> /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/drivers/ArmCpu
+ArmCpu sources OK
+overlaid out/houji/tree/drivers/NativeUfs cpp True
+/Users/runner/work/UniXNU-houji/UniXNU-houji/device/scripts/build-arm-driver.py : verified flags removed
+out/houji/tree/scripts/build-arm-driver.py : verified flags removed
+scripts/build-xnu-4k-baseline.sh : UFS archive path -> native-ufs
+out/houji/tree/scripts/build-xnu-4k-baseline.sh : UFS archive path -> native-ufs
+alias out/houji/tree/build/sheng-ufs/libShengUfs.a -> ../native-ufs/libNativeUfs.a
+board.toml: NativeUfs archive added
+overlaid out/houji/tree/drivers/NativeRamBlock/NativeRamBlock.cpp bytes 10184
+HoujiHID overlay copied
+/Users/runner/work/UniXNU-houji/UniXNU-houji/device/scripts/build-arm-driver.py : HoujiFramebuffer added
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-arm-driver.py : HoujiFramebuffer added
+board.toml: HoujiFramebuffer archive added
+board.toml: HoujiHID archive added
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/scripts/build-xnu-4k-baseline.sh : framebuffer archive linked
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/scripts/build-xnu-4k-baseline.sh : framebuffer archive linked
+=== IOBlockStorageDevice symbols in CI candidate ===
+11
+fffffff006a091d0 A __ZN20IOBlockStorageDevice10gMetaClassE
+fffffff0045da050 A __ZN20IOBlockStorageDevice11requestIdleEv
+fffffff0045da068 A __ZN20IOBlockStorageDevice13doSetPriorityEP26IOBlockStorageDeviceExtentjh
+fffffff0045d9f38 A __ZN20IOBlockStorageDevice13setPropertiesEP8OSObject
+fffffff0045da08c A __ZN20IOBlockStorageDevice20doGetProvisionStatusEyyPjP35IOBlockStorageProvisionDeviceExtenty
+fffffff0045d9e30 A __ZN20IOBlockStorageDevice4initEP12OSDictionary
+fffffff0045da05c A __ZN20IOBlockStorageDevice7doUnmapEP26IOBlockStorageDeviceExtentjj
+fffffff0045d9d98 A __ZN20IOBlockStorageDeviceC2EPK11OSMetaClass
+fffffff0045d9db8 A __ZN20IOBlockStorageDeviceD2Ev
+fffffff0045d9e88 A __ZNK20IOBlockStorageDevice11getPropertyEPK8OSSymbol
+fffffff005c73f50 A __ZTV20IOBlockStorageDevice
+=== run storage ABI audit ===
+PASS [export] kernel.macho: 190 slots, 14 pure, 183 bindings
+  __ZTV20IOBlockStorageDevice = 0xfffffff005c73f50
+  __ZN20IOBlockStorageDevice10gMetaClassE = 0xfffffff006a091d0
+  __ZN20IOBlockStorageDeviceC2EPK11OSMetaClass = 0xfffffff0045d9d98
+  __ZN20IOBlockStorageDeviceD2Ev = 0xfffffff0045d9db8
+  wrote out/houji/logs/storage-interface-audit.json
+created: /tmp/houji-data.cdr
+"disk33" ejected.
+seed bytes 67108864 magic b'NXSB'
+-rw-r--r--  1 runner  staff  68007 Nov 23 17:08 out/houji/kernel/data-seed.raw.gz
+f2775fecc273639b6f41f99407c46ea86deebab199b68174e0b745374df48531  out/houji/kernel/data-seed.raw.gz
+PASS: 26 components, 187559 PC-relative encodings; digest/boundary/initializer checks
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  417 |             SYSCTL, STARTUP_RANK_SECOND, sysctl_register_oid_early,             \
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  418 |             &sysctl_##parent##_##name)
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:764:2: note: expanded from macro '__STARTUP_ARG'
+  764 |         __STARTUP1(name, line, subsystem, rank, func, arg, arg)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:757:12: note: expanded from macro '__STARTUP1'
+  757 |             rank, __STARTUP_FUNC_CAST(func, a), b, \
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:748:6: note: expanded from macro '__STARTUP_FUNC_CAST'
+  748 |             (typeof(func(a))(*)(const void *))func
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/systemcalls.c:5:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/bits.h:274:21: warning: cast from 'void (*)(vm_allocation_site_t *)' (aka 'void (*)(struct vm_allocation_site *)') to 'typeof (__zone_site_register(&site)) (*)(const void *)' (aka 'void (*)(const void *)') converts to incompatible function type [-Wcast-function-type-strict]
+  274 |         return (bitmap_t *)kalloc_data(BITMAP_SIZE(nbits), Z_WAITOK_ZERO);
+      |                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/kalloc.h:512:2: note: expanded from macro 'kalloc_data'
+  512 |         kheap_alloc(KHEAP_DATA_BUFFERS, size, flags)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/kalloc.h:503:44: note: expanded from macro 'kheap_alloc'
+  503 |         kheap_alloc_tag(kalloc_heap, size, flags, VM_ALLOC_SITE_TAG())
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/zalloc.h:2540:2: note: expanded from macro 'VM_ALLOC_SITE_TAG'
+ 2540 |         STARTUP_ARG(ZALLOC, STARTUP_RANK_MIDDLE, __zone_site_register, &site);   \
+      |         ^
+note: (skipping 2 expansions in backtrace; use -fmacro-backtrace-limit=0 to see all)
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:757:12: note: expanded from macro '__STARTUP1'
+  757 |             rank, __STARTUP_FUNC_CAST(func, a), b, \
+      |                   ^
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:748:6: note: expanded from macro '__STARTUP_FUNC_CAST'
+  748 |             (typeof(func(a))(*)(const void *))func
+      |             ^
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/kalloc.h:501:63: note: expanded from macro 'kheap_alloc_tag'
+  501 |         __kheap_alloc(kalloc_heap, size, __zone_flags_mix_tag(flags, itag), NULL)
+      |                                                                      ^~~~
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/systemcalls.c:5:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/bits.h:271:1: warning: function bitmap_alloc might be an allocator wrapper [-Wallocator-wrappers]
+  271 | bitmap_alloc(uint nbits)
+      | ^
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/bits.h:274:2: note: value obtained from allocator call is returned here
+  274 |         return (bitmap_t *)kalloc_data(BITMAP_SIZE(nbits), Z_WAITOK_ZERO);
+      |         ^
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/systemcalls.c:7:
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/thread.h:98:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/vm/vm_kern.h:841:29: warning: bitwise operation between different enumeration types ('kmr_flags_t' and 'kmem_flags_t') [-Wenum-enum-conversion]
+  841 | __attribute__((diagnose_if(!KMEM_REALLOC_FLAGS_VALID(flags),
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/vm/vm_kern.h:793:27: note: expanded from macro 'KMEM_REALLOC_FLAGS_VALID'
+  793 |         (((flags) & (KMR_KOBJECT | KMEM_GUARD_LAST | KMEM_KASAN_GUARD | KMR_DATA)) == KMR_DATA || ((flags) & KMR_FREEOLD))
+      |                      ~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~
+4 warnings generated.
+             CC unix_signal.o
+3 warnings generated.
+clang: warning: no such include directory: '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/libsa' [-Wmissing-include-dirs]
+3 warnings generated.
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/unix_signal.c:10:
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/sys/user.h:83:
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/sys/vm.h:136:
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/thread.h:98:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/vm/vm_kern.h:841:29: warning: bitwise operation between different enumeration types ('kmr_flags_t' and 'kmem_flags_t') [-Wenum-enum-conversion]
+  841 | __attribute__((diagnose_if(!KMEM_REALLOC_FLAGS_VALID(flags),
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/vm/vm_kern.h:793:27: note: expanded from macro 'KMEM_REALLOC_FLAGS_VALID'
+  793 |         (((flags) & (KMR_KOBJECT | KMEM_GUARD_LAST | KMEM_KASAN_GUARD | KMR_DATA)) == KMR_DATA || ((flags) & KMR_FREEOLD))
+      |                      ~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/unix_signal.c:105:8: warning: cast from 'void (*)(const struct startup_tunable_spec *)' to 'typeof (kernel_startup_tunable_init(&__startup_TUNABLES_spec_pac_sigreturn_token)) (*)(const void *)' (aka 'void (*)(const void *)') converts to incompatible function type [-Wcast-function-type-strict]
+  105 | static TUNABLE(bool, pac_sigreturn_token, "pac_sigreturn_token", true);
+      |        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:247:2: note: expanded from macro 'TUNABLE'
+  247 |         __TUNABLE(type_t, var, boot_arg)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:711:2: note: expanded from macro '__TUNABLE'
+  711 |         __STARTUP_ARG(var, __LINE__, TUNABLES, STARTUP_RANK_FIRST, \
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  712 |             kernel_startup_tunable_init, &__startup_TUNABLES_spec_ ## var)
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:764:2: note: expanded from macro '__STARTUP_ARG'
+  764 |         __STARTUP1(name, line, subsystem, rank, func, arg, arg)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:757:12: note: expanded from macro '__STARTUP1'
+  757 |             rank, __STARTUP_FUNC_CAST(func, a), b, \
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/kern/startup.h:748:6: note: expanded from macro '__STARTUP_FUNC_CAST'
+  748 |             (typeof(func(a))(*)(const void *))func
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/unix_signal.c:418:7: warning: cast to smaller integer type 'user32_addr_t' (aka 'unsigned int') from 'mcontext32_t *' (aka 'struct mcontext32 *') [-Wpointer-to-int-cast]
+  418 |                     (user32_addr_t)&((struct user_sigframe32*)sp)->mctx);
+      |                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/unix_signal.c:643:67: warning: cast to smaller integer type 'user32_addr_t' (aka 'unsigned int') from 'user32_siginfo_t *' (aka 'struct user32_siginfo *') [-Wpointer-to-int-cast]
+  643 |                     CAST_DOWN_EXPLICIT(user32_addr_t, catcher), infostyle, sig, (user32_addr_t)&((struct user_sigframe32*)sp)->sinfo,
+      |                                                                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/bsd/dev/arm/unix_signal.c:940:2: warning: 'switch' missing 'default' label [-Wswitch-default]
+  940 |         switch (exception) {
+      |         ^
+5 warnings generated.
+     LDFILELIST bsd
+             LD mach.development.bcm2837.unstripped.noctf
+ld: warning: -new_linker is obsolete
+ld: warning: search path '/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/fakeroot/usr/local/lib/kernel/platform' not found
+ld: warning: -segment_order should list all segments, __PRELINK_TEXT is missing
+ld: warning: -segment_order should list all segments, __PRELINK_INFO is missing
+ld: warning: -segment_order should list all segments, __PLK_TEXT_EXEC is missing
+ld: warning: -segment_order should list all segments, __PRELINK_DATA is missing
+ld: warning: -segment_order should list all segments, __PLK_DATA_CONST is missing
+ld: warning: -segment_order should list all segments, __PLK_LLVM_COV is missing
+ld: warning: -segment_order should list all segments, __PLK_LINKEDIT is missing
+ld: warning: -segment_order should list all segments, __LINKINFO is missing
+ld: warning: -segment_order of __LINKEDIT is ignored, the segment must be ordered last
+       DSYMUTIL mach.development.bcm2837.dSYM
+warning: ignoring unknown option: --minimize
+          STRIP mach.development.bcm2837
+        LIBTOOL mach.development.bcm2837.a
+built kernel at /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837//mach.development.bcm2837
+libtool: warning: 'exclaves_conclave.o' has no symbols
+libtool: warning: 'exclaves_driverkit.o' has no symbols
+libtool: warning: 'exclaves_frame_mint.o' has no symbols
+libtool: warning: 'exclaves_inspection.o' has no symbols
+libtool: warning: 'exclaves_log.o' has no symbols
+libtool: warning: 'exclaves_memory.o' has no symbols
+libtool: warning: 'exclaves_panic.o' has no symbols
+libtool: warning: 'exclaves_resource.o' has no symbols
+libtool: warning: 'exclaves_shared_memory.o' has no symbols
+libtool: warning: 'exclaves_storage.o' has no symbols
+libtool: warning: 'exclaves_tests.o' has no symbols
+libtool: warning: 'sched_amp.o' has no symbols
+libtool: warning: 'sched_amp_common.o' has no symbols
+libtool: warning: 'ptrauth_data_tests.o' has no symbols
+libtool: warning: 'pmap_cs.o' has no symbols
+libtool: warning: 'pmap_iommu.o' has no symbols
+libtool: warning: 'iofilter_asm.o' has no symbols
+libtool: warning: 'iofilter.o' has no symbols
+libtool: warning: 'gxf_exceptions.o' has no symbols
+libtool: warning: 'pinst.o' has no symbols
+libtool: warning: 'platform_tests_asm.o' has no symbols
+libtool: warning: 'net_stubs.o' has no symbols
+libtool: warning: 'classq_util.o' has no symbols
+libtool: warning: 'key_debug.o' has no symbols
+libtool: warning: 'txm.o' has no symbols
+libtool: warning: 'ppl.o' has no symbols
+libtool: warning: 'sysv_shm.o' has no symbols
+libtool: warning: 'sysv_sem.o' has no symbols
+libtool: warning: 'sysv_msg.o' has no symbols
+libtool: warning: 'ptrauth_data_tests_sysctl.o' has no symbols
+libtool: warning: 'readonly_proc_tests_sysctl.o' has no symbols
+libtool: warning: 'skywalk_stubs.o' has no symbols
+libtool: warning: 'cpu_copy_in_cksum_gen.o' has no symbols
+libtool: warning: 'ctrr_test_sysctl.o' has no symbols
+libtool: warning: 'IOCommandQueue.cpo' has no symbols
+libtool: warning: 'TestIODeviceMemoryRosetta.cpo' has no symbols
+libtool: warning: 'AppleARMSMP.cpo' has no symbols
+libtool: warning: 'hwtrace_multbuf.o' has no symbols
+libtool: warning: 'panic_trace.o' has no symbols
+--- out/houji/logs/prelink.log (last 250 lines) ---
+native prelink compatibility alias: _IORPCMessageFromMach -> IORPCMessageFromMachReply
+Experimental candidate: 57618432 bytes; executable bytes unchanged; runtime unqualified
+--- out/houji/logs/storage-headers.log (last 250 lines) ---
+PASS: 19 public IOStorageFamily headers prepared at e45fbe30a7879e0b16e26dddb78538f1b00e0bff
+=== native-ufs compile log (last 200 lines) ===
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:241:38: warning: implicit conversion loses integer precision: 'uint32_t' (aka 'unsigned int') to 'uint8_t' (aka 'unsigned char') [-Wimplicit-int-conversion]
+  241 |   at[0] = value >> 24; at[1] = value >> 16; at[2] = value >> 8; at[3] = value;
+      |                              ~ ~~~~~~^~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:241:59: warning: implicit conversion loses integer precision: 'uint32_t' (aka 'unsigned int') to 'uint8_t' (aka 'unsigned char') [-Wimplicit-int-conversion]
+  241 |   at[0] = value >> 24; at[1] = value >> 16; at[2] = value >> 8; at[3] = value;
+      |                                                   ~ ~~~~~~^~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:241:73: warning: implicit conversion loses integer precision: 'uint32_t' (aka 'unsigned int') to 'uint8_t' (aka 'unsigned char') [-Wimplicit-int-conversion]
+  241 |   at[0] = value >> 24; at[1] = value >> 16; at[2] = value >> 8; at[3] = value;
+      |                                                                       ~ ^~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:654:54: warning: implicit conversion changes signedness: 'int' to 'unsigned long' [-Wsign-conversion]
+  654 |       used += snprintf (text + used, sizeof (text) - used, "%u:%s %llx-%llx%s", index, name,
+      |                                                    ~ ^~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:658:44: warning: implicit conversion changes signedness: 'int' to 'unsigned long' [-Wsign-conversion]
+  658 |     snprintf (text + used, sizeof (text) - used, "\nlisted=%u", listed);
+      |                                          ~ ^~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1463:10: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1463 |                         at += snprintf (report + at, sizeof (report) - at,
+      |                            ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1464 |                             "HOUJI-FB: static vtable\n");
+      |                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1468:12: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1468 |                                         at += snprintf (report + at, sizeof (report) - at,
+      |                                            ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1469 |                                             "HOUJI-FBV%u:", i);
+      |                                             ~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1471:11: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1471 |                                 at += snprintf (report + at, sizeof (report) - at, " %x",
+      |                                    ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1472 |                                     (unsigned)(int32_t)(t - vt));
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1474:12: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1474 |                                         at += snprintf (report + at, sizeof (report) - at, "\n");
+      |                                            ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1483:8: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1483 |         at += snprintf (report + at, sizeof (report) - at,
+      |            ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1484 |             "HOUJI-FB: class_size=%u class=%s super=%s\n",
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1485 |             mc ? mc->getClassSize () : 0,
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1486 |             mc ? mc->getClassName () : "?",
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1487 |             mc && mc->getSuperClass () ? mc->getSuperClass ()->getClassName () : "?");
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1488:8: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1488 |         at += snprintf (report + at, sizeof (report) - at,
+      |            ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1489 |             "HOUJI-FB: obj=%p vptr=0x%llx legacy=%d fb=%d svc=%d\n", obj,
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1490 |             (unsigned long long)vptr,
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1491 |             obj->metaCast ("IOMobileFramebufferLegacy") != nullptr,
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1492 |             obj->metaCast ("IOMobileFramebuffer") != nullptr,
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1493 |             obj->metaCast ("IOMobileFramebufferService") != nullptr);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1497:10: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1497 |                         at += snprintf (report + at, sizeof (report) - at, "HOUJI-FBV%u:", i);
+      |                            ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1499:9: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1499 |                 at += snprintf (report + at, sizeof (report) - at, " %x",
+      |                    ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1500 |                     (unsigned)(int32_t)(target - vptr));
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1502:10: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [-Wsign-conversion]
+ 1502 |                         at += snprintf (report + at, sizeof (report) - at, "\n");
+      |                            ~~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1447:7: warning: variable 'obj' may be uninitialized when used here [-Wconditional-uninitialized]
+ 1447 |         if (!obj) {
+      |              ^~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1428:15: note: initialize the variable 'obj' to silence this warning
+ 1428 |         OSObject *obj;
+      |                      ^
+      |                       = nullptr
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:925:
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/RootCommands.h:365:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:35:13: warning: unused function 'flush_dcache_syscall' [-Wunused-function]
+   35 | extern void flush_dcache_syscall( vm_offset_t addr, unsigned length);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:54:13: warning: unused function 'clean_dcache' [-Wunused-function]
+   54 | extern void clean_dcache(vm_offset_t addr, unsigned count, int phys);
+      |             ^~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:55:13: warning: unused function 'clean_dcache64' [-Wunused-function]
+   55 | extern void clean_dcache64(addr64_t addr, unsigned count, int phys);
+      |             ^~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:57:13: warning: unused function 'CleanPoC_Dcache' [-Wunused-function]
+   57 | extern void CleanPoC_Dcache(void);
+      |             ^~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:58:13: warning: unused function 'CleanPoU_Dcache' [-Wunused-function]
+   58 | extern void CleanPoU_Dcache(void);
+      |             ^~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:67:13: warning: unused function 'CleanPoC_DcacheRegion' [-Wunused-function]
+   67 | extern void CleanPoC_DcacheRegion(vm_offset_t va, size_t length);
+      |             ^~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:76:13: warning: unused function 'CleanPoC_DcacheRegion_Force' [-Wunused-function]
+   76 | extern void CleanPoC_DcacheRegion_Force(vm_offset_t va, size_t length);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:78:13: warning: unused function 'CleanPoU_DcacheRegion' [-Wunused-function]
+   78 | extern void CleanPoU_DcacheRegion(vm_offset_t va, size_t length);
+      |             ^~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:80:13: warning: unused function 'FlushPoC_Dcache' [-Wunused-function]
+   80 | extern void FlushPoC_Dcache(void);
+      |             ^~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:81:13: warning: unused function 'FlushPoU_Dcache' [-Wunused-function]
+   81 | extern void FlushPoU_Dcache(void);
+      |             ^~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:82:13: warning: unused function 'FlushPoC_DcacheRegion' [-Wunused-function]
+   82 | extern void FlushPoC_DcacheRegion(vm_offset_t va, size_t length);
+      |             ^~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:84:13: warning: unused function 'InvalidatePoU_Icache' [-Wunused-function]
+   84 | extern void InvalidatePoU_Icache(void);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:85:13: warning: unused function 'InvalidatePoU_IcacheRegion' [-Wunused-function]
+   85 | extern void InvalidatePoU_IcacheRegion(vm_offset_t va, size_t length);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:87:13: warning: unused function 'cache_sync_page' [-Wunused-function]
+   87 | extern void cache_sync_page(ppnum_t pp);
+      |             ^~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:89:13: warning: unused function 'platform_cache_init' [-Wunused-function]
+   89 | extern void platform_cache_init(void);
+      |             ^~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:90:13: warning: unused function 'platform_cache_idle_enter' [-Wunused-function]
+   90 | extern void platform_cache_idle_enter(void);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:91:13: warning: unused function 'platform_cache_flush' [-Wunused-function]
+   91 | extern void platform_cache_flush(void);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:92:18: warning: unused function 'platform_cache_batch_wimg' [-Wunused-function]
+   92 | extern boolean_t platform_cache_batch_wimg(unsigned int new_wimg, unsigned int size);
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:93:13: warning: unused function 'platform_cache_flush_wimg' [-Wunused-function]
+   93 | extern void platform_cache_flush_wimg(unsigned int new_wimg);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:94:13: warning: unused function 'platform_cache_clean' [-Wunused-function]
+   94 | extern void platform_cache_clean(void);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:95:13: warning: unused function 'platform_cache_shutdown' [-Wunused-function]
+   95 | extern void platform_cache_shutdown(void);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk/arm/caches_internal.h:96:13: warning: unused function 'platform_cache_disable' [-Wunused-function]
+   96 | extern void platform_cache_disable(void);
+      |             ^~~~~~~~~~~~~~~~~~~~~~
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1038:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/RootWindowRead.h:6:13: warning: 'static' function 'ufsWindowGeometry' declared in header file should be declared 'static inline' [-Wunneeded-internal-declaration]
+    6 | static bool ufsWindowGeometry (uint64_t absolute, uint64_t bytes)
+      |             ^~~~~~~~~~~~~~~~~
+In file included from /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp:1039:
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/RootPublication.h:5:13: warning: unused function 'ufsBuildRootPlan' [-Wunused-function]
+    5 | static bool ufsBuildRootPlan (const char *const *names, unsigned count, UfsRootPlan &plan)
+      |             ^~~~~~~~~~~~~~~~
+39 warnings generated.
+=== native-ufs compile command ===
+[
+  "/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+  "-xc++",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/NativeUfs.cpp",
+  "-o",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/native-ufs/NativeUfs.o",
+  "--driver-mode=g++",
+  "-c",
+  "-std=gnu++2b",
+  "-fsized-deallocation",
+  "-fapple-kext",
+  "-g",
+  "-nostdlibinc",
+  "-ferror-limit=10000",
+  "-fno-builtin",
+  "-fno-common",
+  "-ftrivial-auto-var-init=zero",
+  "-fsigned-bitfields",
+  "-fmerge-all-constants",
+  "-fc++-static-destructors=none",
+  "-fsanitize-minimal-runtime",
+  "-fsanitize-ignorelist=/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/san/kasan-blacklist-arm64",
+  "-fsanitize=signed-integer-overflow",
+  "-D",
+  "ARM64_BOARD_CONFIG_BCM2837",
+  "-arch",
+  "arm64",
+  "-D",
+  "arm64",
+  "-D",
+  "ARM64",
+  "-D",
+  "__ARM64__",
+  "-D",
+  "LP64",
+  "-D",
+  "PAGE_SIZE_FIXED",
+  "-D",
+  "VM_KERNEL_LINK_ADDRESS=0xfffffff007004000",
+  "-U",
+  "ARM_LARGE_MEMORY",
+  "-momit-leaf-frame-pointer",
+  "-fno-strict-aliasing",
+  "-D",
+  "__API__=v4",
+  "-mkernel",
+  "-D",
+  "IOASSERT=1",
+  "-O2",
+  "-mios-version-min=17.0",
+  "-D",
+  "XNU_TARGET_OS_IOS",
+  "-D",
+  "XNU_PLATFORM_iPhoneOS",
+  "-D",
+  "APPLE",
+  "-D",
+  "KERNEL",
+  "-D",
+  "KERNEL_PRIVATE",
+  "-D",
+  "XNU_KERNEL_PRIVATE",
+  "-D",
+  "PRIVATE",
+  "-D",
+  "__MACHO__=1",
+  "-D",
+  "volatile=__volatile",
+  "-D",
+  "XNU_KERN_EVENT_DATA_IS_VLA",
+  "-D",
+  "CURRENT_MACHINE_CONFIG_LC=bcm2837",
+  "-D",
+  "INET",
+  "-D",
+  "MACH",
+  "-D",
+  "IF_FAKE",
+  "-D",
+  "IF_HEADLESS",
+  "-D",
+  "IF_REDIRECT",
+  "-D",
+  "AH_ALL_CRYPTO",
+  "-D",
+  "PF",
+  "-D",
+  "DUMMYNET",
+  "-D",
+  "TRAFFIC_MGT",
+  "-D",
+  "MULTICAST",
+  "-D",
+  "MULTIPATH",
+  "-D",
+  "MPTCP",
+  "-D",
+  "PSYNCH",
+  "-D",
+  "FLOW_DIVERT",
+  "-D",
+  "NECP",
+  "-D",
+  "CONTENT_FILTER",
+  "-D",
+  "PACKET_MANGLER",
+  "-D",
+  "SKYWALK",
+  "-D",
+  "CONFIG_NEXUS_USER_PIPE",
+  "-D",
+  "CONFIG_NEXUS_KERNEL_PIPE",
+  "-D",
+  "CONFIG_NEXUS_MONITOR",
+  "-D",
+  "CONFIG_NEXUS_FLOWSWITCH",
+  "-D",
+  "CONFIG_NEXUS_NETIF",
+  "-D",
+  "KCTL_TEST",
+  "-D",
+  "SOCKETS",
+  "-D",
+  "CONFIG_FSE",
+  "-D",
+  "CONFIG_IMAGEBOOT",
+  "-D",
+  "FIFO",
+  "-D",
+  "FDESC",
+  "-D",
+  "DEVFS",
+  "-D",
+  "ROUTEFS",
+  "-D",
+  "BINDFS",
+  "-D",
+  "FS_COMPRESSION",
+  "-D",
+  "NAMEDSTREAMS",
+  "-D",
+  "CONFIG_MNT_ROOTSNAP",
+  "-D",
+  "CONFIG_UNION_MOUNTS",
+  "-D",
+  "NFSSERVER",
+  "-D",
+  "CONFIG_NETBOOT",
+  "-D",
+  "IPSEC",
+  "-D",
+  "IPSEC_ESP",
+  "-D",
+  "CRYPTO_SHA2",
+  "-D",
+  "ZLIB",
+  "-D",
+  "IF_BRIDGE",
+  "-D",
+  "CONFIG_KN_HASHSIZE=48",
+  "-D",
+  "CONFIG_NC_HASH=2048",
+  "-D",
+  "CONFIG_VFS_NAMES=3072",
+  "-D",
+  "CONFIG_MAX_CLUSTERS=4",
+  "-D",
+  "CONFIG_MIN_NBUF=80",
+  "-D",
+  "CONFIG_MIN_NIOBUF=64",
+  "-D",
+  "CONFIG_NMBCLUSTERS=((1024 * 256) / MCLBYTES)",
+  "-D",
+  "CONFIG_TCBHASHSIZE=128",
+  "-D",
+  "CONFIG_AIO_MAX=20",
+  "-D",
+  "CONFIG_AIO_PROCESS_MAX=8",
+  "-D",
+  "CONFIG_AIO_THREAD_COUNT=2",
+  "-D",
+  "CONFIG_MAXVIFS=16",
+  "-D",
+  "CONFIG_MFCTBLSIZ=128",
+  "-D",
+  "CONFIG_MSG_BSIZE_REL=16384",
+  "-D",
+  "CONFIG_MSG_BSIZE_DEV=131072",
+  "-D",
+  "CONFIG_MSG_BSIZE=CONFIG_MSG_BSIZE_DEV",
+  "-D",
+  "CONFIG_IPC_TABLE_ENTRIES_SIZE_MAX=3145728",
+  "-D",
+  "CONFIG_IPC_TABLE_REQUEST_SIZE_MAX=1048576",
+  "-D",
+  "CONFIG_IPC_KERNEL_MAP_SIZE=32",
+  "-D",
+  "CONFIG_EMBEDDED",
+  "-D",
+  "CONFIG_PMAP_PPL",
+  "-D",
+  "NOS_ARM_ASM",
+  "-D",
+  "NOS_ARM_PMAP",
+  "-D",
+  "CONFIG_DYNAMIC_CODE_SIGNING",
+  "-D",
+  "CONFIG_ENFORCE_LIBRARY_VALIDATION",
+  "-D",
+  "CONFIG_CODE_DECRYPTION",
+  "-D",
+  "CONFIG_PROTECT",
+  "-D",
+  "CONFIG_MEMORYSTATUS",
+  "-D",
+  "CONFIG_JETSAM",
+  "-D",
+  "CONFIG_FREEZE",
+  "-D",
+  "CHECK_CS_VALIDATION_BITMAP",
+  "-D",
+  "CONFIG_PHANTOM_CACHE",
+  "-D",
+  "VM_PRESSURE_EVENTS",
+  "-D",
+  "CONFIG_SECLUDED_MEMORY",
+  "-D",
+  "CONFIG_IOSCHED",
+  "-D",
+  "CONFIG_IO_ACCOUNTING",
+  "-D",
+  "IMPORTANCE_INHERITANCE",
+  "-D",
+  "IMPORTANCE_TRACE",
+  "-D",
+  "CONFIG_TELEMETRY",
+  "-D",
+  "CONFIG_PROC_UUID_POLICY",
+  "-D",
+  "CONFIG_ECC_LOGGING",
+  "-D",
+  "CONFIG_COREDUMP",
+  "-D",
+  "CONFIG_VNGUARD",
+  "-D",
+  "IOKITSTATS",
+  "-D",
+  "IOTRACKING",
+  "-D",
+  "CONFIG_SLEEP",
+  "-D",
+  "CONFIG_MAX_THREADS=500",
+  "-D",
+  "NO_KEXTD",
+  "-D",
+  "NO_KERNEL_HID",
+  "-D",
+  "LIBKERNCPP",
+  "-D",
+  "CONFIG_BLOCKS",
+  "-D",
+  "CONFIG_KEC_FIPS",
+  "-D",
+  "CONFIG_PERSONAS",
+  "-D",
+  "CONFIG_MACF",
+  "-D",
+  "CONFIG_MACF_SOCKET_SUBSET",
+  "-D",
+  "CONFIG_SETUID",
+  "-D",
+  "CONFIG_SECURE_BSD_ROOT",
+  "-D",
+  "CONFIG_KAS_INFO",
+  "-D",
+  "CONFIG_ZLEAKS",
+  "-D",
+  "KPERF",
+  "-D",
+  "CONFIG_IOTRACE",
+  "-D",
+  "PGO",
+  "-D",
+  "DEVELOPMENT",
+  "-D",
+  "MACH_BSD",
+  "-D",
+  "IOKIT",
+  "-D",
+  "CONFIG_THREAD_MAX=1536",
+  "-D",
+  "CONFIG_TASK_MAX=512",
+  "-D",
+  "CONFIG_ZONE_MAP_MIN=120586240",
+  "-D",
+  "CONFIG_VC_PROGRESS_WHITE",
+  "-D",
+  "CONFIG_SCHED_TRADITIONAL",
+  "-D",
+  "CONFIG_SCHED_MULTIQ",
+  "-D",
+  "CONFIG_SCHED_TIMESHARE_CORE",
+  "-D",
+  "CONFIG_CLUTCH",
+  "-D",
+  "CONFIG_PROB_GZALLOC",
+  "-D",
+  "CONFIG_SCHED_DEFERRED_AST",
+  "-D",
+  "MACH_KDP",
+  "-D",
+  "CONFIG_SERIAL_KDP",
+  "-D",
+  "CONFIG_KDP_INTERACTIVE_DEBUGGING",
+  "-D",
+  "CONFIG_TASKWATCH",
+  "-D",
+  "CONFIG_XNUPOST",
+  "-D",
+  "PROC_REF_DEBUG",
+  "-D",
+  "CONFIG_ATM",
+  "-D",
+  "CONFIG_COALITIONS",
+  "-D",
+  "CONFIG_SYSDIAGNOSE",
+  "-D",
+  "SERIAL_CONSOLE",
+  "-D",
+  "VIDEO_CONSOLE",
+  "-D",
+  "CONFIG_REQUIRES_U32_MUNGING",
+  "-D",
+  "CONFIG_MACH_BRIDGE_RECV_TIME",
+  "-D",
+  "CONFIG_QUIESCE_COUNTER",
+  "-D",
+  "CONFIG_SERVICE_PORT_INFO",
+  "-D",
+  "CONFIG_EXT_PANICLOG",
+  "-D",
+  "ALTERNATE_DEBUGGER",
+  "-D",
+  "CONFIG_VNODES=1024",
+  "-D",
+  "CONFIG_FREEZE_SUSPENDED_MIN=4",
+  "-D",
+  "CONFIG_MACH_APPROXIMATE_TIME",
+  "-D",
+  "CONFIG_KERNEL_INTEGRITY",
+  "-D",
+  "CONFIG_UBSAN_MINIMAL",
+  "-D",
+  "XNU_NATIVE_PAN=1",
+  "-D",
+  "XNU_SOURCE_CORECRYPTO14=1",
+  "-D",
+  "OS_FIREHOSE_SPI=1",
+  "-D",
+  "XNU_BOOT_PROGRESS=0",
+  "-include",
+  "meta_features.h",
+  "-D",
+  "DRIVER_PRIVATE",
+  "-D",
+  "IOKIT_KERNEL_PRIVATE",
+  "-D",
+  "DRIVERKIT_PRIVATE=1",
+  "-D",
+  "IOMATCHDEBUG=1",
+  "-D",
+  "IOALLOCDEBUG=1",
+  "-D",
+  "PRIVATE_WIFI_ONLY=1",
+  "-I",
+  ".",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/iokit",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/iokit",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/osfmk",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/bsd",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/libkern",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/pexpert",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/libsa",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/security",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/xnu/ios-obj/EXPORT_HDRS/san",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/EXTERNAL_HEADERS",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/fakeroot/usr/local/include/kernel",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/fakeroot/usr/local/include",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/fakeroot//System/Library/Frameworks/Kernel.framework/Versions/A/PrivateHeaders/platform",
+  "-Xclang",
+  "-clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation",
+  "-Xclang",
+  "-fno-odr-hash-protocols",
+  "-Xclang",
+  "-clang-vendor-feature=+enableAggressiveVLAFolding",
+  "-Xclang",
+  "-clang-vendor-feature=+revert09abecef7bbf",
+  "-Xclang",
+  "-clang-vendor-feature=+thisNoAlignAttr",
+  "-Xclang",
+  "-clang-vendor-feature=+thisNoNullAttr",
+  "-Xclang",
+  "-clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError",
+  "-mlinker-version=1267",
+  "--target=arm64-apple-ios17.0.0",
+  "-Wall",
+  "-Wextra",
+  "-Werror",
+  "-Wno-unused-parameter",
+  "-Wno-c99-designator",
+  "-Wno-reorder-init-list",
+  "-Wno-deprecated-enum-enum-conversion",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/.cache/xnu-work/osfmk",
+  "-Wno-unnecessary-virtual-specifier",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/storage-abi/include",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/kits/VerifiedRoot/include",
+  "-I",
+  "/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeVirtioBlock",
+  "-Wno-error",
+  "-mgeneral-regs-only"
+]
+d3f76cb87ec50b94c497f461683df64c353883fa101c05bb13f32663ddf3713f  out/houji/kernel/kernel.macho

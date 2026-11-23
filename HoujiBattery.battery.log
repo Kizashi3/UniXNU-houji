@@ -1,0 +1,34 @@
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:89:38: warning: increment of object of volatile-qualified type 'volatile int32_t' (aka 'volatile int') is deprecated [-Wdeprecated-volatile]
+   89 |         }else houji_battery_stats[10]++;
+      |                                      ^
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:110:35: warning: implicit conversion changes signedness: 'uint32_t' (aka 'unsigned int') to 'int32_t' (aka 'int') [-Wsign-conversion]
+  110 |         houji_battery_stats[4]=bm.valid;
+      |                               ~~~~^~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:121:13: warning: increment of object of volatile-qualified type 'volatile int32_t' (aka 'volatile int') is deprecated [-Wdeprecated-volatile]
+  121 |             ++houji_battery_stats[11];faulted=true;houji_battmgr_disconnect(&bm);withdraw();return;
+      |             ^
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:133:73: warning: increment of object of volatile-qualified type 'volatile int32_t' (aka 'volatile int') is deprecated [-Wdeprecated-volatile]
+  133 |                 if(houji_adsp_send(channel,subscribe,sizeof(subscribe)))++houji_battery_stats[11];
+      |                                                                         ^
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:157:35: warning: implicit conversion changes signedness: 'uint32_t' (aka 'unsigned int') to 'int32_t' (aka 'int') [-Wsign-conversion]
+  157 |         houji_battery_stats[5]=bm.responses;houji_battery_stats[6]=bm.errors;
+      |                               ~~~~^~~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:157:71: warning: implicit conversion changes signedness: 'uint32_t' (aka 'unsigned int') to 'int32_t' (aka 'int') [-Wsign-conversion]
+  157 |         houji_battery_stats[5]=bm.responses;houji_battery_stats[6]=bm.errors;
+      |                                                                   ~~~~^~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:158:35: warning: implicit conversion changes signedness: 'uint32_t' (aka 'unsigned int') to 'int32_t' (aka 'int') [-Wsign-conversion]
+  158 |         houji_battery_stats[7]=bm.timeouts;houji_battery_stats[8]=bm.cycles;
+      |                               ~~~~^~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:158:70: warning: implicit conversion changes signedness: 'uint32_t' (aka 'unsigned int') to 'int32_t' (aka 'int') [-Wsign-conversion]
+  158 |         houji_battery_stats[7]=bm.timeouts;houji_battery_stats[8]=bm.cycles;
+      |                                                                  ~~~~^~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:159:35: warning: implicit conversion changes signedness: 'uint32_t' (aka 'unsigned int') to 'int32_t' (aka 'int') [-Wsign-conversion]
+  159 |         houji_battery_stats[9]=bm.ignored;houji_battery_stats[12]=disabled;
+      |                               ~~~~^~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:159:67: warning: implicit conversion changes signedness: 'unsigned int' to 'int32_t' (aka 'int') [-Wsign-conversion]
+  159 |         houji_battery_stats[9]=bm.ignored;houji_battery_stats[12]=disabled;
+      |                                                                  ~^~~~~~~~
+/Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/drivers/NativeUfs/battery/HoujiBattery.cpp:160:65: warning: implicit conversion changes signedness: 'unsigned int' to 'int32_t' (aka 'int') [-Wsign-conversion]
+  160 |         houji_battery_stats[13]=faulted;houji_battery_stats[14]=handledGeneration;
+      |                                                                ~^~~~~~~~~~~~~~~~~
+11 warnings generated.
