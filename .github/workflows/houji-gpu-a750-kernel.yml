@@ -21,7 +21,8 @@ concurrency:
 env:
   DXB_REPO: https://github.com/blacktop/darwin-xnu-build
   DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
-  PORT_REPO: https://github.com/lonzzi/UniXNU-houji
+  # actions/checkout takes an owner/repo slug here, not a clone URL.
+  PORT_REPO: lonzzi/UniXNU-houji
   PORT_SHA: 99beb109d66d24d3a1780901cb8958ec3fb24b06
   XNU_REPO: https://github.com/apple-oss-distributions/xnu
   # This is the peeled xnu-8796.141.3 commit, the exact revision pinned by
@@ -31,7 +32,9 @@ env:
   MACOS_VERSION: "13.5"
   KERNEL_CONFIG: DEVELOPMENT
   MACHINE_CONFIG: SWEET
-  QCOM_PKG_URL: https://geo.mirror.pkgbuild.com/core/os/x86_64/linux-firmware-qcom-20261019-1-any.pkg.tar.zst
+  KDK_URL: https://github.com/dortania/KdkSupportPkg/releases/download/22G74/Kernel_Debug_Kit_13.5_build_22G74.dmg
+  KDK_SHA256: 29866842eef039812888daea4176ce493be153b0d6d1b88f90753d69ea51b7d4
+  KDK_BUILD: KDK_13.5_22G74
 
 jobs:
   kernel:
@@ -98,6 +101,38 @@ jobs:
           sudo xcode-select -s "$XC"
           xcodebuild -version
 
+      - name: Install the matching Darwin 22 KDK
+        run: |
+          set -euo pipefail
+          dmg="$RUNNER_TEMP/${KDK_BUILD}.dmg"
+          curl -L --retry 5 --retry-all-errors --connect-timeout 30 -o "$dmg" "$KDK_URL"
+          echo "$KDK_SHA256  $dmg" | shasum -a 256 -c -
+          attach=$(hdiutil attach -nobrowse -readonly "$dmg")
+          mount=$(printf '%s\n' "$attach" | awk -F '\t' 'NF>=3 && $3 ~ /^\/Volumes\// {print $3}' | tail -1)
+          test -d "$mount"
+          kdk_root=$(find "$mount" -maxdepth 3 -type d -name "${KDK_BUILD}.kdk" -print -quit)
+          if [ -z "$kdk_root" ]; then
+            pkg=$(find "$mount" -maxdepth 3 -name '*.pkg' -print -quit)
+            test -n "$pkg"
+            if ! sudo installer -pkg "$pkg" -target /; then
+              echo "KDK installer refused; expanding the package payload"
+              rm -rf "$RUNNER_TEMP/kdk-expanded"
+              pkgutil --expand-full "$pkg" "$RUNNER_TEMP/kdk-expanded"
+              kdk_root=$(find "$RUNNER_TEMP/kdk-expanded" -type d -name "${KDK_BUILD}.kdk" -print -quit)
+            else
+              kdk_root="/Library/Developer/KDKs/${KDK_BUILD}.kdk"
+            fi
+          fi
+          if [ -n "$kdk_root" ] && [ "$kdk_root" != "${kdk_root#$mount}" ]; then
+            cp -a "$kdk_root" "$RUNNER_TEMP/${KDK_BUILD}.kdk"
+            kdk_root="$RUNNER_TEMP/${KDK_BUILD}.kdk"
+          fi
+          hdiutil detach "$mount" -quiet || true
+          test -n "$kdk_root"
+          test -d "$kdk_root/Payload/System/Library/KernelSupport"
+          echo "HOUJI_KDK=$kdk_root/Payload" >> "$GITHUB_ENV"
+          echo "KDK ready: $kdk_root"
+
       - name: Apply the original Houji patch and A750 overlay
         run: |
           set -euo pipefail
@@ -109,18 +144,9 @@ jobs:
           test -f dxb/xnu/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
           python3 port/tools/check-trial-bindings.py dxb/xnu
 
-      - name: Prepare A750 firmware headers
+      - name: Prepare pinned A750 firmware headers
         run: |
           set -euo pipefail
-          mkdir -p fw
-          curl -L --retry 4 --connect-timeout 30 -o fw/qcom.pkg.tar.zst "$QCOM_PKG_URL"
-          tar -xf fw/qcom.pkg.tar.zst -C fw \
-            usr/lib/firmware/qcom/gmu_gen70900.bin.zst \
-            usr/lib/firmware/qcom/gen70900_sqe.fw.zst \
-            usr/lib/firmware/qcom/gen70900_aqe.fw.zst
-          zstd -d -f fw/usr/lib/firmware/qcom/gmu_gen70900.bin.zst -o fw/gmu_gen70900.bin
-          zstd -d -f fw/usr/lib/firmware/qcom/gen70900_sqe.fw.zst -o fw/gen70900_sqe.fw
-          zstd -d -f fw/usr/lib/firmware/qcom/gen70900_aqe.fw.zst -o fw/gen70900_aqe.fw
           python3 - <<'PY'
           import hashlib
           import json
@@ -129,22 +155,33 @@ jobs:
           pins = Path("port/kernel/firmware-inputs.json")
           data = json.loads(pins.read_text())
           for symbol, name in (
-              ("gHoujiGmuFirmwareImage", "gmu_gen70900.bin"),
-              ("gHoujiSqeFirmwareImage", "gen70900_sqe.fw"),
-              ("gHoujiAqeFirmwareImage", "gen70900_aqe.fw"),
+              ("gHoujiGmuFirmwareImage", "firmware/gen70900/gmu_gen70900.bin"),
+              ("gHoujiSqeFirmwareImage", "firmware/gen70900/gen70900_sqe.fw"),
+              ("gHoujiAqeFirmwareImage", "firmware/gen70900/gen70900_aqe.fw"),
           ):
-              payload = (Path("fw") / name).read_bytes()
-              data[symbol]["bytes"] = len(payload)
-              data[symbol]["sha256"] = hashlib.sha256(payload).hexdigest()
-              print(symbol, len(payload), data[symbol]["sha256"])
-          pins.write_text(json.dumps(data, indent=2) + "\n")
+              payload = Path(name).read_bytes()
+              actual = hashlib.sha256(payload).hexdigest()
+              expected = data[symbol]
+              if len(payload) != expected["bytes"] or actual != expected["sha256"]:
+                  raise SystemExit(f"firmware pin mismatch: {name}")
+              print(symbol, len(payload), actual)
           PY
           python3 port/tools/make-firmware-headers.py \
-            --gmu fw/gmu_gen70900.bin \
-            --sqe fw/gen70900_sqe.fw \
-            --aqe fw/gen70900_aqe.fw \
+            --gmu firmware/gen70900/gmu_gen70900.bin \
+            --sqe firmware/gen70900/gen70900_sqe.fw \
+            --aqe firmware/gen70900/gen70900_aqe.fw \
             --output dxb/xnu/iokit/Kernel/houji-ufs-root
           grep -q 'gen70900' dxb/xnu/iokit/Kernel/houji-ufs-root/HoujiGmuFirmwareImage.h
+
+      - name: Verify the Darwin 22 build inputs
+        run: |
+          set -euo pipefail
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
+          xcodebuild -version
+          test -d "$HOUJI_KDK/System/Library/KernelSupport"
+          test -d dxb/xnu
+          test -f dxb/xnu/config/MASTER.arm64.sweet
+          ls -lh firmware/gen70900
 
       - name: Build MIG, CTF and fakeroot dependencies
         run: |
@@ -176,7 +213,6 @@ jobs:
       - name: Compile the pinned A750 kernel
         env:
           HOUJI_XNU: ${{ github.workspace }}/dxb/xnu
-          HOUJI_KDK: /Library/Developer/KDKs/KDK_13.5_22G74.kdk/Payload
           HOUJI_FAKEROOT: ${{ github.workspace }}/dxb/fakeroot
           HOUJI_BUILD_ROOT: ${{ github.workspace }}/dxb/build/houji-kernel
           HOUJI_JOBS: "8"
@@ -192,6 +228,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
+          {
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_number=$GITHUB_RUN_NUMBER"
+            echo "branch=$GITHUB_REF_NAME"
+            echo "sha=$GITHUB_SHA"
+            echo "port_repo=$PORT_REPO"
+            echo "port_sha=$PORT_SHA"
+            echo "kernel_present=$(test -f dxb/build/houji-kernel/xnu.obj/kernel.development.sweet && echo yes || echo no)"
+          } > out/build-status.txt
           cp -a dxb/build/houji-kernel/xnu.obj/kernel.development.sweet out/ 2>/dev/null || true
           cp -a dxb/build/houji-kernel/fakeroot/System/Library/Kernels/kernel.development.sweet out/ 2>/dev/null || true
           cp -a a750-kernel-build.log a750-kernel-deps.log out/ 2>/dev/null || true
