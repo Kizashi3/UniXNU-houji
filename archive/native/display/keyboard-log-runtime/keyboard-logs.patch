@@ -1,0 +1,39 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiGpuProbeLog.inc
++++ b/iokit/Kernel/houji-ufs-root/HoujiGpuProbeLog.inc
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: MIT
+- * Read only the two fixed root-owned probe logs. Never hold the GPU gate
++ * Read only fixed diagnostic paths with their expected owners. Never hold the GPU gate
+  * during filesystem I/O. Dump only after the real GPU reset/halt boundary.
+  */
+ #ifndef HOUJI_GPU_PROBE_LOG_INC
+@@ -48,4 +48,18 @@
+  for(unsigned at=0;at<used;){unsigned count=0;while(at+count<used && count<480 && gHoujiProbeLog[at+count]!='\n')++count;
+   IOLog("HOUJI WALLPAPER: %.*s\n",count,gHoujiProbeLog+at);at+=count;if(at<used && gHoujiProbeLog[at]=='\n')++at;}
+ }
++static void houjiKeyboardLogDump(void){
++ const char*paths[]={"/private/var/mobile/Library/Logs/HoujiKeyboard-v16.log","/private/var/mobile/Library/Logs/HoujiKeyboard-v17.log"};
++ const char*hosts[]={"Preferences-v16","Spotlight-v17"};
++ for(unsigned which=0;which<2;which++){
++  unsigned used=0;int e=houjiProbeRead(paths[which],32768,&used,501);
++  IOLog("HOUJI KEYBOARD FILE: host=%s read-error=%d bytes=%u; fixed mobile-owned geometry log, no-follow, after actual GPU isolation; append history may include earlier boots\n",hosts[which],e,used);
++  if(e)continue;
++  unsigned at=used>8192?used-8192:0;
++  if(at){while(at<used && gHoujiProbeLog[at]!='\n')++at;if(at<used)++at;}
++  for(;at<used;){unsigned count=0;while(at+count<used && count<480 && gHoujiProbeLog[at+count]!='\n')++count;
++   IOLog("HOUJI KEYBOARD %s: %.*s\n",hosts[which],count,gHoujiProbeLog+at);at+=count;if(at<used && gHoujiProbeLog[at]=='\n')++at;
++  }
++ }
++}
+ #endif
+--- a/iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc
++++ b/iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc
+@@ -153,7 +153,7 @@
+  /* Commit terminal GPU/call state before any diagnostic vnode lookup can block. */
+  houjiFullReport();houjiCpSaveFinal();
+  if(l.mode==2){houjiProbeLogDump();houjiCpSaveFinal();}
+- if(l.mode==3){houjiWallpaperLogDump();houjiCpSaveFinal();}
++ if(l.mode==3){houjiWallpaperLogDump();houjiCpSaveFinal();houjiKeyboardLogDump();houjiCpSaveFinal();}
+  panic("HOUJI LIVE: runtime ended mode=%u code=%u; retained PSCI recovery",l.mode,l.code);
+ }
+ static bool houjiLiveStart(void){

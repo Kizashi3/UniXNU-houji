@@ -1,0 +1,34 @@
+{
+  "mode": "opt-in inherited GPU power and SMMU read-only preflight; no GPU execution",
+  "boot_argument": "houji_gpu_ro=1",
+  "stops_before_HFS": true,
+  "gpu_gmu_smmu_clock_power_firmware_writes": false,
+  "fixed_log_storage_writes": true,
+  "reference": "tycykp/UniXNU-OnePlus-Ace5@aaa100d19f6fb14e5897a7e496edf7838d4d4e9f ios16/giulia_gpu_power.h",
+  "board_register_reference": "MiCode/Xiaomi_Kernel_OpenSource shennong-u-oss drivers/clk/qcom/gcc-pineapple.c and gpucc-pineapple.c; FDT GPUCC and SMMU windows",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "cad2918423c133c5ccf362b38fb1f2146b78ea2e84aac8caa0d80942900a1f16",
+      "after": "5b82c10431e5ba95bf3df6fc812053ae2eb18ae8ab315daaf45e88006f2f554b"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuReadPolicy.h": {
+      "before": null,
+      "after": "1c35aa4e4953a44f81c0c975b2405597c397b98e196c228e9446742bd0c577cd"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuPowerObserve.h": {
+      "before": null,
+      "after": "eafc70ef47b19c7842cc943da36cb217fbaf3853386cf20875ac5a648fdabe5e"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuProbe.inc": {
+      "before": null,
+      "after": "949f6cdbed7b8e3de2e61a98c88e303505ae27b273f937f2584790892931447e"
+    }
+  },
+  "AOP_descriptor_read_only": {
+    "physical_base": "0xc300000",
+    "bytes": 1024,
+    "descriptor_words": 15,
+    "mailbox_lengths_only_after_geometry_validation": true,
+    "channel_or_doorbell_writes": false
+  }
+}

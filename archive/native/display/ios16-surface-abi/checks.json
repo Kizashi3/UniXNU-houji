@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "actual_serializer_extracted": true,
+  "original_bug_reproduced": true,
+  "ASAN_UBSAN": true,
+  "reference": "20H392 actual IOSurfaceClient: result base +0x68, row read client+0xe0+plane*0x80",
+  "results": [
+    {
+      "variant": "before",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "variant": "after",
+      "exit_code": 0,
+      "stdout": "PASS actual serializer vs iOS16 binary reader: 10 planar rows; ordinary geometry preserved\n",
+      "stderr": ""
+    }
+  ],
+  "hardware_tested": false
+}

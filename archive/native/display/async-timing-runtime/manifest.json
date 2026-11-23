@@ -1,0 +1,17 @@
+{
+  "scope": "event-driven copy worker separated from periodic Vsync notifications; fixed 120 Hz software mode experiment",
+  "before_sha256": "346f94a9c43d9f29aa6b9689b6e7f6a07743e53e9b72386f7d5cee95235f99ac",
+  "after_sha256": "6f71ba5e35a1cb6286171aa129f23fecbbb9b8902d26c1b26774a6eed417677c",
+  "native_pixels": [
+    1200,
+    2670
+  ],
+  "scanout_resampling": false,
+  "single_queue_consumer": true,
+  "retained_frame_fences_and_store_completion": true,
+  "IOMFB_rate_units": "TimingElements 16.16 Hz; intervals 32.32 seconds plus mach time, fixed mode step 0",
+  "physical_DPU_DSI_mode_written": false,
+  "physical_panel_Hz_measured": false,
+  "source_reference": "https://github.com/markakash/UniXNU-ishtar-old/blob/79ddf4578db06c3738dd5b56a49434270ee260b1/xnu/patches-ishtar/2025-ishtar-dpu-sm8550-flip.patch",
+  "hardware_tested": false
+}

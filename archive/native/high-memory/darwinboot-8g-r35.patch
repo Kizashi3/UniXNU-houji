@@ -1,0 +1,33 @@
+--- a/DarwinBootPkg/Driver/DarwinBoot.c
++++ b/DarwinBootPkg/Driver/DarwinBoot.c
+@@ -59,16 +59,16 @@
+                 Ordinary <= 0xFFFFFFFFULL - SIZE_16KB;
+   if (Pool != NULL) { FreePool (Pool); }
+   if (!EFI_ERROR (Status)) { gBS->FreePages (Ordinary, 4); }
+-  if (!Low || Bytes != SIZE_2GB || Address < 0x8C0000000ULL ||
++  if (!Low || (Bytes != SIZE_2GB && Bytes != SIZE_8GB) || Address < 0x8C0000000ULL ||
+       Address > 0xBEA400000ULL - Bytes) { return EFI_UNSUPPORTED; }
+   Print (L"HOUJI MEMORY: automatic page/pool allocations below 4 GiB PASS\n");
+-  Print (L"HOUJI MEMORY: testing owned 2 GiB at %lx, two full patterns\n", Address);
++  Print (L"HOUJI MEMORY: testing owned %lu GiB at %lx, two full patterns\n", Bytes >> 30, Address);
+   if (!DarwinTestOwnedMemory ((volatile unsigned long long *)(UINTN)Address,
+                              Bytes / sizeof (UINT64), FlushOwnedMemory)) {
+     Print (L"HOUJI MEMORY: full-window verification FAILED\n");
+     return EFI_DEVICE_ERROR;
+   }
+-  Print (L"HOUJI MEMORY: full 2 GiB write/flush/read PASS\n");
++  Print (L"HOUJI MEMORY: full %lu GiB write/flush/read PASS\n", Bytes >> 30);
+   return EFI_SUCCESS;
+ }
+ #endif
+--- a/DarwinBootPkg/Driver/OwnedMemoryTest.h
++++ b/DarwinBootPkg/Driver/OwnedMemoryTest.h
+@@ -7,7 +7,7 @@
+ static inline int DarwinTestOwnedMemory(volatile unsigned long long *words,
+     unsigned long long count,
+     void (*flush)(void *, unsigned long long)) {
+-  if (!words || !count || count > 0x10000000ULL || !flush) return 0;
++  if (!words || !count || count > 0x40000000ULL || !flush) return 0;
+   for (unsigned pass = 0; pass < 2; ++pass) {
+     unsigned long long seed = pass ? 0xa55a0ff0f00f5aa5ULL : 0x5aa5f00f0ff0a55aULL;
+     for (unsigned long long i = 0; i < count; ++i)

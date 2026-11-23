@@ -1,0 +1,25 @@
+{
+  "source": "Vermeer patch 0054, pinned d68e05df683f863f054b0f9c063c54d2b1342b2a",
+  "old_task_function_sha256": "7e432e44ef650af0fe3ac5ef6caa28f0f6ffaa0df9da07bbbf8aae567ea89443",
+  "new_task_function_sha256": "bdc90035954a2206059d6cafcf83ec91cd22512d07361b170d9a98e80d5c15ac",
+  "old_trial_sampler_sha256": "967b24c01c057b557953f29965ee874446e0dc5f05457b131b256d7e974aa5cb",
+  "new_trial_sampler_sha256": "3dc2515e6e29cbf12c6067cabf8fd6b8007265c98d236f236cb1248b7d93e9b4",
+  "change": "Snapshot saved register values under task lock; faultable reads after unlock with referenced vm_map. Bound 128 threads; record VM/display/target services.",
+  "previous_trial_sampler_sha256": [
+    "8c5b9d3642f8b09466c6ea57ae4482a427eba494a30668fb872db57704d409fc",
+    "eb89a04aae9b25fb98d38563057d954844ddb0552d72aa74852b978fc5778e91",
+    "2a3916aaa90bb0c3752c4296b8d8efec594c78261ad2769c16a38f3739b25e9f",
+    "10729575c0bf876ce6e95aa656000779f7c67d7cf4d74a91c5a5aa3da693f574",
+    "b34288bf65bc0f6fd7a2a1084d85c58e47a5d327c6aa12ac3c33e4a8e87ed27d",
+    "b5cfff79b4344821946146ef0cb388fedc7f0a9250c25b6106dee6d77f76c150"
+  ],
+  "trial_sample_budget": {
+    "default": 180,
+    "minimum": 12,
+    "maximum": 720,
+    "interval_seconds": 5,
+    "boot_argument": "houji_trial_samples"
+  },
+  "passive_exit_reports": true,
+  "touch_report": "Cached read-only handoff snapshot printed every fourth sample; no repeated MMIO"
+}

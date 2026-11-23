@@ -1,0 +1,40 @@
+{
+  "firmware": "iOS16 20H392",
+  "protocol_address": "0x1e1d20c10",
+  "required": [
+    {
+      "name": "alignment",
+      "types": "Q16@0:8"
+    },
+    {
+      "name": "copyFromLinearBytes:linearOffset:linearBytesPerRow:linearBytesPerImage:toTextureMemory:textureSlice:textureLevel:textureRegion:",
+      "types": "v120@0:8r^v16Q24Q32Q40^v48Q56Q64{?={?=QQQ}{?=QQQ}}72"
+    },
+    {
+      "name": "watermark",
+      "types": "{?=[2Q]}16@0:8"
+    },
+    {
+      "name": "size",
+      "types": "Q16@0:8"
+    },
+    {
+      "name": "copyGranularity",
+      "types": "{?=QQQ}16@0:8"
+    },
+    {
+      "name": "finalizeTextureMemory:",
+      "types": "v24@0:8^v16"
+    },
+    {
+      "name": "copyFromTextureMemory:textureSlice:textureLevel:textureRegion:toLinearBytes:linearOffset:linearBytesPerRow:linearBytesPerImage:",
+      "types": "v120@0:8r^v16Q24Q32{?={?=QQQ}{?=QQQ}}40^v88Q96Q104Q112"
+    }
+  ],
+  "optional": [
+    {
+      "name": "initializeTextureMemory:",
+      "types": "v24@0:8^v16"
+    }
+  ]
+}

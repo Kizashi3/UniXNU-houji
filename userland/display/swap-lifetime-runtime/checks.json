@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "actual_production_methods_extracted": true,
+  "ASAN_UBSAN": true,
+  "stdout": "PASS actual producer/waiter/retirement: retained references, per-frame fence capture outside display lock, no premature completion, full-queue timeout, FIFO, ID wrap and10000 cycles; synthetic locks/surfaces, no GPU emulation\n",
+  "stderr": "",
+  "hardware_tested": false
+}

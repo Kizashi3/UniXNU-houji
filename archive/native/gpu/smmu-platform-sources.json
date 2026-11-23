@@ -1,0 +1,40 @@
+{
+  "sources": [
+    {
+      "key": "mi_smmu_qcom",
+      "url": "https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/shennong-u-oss/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c",
+      "blob": "501bb3f13039d61bc3a92429bdead3ba73bec2be"
+    },
+    {
+      "key": "mi_smmu_header",
+      "url": "https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/shennong-u-oss/drivers/iommu/arm/arm-smmu/arm-smmu.h",
+      "blob": "fb5a813b0129c5008a828bb6e3c015ca19771082"
+    },
+    {
+      "key": "kgsl_iommu_primary",
+      "url": "https://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8650/blob/453d8875f815bf9dfad9035982861226a4823a6c/vendor/qcom/opensource/graphics-kernel/kgsl_iommu.c",
+      "blob": null
+    },
+    {
+      "key": "kgsl_iommu_header",
+      "url": "https://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8650/blob/453d8875f815bf9dfad9035982861226a4823a6c/vendor/qcom/opensource/graphics-kernel/kgsl_iommu.h",
+      "commit": "453d8875f815bf9dfad9035982861226a4823a6c",
+      "verified_definitions": {
+        "ACTLR_offset": 4,
+        "PRR_low": 24584,
+        "PRR_high": 24588,
+        "PRR_enable_bit": 5
+      }
+    }
+  ],
+  "board": {
+    "node": "kgsl-smmu@3da0000",
+    "actlr_tuple": [
+      0,
+      1023,
+      811
+    ],
+    "live_fdt_sha256": "04dad3a2a40758525e93109ef17954183500a86c7bdf77973b89e39f97723807"
+  },
+  "interpretation": "SID/mask/ACTLR; programming ACTLR needs bank TLB invalidation; PRR bit 5 requires a real zero page PA. This trial only observes platform registers."
+}

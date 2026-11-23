@@ -1,0 +1,6 @@
+{
+  "scope": "Queue for existing issuer CPU mutex on contention; retain same zero-timeout real-fence check and hold issuer through copy",
+  "no_GPU_wait_or_reference_retirement": true,
+  "no_new_MMIO_cache_or_GPU_mapping_operations": true,
+  "hardware_tested": false
+}

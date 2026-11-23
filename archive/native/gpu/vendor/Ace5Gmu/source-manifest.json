@@ -1,0 +1,23 @@
+{
+  "repository": "tycykp/UniXNU-OnePlus-Ace5",
+  "commit": "aaa100d19f6fb14e5897a7e496edf7838d4d4e9f",
+  "unmodified": true,
+  "files": {
+    "giulia_gpu_firmware.h": {
+      "source": "ios16/giulia_gpu_firmware.h",
+      "sha256": "eae640bc4b2656ce1b843860fd47e19c5d94da4e2c2061431d0a36678f5c8c2b"
+    },
+    "giulia_gpu_memory.h": {
+      "source": "ios16/giulia_gpu_memory.h",
+      "sha256": "a881909805efcfb3322697d61e45c0f4c9be09b483cd87b9019ce6ec88b3e94a"
+    },
+    "giulia_gpu_hfi.h": {
+      "source": "ios16/giulia_gpu_hfi.h",
+      "sha256": "26683bb33cb70fc05a877f2cff41956e46e5dddc87ad94a88e091c4b34f323ce"
+    },
+    "giulia_gpu_scm.h": {
+      "source": "ios16/giulia_gpu_scm.h",
+      "sha256": "b720ed219a955299f63293b78f12df16976b066a8e4b287025e515d151e9b7b6"
+    }
+  }
+}

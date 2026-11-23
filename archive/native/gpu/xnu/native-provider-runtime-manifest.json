@@ -1,0 +1,72 @@
+{
+  "scope": "Original NativeAdreno IOKit v1 wrapper over retained owner; shared quiescence before mutation, source IOAcceleratorES registry ancestry, two kernel-driven wrapper rounds and exclusive16K NC CPU views. No Mach trap/Metal/desktop proof",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "8c02e52ce09864c517aee7734a4b22aaff32952160943c571d138dfe21e7f64b",
+      "after": "f3c924966aef3542d1601407d6be8bf31e960400576cd6add70a0a4c58358d2d",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc": {
+      "before": "bd88129f549922c18dc5266789011e9a5c03361881cec73df4c5c1d7c86c38fa",
+      "after": "0859128429e5893944798e9606957ddf50cf126f0ee9b1e3494de1cc1689f35c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/HoujiGpuNativeLive.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "9e5cb29e7ee2f02ed18e22d3e32a19358354a1fe43e0d93f6c9515fe9648f3e3",
+      "after": "80ad9e5dc99de3c6c8c963e2262a3700d4035405525ffb5d2a042150aaef44d2",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/HoujiGpuFullHostProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeCp.inc": {
+      "before": "a5d6eba253ff079d1289601a4218498a3ae0f7d9fcc40aa8669c42f4aaccdf5c",
+      "after": "109f57fa1fac1ac917f440555ef8abda69b3b95f0b49e38dacefe34d1b43325b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/HoujiGpuNativeCp.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeClient.inc": {
+      "before": "e96298e6fdd65bfb4fd7271e3ae99895f3298739deff9b46828cbdf44de23bbf",
+      "after": "4a483b09a07234bebe8b81cdfc56864a54fa0b06bda80080ecc8b28acf10359f",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/HoujiGpuNativeClient.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeProvider.inc": {
+      "before": null,
+      "after": "7b41ee50bd42a6b223ff099c728c9c3fc1c51c5f87efb3af6585849fad63995f",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/HoujiGpuNativeProvider.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": null,
+      "after": "c7f641f8d44df484f92785f65f21b95e22ada6c64b3d7dbc36227bf4de02952f",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/Adreno740/NativeAdrenoPublish.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/HoujiNativeAccelerator.cpp": {
+      "before": null,
+      "after": "00cfa06c3e551d4d74a4e287440a68522b3ba54e0eb321bdf1575f9b894eb3d7",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-provider-runtime/Adreno740/HoujiNativeAccelerator.cpp"
+    },
+    "iokit/conf/files": {
+      "before": "7604a85be5f57aac2a61032d0acc484e8277f5d2f63f7abdbc25dd586231f6eb",
+      "after": "a05e912966669c0b845c1ec18dedfc18a48985dc00ce3b16dcf15e031fede026"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r167-vm-linked/review.json",
+      "sha256": "30c4ae2af6e1e86a8566ff63bb2952e411cd07e252b0f5f993a96cd45533f7ca"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r167-client-linked/review.json",
+      "sha256": "0f1c2814ed9cff5afae03510d89e51628195b36341ee6cc45ddf9ab7b6430876"
+    },
+    "linked_provider": {
+      "path": "/tmp/r167-provider-linked/review.json",
+      "sha256": "00d9d59809c462bd3520a82335697c6d1ad56e8dde27e45ed90a4b5c446d4966"
+    }
+  },
+  "user_ABI": 1,
+  "blanket_sandbox_grant": false,
+  "mailbox_enabled": false,
+  "handoff_supported": false,
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r167-result.json",
+  "IOKit_kernel_wrapper_qualified": true,
+  "Metal": false,
+  "desktop_acceleration": false
+}

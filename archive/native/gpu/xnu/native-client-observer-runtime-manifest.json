@@ -1,0 +1,44 @@
+{
+  "scope": "One exact shared read-only register namespace for native Streams/Context observer and both board access gates; no new GPU packet or device-store permission",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "521c7f06653fcb876cdf3a6a6994f30f0f43c1fd8eaf2a4af674197488a9df78",
+      "after": "e8cbc3e8a03163a1a6785ae22f8583496bb6ecea0c575e64e6b3f2f13428a6da",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-observer-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "72b3c193ced510c3753cf2816a4b3ae57e1f16678259e21ec3490fd3d94f18bb",
+      "after": "0114d4d192a12ea0520d8551240faaeaa497af1c0d840651a12fd146a0743c5c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-observer-runtime/HoujiGpuFullHostProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiNativeSmmuReadPolicy.h": {
+      "before": null,
+      "after": "6257068b938eb32aa7779dc117c42a19bd647856198a6f12b6db252b7c4df156",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-observer-runtime/HoujiNativeSmmuReadPolicy.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeVm.inc": {
+      "before": "0f63f239c3904b2023e7c3a3b5459176b2bdc425b352b79a10c45843da17244a",
+      "after": "b0c0ddb4c1c98425f0f8e0bf717478a894dc5355f2e62fce739bb46b108b4eab",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-observer-runtime/HoujiGpuNativeVm.inc"
+    }
+  },
+  "offline_evidence": {
+    "observer_namespace": {
+      "scope": "actual original observer with strict board policy over a register peer; not GPU emulation",
+      "path": "${HOUJI_PORT_ROOT}/tests/native-smmu-observer-host/test.log",
+      "sha256": "949a1e1abea0fdd7fa943b27e5cf6b039795b8b856ebf5c1299e2173afe20f88"
+    },
+    "linked_review": {
+      "path": "/tmp/r164-vm-linked/review.json",
+      "sha256": "60ce8c15357637068569131aee1b6dff5e0736337067b1ea1acf26c47cd66d09"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r164-client-linked/review.json",
+      "sha256": "c432c565ba149105f2a25b60615d1601ad795ee33f159bbe4b9adaf4d803bfbe"
+    }
+  },
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r164-result.json",
+  "native_client_qualified": true,
+  "desktop_acceleration": false
+}

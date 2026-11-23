@@ -1,0 +1,47 @@
+{
+  "scope": "Darwin22 raw owned map reference: explicit unmap/release, sticky quarantine prevents all BO frees on VM error; at most first4 userspace teardown checkpoints per probe client outside GPU gate; same GPU, userland and budgets",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeProvider.inc": {
+      "before": "77a38748d59d2c03d368671a1b2caef5c5fbfeca0c5a1849a78e3efdfcc5f641",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-view-reclaim-runtime/HoujiGpuNativeProvider.inc",
+      "after": "05a9491458027a5b61108e156ef4f4f8557cfdf54b43bdd72e33f162fad0c554"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "d6af8b6021a21aad3f031114be34bc78a0bcd244b9812b442873c751d64e9b97",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-view-reclaim-runtime/Adreno740/NativeAdrenoPublish.cpp",
+      "after": "9a0dc0c91823cad01f5f66596d8562d1bd7663738ad72770ba30db39d177f8a3"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "87d226760d95f766f9476c8bcebb9683552fc721279e28caa959e1005535d69b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-view-reclaim-runtime/HoujiZapTrial.h",
+      "after": "ce229366073e36425afb52a74c828d984c208b9b69870a9b466f60ee613d5541"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r171-vm-linked/review.json",
+      "sha256": "2e50359d868aec233f767852b0bedac87af7333bb08e04e1aecd5035b5bf6cf9"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r171-client-linked/review.json",
+      "sha256": "232bf7ff8d9bee7ca6cb314cc1cb91661e6dfd60c826e59a1eebcac63b78caef"
+    },
+    "linked_provider": {
+      "path": "/tmp/r171-provider-linked/review.json",
+      "sha256": "0edf60be1698541a818ea90f0f47650560b64207a564b6384009638140c18720"
+    },
+    "view_reclaim_linked": {
+      "path": "/tmp/r187-view-reclaim-linked/review.json",
+      "sha256": "348c48053c9b3ad88da68b3bea29f0942cb6732af3744977a2b2ad660d97b006"
+    }
+  },
+  "desktop_acceleration": false,
+  "raw_map_reclaim_qualified": true,
+  "Metal_frontend_qualified": true,
+  "IOSurface_verified": true,
+  "hardware_evidence": {
+    "path": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r171-result.json",
+    "sha256": "838f670d37f61add1a50ea0504e73708f475432481c80621f30035c0054bd695"
+  }
+}

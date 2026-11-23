@@ -1,0 +1,1 @@
+Native GPU Live4K topology seeded before first activation; immutable 1027-table-page topology within 1028 GPU4K /257 CPU16K owned pages. Four maps/unmaps of one VA to alternating physical NormalNC buffers, eight framed real CP_BLIT/fence draws per mapping; all references retained. Whole graph audits and actual ASID/page TLB synchronization, no desktop claim.

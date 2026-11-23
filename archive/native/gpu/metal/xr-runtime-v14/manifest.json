@@ -1,0 +1,25 @@
+{
+  "upstream_commit": "0dfdbcd59d235e37ba13b87a5ab30835b5bb9e35",
+  "reference_repository": "rootstockos/AdrenoMetal",
+  "reference_commit": "16e8125525a64d34439ef924213a6fea4530e239",
+  "files": {
+    "0012-srgb-extended-range-blend-rounded-model.patch": "72ceaa0fff8f3e5d5ac62165eb92048ee6e99004d46f9a3fb067545267009e2d",
+    "0011-two-plane-shadow-as-memory-lies.patch": "2b7c8449367ab3a78268101d88640a4328be27ae9b96235c9a1dc1d3cdf20e4a",
+    "prior-consumer-adapter.patch": "161ee80c91fd5f2607dd137b65d6534fb1dd48ae8ead4a0e67b547eade3e155f",
+    "houji-xr-consumer.patch": "65c3aa0aeb1f5a04e6d868beb6d81002fbbbb102e4fb031b3a434421e1d2233b",
+    "renderer-error-history.patch": "222927653936351b5bf1d7f2e01358a512329ca4f5562ecd8aadb1a01d288775"
+  },
+  "checks": {
+    "arithmetic_release_tests": 36,
+    "fragment_lowering_and_note": 1,
+    "shader_validation_skipped": false
+  },
+  "differences_from_upstream": [
+    "Typed precision note for safe-rounding fallback",
+    "Fast tables retained; fallback separately checked against independently recorded safe tables",
+    "Cache semantics/artifact/runtime namespace updated"
+  ],
+  "kernel_interfaces_changed": false,
+  "clock_voltage_changed": false,
+  "hardware_qualified": false
+}

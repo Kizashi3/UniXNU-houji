@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "GX_sequence_unchanged_except_HFI_payload": true,
+  "host_sequence_unchanged_except_PERF_table_builder": true,
+  "shader_frontend_unchanged": true,
+  "GPU_clock_measured": false
+}

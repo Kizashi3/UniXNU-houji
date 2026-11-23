@@ -1,0 +1,713 @@
+diff --git a/crates/metal2vulkan-air/src/canon/const_loads.rs b/crates/metal2vulkan-air/src/canon/const_loads.rs
+index 7b3dfd7..98976df 100644
+--- a/crates/metal2vulkan-air/src/canon/const_loads.rs
++++ b/crates/metal2vulkan-air/src/canon/const_loads.rs
+@@ -1,4 +1,4 @@
+-//! Pointers loaded from fields of constant globals.
++//! Values loaded from fields of constant globals.
+ //!
+ //! A constant global whose initializer is known once function constants are bound and the static
+ //! initializers have run may hold pointers: a program-scope `constexpr sampler` taken by value is
+@@ -9,18 +9,28 @@
+ //! constant and threadgroup spaces, so such a module was refused, under the values that made the
+ //! select one global.
+ //!
++//! The same holds for every other first-class field. An uber-shader takes its whole configuration
++//! as one struct of function constants that a static initializer copies into an internal
++//! `constant` global (QuartzCore's `fc_fragment_shader_config`, read field by field after a
++//! function-constant `select` between it and a buffer). SCCP folds that select to the global but
++//! not the field loads, so every branch the configuration decides survived: QuartzCore's
++//! `fixed_frag` became about 46000 SPIR-V instructions where its specialized form is a few
++//! hundred, and the driver compiled each such pipeline for about a second. Metal's compiler
++//! specializes these reads away, so a module that reads them is translated as Metal compiles it.
++//!
+ //! This pass reads such a load as the initializer's constant at the field: a non-volatile,
+-//! non-atomic load of a pointer whose address is a field of a constant global at constant indices
+-//! (a `getelementptr` instruction or constant expression over the global's own value type, its
+-//! first index 0), where the field's type is the load's. A copy LLVM made through an integer (a
+-//! load of the field as an integer of the pointer's size, then `inttoptr` to the field's type)
+-//! reads the same constant at its `inttoptr`. The global is never written (it is `constant`, and
+-//! initialized by no one else), so every run reads that constant: the address of the sampler
+-//! state, which the sampler family reads as the sampler it names. Only pointers are read this
+-//! way: a load of any other type from a constant global is lowered from the global's form (its
+-//! typed private copy, or the constant blob), and reading it here would change those modules
+-//! without changing what they compute. SCCP then runs again over a body this pass changed, so
+-//! what the constants decide (an aggregate of them, a phi of them, a member of either) folds too.
++//! non-atomic load of a scalar, vector or pointer whose address is a field of a constant global at
++//! constant indices (a `getelementptr` instruction or constant expression over the global's own
++//! value type, its first index 0), where the field's type is the load's. A copy LLVM made through
++//! an integer (a load of a pointer field as an integer of the pointer's size, then `inttoptr` to
++//! the field's type) reads the same constant at its `inttoptr`. The global is never written (it
++//! is `constant`, and initialized by no one else), so every run reads that constant: for a
++//! pointer, the address of the sampler state, which the sampler family reads as the sampler it
++//! names. An aggregate load, a load of another type than the field's, and a field the initializer
++//! leaves `undef` (an unsupplied constant's) are left to the global's lowered form. SCCP then runs
++//! again over a body this pass changed, so what the constants decide (a branch, an aggregate of
++//! them, a phi of them, a member of either) folds too, and the two alternate until a round folds
++//! nothing: a decided branch can expose a further select of the global.
+ 
+ use crate::budget::Meter;
+ use crate::error::Error;
+@@ -29,9 +39,9 @@ use crate::ir::{InstId, InstKind, ModuleParts, Type, TypeId, Value};
+ 
+ use super::rewrite::{apply, scoped, BodyEdit};
+ 
+-/// Read every load of a pointer from a field of a constant global in `body`, and every
+-/// `inttoptr` of such a field's integer copy, as the field's constant (module docs), and say
+-/// whether there was one. Returns `body` itself when there is none.
++/// Read every first-class load from a field of a constant global in `body`, and every `inttoptr`
++/// of a pointer field's integer copy, as the field's constant (module docs), and say whether there
++/// was one. Returns `body` itself when there is none.
+ pub(super) fn fold(
+     body: Body,
+     parts: &mut ModuleParts,
+@@ -61,8 +71,8 @@ pub(super) fn fold(
+     }
+ }
+ 
+-/// Each instruction of `body` that reads a pointer field of a constant global (module docs), with
+-/// the field's constant.
++/// Each instruction of `body` that reads a first-class field of a constant global (module docs),
++/// with the field's constant.
+ fn find(
+     body: &Body,
+     parts: &mut ModuleParts,
+@@ -71,24 +81,27 @@ fn find(
+ ) -> Result<(), Error> {
+     for (id, inst) in body.insts.iter() {
+         m.tick(1)?;
+-        let Some(space) = parts.types.ptr_space(inst.ty) else {
+-            continue;
+-        };
+-        if !matches!(parts.types.get(inst.ty), Some(Type::Ptr { .. })) {
+-            continue;
+-        }
++        let first_class = parts
++            .types
++            .get(inst.ty)
++            .is_some_and(|t| t.is_sized() && !t.is_aggregate());
++        let pointer = matches!(parts.types.get(inst.ty), Some(Type::Ptr { .. }));
+         let ptr = match inst.kind {
+             InstKind::Load {
+                 ptr,
+                 volatile: false,
+                 atomic: None,
+                 ..
+-            } => ptr,
++            } if first_class => ptr,
+             // `inttoptr` of an integer load of the pointer's size: a copy through an integer.
+             InstKind::Cast {
+                 op: CastOp::IntToPtr,
+                 v: Value::Inst(l),
+-            } => match body.insts.get(l).map(|l| (&l.kind, l.ty)) {
++            } if pointer => {
++                let Some(space) = parts.types.ptr_space(inst.ty) else {
++                    continue;
++                };
++                match body.insts.get(l).map(|l| (&l.kind, l.ty)) {
+                 Some((
+                     &InstKind::Load {
+                         ptr,
+@@ -104,7 +117,8 @@ fn find(
+                     ptr
+                 }
+                 _ => continue,
+-            },
++                }
++            }
+             _ => continue,
+         };
+         let Some((g, path)) = field_address(body, parts, ptr) else {
+diff --git a/crates/metal2vulkan-air/src/canon/mod.rs b/crates/metal2vulkan-air/src/canon/mod.rs
+index ac47a0c..cf58558 100644
+--- a/crates/metal2vulkan-air/src/canon/mod.rs
++++ b/crates/metal2vulkan-air/src/canon/mod.rs
+@@ -508,6 +508,7 @@ pub fn specialize_dynamic(
+     let emap = erase::erase_consts(&mut parts.consts, m)?;
+     erase::erase_globals(parts.globals.values_mut(), &emap);
+     erase_functions(&mut parts, &emap, m)?;
++    prune_entry(&mut parts, func, &fcs, &name, m)?;
+     // The entry block always runs: a value use there of an unsupplied constant is SCCP's first
+     // refusal, known before the inlined body is built.
+     let entry_refusal = |consts: &ConstTable, m: &mut Meter| {
+@@ -591,11 +592,17 @@ pub fn specialize_dynamic(
+     };
+     body.release(m);
+     let body = solved;
+-    // A pointer loaded from a field of a constant global is the field's constant: a `constexpr
+-    // sampler` that SCCP's folded select picked is its sampler state. SCCP runs again over a body
+-    // that changed, to fold what those constants decide.
+-    let (body, folded) = const_loads::fold(body, &mut parts, m)?;
+-    let body = if folded {
++    // A value loaded from a field of a constant global is the field's constant: a `constexpr
++    // sampler` that SCCP's folded select picked is its sampler state, and an uber-shader's
++    // configuration struct of function constants is its members. SCCP runs again over a body that
++    // changed, to fold what those constants decide; the two alternate until a round folds nothing.
++    let mut body = body;
++    loop {
++        let (next, folded) = const_loads::fold(body, &mut parts, m)?;
++        if !folded {
++            body = next;
++            break;
++        }
+         let solved = {
+             let mut cx = sccp::Context {
+                 folder: fold::Folder {
+@@ -607,13 +614,11 @@ pub fn specialize_dynamic(
+                 fcs: &fcs,
+                 name: name.clone(),
+             };
+-            sccp::run(&body, &mut cx, m)?
++            sccp::run(&next, &mut cx, m)?
+         };
+-        body.release(m);
+-        solved
+-    } else {
+-        body
+-    };
++        next.release(m);
++        body = solved;
++    }
+     matmul2d::refuse_left(&body, &parts, &ep.stage, &name, m)?;
+     post_check(&body, &parts, &stubs, &name, &control_points(ep), m)?;
+     // A branch's short arms that Metal's backend speculates, where a group operation in them
+@@ -810,6 +815,70 @@ fn erased_entry(
+ }
+ 
+ /// Erase every defined function's body in place, one at a time, each body replaced freed.
++/// The entry's own blocks that its function constants leave unreachable, and its loads from
++/// fields of constant globals (`const_loads`), folded before the entry is inlined, so the inliner
++/// copies no callee only a dead block calls. An uber-shader's entry is most of the module and
++/// branches on the constants into every effect it has: QuartzCore's `fixed_frag` entries inlined
++/// 15,700 instructions of which SCCP kept 300, and building, solving and rebuilding the rest was
++/// most of a specialization.
++///
++/// Its calls are opaque here, so what it proves unreachable is unreachable whatever they return,
++/// and the SCCP after inlining reaches the fixed point it reached over the whole body. It runs
++/// only when every declared constant is supplied: an unsupplied constant's taint refuses a use
++/// that only inlining shows is dead (a call argument the callee never reads). Any other refusal
++/// here (a branch on `undef` that a call's constant result would have made dead) leaves the entry
++/// as it was, for the SCCP after inlining to judge; a budget, cancellation or limit is final.
++fn prune_entry(
++    parts: &mut ModuleParts,
++    func: FuncId,
++    fcs: &HashMap<GlobalId, sccp::FcState>,
++    name: &DiagName,
++    m: &mut Meter,
++) -> Result<(), Error> {
++    if fcs.is_empty() || fcs.values().any(|s| !s.supplied) {
++        return Ok(());
++    }
++    let Some(entry) = parts.funcs.get_mut(func).and_then(|f| f.body.take()) else {
++        return Ok(());
++    };
++    let solve = |body: &Body, parts: &mut ModuleParts, m: &mut Meter| {
++        let mut cx = sccp::Context {
++            folder: fold::Folder {
++                types: &parts.types,
++                consts: &mut parts.consts,
++                held: 0,
++            },
++            globals: &parts.globals,
++            fcs,
++            name: name.clone(),
++        };
++        sccp::run(body, &mut cx, m)
++    };
++    let pruned = solve(&entry, parts, m).and_then(|mut body| loop {
++        let (next, folded) = const_loads::fold(body, parts, m)?;
++        if !folded {
++            return Ok(next);
++        }
++        let solved = solve(&next, parts, m);
++        next.release(m);
++        body = solved?;
++    });
++    let kept = match pruned {
++        Ok(body) => {
++            entry.release(m);
++            body
++        }
++        Err(e @ (Error::Budget(_) | Error::Cancelled | Error::LimitExceeded(_))) => return Err(e),
++        Err(_) => entry,
++    };
++    parts
++        .funcs
++        .get_mut(func)
++        .ok_or_else(|| invariant("entry out of range"))?
++        .body = Some(kept);
++    Ok(())
++}
++
+ fn erase_functions(
+     parts: &mut ModuleParts,
+     emap: &[crate::ir::ConstId],
+diff --git a/crates/metal2vulkan-air/src/canon/sccp.rs b/crates/metal2vulkan-air/src/canon/sccp.rs
+index e47e683..f89e2fc 100644
+--- a/crates/metal2vulkan-air/src/canon/sccp.rs
++++ b/crates/metal2vulkan-air/src/canon/sccp.rs
+@@ -995,6 +995,30 @@ impl<'b> Solver<'b> {
+         self.set(i, new, m, held)
+     }
+ 
++    /// Whether `v` is an aggregate built by `insertvalue` chains whose only unsupplied-constant
++    /// taint sits in individual inserted members, so those members alone can become `undef`
++    /// (Metal leaves an unsupplied optional constant's value indeterminate) while the rest of
++    /// the aggregate keeps its computed members.
++    fn leafwise(&self, v: Value) -> bool {
++        let mut cur = v;
++        loop {
++            if !matches!(self.lat(cur), Lat::Fc(_)) {
++                return true;
++            }
++            let Value::Inst(i) = cur else { return false };
++            let Some(inst) = self.body.insts.get(i) else {
++                return false;
++            };
++            let InstKind::InsertValue { agg, val, .. } = &inst.kind else {
++                return false;
++            };
++            if matches!(self.lat(*val), Lat::Fc(_)) && !matches!(val, Value::Inst(_)) {
++                return false;
++            }
++            cur = *agg;
++        }
++    }
++
+     /// After the fixpoint: every reachable non-pure use of an unsupplied constant needs the
+     /// caller's value, and a reachable branch on a literal `undef`/`poison` is refused.
+     fn check(&self, cx: &Context<'_>) -> Result<(), Error> {
+@@ -1031,6 +1055,11 @@ impl<'b> Solver<'b> {
+                         )));
+                     }
+                 }
++                if let InstKind::Ret(Some(v)) = &inst.kind {
++                    if self.leafwise(*v) {
++                        continue;
++                    }
++                }
+                 let mut needs = None;
+                 inst.kind.for_each_value(|v| {
+                     if let Lat::Fc(index) = self.lat(v) {
+@@ -1070,7 +1099,11 @@ impl<'b> Solver<'b> {
+                 let deletable = is_pure(&inst.kind)
+                     || is_normalize(&inst.kind)
+                     || is_defined_arg(&inst.kind, cx.folder.consts, cx.fcs).is_some();
++                let leaf_chain = matches!(inst.kind, InstKind::InsertValue { .. })
++                    && matches!(lat, Lat::Fc(_))
++                    && self.leafwise(Value::Inst(i));
+                 match (&inst.kind, lat) {
++                    _ if leaf_chain => {}
+                     (_, Lat::Const(c)) if deletable => edit.replace(i, Value::Const(c)),
+                     (_, Lat::Fc(_)) if deletable => {
+                         let undef = cx.folder.consts.intern(
+diff --git a/crates/metal2vulkan-air/src/canon/tests.rs b/crates/metal2vulkan-air/src/canon/tests.rs
+index c455ce0..0041c77 100644
+--- a/crates/metal2vulkan-air/src/canon/tests.rs
++++ b/crates/metal2vulkan-air/src/canon/tests.rs
+@@ -1678,7 +1678,18 @@ fn a_deeply_nested_written_global_is_rebuilt_on_a_small_stack() {
+         static_init(&mut m, "init", |f| store(f, five, gaddr));
+         let fty = m.fn_ty(void, &[dev]);
+         let mut f = m.define("k", fty);
+-        let v = load(&mut f, i32t, gaddr);
++        // A volatile read keeps the global: a plain one now reads the rebuilt initializer's leaf
++        // as its constant, and the unused global is pruned.
++        let v = f.push(
++            i32t,
++            InstKind::Load {
++                ptr: gaddr,
++                align: Align::from_bytes(4),
++                volatile: true,
++                atomic: None,
++                range: None,
++            },
++        );
+         store(&mut f, v, arg(0));
+         f.ret(None);
+         let k = f.finish();
+@@ -2379,9 +2390,12 @@ fn a_pointer_loaded_from_a_constant_globals_field_is_the_fields_constant() {
+             assert!(text.contains(kept) && !text.contains(gone), "{text}");
+         }
+     }
+-    // A field of any other type is left to the memory plan: its load stays.
+-    let text = body_text(&picked_field(Some(1), 1).unwrap());
+-    assert!(text.contains("getelementptr"), "{text}");
++    // A field of any other first-class type reads the same way: the picked struct's own `i64`.
++    for (flag, kept, gone) in [(1, "333", "444"), (0, "444", "333")] {
++        let text = body_text(&picked_field(Some(flag), 1).unwrap());
++        assert!(!text.contains("getelementptr") && !text.contains("load"), "{text}");
++        assert!(text.contains(kept) && !text.contains(gone), "{text}");
++    }
+     // Unsupplied, the select stays undecided, as before.
+     assert_eq!(
+         picked_field(None, 0).unwrap_err(),
+diff --git a/crates/metal2vulkan-runtime/src/buffer_texture.rs b/crates/metal2vulkan-runtime/src/buffer_texture.rs
+index 1499665..7dd5d14 100644
+--- a/crates/metal2vulkan-runtime/src/buffer_texture.rs
++++ b/crates/metal2vulkan-runtime/src/buffer_texture.rs
+@@ -82,6 +82,9 @@ pub(super) struct Texels {
+     shader: BufferLayout,
+     /// The bytes of one texel.
+     texel_bytes: u64,
++    // Native raw-memory ASTC uses block rows, distinct from public buffer textures.
++    block_extent: [u32; 2],
++    image_extent: Option<[u32; 2]>,
+     pub(super) allow_gpu_optimized_contents: bool,
+     /// The texture's resource options, its hazard tracking mode resolved, as `resourceOptions`
+     /// reports them: the buffer's, which Metal's texture over a buffer takes, but an IOSurface
+@@ -332,6 +335,44 @@ impl Buffer {
+         )
+     }
+ 
++    /// Native port SPI: an ASTC 4x4 2D sampled image over the explicit block-row
++    /// layout returned by this port's MTLTextureLayout. This does not relax the
++    /// public Metal buffer-texture rules and never interprets Apple's tiled data.
++    /// Normal shadow tracking retains the source and observes later CPU writes.
++    pub fn new_native_raw_astc4x4_texture(
++        &self, descriptor: &TextureDescriptor, bytes_per_row: u64,
++    ) -> Result<Texture, Error> {
++        const CALL: &str = "new_native_raw_astc4x4_texture";
++        let fail = || Error::NotImplemented(RuntimeGap::Textures);
++        if !matches!(descriptor.pixel_format, PixelFormat::ASTC4x4LDR | PixelFormat::ASTC4x4SRGB)
++            || descriptor.texture_type != TextureType::Type2D || descriptor.depth != 1
++            || descriptor.array_length != 1 || descriptor.mipmap_level_count != 1
++            || descriptor.sample_count != 1 || descriptor.rotation != 0
++            || descriptor.framebuffer_only || self.detached()
++            || !(TextureUsage::SHADER_READ | TextureUsage::PIXEL_FORMAT_VIEW).contains(descriptor.usage)
++            || descriptor.width == 0 || descriptor.height == 0
++        { return Err(fail()); }
++        let device = self.device();
++        let descriptor = TextureDescriptor {
++            resource_options: self.resource_options(), ..device.texture_options(CALL, descriptor)?
++        };
++        let layout = descriptor.check_made(Creator::Device, device.properties().texture_rules())
++            .map_err(|refused| refused.error(CALL))?;
++        let [width, height, _] = layout.extent;
++        let row_bytes = u64::from(width).div_ceil(4).checked_mul(16).ok_or_else(fail)?;
++        let rows = u64::from(height).div_ceil(4);
++        let slice = bytes_per_row.checked_mul(rows).ok_or_else(fail)?;
++        if bytes_per_row < row_bytes || bytes_per_row % 16 != 0 || slice > self.length() {
++            return Err(fail());
++        }
++        let placed = BufferLayout {offset: 0, row_pitch: bytes_per_row,
++            slice_pitch: slice, row_bytes, rows, slices: 1};
++        let mut texels = Texels::new(self.clone(), placed, 16, &descriptor);
++        texels.block_extent = [4, 4]; texels.image_extent = Some([width, height]);
++        device.new_texture_over_buffer(CALL, texels, &descriptor, &layout,
++            IdUse::Program(descriptor.placement))
++    }
++
+     /// The stand-in for `newTextureWithDescriptor:iosurface:plane:` over the caller's memory: a
+     /// 2D texture of `descriptor` whose texels are `plane`'s, the buffer standing for the
+     /// IOSurface (a no-copy buffer over the surface's pages, `IOSurfaceGetBaseAddress` for
+@@ -1216,6 +1257,8 @@ impl Texels {
+             cpu: placed,
+             shader: placed,
+             texel_bytes,
++            block_extent: [1, 1],
++            image_extent: None,
+             allow_gpu_optimized_contents: descriptor.allow_gpu_optimized_contents,
+             options: buffer.resource_options(),
+             views,
+@@ -1406,9 +1449,19 @@ impl Texels {
+             .map_or(at, |staging| staging.into.dst_offset);
+         // The descriptor's checks bound a texture's extent and slices to `u32`s.
+         let slices = layout.slices as u32;
+-        let (regions, back) = plane_copy_regions(layout, self.texel_bytes, start, aspects);
++        let (regions, back) = if let Some([width,height]) = self.image_extent {
++            // Native ASTC rows hold blocks; Vulkan extents and row lengths are pixels.
++            let region=vk::BufferImageCopy {
++                buffer_offset:start,
++                buffer_row_length:((layout.row_pitch/self.texel_bytes)*u64::from(self.block_extent[0])) as u32,
++                buffer_image_height:0,
++                image_subresource:vk::ImageSubresourceLayers {aspect_mask:aspects,mip_level:0,base_array_layer:0,layer_count:1},
++                image_offset:vk::Offset3D::default(),image_extent:vk::Extent3D {width,height,depth:1},
++            };
++            (vec![region],vec![region])
++        } else { plane_copy_regions(layout, self.texel_bytes, start, aspects) };
+         // A copy back dispatches, and a merge fetches, over one region copied in place alone.
+-        let one_region = regions.len() == 1 && slices == 1 && staging.is_none();
++        let one_region = regions.len() == 1 && slices == 1 && staging.is_none() && self.block_extent==[1,1];
+         let (bytes, tracked) = self.buffer.tracked(layout.offset..layout.end());
+         Ok(ShadowCopies {
+             source: ShadowSource::Bytes {
+@@ -1471,7 +1524,7 @@ impl Texels {
+     pub(super) fn unit(&self) -> CopyUnit {
+         CopyUnit {
+             bytes: self.texel_bytes as u32,
+-            extent: [1, 1],
++            extent: self.block_extent,
+             aspect: ImageAspectFlags::COLOR,
+         }
+     }
+@@ -1575,7 +1628,8 @@ impl Texels {
+     /// the buffer.
+     fn region_layout(&self, region: &ImageRegion, host: &HostLayout) -> (u64, HostLayout) {
+         let layout = &self.cpu;
+-        let [x, y, _] = region.origin.map(u64::from);
++        let [mut x, mut y, _] = region.origin.map(u64::from);
++        x /= u64::from(self.block_extent[0]); y /= u64::from(self.block_extent[1]);
+         let start = layout.offset
+             + layout.slice_pitch * u64::from(region.layer)
+             + layout.row_pitch * y
+diff --git a/crates/metal2vulkan-runtime/src/exit_guard.rs b/crates/metal2vulkan-runtime/src/exit_guard.rs
+index 5fc02a9..bcfa89f 100644
+--- a/crates/metal2vulkan-runtime/src/exit_guard.rs
++++ b/crates/metal2vulkan-runtime/src/exit_guard.rs
+@@ -951,29 +951,64 @@ thread_local! {
+         const { std::cell::RefCell::new(None) };
+ }
+ 
++// Bounded, process-local diagnostics: requests and readback, never a claim about
++// CPU placement or actual latency. No logging on worker threads.
++#[cfg(any(target_os = "macos", target_os = "ios"))]
++static THREAD_QOS_COUNTS: [AtomicU64; 6] = [const { AtomicU64::new(0) }; 6];
++
++/// Requested initiated/interactive, set errors, read errors, observed initiated/interactive.
++#[cfg(any(target_os = "macos", target_os = "ios"))]
++#[doc(hidden)]
++pub fn thread_qos_statistics() -> [u64; 6] {
++    std::array::from_fn(|i| THREAD_QOS_COUNTS[i].load(Ordering::Relaxed))
++}
++
++#[cfg(any(target_os = "macos", target_os = "ios"))]
++fn request_thread_qos(class: libc::qos_class_t, request_slot: usize) {
++    use libc::qos_class_t as Q;
++    THREAD_QOS_COUNTS[request_slot].fetch_add(1, Ordering::Relaxed);
++    // SAFETY: only the calling thread's own class, and live local out parameters.
++    let set = unsafe { libc::pthread_set_qos_class_self_np(class, 0) };
++    if set != 0 {
++        THREAD_QOS_COUNTS[2].fetch_add(1, Ordering::Relaxed);
++    }
++    let mut observed = Q::QOS_CLASS_UNSPECIFIED;
++    let mut relative = 0;
++    let read = unsafe {
++        libc::pthread_get_qos_class_np(libc::pthread_self(), &mut observed, &mut relative)
++    };
++    if read != 0 {
++        THREAD_QOS_COUNTS[3].fetch_add(1, Ordering::Relaxed);
++    } else if matches!(observed, Q::QOS_CLASS_USER_INITIATED) {
++        THREAD_QOS_COUNTS[4].fetch_add(1, Ordering::Relaxed);
++    } else if matches!(observed, Q::QOS_CLASS_USER_INTERACTIVE) {
++        THREAD_QOS_COUNTS[5].fetch_add(1, Ordering::Relaxed);
++    }
++}
++
+ /// Raise this thread's quality of service to the user-initiated class where it is lower or
+ /// unspecified, and leave the user-interactive class as it is: a thread of the runtime's own
+ /// that issues the driver's compiles (the pool's, `pipeline/pool.rs`; a compile's own,
+ /// `device/compiles.rs`). MoltenVK runs each
+ /// compile on a dispatch queue that takes the class of the thread asking, so the class here is the
+ /// compile's class in Metal's compiler service.
+-#[cfg(target_os = "macos")]
++#[cfg(any(target_os = "macos", target_os = "ios"))]
+ pub(crate) fn raise_to_user_initiated() {
+     if !at_least_user_initiated() {
+-        // SAFETY: sets the calling thread's own class; no pointer.
+-        unsafe {
+-            libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_USER_INITIATED, 0)
+-        };
++        request_thread_qos(libc::qos_class_t::QOS_CLASS_USER_INITIATED, 0);
+     }
+ }
+ 
+ /// Nothing: no quality of service class here ([`raise_to_user_initiated`] on macOS).
+-#[cfg(not(target_os = "macos"))]
++#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+ pub(crate) fn raise_to_user_initiated() {}
+ 
+ /// Run this thread at the user-interactive quality of service, whatever its class: a thread of
+ /// the runtime's own that takes command buffers to their handlers ([`spawn_user_interactive`]).
+-#[cfg(target_os = "macos")]
++// The public pthread QoS APIs are available on iOS 8 and later as well.
++// This consumer port requests the same classes there; hardware latency is
++// qualified separately from the upstream macOS measurements below.
++#[cfg(any(target_os = "macos", target_os = "ios"))]
+ fn run_at_user_interactive() {
+     // Metal runs every command buffer's scheduled and completed handlers at the user-interactive
+     // class, whatever the class of the thread that committed it: measured on an M3 Max, macOS
+@@ -981,10 +1016,7 @@ fn run_at_user_interactive() {
+     // threads that bring a command buffer to its handlers, and run them, run there too. It is a
+     // request of the documented `pthread_set_qos_class_self_np` (`<pthread/qos.h>`): the system
+     // still places the thread, which is bound to no CPU, and no option or variable turns it off.
+-    // SAFETY: sets the calling thread's own class; no pointer.
+-    unsafe {
+-        libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE, 0)
+-    };
++    request_thread_qos(libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE, 1);
+ }
+ 
+ /// Ask the scheduler to treat this thread as fully busy whenever it runs, and no thread it starts:
+@@ -1094,12 +1126,12 @@ impl SchedAttr {
+ }
+ 
+ /// Nothing: no such hint here ([`run_at_user_interactive`] on macOS and Linux).
+-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
++#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "linux")))]
+ fn run_at_user_interactive() {}
+ 
+ /// Whether this thread runs at the user-initiated quality of service or above: its class is
+ /// user-initiated or user-interactive. Always where there is no such class.
+-#[cfg(target_os = "macos")]
++#[cfg(any(target_os = "macos", target_os = "ios"))]
+ pub(crate) fn at_least_user_initiated() -> bool {
+     use libc::qos_class_t as Q;
+     let mut class = Q::QOS_CLASS_UNSPECIFIED;
+@@ -1115,7 +1147,7 @@ pub(crate) fn at_least_user_initiated() -> bool {
+ }
+ 
+ /// Always: no quality of service class here ([`at_least_user_initiated`] on macOS).
+-#[cfg(not(target_os = "macos"))]
++#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+ pub(crate) fn at_least_user_initiated() -> bool {
+     true
+ }
+diff --git a/crates/metal2vulkan-runtime/src/lib.rs b/crates/metal2vulkan-runtime/src/lib.rs
+index ae78ee3..d522321 100644
+--- a/crates/metal2vulkan-runtime/src/lib.rs
++++ b/crates/metal2vulkan-runtime/src/lib.rs
+@@ -95,6 +95,9 @@ mod families;
+ pub use execution::{ExecutedPipeline, Execution};
+ mod exit_guard;
+ pub use exit_guard::process_exiting;
++#[cfg(any(target_os = "macos", target_os = "ios"))]
++#[doc(hidden)]
++pub use exit_guard::thread_qos_statistics;
+ #[doc(hidden)]
+ pub use exit_guard::{registrations as exit_registrations, Registrations as ExitRegistrations};
+ mod executed_commands;
+diff --git a/crates/metal2vulkan-runtime/src/texture.rs b/crates/metal2vulkan-runtime/src/texture.rs
+index 18bf0dd..3ca061a 100644
+--- a/crates/metal2vulkan-runtime/src/texture.rs
++++ b/crates/metal2vulkan-runtime/src/texture.rs
+@@ -2191,7 +2191,9 @@ impl Device {
+             }
+             _ => false,
+         };
+-        let why = match class {
++        let why = if texels.unit().extent != [1, 1] {
++            "native compressed block rows require a tracked shadow image".to_owned()
++        } else { match class {
+             Some(_) if device_copy => String::new(),
+             Some(class) => {
+                 let checking = in_place::checking();
+@@ -2301,7 +2303,7 @@ impl Device {
+                     Err(why) => why,
+                 }
+             }
+-        };
++        } };
+         let plan = self.with_undeclared_usage(plan, layout, usage, &facts)?;
+         if !plan
+             .usage
+diff --git a/crates/metal2vulkan-runtime/src/used_resources.rs b/crates/metal2vulkan-runtime/src/used_resources.rs
+index 61f56de..54e1551 100644
+--- a/crates/metal2vulkan-runtime/src/used_resources.rs
++++ b/crates/metal2vulkan-runtime/src/used_resources.rs
+@@ -59,6 +59,62 @@ pub struct UsedResources {
+     pub heaps: Vec<Heap>,
+ }
+ 
++// Compare host address ranges without touching their bytes. Object identity covers private
++// memory; host ranges additionally cover distinct imports of an IOSurface or overlapping
++// no-copy buffers. Unknown arithmetic is conservative. Rebinding is not performed by this
++// consumer, and callers must not remap these ranges while the resources are in use.
++fn buffers_overlap(a: &Buffer, b: &Buffer) -> bool {
++    if a == b {
++        return true;
++    }
++    let (Some(a_start), Some(b_start)) = (a.contents(), b.contents()) else {
++        return false;
++    };
++    let (Ok(a_len), Ok(b_len)) = (usize::try_from(a.length()), usize::try_from(b.length())) else {
++        return true;
++    };
++    let a_start = a_start.as_ptr() as usize;
++    let b_start = b_start.as_ptr() as usize;
++    let (Some(a_end), Some(b_end)) = (a_start.checked_add(a_len), b_start.checked_add(b_len)) else {
++        return true;
++    };
++    a_start < b_end && b_start < a_end
++}
++
++impl UsedResources {
++    fn references_buffer(&self, buffer: &Buffer) -> bool {
++        if buffer.heap().is_some_and(|heap| self.heaps.contains(heap)) {
++            return true;
++        }
++        self.buffers.iter().any(|other| buffers_overlap(buffer, other))
++            || self.heaps.iter().any(|heap| heap.bytes().is_some_and(|bytes| buffers_overlap(buffer, bytes)))
++    }
++
++    /// Whether this list names a resource's storage, including a view's root, a buffer
++    /// texture's backing buffer, a heap's resources and overlapping imported host ranges.
++    /// A caller may skip waiting only while this is false. This consumer does not rebind
++    /// or remap live backing ranges. Indirect command buffers remain conservative.
++    pub fn references_resource(&self, resource: super::resource::ResourceRef<'_>) -> bool {
++        use super::resource::ResourceRef;
++        match resource {
++            ResourceRef::Buffer(buffer) => self.references_buffer(buffer),
++            ResourceRef::Texture(texture) => match texture.memory() {
++                TextureMemory::Heap(heap) => self.references_heap(heap),
++                TextureMemory::Buffer(buffer) => self.references_buffer(buffer),
++                TextureMemory::Own(root) => self.textures.contains(root),
++            },
++            ResourceRef::IndirectCommandBuffer(_) => true,
++        }
++    }
++
++    /// Heap storage is treated as one dependency, conservatively including its disjoint
++    /// members. Imports over its host range are dependencies too.
++    pub fn references_heap(&self, heap: &Heap) -> bool {
++        self.heaps.contains(heap)
++            || heap.bytes().is_some_and(|bytes| self.references_buffer(bytes))
++    }
++}
++
+ /// The kind of a command encoder ([`EndedEncoder::kind`]), by the Metal protocol it is.
+ #[non_exhaustive]
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+diff --git a/crates/metal2vulkan/src/tests/engine_arena.rs b/crates/metal2vulkan/src/tests/engine_arena.rs
+index 4e9aa6f..d7666ed 100644
+--- a/crates/metal2vulkan/src/tests/engine_arena.rs
++++ b/crates/metal2vulkan/src/tests/engine_arena.rs
+@@ -1367,7 +1367,7 @@ fn struct_dag_kernel(depth: u32, constant: bool) -> String {
+     let read = if constant {
+         types +=
+             &format!("@g = internal addrspace(2) constant %e{depth} zeroinitializer, align 4\n");
+-        "  %x = load i32, ptr %a, align 4\n  %y = load i32, ptr addrspace(2) @g, align 4\n  %v0 = add i32 %x, %y"
++        "  %x = load i32, ptr %a, align 4\n  %y = load volatile i32, ptr addrspace(2) @g, align 4\n  %v0 = add i32 %x, %y"
+     } else {
+         "  %v0 = load i32, ptr %a, align 4"
+     };
+@@ -1438,7 +1438,8 @@ fn a_struct_dag_is_planned_in_linear_work() {
+ }
+ 
+ /// A struct DAG within the function's room is typed, and keeps its values: `a`'s two words read
+-/// back what was stored, and `@g` (all zero) adds nothing. At 14 levels `@g` (planned first) takes
++/// back what was stored, and `@g` (all zero, read volatile so it
++/// stays in memory) adds nothing. At 14 levels `@g` (planned first) takes
+ /// the room and `a` has its place in the private arena; at 15 levels neither fits, so `@g` is in
+ /// the constant blob too. Each passes L3, and the values are the same typed (3 levels) and untyped
+ /// (15 levels). The CPU interpreter walks a struct type's every path to lay it out, so it does not
+@@ -1502,6 +1503,7 @@ fn a_struct_dag_keeps_its_values_typed_or_untyped() {
+ /// `%e13`) and `%big`'s `32,767 + extra`: with 17 extra members exactly `alloca::MAX_UNSHARED`
+ /// (65,536), with 18 one more. With `constant`, `%big` is the type of `@g`, a closed constant whose
+ /// DAG halves are zero and whose extra member `i` is `i + 1`, and `v0 = t + @g.2`, `v1 = @g.18`;
++/// (volatile reads, so the constant-load fold leaves `@g` in memory and the layout is what is tested);
+ /// otherwise of the alloca `a`, which stores `t` at byte 0 and 7 in member 2 (byte 65,536) and
+ /// reads them back as `v0` and `v1`.
+ fn room_kernel(extra: u32, constant: bool) -> String {
+@@ -1519,10 +1521,10 @@ fn room_kernel(extra: u32, constant: bool) -> String {
+             "@g = internal addrspace(2) constant %big {{ %e13 zeroinitializer, %e13 zeroinitializer{ints} }}, align 4\n"
+         );
+         r#"  %p2 = getelementptr inbounds %big, ptr addrspace(2) @g, i32 0, i32 2
+-  %g2 = load i32, ptr addrspace(2) %p2, align 4
++  %g2 = load volatile i32, ptr addrspace(2) %p2, align 4
+   %v0 = add i32 %t, %g2
+   %q = getelementptr inbounds %big, ptr addrspace(2) @g, i32 0, i32 18
+-  %v1 = load i32, ptr addrspace(2) %q, align 4"#
++  %v1 = load volatile i32, ptr addrspace(2) %q, align 4"#
+             .to_string()
+     } else {
+         r#"  %a = alloca %big, align 4

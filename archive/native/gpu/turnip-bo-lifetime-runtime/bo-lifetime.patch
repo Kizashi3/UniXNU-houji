@@ -1,0 +1,24 @@
+--- a/src/freedreno/vulkan/tu_knl_darwin.cc
++++ b/src/freedreno/vulkan/tu_knl_darwin.cc
+@@ -588,16 +588,18 @@
+       retire->entries[slot] = {bo->darwin_handle, bo->iova, bo->size, bo->map, bo->darwin_token, fence};
+       ++retire->count;
+       ++retire->enqueued;
++      /* data-a-live (tools/turnip/pandora_bo_finish_order.py): the BO structs live in a sparse array indexed by
++       * the kernel slot: zero the entry before the reap below can free that slot, which the next BoAlloc of any
++       * thread may get and fill this same struct with (msm_bo_gem_close zeroes before GEM_CLOSE likewise). */
++      memset(bo, 0, sizeof(*bo));
+       darwin_reap_locked(dev, retire);
+    } else {
+       /* No reusable range is reported on error. The kernel still owns the handle
+        * and view; connection teardown must drain them, even if this record cannot fit. */
+       retire->failure = vk_device_set_lost(&dev->vk, "deferred BO queue remains full; retaining native allocation");
++      memset(bo, 0, sizeof(*bo));
+    }
+    pthread_mutex_unlock(&retire->lock);
+-
+-   /* The BO structs live in a sparse array: zero the entry to mark it free. */
+-   memset(bo, 0, sizeof(*bo));
+ 
+    u_rwlock_rdunlock(&dev->dma_bo_lock);
+ }

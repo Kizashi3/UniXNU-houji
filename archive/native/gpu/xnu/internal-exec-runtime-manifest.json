@@ -1,0 +1,31 @@
+{
+  "scope": "XNU internal-only CM3 execution and full8 mailbox observation;58TCM+7control restored,IRQ2masked; no external RAM/SMMU context/DMA/CP/Metal",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GmuInternalExec.h": {
+      "before": null,
+      "after": "40c0960876833ac8d510d567186a6ea4a84f6fb70f1d0aa4421ccfdeda19e456",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/GmuInternalExec.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuInternalExecProbe.inc": {
+      "before": null,
+      "after": "f017b36cc9d7c8c858cb65ee7d0c7eb8f5b8cda16f8a3b66c76c53143f3894aa",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuInternalExecProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "ee4940f35adce670100262b7050bceabaaa5a8ca7f9ac1c503ae4c94f5ee12af",
+      "after": "1bce338784d16485da540ca17a8a1ad9120956497022ec2a954b145db0421422",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/internal-exec-runtime/before-HoujiUfsRead.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "41cbe939881bb2f0b8cbcc8286de7810d1589625bd43e3855d474f5fc890580c",
+      "after": "bec1b0f58a2d8cfa2520e25ab960e60f626e22e2862b4d92abe6006c2af62ad4",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/internal-exec-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": true,
+  "hardware_evidence": {
+    "run": "r142",
+    "result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r142-result.json",
+    "scope": "fixed internal CM3 program and full8 mailbox with no external RAM/CP/graphics"
+  }
+}

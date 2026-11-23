@@ -1,0 +1,26 @@
+{
+  "files": {
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "40ae2927e4589f17fe5922961d1fad8794b939beb3d4b020074548c778c6f498",
+      "after": "36b2bf3ff641a50941db3775a433f9ed709a8a100a423fd46ffb917341374f80"
+    },
+    "security/mac_base.c": {
+      "before": "f08d89d1fc4af73c642f38f658411f2cc63e6e528c5ebd8a8a3e7386c9acbe2a",
+      "after": "9133ce6f148a67057f4b54f7e26950ccdc6b9659a6330f05ad785f04b1b94b0c"
+    }
+  },
+  "original_connection_lock": true,
+  "original_core_validation": true,
+  "VM_BO_submit_queue_quiesce_unchanged": true,
+  "sandbox_policy_result_observation_only": true,
+  "hardware_qualified": false,
+  "non_mutating_GPU_methods": [
+    1,
+    7,
+    8,
+    9,
+    10,
+    15
+  ],
+  "timestamp_reader": "Original houjiProviderTimerRead guarded CP counter, high-low-high rollover checked; no counter writes"
+}

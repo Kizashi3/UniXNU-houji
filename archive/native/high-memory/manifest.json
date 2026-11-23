@@ -1,0 +1,36 @@
+{
+  "page_source": "Mu_Basecore/MdeModulePkg/Core/Dxe/Mem/Page.c",
+  "before_sha256": "fa8880138742041263701de921c0c266662e24b53af4e6da8488ac0960a19e87",
+  "after_sha256": "98125ce7dda70550b5e7c7d6be034e675529ff87b51b2f74d9344715aabe9a0a",
+  "needle": "  UINT64  Start;\r\n\r\n  //\r\n  // Attempt to find free pages in the preferred bin",
+  "replacement_file": "low-uefi-search.txt",
+  "replacement_sha256": "f066347b24971833c14bd8e7d3bf9dcc1cdb90ad4cde3d8455d2af04fd834006",
+  "allocation_limit": 4294967295,
+  "explicit_allocate_address_unchanged": true,
+  "high_range": [
+    37580963840,
+    51174703104
+  ],
+  "loader_files": {
+    "DarwinBoot.c": {
+      "before_sha256": "5bef692718969afc2130a153d602554d81b5cae572574e10435fc7f01bbfca2b",
+      "after_sha256": "d3a50bd485c3b8cf56181f090cbc45bc1d02c1f0f2a9f40571a1944c6a341a65"
+    },
+    "DarwinBoot.inf": {
+      "before_sha256": "cb10851277b53b355794c1bca3fa16d3bf18a0dc2dee857091837b63599019df",
+      "after_sha256": "710ea445f6e21a84a8cc0e56307b637a85f25efc75c07e9736e531611f78dda7"
+    }
+  },
+  "owned_test_sha256": "a560bb64b73616bacf5ff7adc7e82f26ff5209deb73b887366f7fd15f2e38738",
+  "previous_owned_test_sha256": "8c8196262b89cef0def409c2cbe89694941da39d4986bb348a24df5ecc487b25",
+  "loader_8g_update": {
+    "before_sha256": "d3a50bd485c3b8cf56181f090cbc45bc1d02c1f0f2a9f40571a1944c6a341a65",
+    "after_sha256": "a678081027bdfb4baabf816ea031a88a93a2c62bfb3e5a71da1eb3e7bd8d6c90",
+    "allowed_bytes": [
+      2147483648,
+      8589934592
+    ],
+    "hardware_tested_8g": true,
+    "hardware_evidence": "r35: full-window test gates entry; native XNU reported 8589934592 bytes, UFS and checkpoint passed before root mount"
+  }
+}

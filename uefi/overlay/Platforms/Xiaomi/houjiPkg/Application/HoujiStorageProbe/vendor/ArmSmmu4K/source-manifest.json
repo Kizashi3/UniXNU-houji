@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/UniXNU/ArmSmmu4K",
+  "commit": "8bb168ad058c28d5c04f179ba407875eacba7ef3",
+  "scope": "unmodified native4K table construction/audit; Program/Context linked dependencies; no hardware programming called in inactive test",
+  "files": {
+    "ArmSmmu4K.c": "0adb19b483e56e723014ed6cfe2c29f9d9735ae2770f62cf0057b22937dbd157",
+    "ArmSmmu4K.h": "e25063b9134afc7eb79e7c030bc2858608cf0ade5da714d5dfd600fee5007e8e",
+    "ArmSmmu4KContext.c": "b8e32e32d1f07e71de65f31b12963ab8b01c05755f8c60c2d6f40cb03fe4eca8",
+    "ArmSmmu4KContext.h": "c842e78f37eab2e7cbba28cb89f4b993d9202503e75fee9e49a871101b936e53",
+    "ArmSmmu4KProgram.c": "3b1d4911b0a48f90b09c721ffd2eb95dbfc02e96165009b23f8c98841f36e2b0",
+    "ArmSmmu4KProgram.h": "171900c3ed400b805c3a1587959f66bc4a19db18aedc8111e862651a90bb8d8f",
+    "ArmSmmu4KAudit.c": "594739cebc43926b1cb0a0e965867bcf1edfb90fab9c51465b65fa47be3755c1",
+    "ArmSmmu4KAudit.h": "1f313acd46db3dfecc115b8c885c5c43f7d23f73690a6157f900dfc77b2c9f6a",
+    "LICENSE": "7a730b868c1ff986cdfc210a7b140ab4e0a31bf7db1d15db901427973efaa70f"
+  }
+}

@@ -1,0 +1,8 @@
+Using config file: ${HOUJI_ARTIFACTS}/native-port/host-tools/ipsw-3.1.739/empty-config.yaml
+   • Loading symbol cache file...
+   • Locating symbol: _IOSurfaceClientDecrementUseCount
+
+_IOSurfaceClientDecrementUseCount:
+0x1a3981ec4:  01 00 80 52   mov	w1, #0
+0x1a3981ec8:  5a 13 00 14   b	_IOSurfaceClientDecrementUseCountForCategory
+

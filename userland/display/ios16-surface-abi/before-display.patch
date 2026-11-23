@@ -1,0 +1,329 @@
+diff --git a/bsd/dev/sweet_sample.c b/bsd/dev/sweet_sample.c
+index 9623d13..64cdf1b 100644
+--- a/bsd/dev/sweet_sample.c
++++ b/bsd/dev/sweet_sample.c
+@@ -70,6 +70,7 @@ sweet_sample_proc(proc_t p, __unused void *arg)
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ extern void houji_ufs_checkpoint(const char *, unsigned);
+ extern void houji_framebuffer_counts(uint64_t *, uint64_t *);
++extern void houji_framebuffer_report(void);
+ extern void houji_location_ipc_report(void);
+ extern void houji_location_exit_report(void);
+ extern void houji_smp_report(void);
+@@ -112,6 +113,7 @@ sweet_sample_thread(__unused void *arg, __unused wait_result_t wr)
+ 			uint64_t swaps = 0, presents = 0;
+ 			houji_framebuffer_counts(&swaps, &presents);
+ 			printf("HOUJI DISPLAY: swaps=%llu presents=%llu\n", swaps, presents);
++			houji_framebuffer_report();
+ 			printf("HOUJI ID: platform UUID published=%u\n", gIOPlatformUUIDAndSerialDone);
+ 			if ((i % 4) == 0) {
+ 				houji_location_ipc_report();
+diff --git a/iokit/Kernel/arm/HoujiSurfaceAcquire.h b/iokit/Kernel/arm/HoujiSurfaceAcquire.h
+new file mode 100644
+index 0000000..aca4812
+--- /dev/null
++++ b/iokit/Kernel/arm/HoujiSurfaceAcquire.h
+@@ -0,0 +1,13 @@
++/* SPDX-License-Identifier: BSD-2-Clause-Patent */
++#ifndef HOUJI_SURFACE_ACQUIRE_H
++#define HOUJI_SURFACE_ACQUIRE_H
++#include <stddef.h>
++#include <stdint.h>
++struct HoujiSurfaceCacheRange {uintptr_t begin,end;};
++static inline int houji_surface_cache_range(uintptr_t base,size_t allocation,uintptr_t row,size_t bytes,unsigned line,struct HoujiSurfaceCacheRange*out){
++ if(!out || !base || !allocation || !bytes || line<16 || line>2048 || (line&(line-1)) || allocation>UINTPTR_MAX-base || row<base || row>base+allocation || bytes>base+allocation-row || bytes>UINTPTR_MAX-row || row+bytes>UINTPTR_MAX-(line-1))return 0;
++ uintptr_t begin=row&~(uintptr_t)(line-1),end=(row+bytes+line-1)&~(uintptr_t)(line-1);
++ if(begin<base || end>base+allocation || end<=begin)return 0;
++ *out=(struct HoujiSurfaceCacheRange){begin,end};return 1;
++}
++#endif
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+index d60c283..bc56eb2 100644
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -30,6 +30,8 @@
+  * first swap) switches the console to serial, which also hides panics.
+  */
+ #include "SweetSurface.h"
++#include "HoujiSurfaceAcquire.h"
++#include <IOKit/IOBufferMemoryDescriptor.h>
+ 
+ extern "C" int houji_console_muted;
+ 
+@@ -64,8 +66,28 @@ enum {
+ #define SWEET_FB_NOTIFY_VSYNC           5
+ #define SWEET_FB_VSYNC_US               16667
+ #define SWEET_FB_DOT_PITCH              458     /* iPhone X logical canvas */
+-#define HOUJI_LOGICAL_W 1125
+-#define HOUJI_LOGICAL_H 2436
++#define HOUJI_LOGICAL_W 1200
++#define HOUJI_LOGICAL_H 2670
++static uint64_t houji_fb_copy_bytes, houji_fb_present_ticks, houji_fb_max_present_ticks;
++static uint64_t houji_fb_missed_timer_ticks;
++static uint64_t houji_fb_sync_deferred,houji_fb_cache_bytes,houji_fb_cache_ticks,houji_fb_cache_denied;
++extern "C" int native_adreno_present_begin(void);
++extern "C" void native_adreno_present_end(void);
++static bool houjiFramebufferAcquire(SweetSurface*s,uintptr_t src,int32_t sx,int32_t sy,int32_t w,int32_t h,unsigned line){
++ if(OSDynamicCast(IOBufferMemoryDescriptor,s->memory)==nullptr)return true; /* other kernel views are already WC */
++ uint64_t began=mach_absolute_time();
++ for(int32_t y=0;y<h;y++){
++  uintptr_t row=src+s->offset+(uint64_t)(sy+y)*s->bytesPerRow+(uint64_t)sx*4;HoujiSurfaceCacheRange range;
++  if(!houji_surface_cache_range(src,(size_t)s->memory->getLength(),row,(size_t)w*4,line,&range)){
++   __atomic_fetch_add(&houji_fb_cache_denied,1ull,__ATOMIC_RELAXED);return false;
++  }
++  for(uintptr_t address=range.begin;address<range.end;address+=line)__asm__ volatile("dc civac, %0"::"r"(address):"memory");
++ }
++ __asm__ volatile("dsb sy":::"memory");
++ __atomic_fetch_add(&houji_fb_cache_bytes,(uint64_t)w*h*4,__ATOMIC_RELAXED);
++ __atomic_fetch_add(&houji_fb_cache_ticks,mach_absolute_time()-began,__ATOMIC_RELAXED);return true;
++}
++
+ #define SWEET_FB_FORMAT_BGRA            0x42475241
+ 
+ class IOMobileFramebuffer : public IOService {
+@@ -82,6 +104,7 @@ class AppleCLCD : public IOMobileFramebuffer {
+ 	IOWorkLoop         *fWorkLoop;
+ 	IOTimerEventSource *fVsync;
+ 	uint64_t            fVsyncCount;
++	uint64_t            fVsyncPeriod, fNextVsync;
+ 
+ 	static void vsyncFired(OSObject *owner, IOTimerEventSource *sender);
+ 
+@@ -98,13 +121,15 @@ public:
+ 	bool          fConsolePaused;
+ 	uint8_t       fPending[SWEET_FB_SWAP_REC_SIZE];     /* latest swap, not yet shown */
+ 	bool          fDirty;
++	int           fGpuSync=0,fGpuCache=0;
++	uint32_t      fCacheLine=64;
+ 	uint32_t      fFlushTicks;    /* vsync ticks between panel copies */
+ 
+ 	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+ 	void addClient(IOMobileFramebufferUserClient *client);
+ 	void removeClient(IOMobileFramebufferUserClient *client);
+ 	void swap(const uint8_t *rec);
+-	void present(const uint8_t *rec);
++	bool present(const uint8_t *rec);
+ };
+ 
+ OSDefineMetaClassAndStructors(AppleCLCD, IOMobileFramebuffer);
+@@ -155,7 +180,7 @@ AppleCLCD::start(IOService *provider)
+ 		IOLog("SWEET FB: no boot framebuffer\n");
+ 		return false;
+ 	}
+-	/* Center the iPhone X canvas 1:1 inside the guarded houji panel. */
++	/* Native panel canvas; no resampling or letterbox margins. */
+ 	fOffX = (HOUJI_LOGICAL_W - (int32_t)fWidth) / 2;
+ 	fOffY = (HOUJI_LOGICAL_H - (int32_t)fHeight) / 2;
+ 	fLock = IOLockAlloc();
+@@ -174,10 +199,18 @@ AppleCLCD::start(IOService *provider)
+ 		IOLog("SWEET FB: no vsync timer\n");
+ 		return false;
+ 	}
++	PE_parse_boot_argn("houji_fb_gpu_sync",&fGpuSync,sizeof(fGpuSync));
++	PE_parse_boot_argn("houji_fb_gpu_cache",&fGpuCache,sizeof(fGpuCache));
++	uint64_t ctr=0;__asm__ volatile("mrs %0, ctr_el0":"=r"(ctr));
++	fCacheLine=4u<<((ctr>>16)&15);
++	if(fCacheLine<16 || fCacheLine>2048)fGpuCache=0;
+ 	uint32_t hz = 10;
+ 	PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+ 	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
+-	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
++	nanoseconds_to_absolutetime((uint64_t)SWEET_FB_VSYNC_US * NSEC_PER_USEC, &fVsyncPeriod);
++	fNextVsync = mach_absolute_time() + fVsyncPeriod;
++	fVsyncCount = 0;
++	fVsync->wakeAtTime(fNextVsync);
+ 
+ 	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
+ 	setProperty("external", false);
+@@ -185,7 +218,7 @@ AppleCLCD::start(IOService *provider)
+ 	registerService();
+ 	IOLog("SWEET FB: AppleCLCD %ux%u stride %u at 0x%llx, default surface %u\n",
+ 	    fWidth, fHeight, fRowBytes, fPhys, fSurface->id);
+-	IOLog("HOUJI FB: logical canvas 1125x2436 centered in 1200x2670\n");
++	IOLog("HOUJI FB: native canvas 1200x2670, full-panel touch coordinates\n");
+ 	return true;
+ }
+ 
+@@ -208,20 +241,31 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ 		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
+ 	}
+ 	bool flush = fb->fDirty && (count % fb->fFlushTicks) == 0;
+-	uint8_t *rec = NULL;
++	uint8_t rec[SWEET_FB_SWAP_REC_SIZE];
+ 	if (flush) {
+-		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
+-		if (rec != NULL) {
+-			memcpy(rec, fb->fPending, SWEET_FB_SWAP_REC_SIZE);
+-			fb->fDirty = false;
+-		}
++		memcpy(rec, fb->fPending, sizeof(rec));
++		fb->fDirty = false;
+ 	}
+ 	IOLockUnlock(fb->fLock);
+-	if (rec != NULL) {
+-		fb->present(rec);
+-		IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
++	if (flush && !fb->present(rec)) {
++		IOLockLock(fb->fLock);
++		/* A newer SwapEnd wins; never replace it with this deferred record. */
++		if(!fb->fDirty){memcpy(fb->fPending,rec,sizeof(rec));fb->fDirty=true;}
++		IOLockUnlock(fb->fLock);
+ 	}
+-	sender->setTimeoutUS(SWEET_FB_VSYNC_US);
++
++	// Absolute deadlines avoid adding the copy duration to every timer period.
++	// Skip expired deadlines rather than emitting a burst of stale frames.
++	now = mach_absolute_time();
++	uint64_t next = fb->fNextVsync + fb->fVsyncPeriod;
++	if (next <= now) {
++		uint64_t skipped = (now - next) / fb->fVsyncPeriod + 1;
++		next += skipped * fb->fVsyncPeriod;
++		fb->fVsyncCount += skipped;
++		__atomic_add_fetch(&houji_fb_missed_timer_ticks, skipped, __ATOMIC_RELAXED);
++	}
++	fb->fNextVsync = next;
++	sender->wakeAtTime(next);
+ }
+ 
+ void
+@@ -260,6 +304,31 @@ extern "C" void houji_framebuffer_counts(uint64_t *swaps, uint64_t *presents)
+ 	if (presents) *presents = __atomic_load_n(&houji_fb_present_count, __ATOMIC_RELAXED);
+ }
+ 
++extern "C" void houji_framebuffer_report(void)
++{
++	static uint64_t previousTime, previousPresents, previousSwaps, previousTicks, previousBytes;
++	uint64_t now = mach_absolute_time();
++	uint64_t presents = __atomic_load_n(&houji_fb_present_count, __ATOMIC_RELAXED);
++	uint64_t swaps = __atomic_load_n(&sweet_fb_swap_count, __ATOMIC_RELAXED);
++	uint64_t ticks = __atomic_load_n(&houji_fb_present_ticks, __ATOMIC_RELAXED);
++	uint64_t bytes = __atomic_load_n(&houji_fb_copy_bytes, __ATOMIC_RELAXED);
++	uint64_t windowNs = 0, presentNs = 0, maximumNs = 0;
++	absolutetime_to_nanoseconds(previousTime ? now - previousTime : 0, &windowNs);
++	absolutetime_to_nanoseconds(ticks - previousTicks, &presentNs);
++	absolutetime_to_nanoseconds(__atomic_load_n(&houji_fb_max_present_ticks, __ATOMIC_RELAXED), &maximumNs);
++	uint64_t delta = presents - previousPresents;
++	IOLog("HOUJI DISPLAY PERF: window-ms=%llu swaps=%llu presents=%llu present-fps-milli=%llu bytes=%llu avg-present-us=%llu max-present-us=%llu missed-timer-ticks=%llu; CPU-copy, not GPU or measured panel refresh\n",
++	    windowNs / NSEC_PER_MSEC, swaps - previousSwaps, delta,
++	    windowNs ? delta * 1000000000000ULL / windowNs : 0,
++	    bytes - previousBytes, delta ? presentNs / NSEC_PER_USEC / delta : 0,
++	    maximumNs / NSEC_PER_USEC,
++	    __atomic_load_n(&houji_fb_missed_timer_ticks, __ATOMIC_RELAXED));
++	uint64_t cacheNs=0;absolutetime_to_nanoseconds(__atomic_load_n(&houji_fb_cache_ticks,__ATOMIC_RELAXED),&cacheNs);
++	IOLog("HOUJI DISPLAY SYNC: deferred=%llu cache-bytes=%llu cache-us=%llu cache-denied=%llu; completed-GPU surface reads\n",__atomic_load_n(&houji_fb_sync_deferred,__ATOMIC_RELAXED),__atomic_load_n(&houji_fb_cache_bytes,__ATOMIC_RELAXED),cacheNs/1000,__atomic_load_n(&houji_fb_cache_denied,__ATOMIC_RELAXED));
++	previousTime = now; previousPresents = presents; previousSwaps = swaps;
++	previousTicks = ticks; previousBytes = bytes;
++}
++
+ 
+ /* Copy each enabled layer's surface into the panel memory (no scaling). */
+ /*
+@@ -281,11 +350,15 @@ AppleCLCD::swap(const uint8_t *rec)
+ 	}
+ }
+ 
+-void
++bool
+ AppleCLCD::present(const uint8_t *rec)
+ {
++ int token=fGpuSync?native_adreno_present_begin():0;
++ if(token<0){__atomic_fetch_add(&houji_fb_sync_deferred,1ull,__ATOMIC_RELAXED);return false;}
++ struct UnlockGpu {int token;~UnlockGpu(){if(token>0)native_adreno_present_end();}} unlock{token};
+ 	uint32_t mask = get32(rec, 0x104);
+ 	__atomic_add_fetch(&houji_fb_present_count, 1, __ATOMIC_RELAXED);
++	uint64_t started = mach_absolute_time(), copied = 0;
+ 
+ 
+ 	if (!fConsolePaused) {
+@@ -368,6 +441,8 @@ AppleCLCD::present(const uint8_t *rec)
+ 			src = 0;
+ 		}
+ 		if (src != 0 && bpe == 4) {
++			if(fGpuCache && token>0 && !houjiFramebufferAcquire(s,src,sx,sy,w,h,fCacheLine)){s->release();return false;}
++			copied += (uint64_t)w * h * 4;
+ 			for (int32_t y = 0; y < h; y++) {
+ 				memcpy((void *)(fPixels + (uint64_t)(dy + y) * fRowBytes + (uint64_t)dx * 4),
+ 				    (const void *)(src + s->offset + (uint64_t)(sy + y) * s->bytesPerRow + (uint64_t)sx * 4),
+@@ -376,6 +451,14 @@ AppleCLCD::present(const uint8_t *rec)
+ 		}
+ 		s->release();
+ 	}
++	uint64_t elapsed = mach_absolute_time() - started;
++	__atomic_add_fetch(&houji_fb_copy_bytes, copied, __ATOMIC_RELAXED);
++	__atomic_add_fetch(&houji_fb_present_ticks, elapsed, __ATOMIC_RELAXED);
++	uint64_t maximum = __atomic_load_n(&houji_fb_max_present_ticks, __ATOMIC_RELAXED);
++	while (elapsed > maximum && !__atomic_compare_exchange_n(&houji_fb_max_present_ticks,
++	    &maximum, elapsed, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
++
++ return true;
+ }
+ 
+ bool
+diff --git a/iokit/Kernel/arm/hid/SweetHID.cpp b/iokit/Kernel/arm/hid/SweetHID.cpp
+index 3e7e7de..b28f2e7 100644
+--- a/iokit/Kernel/arm/hid/SweetHID.cpp
++++ b/iokit/Kernel/arm/hid/SweetHID.cpp
+@@ -348,6 +348,8 @@ OSDefineMetaClassAndStructors(SweetHIDButtons, IOHIDEventService);
+  * absolute digitizers.
+  */
+ #define SWEET_TOUCH_FINGERS 10
++// iOS edge gestures need the origin flag throughout the contact, including lift.
++#define HOUJI_TOUCH_EDGE_PX 48
+ class SweetHIDTouch : public IOHIDEventService {
+ 	OSDeclareDefaultStructors(SweetHIDTouch);
+ public:
+@@ -360,6 +362,7 @@ protected:
+ private:
+ 	IOLock *fLock;
+ 	bool fDown[SWEET_TOUCH_FINGERS];
++	bool fEdge[SWEET_TOUCH_FINGERS];
+ 	IOFixed fX[SWEET_TOUCH_FINGERS];
+ 	IOFixed fY[SWEET_TOUCH_FINGERS];
+ };
+@@ -447,12 +450,9 @@ SweetHIDTouch::touch(int finger, bool down, int x, int y)
+ 
+ 	IOLockLock(fLock);
+ 	bool was = fDown[finger];
+-	/* Generic events only: no physical touch driver is installed. */
+-	int32_t lx = x - (1200 - 1125) / 2, ly = y - (2670 - 2436) / 2;
+-	lx = lx < 0 ? 0 : (lx > 1124 ? 1124 : lx);
+-	ly = ly < 0 ? 0 : (ly > 2435 ? 2435 : ly);
+-	IOFixed nx = (IOFixed)(((int64_t)lx << 16) / 1125);
+-	IOFixed ny = (IOFixed)(((int64_t)ly << 16) / 2436);
++	/* The native iOS canvas covers the full physical 1200x2670 panel. */
++	IOFixed nx = (IOFixed)(((int64_t)x << 16) / 1200);
++	IOFixed ny = (IOFixed)(((int64_t)y << 16) / 2670);
+ 	bool moved = down && (nx != fX[finger] || ny != fY[finger]);
+ 	if (was == down && !moved) {
+ 		IOLockUnlock(fLock);
+@@ -465,6 +465,11 @@ SweetHIDTouch::touch(int finger, bool down, int x, int y)
+ 		return;
+ 	}
+ 	collection->setIntegerValue(kIOHIDEventFieldDigitizerCollection, TRUE);
++	if (!was && down) {
++		fEdge[finger] = x < HOUJI_TOUCH_EDGE_PX || x >= 1200 - HOUJI_TOUCH_EDGE_PX ||
++		    y < HOUJI_TOUCH_EDGE_PX || y >= 2670 - HOUJI_TOUCH_EDGE_PX;
++	}
++	bool edge = fEdge[finger];
+ 
+ 	UInt32 cmask = 0;
+ 	for (int i = 0; i < SWEET_TOUCH_FINGERS; i++) {
+@@ -479,7 +484,7 @@ SweetHIDTouch::touch(int finger, bool down, int x, int y)
+ 		if (!child) {
+ 			continue;
+ 		}
+-		UInt32 mask = 0;
++		UInt32 mask = fEdge[i] ? kIOHIDDigitizerEventFromEdgeTip : 0;
+ 		if (i == finger) {
+ 			if (was != down) {
+ 				mask |= kIOHIDDigitizerEventTouch | kIOHIDDigitizerEventRange;
+@@ -514,7 +519,8 @@ SweetHIDTouch::touch(int finger, bool down, int x, int y)
+ 	IOLockUnlock(fLock);
+ 
+ 	if (was != down) {
+-		IOLog("SWEET HID: touch %d %s at %d,%d\n", finger, down ? "down" : "up", x, y);
++		IOLog("SWEET HID: touch %d %s at %d,%d%s\n", finger, down ? "down" : "up", x, y,
++		    edge ? " edge" : "");
+ 	}
+ 	dispatchEvent(collection);
+ 	collection->release();

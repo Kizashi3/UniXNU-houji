@@ -1,0 +1,55 @@
+{
+  "files": {
+    "iokit/Kernel/arm/SweetFramebuffer.cpp": {
+      "before": "15999768ddc6943c64dc070b72442155954f8859742645f2013aaf63e9b25b84",
+      "after": "c925d20ff0b1cb7a4d78c58937b35c3ad7aeea28ebcb385c009e9b592f912004"
+    },
+    "iokit/Kernel/arm/hid/SweetHID.cpp": {
+      "before": "4e5211c170b5a922208c4f65b8ec5eb9de265c12c5551b89e3d1c712234d8afa",
+      "after": "a73984a686730bed4a9708b4b0be5bfe1086cf2f6d2c8168932e484feea52353"
+    },
+    "bsd/dev/sweet_sample.c": {
+      "before": "3dc2515e6e29cbf12c6067cabf8fd6b8007265c98d236f236cb1248b7d93e9b4",
+      "after": "ca156d203f406502a4a658b9a44a0da31ff7019589c83132e92d5ed666259cbf"
+    },
+    "iokit/Kernel/arm/HoujiSurfaceAcquire.h": {
+      "before": null,
+      "after": "6465e565af11042cd58aab2f5d50c33ebe26c36acf126a7b67afb8fe89ceb604",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/present-sync-runtime/HoujiSurfaceAcquire.h"
+    },
+    "iokit/Kernel/arm/SweetSurface.cpp": {
+      "before": "2a4e100968439a0a72012b008d40d6ec4723515a9952f4ce1f4d178814b02dba",
+      "after": "918d09688612d2995ba030791f51c07e4cfa047e121b3c4ff5648dc91ffa2a58"
+    }
+  },
+  "canvas": [
+    1200,
+    2670
+  ],
+  "panel_framebuffer": [
+    1200,
+    2670,
+    4800
+  ],
+  "physical_base": "0xfc400000",
+  "input_canvas_matches_display": true,
+  "software_timer_absolute_deadline": true,
+  "telemetry": "windowed presentation calls and elapsed copy path; not measured panel refresh",
+  "gpu_accelerated": false,
+  "hardware_tested": false,
+  "edge_origin": "48 physical pixels; latched per contact until lift; adapted from ios-sweet 0071 to 1200x2670",
+  "hardware_result": {
+    "trial": "r56",
+    "fullscreen": true,
+    "touch_accurate": true,
+    "scrolling": "human-confirmed clear improvement",
+    "edge_gestures": "r58 change awaiting hardware test",
+    "About_page": "network interface wait diagnosed in r57"
+  },
+  "ios16_surface_plane_rows": {
+    "plane_record_offset": "0x68",
+    "row_bytes_field": "0x10",
+    "source": "20H392 IOSurfaceClient disassembly; client result starts at 0x68, rows at client+0xe0+plane*0x80",
+    "hardware_tested": false
+  }
+}

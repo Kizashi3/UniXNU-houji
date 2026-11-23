@@ -1,0 +1,26 @@
+## SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = HoujiRootRAMDxe
+  FILE_GUID = B8F44837-E6D6-43AB-9F23-EAF721117180
+  MODULE_TYPE = DXE_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = HoujiRootRAMEntry
+[Sources]
+  HoujiRootRAMDxe.c
+[Packages]
+  MdePkg/MdePkg.dec
+  houjiPkg/houji.dec
+[LibraryClasses]
+  DebugLib
+  PcdLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+[Protocols]
+  gHoujiRootRamProtocolGuid ## PRODUCES
+[FeaturePcd]
+  gHoujiPkgTokenSpaceGuid.PcdHoujiHighRAMEnable
+  gHoujiPkgTokenSpaceGuid.PcdHoujiRootRAMEnable
+[Depex]
+  TRUE

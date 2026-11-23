@@ -1,0 +1,29 @@
+--- a/iokit/conf/files
++++ b/iokit/conf/files
+@@ -153,3 +153,8 @@
+ 
+ iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoCpu.cpp optional iokitcpp
+ iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoMemory.cpp optional iokitcpp
++
++iokit/Kernel/houji-ufs-root/ArmSmmu4K.c optional iokit
++iokit/Kernel/houji-ufs-root/ArmSmmu4KAudit.c optional iokit
++iokit/Kernel/houji-ufs-root/ArmSmmu4KContext.c optional iokit
++iokit/Kernel/houji-ufs-root/ArmSmmu4KProgram.c optional iokit
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -559,6 +559,7 @@
+ #include "HoujiGpuProbe.inc"
+ #include "HoujiCpuPageProbe.inc"
+ #include "HoujiGpuMemoryProbe.inc"
++#include "HoujiGpuTableProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -587,6 +588,7 @@
+   }
+   houjiGpuCpuPageProbeOnce();
+   houjiGpuMemoryProbeOnce();
++  houjiGpuTableProbeOnce();
+   houjiGpuProbeOnce();
+   touchProbeOnce();
+   houjiTouchStart();

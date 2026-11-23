@@ -1,0 +1,39 @@
+Using config file: ${HOUJI_ARTIFACTS}/native-port/host-tools/ipsw-3.1.739/empty-config.yaml
+   • Loading symbol cache file...
+   • Locating symbol: _IOSurfaceClientIsInUse
+
+_IOSurfaceClientIsInUse:
+0x1a39832d0:  ff c3 00 d1   sub	sp, sp, #0x30
+0x1a39832d4:  f4 4f 01 a9   stp	x20, x19, [sp, #0x10]
+0x1a39832d8:  fd 7b 02 a9   stp	fp, lr, [sp, #0x20]
+0x1a39832dc:  fd 83 00 91   add	fp, sp, #0x20
+0x1a39832e0:  08 d4 42 39   ldrb	w8, [x0, #0xb5]
+0x1a39832e4:  28 01 00 35   cbnz	w8, loc_1a3983308 ; ⤵ 0x24
+0x1a39832e8:  08 38 40 f9   ldr	x8, [x0, #0x70]
+0x1a39832ec:  08 0d 40 f9   ldr	x8, [x8, #0x18]
+0x1a39832f0:  1f 01 00 f1   cmp	x8, #0
+0x1a39832f4:  e0 07 9f 1a   cset	w0, ne
+0x1a39832f8:  fd 7b 42 a9   ldp	fp, lr, [sp, #0x20]
+0x1a39832fc:  f4 4f 41 a9   ldp	x20, x19, [sp, #0x10]
+0x1a3983300:  ff c3 00 91   add	sp, sp, #0x30
+0x1a3983304:  c0 03 5f d6   ret
+0x1a3983308:  ; loc_1a3983308
+0x1a3983308:  13 e9 1c f0   adrp	x19, 0x1dd6a6000
+0x1a398330c:  73 62 36 91   add	x19, x19, #0xd98 ; _crashMessage
+0x1a3983310:  e0 03 00 f9   str	x0, [sp]
+0x1a3983314:  62 00 00 f0   adrp	x2, 0x1a3992000
+0x1a3983318:  42 8c 07 91   add	x2, x2, #0x1e3 ; "IOSurfaceIsInUse: error: Attempt to query use count on an IOSurface (%p) created with kIOSurfaceProhibitUseCount."
+0x1a398331c:  e0 03 13 aa   mov	x0, x19
+0x1a3983320:  01 20 80 52   mov	w1, #0x100
+0x1a3983324:  09 35 00 94   bl	j__snprintf
+0x1a3983328:  08 e9 1c f0   adrp	x8, 0x1dd6a6000
+0x1a398332c:  13 ad 06 f9   str	x19, [x8, #0xd58]
+0x1a3983330:  a0 98 1b f0   adrp	x0, 0x1dac9a000
+0x1a3983334:  00 ec 41 f9   ldr	x0, [x0, #0x3d8] ; _ptr.__os_log_default
+0x1a3983338:  21 02 80 52   mov	w1, #0x11
+0x1a398333c:  ba ce 6a 95   bl	_os_log_type_enabled_stub
+0x1a3983340:  40 00 00 34   cbz	w0, loc_1a3983348 ; ⤵ 0x8
+0x1a3983344:  51 31 00 94   bl	_IOSurfaceClientIsInUse.cold.1
+0x1a3983348:  ; loc_1a3983348
+0x1a3983348:  e5 cd 6a 95   bl	_abort_stub
+

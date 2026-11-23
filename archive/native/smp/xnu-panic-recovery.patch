@@ -1,0 +1,24 @@
+--- a/osfmk/arm64/machine_routines.c
++++ b/osfmk/arm64/machine_routines.c
+@@ -748,6 +748,21 @@
+ {
+ 	if (reboot) {
+ 		printf("MACH Reboot\n");
++#if defined(SWEET) && SWEET
++		/* Test mode only. The host prepares an exact no-wipe recovery BCB
++		 * before enabling this argument. Panic context never accesses storage
++		 * or promises that uncommitted diagnostic data was saved. */
++		int houji_panic_recovery = 0;
++		if (PE_parse_boot_argn("houji_panic_recovery", &houji_panic_recovery,
++		    sizeof(houji_panic_recovery)) && houji_panic_recovery == 1) {
++			register uint64_t x0 __asm__("x0") = 0x84000009U;
++			__asm__ volatile("dsb sy\n\tsmc #0" : "+r"(x0) ::
++			    "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8",
++			    "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
++			    "cc", "memory");
++			/* Unexpected SMC return falls through to the original PE path. */
++		}
++#endif
+ 		PEHaltRestart(kPERestartCPU);
+ 	} else {
+ 		printf("CPU halted\n");

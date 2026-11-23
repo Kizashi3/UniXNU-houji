@@ -1,0 +1,1 @@
+14 real NativeAdrenoRing adoption/fence boundary cases with synthetic MMIO/completion peers; not GPU emulation. Reject each incorrect hardware binding and stale fence before any MMIO/fence store. Accept exact idle binding, distinguish CPU-peer timestamp from timeout. Actual rendering/fences require device evidence.

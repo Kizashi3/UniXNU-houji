@@ -1,0 +1,4 @@
+#include <assert.h>
+#include <stdio.h>
+#include "HoujiSurfaceAcquire.h"
+int main(void){struct HoujiSurfaceCacheRange out;unsigned cases=0;for(unsigned line=16;line<=256;line*=2)for(unsigned off=0;off<256;off++)for(unsigned len=1;len<=512;len+=7){uintptr_t base=0x10000,row=base+off;assert(houji_surface_cache_range(base,4096,row,len,line,&out));assert(out.begin>=base && out.end<=base+4096 && out.begin<=row && out.end>=row+len && !(out.begin&(line-1)) && !(out.end&(line-1)));cases++;}assert(!houji_surface_cache_range(0x10000,4096,0xffff,4,64,&out));assert(!houji_surface_cache_range(0x10000,4096,0x10fff,2,64,&out));assert(!houji_surface_cache_range(0x10001,4096,0x10001,4,64,&out));assert(!houji_surface_cache_range(UINTPTR_MAX-63,128,UINTPTR_MAX-63,4,64,&out));assert(!houji_surface_cache_range(0x10000,4096,0x10000,4,63,&out));printf("PASS %u bounded cache-line range cases plus5 invalid/overflow cases; CPU-only, no cache instructions executed\n",cases);}

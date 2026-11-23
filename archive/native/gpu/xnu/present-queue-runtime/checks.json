@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "actual_extracted_gate": true,
+  "ASAN_UBSAN": true,
+  "stdout": "PASS actual queued gate: a contended CPU issuer releases to the presenter; pending/poison/dying refuse; zero-timeout fence check and balanced copy lock retained. Synthetic mutex/ring peers, not GPU emulation.\n",
+  "stderr": "",
+  "hardware_tested": false
+}

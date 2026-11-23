@@ -1,0 +1,23 @@
+{
+  "files": {
+    "HoujiUfsRead.cpp": "f80bcaf0fefa16be49dda3c01be78410c2290bf947097e16cb609e55896ba517",
+    "NativeAdrenoPublish.cpp": "f1b6967a6fa8306402280a4f6cc584c736b24b6130b6874ce000addd681f8a80",
+    "NativeAdrenoSubmit.cpp": "95dec6106777ef7faa663132d5b8ffce00dbaa184681f1a9ffd153061ffc5a72",
+    "before-NativeAdrenoSubmit.cpp": "a4e59734bc4a06ec1eac2d3758843e4ea0c4f980e6c38c40c69d4b6342f20be6",
+    "before-NativeAdrenoPublish.cpp": "fdc16d180eadbf72cdfce9f5fb4a95c7ac218511a60b22575fdfa89633e97cb0",
+    "submit-timing.patch": "967735d5eb295953747b1405660557924649e699a37e9141cb0cb6635984e373",
+    "before-HoujiUfsRead.cpp": "0d31be644844f1402e6fce6056f0a04909448363286e37828740c0419b78b92a"
+  },
+  "observations_only": true,
+  "early_RAM_snapshot": true,
+  "GPU_register_reads_added": false,
+  "cache_policy_changed": false,
+  "UAPI_changed": false,
+  "direct_snapshot_prefix": true,
+  "strong_linked_formatter": true,
+  "snapshot_prefix_bytes": 8192,
+  "metal_rows_retained": 48,
+  "OPP_residency_in_every_snapshot": true,
+  "bounded_static_scratch_bytes": 4608,
+  "nonblocking_scratch_guard": true
+}

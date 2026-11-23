@@ -1,0 +1,87 @@
+--- a/SweetFramebuffer.cpp
++++ b/SweetFramebuffer.cpp
+@@ -49,7 +49,6 @@
+ #include <kern/clock.h>
+ #include <kern/thread.h>
+ #include "HoujiFrameQueue.h"
+-#include "HoujiScaleRows.h"
+ #include <sys/proc.h>
+ 
+ enum {
+@@ -70,8 +69,8 @@
+ #define SWEET_FB_NOTIFY_VSYNC           5
+ #define SWEET_FB_VSYNC_US               16667
+ #define SWEET_FB_DOT_PITCH              458     /* iPhone X logical canvas */
+-#define HOUJI_LOGICAL_W 1125
+-#define HOUJI_LOGICAL_H 2502
++#define HOUJI_LOGICAL_W 1200
++#define HOUJI_LOGICAL_H 2670
+ static uint64_t houji_fb_copy_bytes, houji_fb_present_ticks, houji_fb_max_present_ticks;
+ static uint64_t houji_fb_missed_timer_ticks;
+ static uint64_t houji_fb_callbacks,houji_fb_due_ticks;
+@@ -161,7 +160,6 @@
+ 	uint32_t      fCacheLine=64;
+ 	uint32_t      fFlushTicks;    /* vsync ticks between panel copies */
+ 	SweetSurface *fScanout;
+-	uint32_t *fScaleInput,*fScaleOutput,*fScaleX;
+ 
+ 	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+ 	void addClient(IOMobileFramebufferUserClient *client);
+@@ -219,18 +217,15 @@
+ 		IOLog("SWEET FB: no boot framebuffer\n");
+ 		return false;
+ 	}
+-	/* Stock iPhone X canvas; physical scanout remains the verified panel. */
++	/* Native pixel canvas; owned render target is separate from scanout. */
+ 	fOffX = fOffY = 0;
+ 	fLock = IOLockAlloc();
+ 	fClients = OSArray::withCapacity(4);
+ 	fScanout = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes, SWEET_FB_FORMAT_BGRA);
+ 	fSurface = sweet_surface_create_buffer(HOUJI_LOGICAL_W,HOUJI_LOGICAL_H,(HOUJI_LOGICAL_W*4+63)&~63u,SWEET_FB_FORMAT_BGRA);
+ 	fPixels = fScanout != NULL ? fScanout->kernelAddress() : 0;
+-	fScaleInput=(uint32_t *)IOMallocData(HOUJI_LOGICAL_W*4);
+-	fScaleOutput=(uint32_t *)IOMallocData(fWidth*4);
+-	fScaleX=(uint32_t *)IOMallocData(fWidth*4);
+ 	fWorkLoop = IOWorkLoop::workLoop();
+-	if (fLock == NULL || fClients == NULL || fPixels == 0 || fWorkLoop == NULL || !fSurface || !fScaleInput || !fScaleOutput || !fScaleX) {
++	if (fLock == NULL || fClients == NULL || fPixels == 0 || fWorkLoop == NULL || !fSurface) {
+ 		IOLog("SWEET FB: setup failed\n");
+ 		OSSafeReleaseNULL(fSurface);    /* stays published: also held by the table */
+ 		OSSafeReleaseNULL(fWorkLoop);
+@@ -263,7 +258,7 @@
+ 	registerService();
+ 	IOLog("SWEET FB: AppleCLCD %ux%u stride %u at 0x%llx, default surface %u\n",
+ 	    fWidth, fHeight, fRowBytes, fPhys, fSurface->id);
+-	IOLog("HOUJI FB: 1125x2502 canvas (375x834 points at 3x), near-uniform full-panel scale; touch stays normalized\n");
++	IOLog("HOUJI FB: native 1200x2670 canvas, owned render target, exact pixel copy; no resampling; touch stays normalized\n");
+ 	return true;
+ }
+ 
+@@ -529,24 +524,9 @@
+ 		if (src != 0 && bpe == 4) {
+ 			if(fGpuCache && token>0 && !houjiFramebufferAcquire(s,src,sx,sy,w,h,fCacheLine)){s->release();return false;}
+ 			copied += (uint64_t)w * h * 4;
+-			const uint32_t px0=(uint64_t)dx*fWidth/HOUJI_LOGICAL_W;
+-			const uint32_t py0=(uint64_t)dy*fHeight/HOUJI_LOGICAL_H;
+-			const uint32_t px1=((uint64_t)(dx+w)*fWidth+HOUJI_LOGICAL_W-1)/HOUJI_LOGICAL_W;
+-			const uint32_t py1=((uint64_t)(dy+h)*fHeight+HOUJI_LOGICAL_H-1)/HOUJI_LOGICAL_H;
+-			if(px1>fWidth || py1>fHeight || px0>=px1 || py0>=py1){s->release();return false;}
+-			const uint32_t outWidth=px1-px0,outHeight=py1-py0;
+-			for(uint32_t x=0;x<outWidth;x++)fScaleX[x]=(uint64_t)x*w/outWidth;
+-			uint32_t previous=UINT32_MAX;
+-			for(uint32_t y=0;y<outHeight;y++){
+-			 const uint32_t inputY=(uint64_t)y*h/outHeight;
+-			 if(inputY!=previous){
+-			  memcpy(fScaleInput,(const void *)(src+s->offset+(uint64_t)(sy+inputY)*s->bytesPerRow+(uint64_t)sx*4),(size_t)w*4);
+-			  if(!houji_scale_row_15_16(fScaleOutput,fScaleInput,(uint32_t)w,outWidth))
+-			   for(uint32_t x=0;x<outWidth;x++)fScaleOutput[x]=fScaleInput[fScaleX[x]];
+-			  previous=inputY;
+-			 }
+-			 memcpy((void *)(fPixels+(uint64_t)(py0+y)*fRowBytes+(uint64_t)px0*4),fScaleOutput,(size_t)outWidth*4);
+-			}
++			for(int32_t y=0;y<h;y++)
++			 memcpy((void *)(fPixels+(uint64_t)(dy+y)*fRowBytes+(uint64_t)dx*4),
++			  (const void *)(src+s->offset+(uint64_t)(sy+y)*s->bytesPerRow+(uint64_t)sx*4),(size_t)w*4);
+ 		}
+ 		s->release();
+ 	}

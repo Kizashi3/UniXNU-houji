@@ -1,0 +1,13 @@
+  UINT64  Start;
+
+#if defined (HOUJI_LOW_UEFI_ALLOCS)
+  // OEM DXE drivers may retain 32-bit physical addresses. Keep automatic
+  // allocations below 4 GiB; DarwinBoot explicitly reserves high DRAM with
+  // AllocateAddress, which does not call this search function.
+  if (MaxAddress > 0xFFFFFFFFULL) {
+    MaxAddress = 0xFFFFFFFFULL;
+  }
+#endif
+
+  //
+  // Attempt to find free pages in the preferred bin

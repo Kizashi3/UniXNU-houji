@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "scope": "Actual C profile/wire protocol fault cases; not GPU emulation",
+  "results": [
+    {
+      "name": "check-perf500",
+      "stdout": "PASS: actual 58-word PERF profile; only level-count and new500MHz GPU triplet differ; original GPU, GMU and padding preserved\n",
+      "exit": 0
+    },
+    {
+      "name": "check-gx500",
+      "stdout": "PASS: 46 fixed DCVS/OOB/GX cases; correct legacy ACK, fresh OOB ownership, exact W1C bit, bounded waits, no GX read under invalid power/fence, every I/O/guard failure and partial side effect retains resources\n",
+      "exit": 0
+    }
+  ]
+}

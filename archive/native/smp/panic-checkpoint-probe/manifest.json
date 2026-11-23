@@ -1,0 +1,72 @@
+{
+  "kind": "r139-opt-in-normal-checkpoint-deliberate-panic-after-verified-commit",
+  "recorded_at": "2026-10-26T02:43:14.835160+08:00",
+  "actual_file": "${HOUJI_PORT_ROOT}/.cache/ios16-reference/dxb-ios/xnu/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp",
+  "relative_path": "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp",
+  "before_sha256": "f106eb6854d041a874144e0cd0a0bd0527b7a6016512f7692dae54ef6974b7de",
+  "after_sha256": "5735277294bf8e71a6d5428a78f33318656b0441d1a9b0febd379d232c1418cc",
+  "before_source": "HoujiUfsRead.before.cpp",
+  "after_source": "HoujiUfsRead.after.cpp",
+  "patch": "xnu-panic-checkpoint-probe.patch",
+  "patch_sha256": "c2ab57be9c3799b2bc44956555f7b86cb4db050a9188d82bf08e8c3d5e96687c",
+  "rollback": "Complete current before source; independent layer reverse-check passed against actual after. Do not overwrite later layers.",
+  "forward_patch_check": true,
+  "reverse_patch_check": true,
+  "only_actual_function_modified": "houji_ufs_checkpoint",
+  "bootarg": "houji_panic_probe=1",
+  "default_enabled": false,
+  "conditions": [
+    "stopId==3",
+    "houji_checkpoint_stop==3",
+    "gLogEnabled",
+    "gReturnRecovery",
+    "bootarg parse succeeds and numeric value exactly1"
+  ],
+  "sequence": [
+    "normal context setRecoveryBoot existing no-wipe BCB RMW/flush/fullreadback succeeds",
+    "nativeStage armed intent (not panic proof)",
+    "existing saveNativeLog commit/flush/fullreadback succeeds",
+    "unlock checkpoint lock",
+    "deliberate distinct panic; no normal logTrialReset call"
+  ],
+  "armed_stage": "panic recovery self-test armed; verified BCB, panic after successful log commit",
+  "panic_message": "HOUJI PANIC RECOVERY SELF-TEST: checkpoint3 log commit/readback passed",
+  "intent_log_proves_actual_panic": false,
+  "panic_storage_access_added": false,
+  "panic_bcb_mutation_added": false,
+  "normal_stage3_panic_is_terminal_before_HFS": true,
+  "machine_routines_modified": false,
+  "allocation_header_or_policy_modified": false,
+  "requires_independent_bootarg": "houji_panic_recovery=1 enables previously implemented MACH Reboot PSCI exit; this layer does not alter it",
+  "host_preflight_requirement": "Existing exact no-wipe BCB backup/foreign-request refusal remains in host preflight; setRecoveryBoot original normalization behavior unchanged",
+  "host_test": {
+    "path": "tests/check-houji-panic-probe.py",
+    "sha256": "4749381adc1c34342fe56935c9ddf0117c39b61320f4f08e4f5bef701df75ad7",
+    "cases": 3961,
+    "asan": true,
+    "ubsan": true,
+    "warnings_as_errors": true,
+    "actual_extracted_functions": [
+      "before houji_ufs_checkpoint",
+      "after houji_ufs_checkpoint",
+      "unchanged setRecoveryBoot"
+    ],
+    "real_portable_helpers": [
+      "HoujiRecoveryRecord.h",
+      "HoujiLogCommit.h"
+    ],
+    "peers": [
+      "host UFS block read/write/flush",
+      "log file commit transport",
+      "panic terminal",
+      "normal reset terminal"
+    ],
+    "complete_log_transaction_fault_points": 34,
+    "BCB_transport_and_readback_failures": 5,
+    "default_other_stop_gate_behavior_matches_actual_before": true,
+    "device_rebooted": false,
+    "later_layers_outside_tested_functions_permitted": true
+  },
+  "hardware_tested": false,
+  "full_kernel_build_performed": false
+}

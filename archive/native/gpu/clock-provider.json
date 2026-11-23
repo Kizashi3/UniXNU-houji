@@ -1,0 +1,36 @@
+{
+  "ClockDxe_sha256": "f498e08bf978b36af750a3958c83b788d39f786069d31d6483d4df66d4ce69ba",
+  "physical_source": "phone OEM ClockDxe.efi",
+  "node_table_rva": "0x20360",
+  "node_stride": "0x68",
+  "nodes": [
+    {
+      "name": "gpu_cc_cx_gmu_clk",
+      "id": "0x10159",
+      "node_rva": "0x28f88",
+      "domain_rva": "0x30060",
+      "CBCR": "0x3d9913c",
+      "RCG": "0x3d99318"
+    },
+    {
+      "name": "gpu_cc_hub_aon_clk",
+      "id": "0x10164",
+      "node_rva": "0x29400",
+      "domain_rva": "0x30130",
+      "CBCR": "0x3d993e8",
+      "RCG": "0x3d993ec"
+    },
+    {
+      "name": "gpu_cc_cxo_clk",
+      "id": "0x1016a",
+      "node_rva": "0x29670",
+      "domain_rva": "0x30200",
+      "CBCR": "0x3d99144",
+      "RCG": "0x3d99010"
+    }
+  ],
+  "HUB_first_frequency_table_rva": "0x33de0",
+  "HUB_frequency_entry_hz": 200000000,
+  "hardware_API_ids_matched": "r60",
+  "scope": "static binary bindings and table; not measured frequency"
+}

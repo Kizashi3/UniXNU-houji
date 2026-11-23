@@ -1,0 +1,99 @@
+{
+  "device": "houji",
+  "source": "captured running Android device tree",
+  "source_sha256": "04dad3a2a40758525e93109ef17954183500a86c7bdf77973b89e39f97723807",
+  "touch_node": "/soc/qcom,qupv3_1_geni_se@ac0000/spi@a90000/synaptics_tcm@0",
+  "compatible": "synaptics,tcm-spi",
+  "spi": {
+    "physical_base": 11075584,
+    "bytes": 16384,
+    "mode": 0,
+    "maximum_hz": 15000000,
+    "pins": {
+      "miso": 48,
+      "mosi": 49,
+      "clock": 50,
+      "cs": 51
+    }
+  },
+  "reset": {
+    "gpio": 161,
+    "active_low": true,
+    "active_ms": 10,
+    "delay_ms": 200
+  },
+  "irq": {
+    "gpio": 162,
+    "active_low": true
+  },
+  "supply": {
+    "avdd": "pm_humu_l9",
+    "avdd_microvolts": 3000000,
+    "iovdd": "pm_humu_l12",
+    "iovdd_microvolts": 1800000,
+    "gpio_108_is_not_touch_power": true,
+    "avdd_rpmh_resource": "ldob9",
+    "iovdd_rpmh_resource": "ldob12"
+  },
+  "firmware_name_from_dt": "synaptics_spi_houji.img",
+  "part_name_hint_from_dt": "S3910P test limit filename; live Recovery identify confirms S3910 A0B0-15.2",
+  "reported_coordinate_limits": {
+    "x": 1200,
+    "y": 2670,
+    "panel_display_resolution": [
+      1440,
+      3200
+    ],
+    "used_for_decoder_before_hardware_confirmation": false
+  },
+  "hardware_tested_in_xnu": true,
+  "implementation_stage": "r52 physical GPIO SPI TouchCom reports accepted through native descriptor decoder; user confirmed usable iOS Setup touch",
+  "reference": "tycykp/UniXNU-OnePlus-Ace5@aaa100d19f6fb14e5897a7e496edf7838d4d4e9f TouchCom; board power details must not be copied",
+  "recovery_verified": {
+    "controller": "S3910 A0B0-15.2",
+    "protocol_version": 1,
+    "firmware_mode": 1,
+    "firmware_id": 4323384,
+    "max_x": 1199,
+    "max_y": 2669,
+    "contacts": 10,
+    "write_size": 512,
+    "read_size_unlimited": true,
+    "event_node": "/dev/input/event7",
+    "driver_module": "synaptics_tcm2",
+    "driver_version": "1.5.0",
+    "core_library_version": "1.38",
+    "android_input_max": [
+      119999,
+      266999
+    ],
+    "android_super_resolution_factor": 100,
+    "rails_enabled_in_linux": true,
+    "gpio_reset_high": true,
+    "gpio_irq_high_when_idle": true,
+    "evidence": "native-port/evidence/recovery-touch-r47",
+    "spi_functional_clock_hz": 120000000,
+    "spi_bus_maximum_hz": 15000000,
+    "crc_enabled": false,
+    "extra_rc_enabled": false
+  },
+  "hardware_probe_result": "r48: clock halted, six GPIO unconfigured; SE reads skipped, persisted log recovered",
+  "xnu_identify_verified": {
+    "trial": "r49",
+    "controller": "S3910",
+    "application_firmware": 4323384,
+    "native_clock_power_calls": "all success",
+    "ldob9_address": "0x41500",
+    "ldob12_address": "0x40900",
+    "spi_gpio_transfer": "working identify",
+    "contact_reports_enabled": false,
+    "worker_error": 142
+  },
+  "xnu_physical_touch_verified": {
+    "trial": "r52",
+    "human_confirmed": true,
+    "frames": 78,
+    "sweet_hid_calls": 78,
+    "worker_error": 0
+  }
+}

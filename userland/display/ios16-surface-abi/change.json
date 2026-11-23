@@ -1,0 +1,6 @@
+{
+  "before": "2a4e100968439a0a72012b008d40d6ec4723515a9952f4ce1f4d178814b02dba",
+  "after": "918d09688612d2995ba030791f51c07e4cfa047e121b3c4ff5648dc91ffa2a58",
+  "scope": "Only planar result row-byte field moved 0x08 to iOS16 ABI 0x10; ordinary plane-less layout, allocation, GPU mapping and issuer synchronization unchanged",
+  "hardware_tested": false
+}

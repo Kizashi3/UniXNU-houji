@@ -1,0 +1,1 @@
+Native CP boundary test, not GPU emulation. Runs the actual FHR/Native owner and fixed HostRing code with synthetic IOKit, architectural, MMIO and SCM peers. Positive and corrupted device-writeback profiles; loss of fresh bus-halt ACK denies final logging. Actual CP/GPU execution requires hardware.

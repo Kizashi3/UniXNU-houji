@@ -1,0 +1,36 @@
+{
+  "fdt_sha256": "04dad3a2a40758525e93109ef17954183500a86c7bdf77973b89e39f97723807",
+  "nodes": {
+    "/cpus/cpu@0": {
+      "compatible": "71636f6d2c6b72796f00",
+      "reg": "0000000000000000",
+      "enable-method": "7073636900",
+      "qcom,freq-domain": "0000000600000000",
+      "capacity-dmips-mhz": "00000400",
+      "next-level-cache": "00000007"
+    },
+    "/cpus/cpu@100": {
+      "compatible": "71636f6d2c6b72796f00",
+      "reg": "0000000000000100",
+      "enable-method": "7073636900",
+      "qcom,freq-domain": "0000000600000000",
+      "capacity-dmips-mhz": "00000400",
+      "next-level-cache": "00000007"
+    },
+    "/soc/psci": {
+      "compatible": "61726d2c707363692d312e3000",
+      "method": "736d6300"
+    },
+    "/soc/interrupt-controller@17100000": {
+      "compatible": "61726d2c6769632d763300",
+      "redistributor-stride": "0000000000040000",
+      "reg": "17100000000100001718000000200000"
+    }
+  },
+  "initial_cpu_affinities": [
+    0,
+    256
+  ],
+  "homogeneous_pair_only": true,
+  "clock_voltage_writes": false
+}

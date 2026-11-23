@@ -1,0 +1,57 @@
+{
+  "scope": "mode3 desktop-only allowlist, no standalone probe; same qualified GPU/Metal/IOSurface path with raw-map reclaim fix; count actual backboardd submits and GPU-completed fences plus independent display counts; no forged frame or success counters",
+  "hardware_tested": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "26ece504eefe05a42e089f76376c1957e87d1dd12ac0ef8093c91234fa54decd",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-desktop-runtime/HoujiGpuFullHostProbe.inc",
+      "after": "4c2aad5b1be03c6ab49768e80cee041fd54e73b5920055f9c2ec321ed0004df0"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc": {
+      "before": "a8d36e07aa8bfe4944d98758d72efe5ee13f9c1dcd108190462d5e1446c4254d",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-desktop-runtime/HoujiGpuNativeLive.inc",
+      "after": "c330ab71fb81a61e4e7aec877a3c8328dee619d3a5a01c9242c827796448a84b"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeProvider.inc": {
+      "before": "05a9491458027a5b61108e156ef4f4f8557cfdf54b43bdd72e33f162fad0c554",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-desktop-runtime/HoujiGpuNativeProvider.inc",
+      "after": "69494c5c9926188cb831d08964feeb388f2cffeceae0636bcf1e98e350a06b80"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "eb58224c89ef96fd4f218c3865d300c45c3443ed87e68cb86d0c405bec49092a",
+      "after": "6e153196d383f9a03164382eca1f937eaf63efa249562d54346deb3da5a818dc",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/present-lifetime-runtime/NativeAdrenoPublish.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "ce229366073e36425afb52a74c828d984c208b9b69870a9b466f60ee613d5541",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-desktop-runtime/HoujiZapTrial.h",
+      "after": "7150d8e5ef3ddfd2eca1ff1809dfba86ef9952b602f862d84604bd390d12f719"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTableCrc32.h": {
+      "before": null,
+      "after": "41edaf4f4221b7cd5243244603fe6c42ca1ffa8ade24da5082ef41c1dbb3bef3",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/table-crc-runtime/HoujiTableCrc32.h"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r187-vm-linked/review.json",
+      "sha256": "5aa37b7e79584948b12404bc2454f7c289d27058b04cde5b43a1f876f7f5f2ca"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r187-client-linked/review.json",
+      "sha256": "17771f83f80d55a99dcb080bf9cc3771bb5b45f8d2ba54008cdf92eee12b3f7c"
+    },
+    "linked_provider": {
+      "path": "/tmp/r187-provider-linked/review.json",
+      "sha256": "7f5c8597f4c54ad497a75b9fdd475fca1f8fe971423174fdbfb3386b030dd9f2"
+    },
+    "desktop_linked": {
+      "path": "/tmp/r187-desktop-linked/review.json",
+      "sha256": "67fbc422232642bed448741cae187a2c1fa58359e5aa35adc69d70b532eb930c"
+    }
+  },
+  "desktop_acceleration": false,
+  "previous_hardware_evidence": {},
+  "repeat_trial": 187
+}

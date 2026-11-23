@@ -1,0 +1,16 @@
+{
+  "reference": "UniXNU-ishtar 901611d6 patch2027",
+  "owner_firmware": "iOS16.7.16 20H392",
+  "read_api": "IOSurfaceClientIsInUse: ldr x8,[x0,#0x70]; ldr x8,[x8,#0x18]; cmp x8,#0",
+  "trap_indices": [
+    0,
+    1
+  ],
+  "shared_count_byte_offset": 24,
+  "underflow_and_overflow": "checked compare/exchange",
+  "host_test": "8 concurrent threads x10000 inc/dec pairs, edge counts, adjacent state bytes preserved",
+  "kernel_symbols": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r197-linked-surface-symbols.txt",
+  "scope": "real counters plus PoC cleanup of fresh unpublished zeroed memory; plugin/shaders unchanged",
+  "hardware_status": "r197: traps exercised with 105/88 calls, zero underflow/missing/overflow; user reports unchanged flicker and slowness",
+  "known_limit": "Reference-style aggregate counts: no per-client outstanding-count cleanup on client death; watch for leaked holds after process crashes"
+}

@@ -1,0 +1,50 @@
+{
+  "status": "Offline candidate; hardware pending",
+  "target_GPU_request_Hz": 500000000,
+  "HFI_GPU_index": 2,
+  "bandwidth_index": 5,
+  "bandwidth_table_value": 8171875,
+  "ARC_level": 80,
+  "ARC_vote": "0x500305",
+  "matching_captured_speed_bin_records": [
+    {
+      "qcom,acd-level": 3224002557,
+      "qcom,bus-max": 5,
+      "qcom,bus-min": 1,
+      "qcom,bus-freq": 5,
+      "qcom,level": 80,
+      "qcom,gpu-freq": 500000000
+    },
+    {
+      "qcom,acd-level": 3224002557,
+      "qcom,bus-max": 5,
+      "qcom,bus-min": 1,
+      "qcom,bus-freq": 5,
+      "qcom,level": 80,
+      "qcom,gpu-freq": 500000000
+    },
+    {
+      "qcom,acd-level": 3224002557,
+      "qcom,bus-max": 5,
+      "qcom,bus-min": 1,
+      "qcom,bus-freq": 5,
+      "qcom,level": 80,
+      "qcom,gpu-freq": 500000000
+    },
+    {
+      "qcom,acd-level": 3224002557,
+      "qcom,bus-max": 5,
+      "qcom,bus-min": 1,
+      "qcom,bus-freq": 5,
+      "qcom,level": 80,
+      "qcom,gpu-freq": 500000000
+    }
+  ],
+  "dts_sha256": "6470bd920672b73c3ba874694f35784e430e8015542174b02a56d2dbf975d9b2",
+  "AOP_source_sha256": "c572b184827e4a6fac8f87318da81b36e0e8056d87025ac8ae40e764d4129f8c",
+  "clock_measured": false,
+  "runtime_governor": false,
+  "MMIO_and_OOB_sequence_unchanged_except_HFI_payload": true,
+  "original_headers_unchanged": true,
+  "profile_sha256": "78a7c43566832ce70e82850bd171efff3c74de4f5deeb878a06836f50271ab5a"
+}

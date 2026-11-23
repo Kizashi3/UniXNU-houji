@@ -1,0 +1,24 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = HoujiRamDiskDxe
+  FILE_GUID = 4FF7765D-3135-511A-813D-88CC250977D9
+  MODULE_TYPE = DXE_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = HoujiRamDiskEntry
+[Sources]
+  HoujiRamDiskDxe.c
+[Packages]
+  MdePkg/MdePkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryMapHelperLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+[Protocols]
+  gEfiDevicePathProtocolGuid ## PRODUCES
+  gEfiBlockIoProtocolGuid ## PRODUCES
+[Depex]
+  TRUE

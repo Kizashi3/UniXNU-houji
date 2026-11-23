@@ -1,0 +1,69 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -49,6 +49,7 @@
+ #include <kern/clock.h>
+ #include <kern/thread.h>
+ #include "HoujiFrameQueue.h"
++#include "HoujiScaleRows.h"
+ #include <sys/proc.h>
+ 
+ enum {
+@@ -70,7 +71,7 @@
+ #define SWEET_FB_VSYNC_US               16667
+ #define SWEET_FB_DOT_PITCH              458     /* iPhone X logical canvas */
+ #define HOUJI_LOGICAL_W 1125
+-#define HOUJI_LOGICAL_H 2436
++#define HOUJI_LOGICAL_H 2502
+ static uint64_t houji_fb_copy_bytes, houji_fb_present_ticks, houji_fb_max_present_ticks;
+ static uint64_t houji_fb_missed_timer_ticks;
+ static uint64_t houji_fb_callbacks,houji_fb_due_ticks;
+@@ -262,7 +263,7 @@
+ 	registerService();
+ 	IOLog("SWEET FB: AppleCLCD %ux%u stride %u at 0x%llx, default surface %u\n",
+ 	    fWidth, fHeight, fRowBytes, fPhys, fSurface->id);
+-	IOLog("HOUJI FB: stock canvas 1125x2436 (375x812 points at 3x), scaled to full 1200x2670 panel; touch stays normalized\n");
++	IOLog("HOUJI FB: 1125x2502 canvas (375x834 points at 3x), near-uniform full-panel scale; touch stays normalized\n");
+ 	return true;
+ }
+ 
+@@ -540,7 +541,8 @@
+ 			 const uint32_t inputY=(uint64_t)y*h/outHeight;
+ 			 if(inputY!=previous){
+ 			  memcpy(fScaleInput,(const void *)(src+s->offset+(uint64_t)(sy+inputY)*s->bytesPerRow+(uint64_t)sx*4),(size_t)w*4);
+-			  for(uint32_t x=0;x<outWidth;x++)fScaleOutput[x]=fScaleInput[fScaleX[x]];
++			  if(!houji_scale_row_15_16(fScaleOutput,fScaleInput,(uint32_t)w,outWidth))
++			   for(uint32_t x=0;x<outWidth;x++)fScaleOutput[x]=fScaleInput[fScaleX[x]];
+ 			  previous=inputY;
+ 			 }
+ 			 memcpy((void *)(fPixels+(uint64_t)(py0+y)*fRowBytes+(uint64_t)px0*4),fScaleOutput,(size_t)outWidth*4);
+--- a/iokit/Kernel/arm/HoujiScaleRows.h
++++ b/iokit/Kernel/arm/HoujiScaleRows.h
+@@ -0,0 +1,28 @@
++#ifndef HOUJI_SCALE_ROWS_H
++#define HOUJI_SCALE_ROWS_H
++/* Normal cached row buffers, non-overlapping; output is 8-byte aligned.
++ * Exact nearest-neighbour 15:16 expansion: [a..o] becomes [a,a..o]. */
++static inline uint64_t houji_scale_load64(const uint32_t *input)
++{
++ uint64_t value;__builtin_memcpy(&value,input,sizeof(value));
++ /* Force the unaligned-safe load result to an integer register. */
++ __asm__ volatile("" : "+r"(value));return value;
++}
++static inline bool houji_scale_row_15_16(uint32_t *output,const uint32_t *input,
++    uint32_t inputWidth,uint32_t outputWidth)
++{
++ if(!inputWidth || inputWidth%15 || ((uintptr_t)output&7) ||
++    (uint64_t)inputWidth*16!=(uint64_t)outputWidth*15)return false;
++ for(uint32_t x=0;x<inputWidth;x+=15){
++  const uint32_t *s=input+x;
++  const uint64_t a=houji_scale_load64(s),b=houji_scale_load64(s+2),c=houji_scale_load64(s+4),
++   d=houji_scale_load64(s+6),e=houji_scale_load64(s+8),f=houji_scale_load64(s+10),g=houji_scale_load64(s+12);
++  volatile uint64_t *o=(volatile uint64_t *)output;
++  o[0]=(a&0xffffffffull)|(a<<32);o[1]=(a>>32)|(b<<32);
++  o[2]=(b>>32)|(c<<32);o[3]=(c>>32)|(d<<32);
++  o[4]=(d>>32)|(e<<32);o[5]=(e>>32)|(f<<32);
++  o[6]=(f>>32)|(g<<32);o[7]=(g>>32)|((uint64_t)s[14]<<32);output+=16;
++ }
++ return true;
++}
++#endif

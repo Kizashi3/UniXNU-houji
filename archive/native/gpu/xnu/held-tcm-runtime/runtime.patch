@@ -1,0 +1,23 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -561,6 +561,7 @@
+ #include "HoujiGpuMemoryProbe.inc"
+ #include "HoujiGpuTableProbe.inc"
+ #include "HoujiGpuHandoffProbe.inc"
++#include "HoujiGpuHeldTcmProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -595,6 +596,12 @@
+     houji_ufs_checkpoint("before XNU GPU power-handoff read-only observation",0);
+     houjiGpuHandoffProbeOnce();
+   }
++  int heldTcmProbe=0;PE_parse_boot_argn("houji_gpu_held_tcm_probe",&heldTcmProbe,sizeof(heldTcmProbe));
++  if(heldTcmProbe==1) {
++    houji_ufs_checkpoint("before XNU held-reset GMU internal TCM trial",0);
++    if(!houjiGpuHeldTcmProbeOnce())
++      panic("HOUJI GPU HELD TCM: qualification uncertain; retaining mappings/backup, PSCI-only recovery without later filesystem save");
++  }
+   houjiGpuProbeOnce();
+   touchProbeOnce();
+   houjiTouchStart();

@@ -1,0 +1,23 @@
+--- before/HoujiUfsRead.cpp
++++ after/HoujiUfsRead.cpp
+@@ -563,6 +563,7 @@
+ #include "HoujiGpuHandoffProbe.inc"
+ #include "HoujiGpuHeldTcmProbe.inc"
+ #include "HoujiGpuInternalExecProbe.inc"
++#include "HoujiGpuExternalCanaryProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -612,6 +613,12 @@
+     if(!houjiGpuInternalExecProbeOnce())
+       panic("HOUJI GMU EXEC: qualification uncertain; resources and originals retained; PSCI-only recovery without later filesystem save");
+   }
++  int externalCanaryProbe=0;PE_parse_boot_argn("houji_gpu_external_canary_probe",&externalCanaryProbe,sizeof(externalCanaryProbe));
++  if(externalCanaryProbe==1) {
++    houji_ufs_checkpoint("before XNU GMU external memory positive/negative canary",0);
++    if(!houjiGpuExternalCanaryProbeOnce())
++      panic("HOUJI GMU DMA: completion or isolation uncertain; retain every BO/table; PSCI-only recovery without later filesystem save");
++  }
+   houji_ufs_checkpoint("native HFSX block backend registered",3);
+ }
+ 

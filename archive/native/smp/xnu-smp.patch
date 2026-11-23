@@ -1,0 +1,679 @@
+--- a/iokit/Kernel/arm/SweetCPU.cpp
++++ b/iokit/Kernel/arm/SweetCPU.cpp
+@@ -1,174 +1,312 @@
+-/*
+- * Single-CPU bring-up for sweet using XNU's legacy IOCPU interface.
+- * The architected timer and SGI1 already enter through pe_fiq/sleh_irq.
+- * Secondary CPU startup and system suspend require separate platform work.
+- */
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++// Houji first SMP stage: two captured same-capacity CPUs, affinity 0 / 0x100.
+ #include <pexpert/arm64/board_config.h>
+-
+ #if defined(SWEET)
+ #include <IOKit/IOCPU.h>
+ #include <IOKit/IOLib.h>
++#include <IOKit/IODeviceTreeSupport.h>
+ #include <libkern/c++/OSData.h>
+ #include <libkern/c++/OSNumber.h>
+ #include <arm64/proc_reg.h>
+ #include <machine/atomic.h>
+ #include <kern/clock.h>
+ #include <kern/processor.h>
++#include <kern/sched_prim.h>
++#include <kern/thread.h>
+ #include <mach/mach_time.h>
++#include "HoujiCpuPolicy.h"
++#include "HoujiSmpGic.h"
++
++extern "C" void houji_secondary_entry(void);
++// sched_prim.h only exports this internal primitive to osfmk.
++extern "C" processor_t thread_bind(processor_t processor);
++extern "C" uint64_t houji_cpu_context_pa(unsigned int logical_cpu);
++extern "C" char LowResetVectorBase[], const_boot_args[];
++extern "C" uint64_t houji_smp_timer_irqs[8];
++extern "C" uint64_t houji_smp_ipi_irqs[8];
++uint64_t houji_smp_timer_irqs[8];
++uint64_t houji_smp_ipi_irqs[8];
++static uint32_t completedCPUs;
++static uint32_t bootRegistered;
++static uint32_t workerBeats;
++static uint32_t workerCPU = UINT32_MAX;
++static uint64_t cpuMIDR[2];
++static uint64_t cpuMPIDR[2];
++static uint32_t cpuInitialIRQs[2];
++static void reportCore(unsigned id) {
++  IOLog("HOUJI CORE%u: MIDR=%llx MPIDR=%llx init-irq=%u timer=%llu ipi=%llu\n", id,
++      __atomic_load_n(&cpuMIDR[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuMPIDR[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuInitialIRQs[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&houji_smp_timer_irqs[id],__ATOMIC_RELAXED),
++      __atomic_load_n(&houji_smp_ipi_irqs[id],__ATOMIC_RELAXED));
++  if (!__atomic_load_n(&houji_gic_snapshot_ready[id],__ATOMIC_ACQUIRE)) return;
++  const HoujiGicSnapshot &s = houji_gic_snapshot[id];
++  IOLog("HOUJI GIC%u: grp1=%llx pmr=%llx sre=%llx daif=%llx vbar=%llx timer-ctl=%llx ctl=%llx hppir=%llx\n",
++      id,s.group1,s.pmr,s.sre,s.daif,s.vbar,s.timer_control,s.control,s.highest_pending);
++}
+ 
+ class SweetCPU : public IOCPU {
+-	OSDeclareDefaultStructors(SweetCPU);
+-	const OSSymbol *cpuName = NULL;
+-
++  OSDeclareDefaultStructors(SweetCPU);
++  const OSSymbol *cpuName = NULL;
++  uint32_t physicalID = 0;
++  bool initialized = false;
++  static SweetCPU *instances[2];
++  static SweetCPU *pending[2];
++  static void drainPending(void);
++  static void startThread(void *, wait_result_t);
++  bool registerProcessor(void);
++  void finishStartup(void);
++  static void probeWorker(void *, wait_result_t);
+ public:
+-	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+-	void free(void) APPLE_KEXT_OVERRIDE;
+-	void initCPU(bool boot) APPLE_KEXT_OVERRIDE;
+-	void quiesceCPU(void) APPLE_KEXT_OVERRIDE;
+-	kern_return_t startCPU(vm_offset_t start_paddr, vm_offset_t arg_paddr) APPLE_KEXT_OVERRIDE;
+-	void haltCPU(void) APPLE_KEXT_OVERRIDE;
+-	void signalCPU(IOCPU *target) APPLE_KEXT_OVERRIDE;
+-	const OSSymbol *getCPUName(void) APPLE_KEXT_OVERRIDE;
++  bool start(IOService *) APPLE_KEXT_OVERRIDE;
++  void free(void) APPLE_KEXT_OVERRIDE;
++  void initCPU(bool) APPLE_KEXT_OVERRIDE;
++  void quiesceCPU(void) APPLE_KEXT_OVERRIDE;
++  kern_return_t startCPU(vm_offset_t, vm_offset_t) APPLE_KEXT_OVERRIDE;
++  void haltCPU(void) APPLE_KEXT_OVERRIDE;
++  void signalCPU(IOCPU *) APPLE_KEXT_OVERRIDE;
++  const OSSymbol *getCPUName(void) APPLE_KEXT_OVERRIDE;
+ };
+-
+ OSDefineMetaClassAndStructors(SweetCPU, IOCPU);
+-
+-bool
+-SweetCPU::start(IOService *provider)
+-{
+-	IOLog("HOUJI CPU: matched SM8650 boot CPU provider\n");
+-	const ml_topology_info_t *topology = ml_get_topology_info();
+-	const ml_topology_cpu_t *cpu = topology->boot_cpu;
+-	OSNumber *logical = OSDynamicCast(OSNumber, provider->getProperty("logical-cpu-id"));
+-	OSData *reg = OSDynamicCast(OSData, provider->getProperty("reg"));
+-
+-	if (logical == NULL || reg == NULL || reg->getLength() != sizeof(uint32_t) ||
+-	    logical->unsigned32BitValue() != cpu->cpu_id ||
+-	    *(const uint32_t *)reg->getBytesNoCopy() != cpu->phys_id) {
+-		IOLog("HOUJI CPU: rejecting CPU node with missing or mismatched topology\n");
+-		return false;
+-	}
+-	if (topology->num_cpus != 1) {
+-		panic("SWEET CPU: only single-CPU bring-up is supported");
+-	}
+-	if (!IOCPU::start(provider)) {
+-		return false;
+-	}
+-	cpuName = OSSymbol::withCStringNoCopy("SM8650 houji boot CPU");
+-	if (cpuName == NULL) {
+-		return false;
+-	}
+-	setCPUNumber(cpu->cpu_id);
+-
+-	ml_processor_info_t info = {};
+-	info.cpu_id = reinterpret_cast<cpu_id_t>(this);
+-	info.phys_id = cpu->phys_id;
+-	info.log_id = cpu->cpu_id;
+-	info.cluster_id = cpu->cluster_id;
+-	info.cluster_type = cpu->cluster_type;
+-	info.l2_cache_id = cpu->l2_cache_id;
+-	info.l2_cache_size = cpu->l2_cache_size;
+-	info.l3_cache_id = cpu->l3_cache_id;
+-	info.l3_cache_size = cpu->l3_cache_size;
+-	perfmon_interrupt_handler_func pmi_handler = NULL;
+-	kern_return_t result = ml_processor_register(&info, &machProcessor, &ipi_handler, &pmi_handler);
+-	if (result != KERN_SUCCESS) {
+-		panic("SWEET CPU: ml_processor_register failed: %d", result);
+-	}
+-	if (pmi_handler != NULL) {
+-		panic("SWEET CPU: PMI routing is not implemented");
+-	}
+-
+-	/* Re-enter the boot CPU through cpu_machine_init -> PE_cpu_machine_init. */
+-	IOLog("HOUJI CPU: starting registered boot processor\n");
+-	result = processor_start(machProcessor);
+-	if (result != KERN_SUCCESS || getCPUState() != kIOCPUStateRunning) {
+-		panic("SWEET CPU: processor_start failed: %d", result);
+-	}
+-	ml_cpu_init_completed();
+-	cpusRunning();
+-	registerService();
+-	IOService::publishResource(gIOAllCPUInitializedKey, kOSBooleanTrue);
+-
+-	/* Announce completion only after registration, startup and SGI validation. */
+-	ml_set_max_cpus(topology->max_cpu_id + 1);
+-	IOLog("SWEET CPU: boot CPU %u registered, SGI1 verified, initialization complete\n",
+-	    getCPUNumber());
+-	return true;
+-}
+-
+-void
+-SweetCPU::free(void)
+-{
+-	OSSafeReleaseNULL(cpuName);
+-	IOCPU::free();
+-}
+-
+-void
+-SweetCPU::initCPU(bool boot)
+-{
+-	if (!boot) {
+-		panic("SWEET CPU: resume is not implemented");
+-	}
+-	assert(cpu_number() == (int)getCPUNumber());
+-	assert(ml_get_interrupts_enabled());
+-	ml_broadcast_cpu_event(CPU_BOOTED, getCPUNumber());
+-
+-	/* A real GIC interrupt clears SIGPdisabled in cpu_signal_handler. */
+-	uint64_t deadline;
+-	nanoseconds_to_deadline(NSEC_PER_SEC, &deadline);
+-	signalCPU(this);
+-	while (!ml_cpu_signal_is_enabled()) {
+-		if (mach_absolute_time() > deadline) {
+-			panic("SWEET CPU: SGI1 self-test timed out");
+-		}
+-		__asm__ volatile("yield");
+-	}
+-	setCPUState(kIOCPUStateRunning);
+-}
+-
+-void
+-SweetCPU::signalCPU(IOCPU *target)
+-{
+-	/* Only the boot CPU is registered by this driver. */
+-	if (target != this || cpu_number() != (int)getCPUNumber()) {
+-		panic("SWEET CPU: secondary CPU signalling is not implemented");
+-	}
+-	uint64_t mpidr = __builtin_arm_rsr64("MPIDR_EL1");
+-	unsigned int aff0 = mpidr & 0xff;
+-	if (aff0 >= 16) {
+-		panic("SWEET CPU: SGI target requires unsupported range selector");
+-	}
+-	uint64_t sgi = (((mpidr >> 32) & 0xff) << 48) |
+-	    (((mpidr >> 16) & 0xff) << 32) |
+-	    (((mpidr >> 8) & 0xff) << 16) |
+-	    ((uint64_t)SWEET_IPI_SGI << 24) | (1ULL << aff0);
+-	__builtin_arm_dsb(DSB_ISHST);
+-	__builtin_arm_wsr64("ICC_SGI1R_EL1", sgi);
+-	__builtin_arm_isb(ISB_SY);
+-}
+-
+-kern_return_t
+-SweetCPU::startCPU(vm_offset_t start_paddr __unused, vm_offset_t arg_paddr __unused)
+-{
+-	return KERN_NOT_SUPPORTED;
+-}
+-
+-void
+-SweetCPU::quiesceCPU(void)
+-{
+-	panic("SWEET CPU: CPU quiesce is not implemented");
+-}
+-
+-void
+-SweetCPU::haltCPU(void)
+-{
+-	panic("SWEET CPU: CPU halt/suspend is not implemented");
+-}
+-
+-const OSSymbol *
+-SweetCPU::getCPUName(void)
+-{
+-	return cpuName;
+-}
+-#endif /* SWEET */
++SweetCPU *SweetCPU::instances[2];
++SweetCPU *SweetCPU::pending[2];
++
++bool SweetCPU::start(IOService *provider) {
++  const ml_topology_info_t *topology = ml_get_topology_info();
++  OSNumber *logical = OSDynamicCast(OSNumber, provider->getProperty("logical-cpu-id"));
++  OSData *reg = OSDynamicCast(OSData, provider->getProperty("reg"));
++  int enabled = 0;
++  PE_parse_boot_argn("houji_smp", &enabled, sizeof(enabled));
++  if (!logical || !reg || reg->getLength() != sizeof(uint32_t)) return false;
++  unsigned id = logical->unsigned32BitValue();
++  physicalID = *(const uint32_t *)reg->getBytesNoCopy();
++  if (!houjiCpuNodeAllowed(id, physicalID, topology->num_cpus, enabled == 1) ||
++      id >= topology->num_cpus || topology->cpus[id].phys_id != physicalID)
++    return false;
++  if (!IOCPU::start(provider)) return false;
++  cpuName = OSSymbol::withCStringNoCopy(id ? "SM8650 houji CPU1" : "SM8650 houji CPU0");
++  if (!cpuName) return false;
++  setCPUNumber(id);
++  instances[id] = this;
++  if (id) {
++    retain();
++    __atomic_store_n(&pending[id], this, __ATOMIC_RELEASE);
++    if (__atomic_load_n(&bootRegistered, __ATOMIC_ACQUIRE)) drainPending();
++    return true;
++  }
++  if (!registerProcessor()) return false;
++  finishStartup();
++  __atomic_store_n(&bootRegistered, 1U, __ATOMIC_RELEASE);
++  drainPending();
++  return true;
++}
++
++bool SweetCPU::registerProcessor(void) {
++  const ml_topology_info_t *topology = ml_get_topology_info();
++  unsigned id = getCPUNumber();
++  const ml_topology_cpu_t *cpu = &topology->cpus[id];
++  ml_processor_info_t info = {};
++  info.cpu_id = reinterpret_cast<cpu_id_t>(this);
++  info.phys_id = cpu->phys_id; info.log_id = cpu->cpu_id;
++  info.cluster_id = cpu->cluster_id; info.cluster_type = cpu->cluster_type;
++  info.l2_cache_id = cpu->l2_cache_id; info.l2_cache_size = cpu->l2_cache_size;
++  info.l3_cache_id = cpu->l3_cache_id; info.l3_cache_size = cpu->l3_cache_size;
++  perfmon_interrupt_handler_func pmi = NULL;
++  kern_return_t result = ml_processor_register(&info, &machProcessor, &ipi_handler, &pmi);
++  if (result != KERN_SUCCESS || pmi) panic("HOUJI SMP: processor registration failed %d", result);
++  return true;
++}
++
++void SweetCPU::finishStartup(void) {
++  const ml_topology_info_t *topology = ml_get_topology_info();
++  unsigned id = getCPUNumber();
++  IOLog("HOUJI SMP: starting CPU%u affinity=%x\n", id, physicalID);
++  kern_return_t result = processor_start(machProcessor);
++  if (result != KERN_SUCCESS) panic("HOUJI SMP: processor_start failed %d", result);
++  IOLog("HOUJI SMP: CPU%u processor_start returned; IOCPU state=%u\n", id, getCPUState());
++  reportCore(id);
++  if (id) {
++    // A bounded remote request also tests CPU0 -> CPU1 routing after the
++    // secondary's initCPU has returned. No new interrupt source is enabled.
++    instances[0]->signalCPU(this);
++    IOLog("HOUJI SMP: CPU0 sent one post-start SGI1 to CPU1\n");
++  }
++  uint64_t deadline;
++  nanoseconds_to_deadline(5 * NSEC_PER_SEC, &deadline);
++  while (getCPUState() != kIOCPUStateRunning ||
++      __atomic_load_n(&houji_smp_ipi_irqs[id], __ATOMIC_RELAXED) == 0) {
++    if (mach_absolute_time() > deadline) {
++      reportCore(0); reportCore(id);
++      panic("HOUJI SMP: CPU%u startup/SGI timeout state=%u timer=%llu ipi=%llu MPIDR=%llx", id,
++          getCPUState(),__atomic_load_n(&houji_smp_timer_irqs[id],__ATOMIC_RELAXED),
++          __atomic_load_n(&houji_smp_ipi_irqs[id],__ATOMIC_RELAXED),
++          __atomic_load_n(&cpuMPIDR[id],__ATOMIC_ACQUIRE));
++    }
++    IOSleep(1);
++  }
++  // initCPU runs with interrupts masked on a secondary. Print its saved
++  // diagnostics here, after processor_start returns to a schedulable thread.
++  assert(ml_get_interrupts_enabled());
++  IOLog("HOUJI SMP: CPU%u init MIDR=%llx MPIDR=%llx interrupts-at-init=%u (deferred)\n", id,
++      __atomic_load_n(&cpuMIDR[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuMPIDR[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuInitialIRQs[id],__ATOMIC_ACQUIRE));
++  registerService();
++  // CPU0 makes matching workers available; completion is published after both.
++  if (!id) cpusRunning();
++  unsigned done = __atomic_add_fetch(&completedCPUs, 1U, __ATOMIC_ACQ_REL);
++  IOLog("HOUJI SMP: CPU%u online; completed=%u/%u\n", id, done, topology->num_cpus);
++  if (done == topology->num_cpus) {
++    ml_cpu_init_completed();
++    IOService::publishResource(gIOAllCPUInitializedKey, kOSBooleanTrue);
++    ml_set_max_cpus(topology->max_cpu_id + 1);
++    int probe = 0;
++    PE_parse_boot_argn("houji_smp_probe", &probe, sizeof(probe));
++    if (probe == 1 && done == 2) {
++      thread_t thread;
++      if (kernel_thread_start(probeWorker, NULL, &thread) != KERN_SUCCESS)
++        panic("HOUJI SMP: worker creation failed");
++      thread_deallocate(thread);
++    }
++  }
++}
++
++void SweetCPU::drainPending(void) {
++  SweetCPU *cpu = __atomic_exchange_n(&pending[1], (SweetCPU *)NULL, __ATOMIC_ACQ_REL);
++  if (!cpu) return;
++  if (!cpu->registerProcessor()) panic("HOUJI SMP: secondary registration failed");
++  thread_t thread;
++  if (kernel_thread_start(startThread, cpu, &thread) != KERN_SUCCESS)
++    panic("HOUJI SMP: secondary start helper creation failed");
++  thread_deallocate(thread);
++}
++
++void SweetCPU::startThread(void *argument, wait_result_t) {
++  SweetCPU *cpu = (SweetCPU *)argument;
++  thread_bind(instances[0]->machProcessor);
++  if (cpu_number() != 0) thread_block(THREAD_CONTINUE_NULL);
++  cpu->finishStartup();
++  cpu->release();
++  thread_bind(PROCESSOR_NULL);
++  thread_terminate(current_thread());
++}
++
++void SweetCPU::initCPU(bool boot) {
++  if (!boot || initialized) panic("HOUJI SMP: suspend/resume unsupported");
++  initialized = true;
++  unsigned id = getCPUNumber();
++  assert(cpu_number() == (int)id);
++  uint64_t midr = __builtin_arm_rsr64("MIDR_EL1");
++  uint64_t mpidr = __builtin_arm_rsr64("MPIDR_EL1");
++  if ((mpidr & 0xff00ffffffULL) != physicalID)
++    panic("HOUJI SMP: CPU%u affinity mismatch %llx", id, mpidr);
++  __atomic_store_n(&cpuMIDR[id], midr, __ATOMIC_RELEASE);
++  __atomic_store_n(&cpuMPIDR[id], mpidr, __ATOMIC_RELEASE);
++  __atomic_store_n(&cpuInitialIRQs[id], ml_get_interrupts_enabled(), __ATOMIC_RELEASE);
++  if (ml_get_topology_info()->num_cpus == 2 && ((midr >> 4) & 0xfff) != 0xd80)
++    panic("HOUJI SMP: unexpected CPU%u MIDR %llx", id, midr);
++  ml_broadcast_cpu_event(CPU_BOOTED, id);
++  // Secondary startup may mask interrupts. Its caller enables them after init;
++  // wait on CPU0, never spin here waiting for a masked self-IPI.
++  signalCPU(this);
++  houji_smp_capture_gic(); // memory snapshot only; no output while IRQs are masked
++  setCPUState(kIOCPUStateRunning);
++}
++
++void SweetCPU::signalCPU(IOCPU *target) {
++  SweetCPU *cpu = OSDynamicCast(SweetCPU, target);
++  uint64_t sgi;
++  if (!cpu || !houjiSgiValue(cpu->physicalID, &sgi))
++    panic("HOUJI SMP: unsupported SGI target");
++  __builtin_arm_dsb(DSB_ISHST);
++  __builtin_arm_wsr64("ICC_SGI1R_EL1", sgi);
++  __builtin_arm_isb(ISB_SY);
++}
++
++kern_return_t SweetCPU::startCPU(vm_offset_t, vm_offset_t) {
++  if (getCPUNumber() != 1 || physicalID != 0x100 || !instances[0])
++    return KERN_NOT_SUPPORTED;
++  IORegistryEntry *psci = IORegistryEntry::fromPath("/psci", gIODTPlane);
++  OSData *method = psci ? OSDynamicCast(OSData, psci->getProperty("method")) : NULL;
++  bool smc = method && method->getLength() == 4 &&
++      memcmp(method->getBytesNoCopy(), "smc", 4) == 0;
++  OSSafeReleaseNULL(psci);
++  if (!smc) panic("HOUJI SMP: captured SMC PSCI conduit absent");
++  vm_offset_t entry = ml_static_vtop((vm_offset_t)&houji_secondary_entry);
++  uint64_t context = houji_cpu_context_pa(1);
++  if (!entry || !context || (entry & 3) || (context & 7))
++    panic("HOUJI SMP: invalid physical entry/context");
++  // The new core starts with caches off. Publish code/boot arguments to PoC;
++  // XNU cpu_start() already flushes the per-CPU context and entry array.
++  flush_dcache((vm_offset_t)LowResetVectorBase, 0x10000, FALSE);
++  flush_dcache((vm_offset_t)const_boot_args, 0x1000, FALSE);
++  IOLog("HOUJI SMP: PSCI CPU_ON affinity=%x entry=%llx context=%llx\n",
++      physicalID, (uint64_t)entry, context);
++  register uint64_t x0 __asm__("x0") = 0xc4000003ULL;
++  register uint64_t x1 __asm__("x1") = physicalID;
++  register uint64_t x2 __asm__("x2") = entry;
++  register uint64_t x3 __asm__("x3") = context;
++  // Darwin's assembler treats ';' as a comment marker, not an instruction
++  // separator. Keep both instructions on distinct assembly lines.
++  __asm__ volatile("dsb sy\n\tsmc #0" : "+r"(x0), "+r"(x1), "+r"(x2), "+r"(x3)
++      : : "x4","x5","x6","x7","x8","x9","x10","x11","x12","x13",
++          "x14","x15","x16","x17","memory","cc");
++  IOLog("HOUJI SMP: PSCI CPU_ON returned %lld\n", (int64_t)x0);
++  if ((int64_t)x0 != 0) panic("HOUJI SMP: CPU_ON failed %lld", (int64_t)x0);
++  return KERN_SUCCESS;
++}
++
++void SweetCPU::probeWorker(void *, wait_result_t) {
++  SweetCPU *cpu = instances[1];
++  thread_bind(cpu->machProcessor);
++  thread_block(THREAD_CONTINUE_NULL);
++  if (cpu_number() != 1) panic("HOUJI SMP: bound worker ran on wrong CPU");
++  __atomic_store_n(&workerCPU, 1U, __ATOMIC_RELEASE);
++  for (unsigned i = 0; i < 30; i++) {
++    cpu->signalCPU(instances[0]);
++    __atomic_add_fetch(&workerBeats, 1U, __ATOMIC_RELEASE);
++    IOSleep(100);
++  }
++  IOLog("HOUJI SMP: CPU1 bound worker and cross-core SGI sends complete\n");
++  thread_bind(PROCESSOR_NULL);
++  thread_terminate(current_thread());
++}
++
++extern "C" void houji_smp_report(void) {
++  IOLog("HOUJI SMP STATE: initialized=%u worker_cpu=%u beats=%u MIDR=%llx/%llx timer=%llu/%llu ipi=%llu/%llu\n",
++      __atomic_load_n(&completedCPUs,__ATOMIC_ACQUIRE),
++      __atomic_load_n(&workerCPU,__ATOMIC_ACQUIRE),
++      __atomic_load_n(&workerBeats,__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuMIDR[0],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuMIDR[1],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&houji_smp_timer_irqs[0],__ATOMIC_RELAXED),
++      __atomic_load_n(&houji_smp_timer_irqs[1],__ATOMIC_RELAXED),
++      __atomic_load_n(&houji_smp_ipi_irqs[0],__ATOMIC_RELAXED),
++      __atomic_load_n(&houji_smp_ipi_irqs[1],__ATOMIC_RELAXED));
++}
++extern "C" bool houji_smp_preflight(void) {
++  if (ml_get_topology_info()->num_cpus == 1) return true;
++  int probe = 0;
++  PE_parse_boot_argn("houji_smp_probe", &probe, sizeof(probe));
++  if (probe != 1) return false;
++  uint64_t deadline;
++  nanoseconds_to_deadline(8 * NSEC_PER_SEC, &deadline);
++  while (__atomic_load_n(&workerBeats,__ATOMIC_ACQUIRE) != 30 &&
++      mach_absolute_time() < deadline) IOSleep(10);
++  bool pass = __atomic_load_n(&completedCPUs,__ATOMIC_ACQUIRE) == 2 &&
++      __atomic_load_n(&workerCPU,__ATOMIC_ACQUIRE) == 1 &&
++      __atomic_load_n(&workerBeats,__ATOMIC_ACQUIRE) == 30 &&
++      __atomic_load_n(&houji_smp_timer_irqs[0],__ATOMIC_RELAXED) > 0 &&
++      __atomic_load_n(&houji_smp_timer_irqs[1],__ATOMIC_RELAXED) > 0 &&
++      __atomic_load_n(&houji_smp_ipi_irqs[0],__ATOMIC_RELAXED) > 1 &&
++      __atomic_load_n(&houji_smp_ipi_irqs[1],__ATOMIC_RELAXED) > 0;
++  houji_smp_report();
++  IOLog("HOUJI SMP PREFLIGHT: %s; CPU1 bound worker, timers and IPI counters\n", pass ? "PASS" : "FAIL");
++  return pass;
++}
++void SweetCPU::free(void) { OSSafeReleaseNULL(cpuName); IOCPU::free(); }
++void SweetCPU::quiesceCPU(void) { panic("HOUJI SMP: quiesce unsupported"); }
++void SweetCPU::haltCPU(void) { panic("HOUJI SMP: halt/suspend unsupported"); }
++const OSSymbol *SweetCPU::getCPUName(void) { return cpuName; }
++#endif
+--- a/osfmk/arm64/start.s
++++ b/osfmk/arm64/start.s
+@@ -292,6 +292,26 @@
+ 	adrp	lr, EXT(arm_init_cpu)@page
+ 	add		lr, lr, EXT(arm_init_cpu)@pageoff
+ 	b		start_cpu
++
++#if defined(SWEET)
++// PSCI CPU_ON enters with MMU/caches off and x0 = cpu_data physical address.
++// XNU's normal start_cpu label expects x20/x21 already established.
++    .align 4
++    .globl EXT(houji_secondary_entry)
++LEXT(houji_secondary_entry)
++    msr     DAIFSet, #(DAIFSC_ALL)
++    msr     OSLAR_EL1, xzr
++    mov     x21, x0
++    adrp    x1, EXT(LowExceptionVectorBase)@page
++    add     x1, x1, EXT(LowExceptionVectorBase)@pageoff
++    msr     VBAR_EL1, x1
++    adrp    x20, EXT(const_boot_args)@page
++    add     x20, x20, EXT(const_boot_args)@pageoff
++    adrp    lr, EXT(arm_init_cpu)@page
++    add     lr, lr, EXT(arm_init_cpu)@pageoff
++    isb
++    b       start_cpu
++#endif
+ 
+ 	.align 2
+ start_cpu:
+--- a/pexpert/arm/pe_fiq.c
++++ b/pexpert/arm/pe_fiq.c
+@@ -25,6 +25,7 @@
+ static vm_offset_t gicd_base;
+ static vm_offset_t gicr_base;
+ static vm_offset_t gicr_size;
++static vm_offset_t gicr_stride = GICR_PE_SIZE;
+ 
+ static uint32_t
+ _gic_read32(vm_offset_t addr)
+@@ -56,7 +57,7 @@
+ 	// We only care about aff1 and aff0
+ 	uint32_t phys_id = __builtin_arm_rsr64("MPIDR_EL1") & (MPIDR_AFF1_MASK | MPIDR_AFF0_MASK);
+ 
+-	for (vm_offset_t offset = 0; offset < gicr_size; offset += GICR_PE_SIZE) {
++	for (vm_offset_t offset = 0; offset < gicr_size; offset += gicr_stride) {
+ 		vm_offset_t gicr_pe_base = gicr_base + offset;
+ 		uint64_t gicr_typer = gicr_read64(GICR_TYPER);
+ 		uint32_t aff_value = (uint32_t) (gicr_typer >> GICR_TYPER_AFFINITY_VALUE_SHIFT) & (MPIDR_AFF1_MASK | MPIDR_AFF0_MASK);
+@@ -72,6 +73,8 @@
+ 
+ 	panic("%s: cannot find GICR base for core %u", __func__, ml_get_cpu_number(phys_id));
+ }
++
++#include "HoujiSmpGic.inc"
+ 
+ void
+ pe_init_fiq()
+@@ -117,6 +120,15 @@
+ 			sweet_vtimer_intid = intid;
+ 		}
+ 		kprintf("SWEET GIC: virtual timer INTID %u\n", sweet_vtimer_intid);
++        void const *stride_prop;
++        unsigned int stride_size;
++        if (SecureDTGetProperty(entry, "redistributor-stride", &stride_prop, &stride_size) == kSuccess) {
++            if (stride_size != sizeof(uint64_t)) panic("HOUJI GIC: bad redistributor stride size");
++            uint64_t stride = *(const uint64_t *)stride_prop;
++            if (stride != 0x20000 && stride != 0x40000) panic("HOUJI GIC: unsupported redistributor stride");
++            gicr_stride = stride;
++        }
++        kprintf("HOUJI GIC: redistributor stride %lx\n", gicr_stride);
+ #endif
+ 
+ 		vm_offset_t soc_base_phys = pe_arm_get_soc_base_phys();
+--- a/osfmk/arm64/sleh.c
++++ b/osfmk/arm64/sleh.c
+@@ -1867,6 +1867,14 @@
+ 	if (intid >= 1020 && intid <= 1023) {
+ 		return; /* spurious */
+ 	}
++    extern uint64_t houji_smp_timer_irqs[8], houji_smp_ipi_irqs[8];
++    unsigned houji_cpu = cpu_number();
++    if (houji_cpu < 8) {
++        if (intid == sweet_vtimer_intid)
++            __atomic_add_fetch(&houji_smp_timer_irqs[houji_cpu], 1ULL, __ATOMIC_RELAXED);
++        else if (intid < 16)
++            __atomic_add_fetch(&houji_smp_ipi_irqs[houji_cpu], 1ULL, __ATOMIC_RELAXED);
++    }
+ 	if (intid == sweet_vtimer_intid) {
+ 		sleh_interrupt_handler_prologue(state, DBG_INTR_TYPE_TIMER);
+ 		cdp->cpu_decrementer = -1; /* Large */
+--- a/osfmk/arm64/cpu.c
++++ b/osfmk/arm64/cpu.c
+@@ -888,6 +888,20 @@
+ }
+ #endif
+ 
++#if defined(SWEET)
++/* Private cpu_data layout stays inside osfmk; IOCPU only needs its physical address. */
++uint64_t
++houji_cpu_context_pa(unsigned int logical_cpu)
++{
++    const ml_topology_info_t *topology = ml_get_topology_info();
++    if (topology->num_cpus != 2 || logical_cpu != 1 ||
++        topology->cpus[logical_cpu].phys_id != 0x100) {
++        return 0;
++    }
++    return (uint64_t)CpuDataEntries[logical_cpu].cpu_data_paddr;
++}
++#endif
++
+ kern_return_t
+ cpu_start(int cpu)
+ {
+--- /dev/null
++++ b/iokit/Kernel/arm/HoujiCpuPolicy.h
+@@ -0,0 +1,22 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++#ifndef HOUJI_CPU_POLICY_H
++#define HOUJI_CPU_POLICY_H
++#include <stdint.h>
++
++static inline bool houjiCpuNodeAllowed(unsigned logical, uint32_t affinity,
++    unsigned total, bool enabled) {
++  if (total == 1) return logical == 0 && affinity == 0;
++  return enabled && total == 2 && logical < 2 && affinity == logical * 0x100U;
++}
++
++// Group 1 SGI1, exact MPIDR affinity; no broadcast/range selector.
++static inline bool houjiSgiValue(uint64_t affinity, uint64_t *value) {
++  if (!value || (affinity & ~0xff00ffffffULL) || (affinity & 0xff) >= 16)
++    return false;
++  *value = (((affinity >> 32) & 0xff) << 48) |
++      (((affinity >> 16) & 0xff) << 32) |
++      (((affinity >> 8) & 0xff) << 16) |
++      (1ULL << 24) | (1ULL << (affinity & 0xff));
++  return true;
++}
++#endif
+--- /dev/null
++++ b/pexpert/arm/HoujiSmpGic.inc
+@@ -0,0 +1,23 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++// CPU-interface system registers only. Do not read redistributor SGI MMIO:
++// houji r40 aborted on GICR_IGROUPR0 despite earlier configuration writes.
++#if defined(SWEET)
++#include "HoujiSmpGic.h"
++struct HoujiGicSnapshot houji_gic_snapshot[8];
++uint32_t houji_gic_snapshot_ready[8];
++void houji_smp_capture_gic(void) {
++  unsigned int id = ml_get_cpu_number_local();
++  if (id >= 8) return;
++  struct HoujiGicSnapshot *s = &houji_gic_snapshot[id];
++  s->group1 = __builtin_arm_rsr64("ICC_IGRPEN1_EL1");
++  s->pmr = __builtin_arm_rsr64("ICC_PMR_EL1");
++  s->sre = __builtin_arm_rsr64("ICC_SRE_EL1");
++  s->daif = __builtin_arm_rsr64("DAIF");
++  s->vbar = __builtin_arm_rsr64("VBAR_EL1");
++  s->timer_control = __builtin_arm_rsr64("CNTV_CTL_EL0");
++  s->control = __builtin_arm_rsr64("ICC_CTLR_EL1");
++  // HPPIR observes the highest pending interrupt without acknowledging it.
++  s->highest_pending = __builtin_arm_rsr64("ICC_HPPIR1_EL1");
++  __atomic_store_n(&houji_gic_snapshot_ready[id], 1U, __ATOMIC_RELEASE);
++}
++#endif
+--- /dev/null
++++ b/pexpert/arm/HoujiSmpGic.h
+@@ -0,0 +1,18 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++#ifndef HOUJI_SMP_GIC_H
++#define HOUJI_SMP_GIC_H
++#include <stdint.h>
++struct HoujiGicSnapshot {
++  uint64_t group1, pmr, sre, daif, vbar, timer_control, control;
++  uint64_t highest_pending;
++};
++#ifdef __cplusplus
++extern "C" {
++#endif
++extern struct HoujiGicSnapshot houji_gic_snapshot[8];
++extern uint32_t houji_gic_snapshot_ready[8];
++void houji_smp_capture_gic(void);
++#ifdef __cplusplus
++}
++#endif
++#endif
+--- /dev/null
++++ b/iokit/Kernel/arm/HoujiSmpGic.h
+@@ -0,0 +1,18 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++#ifndef HOUJI_SMP_GIC_H
++#define HOUJI_SMP_GIC_H
++#include <stdint.h>
++struct HoujiGicSnapshot {
++  uint64_t group1, pmr, sre, daif, vbar, timer_control, control;
++  uint64_t highest_pending;
++};
++#ifdef __cplusplus
++extern "C" {
++#endif
++extern struct HoujiGicSnapshot houji_gic_snapshot[8];
++extern uint32_t houji_gic_snapshot_ready[8];
++void houji_smp_capture_gic(void);
++#ifdef __cplusplus
++}
++#endif
++#endif

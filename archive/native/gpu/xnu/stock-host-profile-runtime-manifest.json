@@ -1,0 +1,101 @@
+{
+  "scope": "actual hgf_run then fixed original hhp_run PERF/BW/CORE/START/QUERY, no HWSCHED/resources/AQE/GX/CP/graphics; retained terminal no-FS PSCI",
+  "hardware_tested": true,
+  "desktop_acceleration_claim": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/houji_stock_native.c": {
+      "before": "679a430b966c0126e8a4ef5085ea88fad858efd1ad7207456071d1d660854e72",
+      "after": "05ad2c1af3daa7e2b23382ca3ee27347d95071ba3cf7c85385b77bd67b5b7aed",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/hfi-inactive/houji_stock_native.c",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/stock-host-profile-runtime/before-iokit_Kernel_houji-ufs-root_houji_stock_native.c"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_stock_native.h": {
+      "before": "a0525688750192dd548928f22ebb4cba6878351de4690fde7005b9206f3cb909",
+      "after": "867ef1256d4e54b4b5c3efebece6940e9728a9abe82967c41e3726a00e18852d",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/hfi-inactive/houji_stock_native.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/stock-host-profile-runtime/before-iokit_Kernel_houji-ufs-root_houji_stock_native.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuStockFirmwareProbe.inc": {
+      "before": "c63984e74bc49d159dc610adeb73374c48284bf866cfe7b2a7d02e013ebcc34b",
+      "after": "0fd79f4340032a1f80f6d36fc09ccba0ec610cb460dd60be701c4e780852df64",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuStockFirmwareProbe.inc",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/stock-host-profile-runtime/before-iokit_Kernel_houji-ufs-root_HoujiGpuStockFirmwareProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuHostProfile.h": {
+      "before": null,
+      "after": "19a2c8b3cc2d250c0eab07856bd3bbcb6da3805701f8b06b8d3619590d55750d",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuHostProfile.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "0980e432506802ecfd111ef541c17ccf4750d6cda0cc86f8a4edff7d0aa5f2b9",
+      "after": "1ae8c8311c7c8853980ecc57f1c0d98cb5e7e3ef9be185bd322d637ad5678345",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r153-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/stock-host-profile-runtime/before-iokit_Kernel_houji-ufs-root_HoujiLogAllocation.h"
+    }
+  },
+  "Native_host_profiles": 37,
+  "ABI": 2,
+  "stock_storage_bytes": 196608,
+  "RX_records": 80,
+  "post_release_filesystem": false,
+  "host_profile_source_sha256": "19a2c8b3cc2d250c0eab07856bd3bbcb6da3805701f8b06b8d3619590d55750d",
+  "C_bridge_host_profile_profiles": 16,
+  "C_bridge_host_profile_checks": 802466,
+  "original_C_bridge_profiles": 93,
+  "original_hhp_cases": 63,
+  "real_state_bytes": 161456,
+  "offline_evidence": {
+    "Main-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/Main-output.txt",
+      "sha256": "aada566d6e422804502c1f3a5c7168fbf3a8aad5e539b079005c500db699b52c"
+    },
+    "Native-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/Native-verification.json",
+      "sha256": "90d453d673ba1f0a6491c66af320b9d7fda8ecb879aa65d391296d845c2bf349"
+    },
+    "C-bridge-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/C-bridge-verification.json",
+      "sha256": "ca4b31c00ce295c32dc66935725b1326b7e2e21fe5ba19dfcf2c3303a3af098e"
+    },
+    "Native-integrated-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/Native-integrated-output.txt",
+      "sha256": "ff55c677b9c50e908c7e3bea788975472d64cac379d898f42f444abc068fb8f1"
+    },
+    "host-profile-bridge.patch": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/host-profile-bridge.patch",
+      "sha256": "f5f18b189af73776bbc197d0181346ac0c42f6197d2ec2046a2e86c30d9d2fed"
+    },
+    "HHI-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/HHI-verification.json",
+      "sha256": "9a9164cb6d990e7f26f5b87af8ba7e75469967ceea1cee2fddcfe0b76c1b4d16"
+    },
+    "Native-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/Native-output.txt",
+      "sha256": "ff55c677b9c50e908c7e3bea788975472d64cac379d898f42f444abc068fb8f1"
+    },
+    "C-bridge-implementation-manifest.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/C-bridge-implementation-manifest.json",
+      "sha256": "c001de4b9a016d80ae42ae9e2cb14988802b24e23d17e2ca1861fe1ef6cbf2c1"
+    },
+    "C-bridge-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/C-bridge-output.txt",
+      "sha256": "2ea04ead159b6667b5acfeadb802171d72a0d0c834392b2f5fe7a67a73348eee"
+    },
+    "HHI-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/HHI-output.txt",
+      "sha256": "38a803e8b43231eae2e21c9d693d3b33233d0ddefde78a5c1384505341b0fbc0"
+    },
+    "C-bridge-implementation.md": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-stock-host-profile-r153/C-bridge-implementation.md",
+      "sha256": "983a187c21df495993072429e6fecbb089f7691780794a8488a9541856580b08"
+    },
+    "Native-integrated-verification.json": {
+      "path": "${HOUJI_PORT_ROOT}/tests/stock-native-host/build/verification.json",
+      "sha256": "4482e39446f298fdaf4f665ba45a8b43045867c694bdec3251e7ff39a8d7be36"
+    }
+  },
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r153-result.json",
+  "hardware_result_sha256": "81c6e5c24b96ebed97231a9f71c71e253c72a4566393a6cc3fad03b1b35df8b5",
+  "verified_scope": "message compatibility for five ordinary host-profile messages; does not independently prove selected GPU mode or CP/PM4 execution"
+}

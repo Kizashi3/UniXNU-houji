@@ -1,0 +1,96 @@
+{
+  "selected_node": "qcom,gpu-pwrlevels-3",
+  "points": [
+    {
+      "hz": 231000000,
+      "arc": 52,
+      "bw": 1,
+      "register": 11,
+      "vote": 3408385
+    },
+    {
+      "hz": 310000000,
+      "arc": 56,
+      "bw": 1,
+      "register": 10,
+      "vote": 3670530
+    },
+    {
+      "hz": 366000000,
+      "arc": 60,
+      "bw": 3,
+      "register": 9,
+      "vote": 3932675
+    },
+    {
+      "hz": 422000000,
+      "arc": 64,
+      "bw": 5,
+      "register": 8,
+      "vote": 4194820
+    },
+    {
+      "hz": 500000000,
+      "arc": 80,
+      "bw": 5,
+      "register": 7,
+      "vote": 5243653
+    },
+    {
+      "hz": 578000000,
+      "arc": 128,
+      "bw": 5,
+      "register": 6,
+      "vote": 8389382
+    },
+    {
+      "hz": 629000000,
+      "arc": 144,
+      "bw": 6,
+      "register": 5,
+      "vote": 9438215
+    },
+    {
+      "hz": 680000000,
+      "arc": 192,
+      "bw": 7,
+      "register": 4,
+      "vote": 12583944
+    },
+    {
+      "hz": 720000000,
+      "arc": 224,
+      "bw": 7,
+      "register": 3,
+      "vote": 14681353
+    },
+    {
+      "hz": 770000000,
+      "arc": 256,
+      "bw": 7,
+      "register": 2,
+      "vote": 16778506
+    },
+    {
+      "hz": 834000000,
+      "arc": 320,
+      "bw": 8,
+      "register": 1,
+      "vote": 20973067
+    },
+    {
+      "hz": 903000000,
+      "arc": 384,
+      "bw": 9,
+      "register": 0,
+      "vote": 25167628
+    }
+  ],
+  "boot_level": 5,
+  "dts_sha256": "6470bd920672b73c3ba874694f35784e430e8015542174b02a56d2dbf975d9b2",
+  "aop_sha256": "c572b184827e4a6fac8f87318da81b36e0e8056d87025ac8ae40e764d4129f8c",
+  "facts_sha256": "df6477942d0fafad5255ff4181a99277aa4342a2139ae33250bebb6e066f7857",
+  "header_sha256": "2b3810e40eff620417b31c9d97c415b68dce559c252fb1c5c8b7a4f8b17c2de8",
+  "hardware_qualified": false,
+  "thermal_feedback_qualified": false
+}

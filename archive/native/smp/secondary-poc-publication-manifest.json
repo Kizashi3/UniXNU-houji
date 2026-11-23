@@ -1,0 +1,57 @@
+{
+  "scope": "Publish two real CPU0-populated reset entities to PoC before PSCI CPU_ON; no GPU/bootstrap/splash/MMU-control changes",
+  "base_layer": "${HOUJI_PORT_ROOT}/native/gpu/xnu/cpu-page-runtime-manifest.json",
+  "base_layer_sha256": "ddf072aed5445b055a9b6b15728eba96b340d0259d67c955a728bf82f5e45fe4",
+  "patch": "xnu-secondary-poc-publication.patch",
+  "patch_sha256": "64e98bfff17a67df4c216e3d9fb336a4c713a466313195dfbae12f206bbb5ea3",
+  "files": {
+    "iokit/Kernel/arm/SweetCPU.cpp": {
+      "before": "b123330d863056f346ea1d153fcb52836eb3facea5dece9a508337219bbd36c9",
+      "after": "2df234ee92f4f05b2921a4fd80a64e5a9034091505c5fb0e42681af8c3733658",
+      "rollback_source": "${HOUJI_PORT_ROOT}/native/smp/secondary-poc-publication-before.cpp"
+    },
+    "osfmk/arm64/cpu.c": {
+      "before": "7026d2d395fbe41d64c5b2a7c52ac21b8e8827ebcf492d5fd691bfc5e07f5967",
+      "after": "3fbb26a3e43590c62653ef019a7b3eb4783c277b6178459000b3d800698eb851",
+      "rollback_source": "${HOUJI_PORT_ROOT}/native/smp/secondary-poc-publication-cpu-before.c"
+    }
+  },
+  "typed_definitions": {
+    "sysreg_restore_t_header": "${HOUJI_PORT_ROOT}/.cache/ios16-reference/dxb-ios/xnu/osfmk/arm/cpu_data_internal.h",
+    "sysreg_restore_t_header_sha256": "b7dbfc9684261480a24a0bd6cf4cc6dcc222f8ad6f78838ea1c9ba1d818e9496",
+    "cpu_ttep_declaration": "${HOUJI_PORT_ROOT}/.cache/ios16-reference/dxb-ios/xnu/osfmk/arm/pmap/pmap.h",
+    "cpu_ttep_declaration_sha256": "0bdebb9983818b1f2a23190926ee1f18c52c7a3e8c142e74843994a6ea11983b",
+    "pmap_paddr_t_header": "${HOUJI_PORT_ROOT}/.cache/ios16-reference/dxb-ios/xnu/osfmk/arm/pmap_public.h",
+    "pmap_paddr_t_header_sha256": "0716ef308dd3b3b0cbf0185264eee6fe22223292dcd77b216565fa0cd8902b17"
+  },
+  "helper": "houji_publish_secondary_state(uint64_t *tcr,uint64_t *root)",
+  "publication": "Snapshot sysreg_restore.tcr_el1 and cpu_ttep; flush_dcache(&sysreg_restore,sizeof(sysreg_restore),FALSE) then flush_dcache(&cpu_ttep,sizeof(cpu_ttep),FALSE); optional snapshot output, return true combined sizeof=16 on actual ARM64",
+  "call_site": "SweetCPU::startCPU after existing const_boot_args flush, before CPU0 snapshot log and original DSB SY + SMC #0",
+  "unchanged": "Original CPU_ON call/frame, generic cpu_start, context/entry-array/bootargs/entry-code flushes, bootstrap/splash, MMU mapping, clocks/GPU and secondary console behavior",
+  "tests": {
+    "actual_typed_helper_ASAN_UBSAN_cases": 16,
+    "Darwin_PSCI_assembly_and_regression": "PASS",
+    "actual_ARM64_objects": "${HOUJI_ARTIFACTS}/native-port/evidence/smp-secondary-poc-object-r138/report.json",
+    "actual_complete_linked_kernel": {
+      "trial": "r138",
+      "kernel_path": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/kernel-r138.macho",
+      "kernel_sha256": "630f5230f57b1db97d3cb963e220fedfc066c32f16df64cfeb6e39510e7777da",
+      "unstripped_path": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/kernel-r138.unstripped",
+      "unstripped_sha256": "ddf3ee5c8a56038d8df7232f8931b275dea66f69ee1bd0118296d73c232a57fb",
+      "report_path": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r138-psci-assembly-check.txt",
+      "report_sha256": "9743fa7d51b867c59791a29a9e3ebe1b535b7df774726f709c703b34f85e9b5c",
+      "exit_code": 0,
+      "checks": [
+        "Darwin DSB SY then exactly one SMC",
+        "linked SweetCPU calls typed publication before DSB/SMC",
+        "linked helper has exactly two actual flush_dcache calls and no console",
+        "linked secondary initCPU has no direct console",
+        "linked masked-IRQ GIC capture has no direct console"
+      ],
+      "hardware_tested": false
+    }
+  },
+  "hardware_tested": false,
+  "root_cause_status": "r137 CPU1 never reached initCPU; missing PoC publication identified in source, causality not yet established by hardware",
+  "baseline_comparison": "r58/r77/current pre-patch start.s and cpu.c identical; linked r77/r136 secondary-entry and common_start bytes identical. 16K L1 span64GiB means framebuffer and35GiB RAM share L1index0 without L2 collision; no speculative splash change."
+}

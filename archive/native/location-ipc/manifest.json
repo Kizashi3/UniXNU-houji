@@ -1,0 +1,39 @@
+{
+  "baseline_sha256": "c058076277cc8e62fc000f7999404df9f32fc249b7aeeffe6852205de9c3a996",
+  "patched_sha256": "3a35c0b8082c67ea3d46a2a0526fa6be84bbfded054d408b47761e478ce0fa55",
+  "probe_sha256": "71dd2d0fecac2b0910a899e46d8ab676474c75d333efe6d348b4af540babe8dc",
+  "boot_arg": "houji_location_ipc=1",
+  "request_id": 1203,
+  "reply_id": 1303,
+  "source": "r34 locationd thread 876; _mach_msg call at image offset 0xc74f0; reply ID 0x517 checked by MIG stub",
+  "semantics_modified": false,
+  "hardware_tested": false,
+  "files": {
+    "osfmk/ipc/ipc_kmsg.c": {
+      "before": "c058076277cc8e62fc000f7999404df9f32fc249b7aeeffe6852205de9c3a996",
+      "after": "3a35c0b8082c67ea3d46a2a0526fa6be84bbfded054d408b47761e478ce0fa55"
+    },
+    "bsd/kern/kern_exit.c": {
+      "before": "437d1abeee805c8c1c7534335de0b6a25a4a820eead15c08d1f18856f6e6250e",
+      "after": "e2f0df72323fcc34a638cfb099f0517fbeae02bb187b433d434519196a3ba462"
+    },
+    "bsd/dev/arm/systemcalls.c": {
+      "before": "b554654553a487f703e7ab546d0efc130efbf0f44bdf732043ffa97f5e36223b",
+      "after": "85d52f1dd4831a6b201ea5bb28e6dac28fee15ed1fc103660c74a508f0580058"
+    },
+    "osfmk/kern/exception.c": {
+      "before": "c2f4d2cf1b3b0c165d2afbd4d047e7ee90727e20755e6af2a3eea0c1e63291e4",
+      "after": "a44ea16665224c5417a156a73501752cd73d1a517a0169f126bb2a2f21e28c62"
+    },
+    "osfmk/ipc/HoujiLocationIpc.inc": {
+      "before": null,
+      "after": "71dd2d0fecac2b0910a899e46d8ab676474c75d333efe6d348b4af540babe8dc"
+    },
+    "bsd/kern/HoujiExitObserver.inc": {
+      "before": null,
+      "after": "6c6068d09d7f6c30359aa83e63a4cfbaf4c0b302045835c436e2249ad00ba2b5"
+    }
+  },
+  "previous_hardware_result": "r42: request observed; peer unresolved, no reply; newer route/exit extensions untested",
+  "changes": "read-only host-port identity comparison, passive request receipt/lifetime and service exits, last-24 scalar BSD return/error records and exit PC/LR/main header; no message/rights/exit/syscall semantics changes"
+}

@@ -1,0 +1,942 @@
+{
+  "source_commit": "453d8875f815bf9dfad9035982861226a4823a6c",
+  "source_hashes": {
+    "adreno_gen7.c": "1d63fca08e1d45428b80342d3d35a8c4166ad93c74ade6d125d2b3f9f4267d5d",
+    "adreno-gpulist.h": "08293f60e0be8b3a16ec0b800588d700f54b34d2e9e32e64aac115f05548c8f3",
+    "gen7_reg.h": "5da9d8b167c5edb1e2225878461a0b2cbaaae1d1680f2eff467c0b95a78f7a48",
+    "kgsl_util.h": "e7b8c1a8fc598987a0f1b81279e7f06e6ee2b6d6f1be417f9d7dd8417124c18d"
+  },
+  "profile": "gen7_9_1-linux-host",
+  "own_FDT": {
+    "UBWC": 4,
+    "MAL": 32,
+    "highest_bank_bit": 16,
+    "dts_sha256": "6470bd920672b73c3ba874694f35784e430e8015542174b02a56d2dbf975d9b2"
+  },
+  "operations": [
+    {
+      "name": "RBBM_INT_0_MASK",
+      "address": 63963360,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GBIF_QSB_SIDE0",
+      "address": 64024588,
+      "value": 464416,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GBIF_QSB_SIDE1",
+      "address": 64024592,
+      "value": 464416,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GBIF_QSB_SIDE2",
+      "address": 64024596,
+      "value": 464416,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GBIF_QSB_SIDE3",
+      "address": 64024600,
+      "value": 464416,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_GBIF_CLIENT_QOS_CNTL",
+      "address": 63963204,
+      "value": 34734610,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_GBIF_GX_CONFIG",
+      "address": 63977704,
+      "value": 16924896,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_PERFCTR_GPU_BUSY_MASKED",
+      "address": 63968300,
+      "value": 4294967295,
+      "mask": 4294967295,
+      "verify": 0,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_TRAP_BASE_LO",
+      "address": 63977508,
+      "value": 4294963200,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_TRAP_BASE_HI",
+      "address": 63977512,
+      "value": 131071,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_WRITE_THRU_BASE_LO",
+      "address": 63977500,
+      "value": 4294963200,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_WRITE_THRU_BASE_HI",
+      "address": 63977504,
+      "value": 131071,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_GMEM_RANGE_MIN_LO",
+      "address": 63977516,
+      "value": 16777216,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_GMEM_RANGE_MIN_HI",
+      "address": 63977520,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_GMEM_RANGE_MAX_LO",
+      "address": 63977524,
+      "value": 19922943,
+      "mask": 4294967295,
+      "verify": 4294963200,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_GMEM_RANGE_MAX_HI",
+      "address": 63977528,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_CACHE_WAYS",
+      "address": 63977564,
+      "value": 8388608,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_CMDQ_CONFIG",
+      "address": 63977712,
+      "value": 420110,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GMU_CX_GMU_POWER_COUNTER_SELECT_1",
+      "address": 64479496,
+      "value": 4,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RB_NC_MODE_CNTL",
+      "address": 64108576,
+      "value": 2070,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "TPL1_NC_MODE_CNTL",
+      "address": 64149520,
+      "value": 6,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "TPL1_BICUBIC_WEIGHTS_TABLE_1",
+      "address": 64149540,
+      "value": 1071669236,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "TPL1_BICUBIC_WEIGHTS_TABLE_2",
+      "address": 64149544,
+      "value": 1067510766,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "TPL1_BICUBIC_WEIGHTS_TABLE_3",
+      "address": 64149548,
+      "value": 1062310893,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "TPL1_BICUBIC_WEIGHTS_TABLE_4",
+      "address": 64149552,
+      "value": 1057113072,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "SP_NC_MODE_CNTL",
+      "address": 64141320,
+      "value": 38,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GRAS_NC_MODE_CNTL",
+      "address": 64100360,
+      "value": 96,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_MODE_CNTL",
+      "address": 63977476,
+      "value": 6291456,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_INTERFACE_HANG_INT_CNTL",
+      "address": 63963260,
+      "value": 1087373311,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "UCHE_CLIENT_PF",
+      "address": 63977572,
+      "value": 129,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RB_CMP_DBG_ECO_CNTL",
+      "address": 64108704,
+      "value": 524288,
+      "mask": 524288,
+      "verify": 4294967295,
+      "kind": 1
+    },
+    {
+      "name": "TPL1_DBG_ECO_CNTL1",
+      "address": 64149512,
+      "value": 788224,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GPU_GMU_AO_GPU_CX_BUSY_MASK",
+      "address": 64547896,
+      "value": 4278190080,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GMU_CX_GMU_POWER_COUNTER_SELECT_0",
+      "address": 64479492,
+      "value": 32,
+      "mask": 255,
+      "verify": 4294967295,
+      "kind": 1
+    },
+    {
+      "name": "GMU_CX_GMU_POWER_COUNTER_ENABLE",
+      "address": 64479488,
+      "value": 1,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_AHB_CNTL",
+      "address": 63972916,
+      "value": 1,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_CNTL",
+      "address": 63971644,
+      "value": 11,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+0",
+      "address": 63971648,
+      "value": 335282176,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+1",
+      "address": 63971652,
+      "value": 23069963,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+2",
+      "address": 63971656,
+      "value": 83101060,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+3",
+      "address": 63971660,
+      "value": 1798,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+4",
+      "address": 63971664,
+      "value": 8128288,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+5",
+      "address": 63971668,
+      "value": 41682784,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+6",
+      "address": 63971672,
+      "value": 2181564416,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+7",
+      "address": 63971676,
+      "value": 2149583008,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+8",
+      "address": 63971680,
+      "value": 106170539,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+9",
+      "address": 63971684,
+      "value": 2167671040,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+10",
+      "address": 63971688,
+      "value": 2194147725,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+11",
+      "address": 63971692,
+      "value": 2264402497,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+12",
+      "address": 63971696,
+      "value": 2147749360,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+13",
+      "address": 63971700,
+      "value": 2147487233,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+14",
+      "address": 63971704,
+      "value": 2149584391,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+15",
+      "address": 63971708,
+      "value": 3524012096,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+16",
+      "address": 63971712,
+      "value": 2147237060,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+17",
+      "address": 63971716,
+      "value": 2268890672,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+18",
+      "address": 63971720,
+      "value": 2147520000,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+19",
+      "address": 63971724,
+      "value": 2147520008,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+20",
+      "address": 63971728,
+      "value": 2155646544,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+21",
+      "address": 63971732,
+      "value": 2317127289,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+22",
+      "address": 63971736,
+      "value": 2272040484,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+23",
+      "address": 63971740,
+      "value": 198220555,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+24",
+      "address": 63971744,
+      "value": 2147786266,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+25",
+      "address": 63971748,
+      "value": 2147524160,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+26",
+      "address": 63971752,
+      "value": 2147524196,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+27",
+      "address": 63971756,
+      "value": 2147786352,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+28",
+      "address": 63971760,
+      "value": 2250022520,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+29",
+      "address": 63971764,
+      "value": 2268898864,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+30",
+      "address": 63971768,
+      "value": 2147528194,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+31",
+      "address": 63971772,
+      "value": 2151460432,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+32",
+      "address": 63971776,
+      "value": 2148314726,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+33",
+      "address": 63971780,
+      "value": 2148314735,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+34",
+      "address": 63971784,
+      "value": 2148840962,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+35",
+      "address": 63971788,
+      "value": 3221023744,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+36",
+      "address": 63971792,
+      "value": 2147286016,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+37",
+      "address": 63971796,
+      "value": 100500480,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+38",
+      "address": 63971800,
+      "value": 4294804864,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+39",
+      "address": 63971804,
+      "value": 4294813056,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+40",
+      "address": 63971808,
+      "value": 4294821248,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+41",
+      "address": 63971812,
+      "value": 2433610752,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+42",
+      "address": 63971816,
+      "value": 30275652,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+43",
+      "address": 63971820,
+      "value": 2156787839,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+44",
+      "address": 63971824,
+      "value": 4294834360,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+45",
+      "address": 63971828,
+      "value": 2180937728,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+46",
+      "address": 63971832,
+      "value": 235305088,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_PROTECT_REG+47",
+      "address": 63971836,
+      "value": 2147646466,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_APRIV_CNTL",
+      "address": 63971600,
+      "value": 111,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_BV_APRIV_CNTL",
+      "address": 63974208,
+      "value": 15,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_LPAC_APRIV_CNTL",
+      "address": 63974596,
+      "value": 15,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "CP_AQE_APRIV_CNTL",
+      "address": 63974880,
+      "value": 1,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GBIF_CX_CONFIG",
+      "address": 64024576,
+      "value": 536870912,
+      "mask": 3758096384,
+      "verify": 4294967295,
+      "kind": 1
+    },
+    {
+      "name": "RBBM_SECVID_TSB_CNTL",
+      "address": 64217100,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_SECVID_TSB_TRUSTED_BASE_LO",
+      "address": 64217088,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_SECVID_TSB_TRUSTED_BASE_HI",
+      "address": 64217092,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_SECVID_TSB_TRUSTED_SIZE",
+      "address": 64217096,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GPU_GMU_AO_GMU_CGC_MODE_CNTL",
+      "address": 64547876,
+      "value": 131586,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GPU_GMU_AO_GMU_CGC_DELAY_CNTL",
+      "address": 64547880,
+      "value": 65809,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "GPU_GMU_AO_GMU_CGC_HYST_CNTL",
+      "address": 64547884,
+      "value": 21845,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_CLOCK_CNTL_GLOBAL",
+      "address": 63963828,
+      "value": 1,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    },
+    {
+      "name": "RBBM_CGC_GLOBAL_LOAD_CMD",
+      "address": 63964280,
+      "value": 1,
+      "mask": 4294967295,
+      "verify": 0,
+      "kind": 2
+    },
+    {
+      "name": "RBBM_CGC_P2S_TRIG_CMD",
+      "address": 63964284,
+      "value": 1,
+      "mask": 4294967295,
+      "verify": 0,
+      "kind": 2
+    },
+    {
+      "name": "RBBM_CGC_P2S_STATUS",
+      "address": 63964296,
+      "value": 1,
+      "mask": 4294967295,
+      "verify": 1,
+      "kind": 3
+    },
+    {
+      "name": "RBBM_CLOCK_CNTL_GLOBAL",
+      "address": 63963828,
+      "value": 0,
+      "mask": 4294967295,
+      "verify": 4294967295,
+      "kind": 0
+    }
+  ],
+  "powerup_IFPC": [
+    "TPL1_NC_MODE_CNTL",
+    "SP_NC_MODE_CNTL",
+    "CP_DBG_ECO_CNTL",
+    "CP_PROTECT_CNTL",
+    "CP_LPAC_PROTECT_CNTL",
+    "CP_PROTECT_REG",
+    "CP_PROTECT_REG+1",
+    "CP_PROTECT_REG+2",
+    "CP_PROTECT_REG+3",
+    "CP_PROTECT_REG+4",
+    "CP_PROTECT_REG+5",
+    "CP_PROTECT_REG+6",
+    "CP_PROTECT_REG+7",
+    "CP_PROTECT_REG+8",
+    "CP_PROTECT_REG+9",
+    "CP_PROTECT_REG+10",
+    "CP_PROTECT_REG+11",
+    "CP_PROTECT_REG+12",
+    "CP_PROTECT_REG+13",
+    "CP_PROTECT_REG+14",
+    "CP_PROTECT_REG+15",
+    "CP_PROTECT_REG+16",
+    "CP_PROTECT_REG+17",
+    "CP_PROTECT_REG+18",
+    "CP_PROTECT_REG+19",
+    "CP_PROTECT_REG+20",
+    "CP_PROTECT_REG+21",
+    "CP_PROTECT_REG+22",
+    "CP_PROTECT_REG+23",
+    "CP_PROTECT_REG+24",
+    "CP_PROTECT_REG+25",
+    "CP_PROTECT_REG+26",
+    "CP_PROTECT_REG+27",
+    "CP_PROTECT_REG+28",
+    "CP_PROTECT_REG+29",
+    "CP_PROTECT_REG+30",
+    "CP_PROTECT_REG+31",
+    "CP_PROTECT_REG+32",
+    "CP_PROTECT_REG+33",
+    "CP_PROTECT_REG+34",
+    "CP_PROTECT_REG+35",
+    "CP_PROTECT_REG+36",
+    "CP_PROTECT_REG+37",
+    "CP_PROTECT_REG+38",
+    "CP_PROTECT_REG+39",
+    "CP_PROTECT_REG+40",
+    "CP_PROTECT_REG+41",
+    "CP_PROTECT_REG+42",
+    "CP_PROTECT_REG+43",
+    "CP_PROTECT_REG+44",
+    "CP_PROTECT_REG+45",
+    "CP_PROTECT_REG+46",
+    "CP_PROTECT_REG+47",
+    "CP_AHB_CNTL",
+    "TPL1_BICUBIC_WEIGHTS_TABLE_1",
+    "TPL1_BICUBIC_WEIGHTS_TABLE_2",
+    "TPL1_BICUBIC_WEIGHTS_TABLE_3",
+    "TPL1_BICUBIC_WEIGHTS_TABLE_4"
+  ],
+  "powerup_preempt": [
+    "UCHE_TRAP_BASE_LO",
+    "UCHE_TRAP_BASE_HI",
+    "UCHE_WRITE_THRU_BASE_LO",
+    "UCHE_WRITE_THRU_BASE_HI",
+    "UCHE_GMEM_RANGE_MIN_LO",
+    "UCHE_GMEM_RANGE_MIN_HI",
+    "UCHE_GMEM_RANGE_MAX_LO",
+    "UCHE_GMEM_RANGE_MAX_HI",
+    "UCHE_CACHE_WAYS",
+    "UCHE_MODE_CNTL",
+    "RB_NC_MODE_CNTL",
+    "RB_CMP_DBG_ECO_CNTL",
+    "GRAS_NC_MODE_CNTL",
+    "RB_CONTEXT_SWITCH_GMEM_SAVE_RESTORE",
+    "UCHE_GBIF_GX_CONFIG",
+    "UCHE_CLIENT_PF",
+    "TPL1_DBG_ECO_CNTL1"
+  ],
+  "scope": "disabled SQE, no CP command/RAW/PAS/trust bypass; no LLCC/LPAC/preemption enable; IRQ stays masked",
+  "linux_host_source": {
+    "source_commit": "21a7f44fd0765fcc5194130b28767786eba1d1e7",
+    "source_file": "drivers/gpu/drm/msm/adreno/a6xx_gpu.c",
+    "source_sha256": "3ba0192acb394ace2f7058c9c6b884c83c1763da49067f97201dad606bb3d109",
+    "validated_statements": [
+      "gpu_write(gpu, REG_A6XX_CP_AHB_CNTL, 0x1);",
+      "gpu_write64(gpu, REG_A6XX_RBBM_SECVID_TSB_TRUSTED_BASE, 0x00000000);",
+      "gpu_write(gpu, REG_A6XX_RBBM_SECVID_TSB_TRUSTED_SIZE, 0x00000000);"
+    ]
+  },
+  "host_overrides": {
+    "CP_AHB_CNTL": {
+      "operation": "add",
+      "value": 1,
+      "kind": 0,
+      "verify": 4294967295
+    },
+    "RBBM_SECVID_TSB_TRUSTED_BASE_LO": {
+      "operation": "replace-value",
+      "vendor_value": 4026531840,
+      "value": 0
+    },
+    "RBBM_SECVID_TSB_TRUSTED_SIZE": {
+      "operation": "replace-value",
+      "vendor_value": 268435456,
+      "value": 0
+    }
+  }
+}

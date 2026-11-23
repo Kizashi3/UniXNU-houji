@@ -1,0 +1,1 @@
+Actual Native graphics owner under synthetic IOKit/MMIO/SCM peers; not GPU emulation. Three profiles: positive fixed signed path, corrupted device-produced image, current-trial mismatch before maps/SMC/GPU. Confirms no IPA byte is touched and no target AT occurs after first target store; final save denies lost ACK. All hardware behavior requires separate phone evidence.

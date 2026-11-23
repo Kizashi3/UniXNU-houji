@@ -1,0 +1,9 @@
+* text=auto eol=lf
+# Unified-diff context prefixes tabs/blank lines with a space by design.
+*.patch -text -whitespace
+*.sh text eol=lf
+*.py text eol=lf
+*.rs text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.md text eol=lf

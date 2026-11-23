@@ -1,0 +1,54 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = HoujiStorageProbe
+  FILE_GUID = D0C01B47-0145-411B-950D-DB35C20A4AA7
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT = HoujiStorageProbeEntry
+[Sources]
+  HoujiStorageProbe.c
+  GpuPower.c
+  GpuCallTrace.c
+  vendor/AdrenoFirmware/AdrenoFirmware.c
+  vendor/ArmSmmu4K/ArmSmmu4K.c
+  vendor/ArmSmmu4K/ArmSmmu4KContext.c
+  vendor/ArmSmmu4K/ArmSmmu4KProgram.c
+  vendor/ArmSmmu4K/ArmSmmu4KAudit.c
+[Packages]
+  MdePkg/MdePkg.dec
+  UefiCpuPkg/UefiCpuPkg.dec
+  UniXNUPkg/UniXNUPkg.dec
+  QcomPkg/QcomPkg.dec
+[LibraryClasses]
+  ArmMmuLib
+  BaseLib
+  BaseMemoryLib
+  DevicePathLib
+  DxeServicesTableLib
+  IoLib
+  HobLib
+  MemoryAllocationLib
+  PrintLib
+  SerialPortLib
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  UefiRuntimeServicesTableLib
+[Guids]
+  gEfiSchedulerInterfaceHobGuid
+  gEfiDxeServicesTableGuid
+[Protocols]
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiPartitionInfoProtocolGuid
+  gUniXNULoaderProtocolGuid
+  gEfiCpuArchProtocolGuid
+  gEfiDiskIoProtocolGuid
+  gEfiBlockIoProtocolGuid
+  gEfiLoadedImageProtocolGuid
+  gEfiClockProtocolGuid
+  gQcomScmProtocolGuid
+  gEfiPlatformInfoProtocolGuid
+  gEfiUsbfnIoProtocolGuid
+  gEfiKernelProtocolGuid
+  gEfiSMEMProtocolGuid
+  gEfiGraphicsOutputProtocolGuid

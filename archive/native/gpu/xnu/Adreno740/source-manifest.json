@@ -1,0 +1,425 @@
+{
+  "kind": "unintegrated-xnu-cpu-page-adaptation-candidate",
+  "source_repository": "https://github.com/UniXNU/Adreno740",
+  "source_commit": "b686b9054f57d393c80195b82568a09f8ca106a2",
+  "source_reference": "${HOUJI_ARTIFACTS}/native-research/nativeadreno-reference",
+  "runtime_tested": false,
+  "provider_published": false,
+  "source_files": {
+    "Info.plist": "e3257a9697d6bae4a435e73b53f5eb48a1a4c156c375bc194cd1c4dd1258b6f4",
+    "LICENSE": "16fbc0170994a48f60938d9f0d992d3bad113383cf90882f75c206e079c2a2dc",
+    "NativeAdrenoA740HwInit.h": "008e9a923e78798ef54d3c4c37f44bbadd35911515d8832fe04793e51f31588c",
+    "NativeAdrenoABI.h": "b5574e34ee3a368616f722f9fa40ea2c87bbc5c03989a299d9d4f954c9f8be70",
+    "NativeAdrenoAccelerator.cpp": "0efc3af57940465f8a25cf9d341631bbd2384cd36532606537c64452bd0767d5",
+    "NativeAdrenoBoard.cpp": "273fedfdc89c64abab3195fadd27045f606bdd7868920842117a323c193cbd66",
+    "NativeAdrenoBoard.h": "648fefb774118d174bf5ef42ab89579edaf781c4f4f08bce393ee7100e54e19b",
+    "NativeAdrenoClient.cpp": "f280ffcb2c31a195d3305b4c3ee272b624bce7f458dd3290fb0ef5a4bf1ff4b4",
+    "NativeAdrenoClient.h": "ac6a35c5b2e3080655cdf41870f0d0551d0961b773192f7adf2effe283f5e7aa",
+    "NativeAdrenoCpInit.cpp": "02bb5791a021ae115b430187291a7de30002c069d1924ef69a9c3282633bbe49",
+    "NativeAdrenoCpInit.h": "8e192f1925da89e522b1f42d4d5659e8097d90f22e8deb54d5abd103ac80461b",
+    "NativeAdrenoCpu.cpp": "b22d613d1c8a73e33ef1ccaf02e0e5096a96c7a7c08ec911dea7b6df4e5e0515",
+    "NativeAdrenoFirmware.cpp": "87606cac2ded872d3f904decdaa47177192a019d3c365a49e138353a42279233",
+    "NativeAdrenoFirmware.h": "78d42a674a06aed96a5b206b927964772222eda33f93ae6d6509b6a5e9aba75b",
+    "NativeAdrenoFirmwareDefaults.cpp": "3a7dd96fbf51582f993aca45ab65c7bd6c8dd6712ee72698630cf342e63174db",
+    "NativeAdrenoGmuConfig.cpp": "b9ba364145169828cf4c743ea8807f536213878f655ae1351334681e35ddf458",
+    "NativeAdrenoGmuConfig.h": "e07d205c1fa429c1e1d4966e50a7de9bfe7d591027c54d15e11562421a421a1c",
+    "NativeAdrenoGmuContext.cpp": "a6bcf51a336aac8f583e902e0ee2129427b3db33a8512501fe365683d693d05c",
+    "NativeAdrenoGmuContext.h": "ba483ae025cdb82e7bd346c608a92ef854c76e15876658c7958bdcb93a9a203e",
+    "NativeAdrenoGmuMemory.cpp": "12a09b352eec6aa04f86b3f488e648228fecfd8d9eee5dc376fd2ee2e9fe3af8",
+    "NativeAdrenoGmuMemory.h": "3c6c40f2bf742fb7970577a195f70802b1918ac9cf420bab42d9e69d1f8973b6",
+    "NativeAdrenoGmuPlatform.cpp": "1a9263b1a48df626a0e3ab4c3145d3450d34082aa9230cb4dbca7f8f97c7f2e0",
+    "NativeAdrenoGmuPlatform.h": "5634adbedceac94f0bb75b2207caeff256115b5d9dcebf38fd88efba4d979d1d",
+    "NativeAdrenoGmuService.cpp": "431c6709c95053a9033e3ec68d9788231fa8b7b892f5650a48e504a4288a6eaa",
+    "NativeAdrenoGmuService.h": "69eb1d457b8bb4798cbc739b13ae86e2eb500e89ed13720deb8ed0728d55e04d",
+    "NativeAdrenoGpu.cpp": "2c3e0238a4fd1be2f5a5224b7ad33b385987b437d27f28e8166406948e48f589",
+    "NativeAdrenoGpu.h": "340259bbb2261da3cf4c0c0c0c8b96278de4980ab997286e7acd35a0f92d5dcf",
+    "NativeAdrenoGpuContext.cpp": "0d9112f7ea685210221b6e2b4ca62c63bdc2b1b3352ccb67738e43ac1f0d67df",
+    "NativeAdrenoGpuContext.h": "077bbedefb96f3086047db931f39beb27b5ad0aaa3a110e4c2dc01caa48fa3c0",
+    "NativeAdrenoIrq.cpp": "65c005ce535296871db1b42af7b9e203221102d5a1f9d2c91951ba7cb4a1ee04",
+    "NativeAdrenoIrq.h": "c117f3462603574bf7a922b31105a5f0d59da1bcd1d8f108106c1304c07fc1f4",
+    "NativeAdrenoKernelTime.cpp": "ef6288b1cab7ff77998d9e6b53388714a3ff65022aef0b29697613d80dcc9bd1",
+    "NativeAdrenoKernelTime.h": "c7fcd3e339984278c3c5af98b0de87a72471e04c9855f42ff5934c271d71ec06",
+    "NativeAdrenoMemory.cpp": "37363469c9e1f1e200b368e0bfdb80111722861792411090f3cef67506c9adef",
+    "NativeAdrenoMemory.h": "8137491b5ef2657eb362a4f41cf2c2b8d8cb747fc93d7a63e453194d7c3288cc",
+    "NativeAdrenoPublish.cpp": "1c342a0ebcb68678c2d83c7d0627c55f99bd0d230651f7a1f9ca23fe270d9647",
+    "NativeAdrenoPwrup.cpp": "625935493062e63f18d87a691436b4f53cce22969509501e77cbd58d27e398c4",
+    "NativeAdrenoPwrup.h": "708830fae4f6a5cea765992d44135126d7a034a239adece94f094d862819e889",
+    "NativeAdrenoPwrupRegs.h": "8067d9625e922173912eea09e6a504d9c1b31234d4656f8dd4148855882918e1",
+    "NativeAdrenoRing.cpp": "dc2c71b8225ec034b800e01d107939fa7d8a8b5335a2337323c016c9e5fc083e",
+    "NativeAdrenoRing.h": "0811915d30b72a15855714527c4c3f3657ba448597a528c30174765c19b32cda",
+    "NativeAdrenoService.cpp": "db3c1d2f51ff2cae9d7c9ced0df991a7c238485476ac31b19e4ac3a496575e42",
+    "NativeAdrenoSha256.cpp": "ee624a483a075b8ca44f1dff2efd66acee38c5ccd784192c23614cdb6605db1f",
+    "NativeAdrenoSha256.h": "4c4f1a23f146c1370615ee52912b9bb0c2a3b919ccf14e07314460ffcdb34a74",
+    "NativeAdrenoSmmuContext.cpp": "caee8d5f6757f983d635fb01e9db820938c1e072f8af784fecd112dc647da4b8",
+    "NativeAdrenoSmmuContext.h": "93ddf63bc1ddf449d3998a4fdc88946bf17e2d303cc6310b872b5d2bb04d68f5",
+    "NativeAdrenoSmmuMemory.cpp": "422a1c2b14408bc2a4855822b7110a4c8b09c31cb5b9820b85dbde648a31d657",
+    "NativeAdrenoSmmuMemory.h": "d2988cc8fe670e569dd14d9556924784994782b6f9efdc1715d2ab281baf3b90",
+    "NativeAdrenoSmmuService.cpp": "7f0b5d3883ffd520ce8631c1d7e1764cde5cad6727a6b86fb5b8aba10e881cab",
+    "NativeAdrenoSmmuService.h": "6e5a666a4c6b28c9dc3ae6c59ce4c55ccb1ef63ac49901cf56759f0dd5a905df",
+    "NativeAdrenoStatus.h": "7305cce3eefbf63176fd08f3d6eb92aa4b874fffb37bda94666fea53d62a2a34",
+    "NativeAdrenoSubmit.cpp": "568c1d317ad6a59c012840e96bc2d1d3b7930e8c60743cf0d6546fb067339546",
+    "NativeAdrenoSubmit.h": "03e41ee4afb6bc6ff1970ac298f93cb0add8b49ac300a14fcffef17fd91bd841",
+    "NativeAdrenoTimer.cpp": "281221b6fc5c1175b71d7c54fda8275bab1b08d7b9819f7c60e4e4b10026f22a",
+    "NativeAdrenoTimer.h": "41fd744b29cb12a107d86b6e74a0abe33fa877326e2471e2d534241b016341eb",
+    "NativeAdrenoUserClient.cpp": "246192e878dbb1ace67b73b4f4028753eaca09fe84b4939a2aa4eae0f4d4e2f8",
+    "NativeAdrenoUserClient.h": "d1d34d37601e73cb4698f90f292e61494858de6f58325a76add7be03a3d61d0a",
+    "NativeAdrenoVm.cpp": "2b8af29039d900d171a2b07649898be7c967651440e5910678fd80ab98ec863b",
+    "NativeAdrenoVm.h": "da9bfcef9d5b7231d0143b853cf9de4535df0f749bb0023e2f052bb7823db6fa",
+    "NativeAdrenoVmAlias.h": "35fe908bd80389a18e395eb3bfdd5a40cb2c133fe6634dbead8d68cf2822eeea",
+    "README.md": "0dab347b689812fe87c2d882324e693136d1c4c3de9afb8af3a9d735396ad63b",
+    "tests/XnuMemoryFixture.h": "a6ca900d7e31d5df085019b309c649f35edc3999810a5dcfb31822f52017d1d3",
+    "tests/hostsim/builtin_cache.cpp": "0d41011413aa991e3b88436f3711f6549d527b3bd35d9d375e0a4b751d37ca6c",
+    "tests/hostsim/deferred_bo.cpp": "4e9c181dfdeb25f18993332ef075218d1ffd424b0403b1de6918474f0f46eda4",
+    "tests/hostsim/host_gpu_service.cpp": "a8971bf8533bd53b9eba2a5d4e3d7bf6de5fcc4b48012bb8d675440a2d01377b",
+    "tests/hostsim/host_iokit_shim.cpp": "6d9291627ced316ad57782f9f0b9607c56bf32fe2e0bd7e0644325791bc3635c",
+    "tests/hostsim/pipeline_cache.cpp": "db530bfff4bb1a746c53bd1f534fdcec044f27da11060a34b9e3dda7dbbae6c2",
+    "tests/hostsim/pipeline_cache_ios.cpp": "d00ddbcc8ca9d9c64f02b4ce6dbf6d8b2b35135a2cb0b1731bb6cbd5fe84a189",
+    "tests/hostsim/plugin_smoke.cpp": "5d70a29e0a663e2315fb25c7d124b909b3a5f9a81e8b726aaf7f475cb40e906a",
+    "tests/hostsim/vulkan_smoke.c": "c5dfd26db68eb67708bcaeadcc0bba199c12572681d7abea9006962b720f4d28",
+    "tests/test_board.cpp": "9c69e63a10fbeace5dbcfbd2658b0849d0988374633bf89b18130277b389422f",
+    "tests/test_client.cpp": "97f5b0490950f2a9ec6779539ccf9c58340acad0598f74eb59a58b259ee6441c",
+    "tests/test_cpinit.cpp": "2723036b9e5298736f83747ab016a07a3e593fc63049205c8891480024e1abbb",
+    "tests/test_gmuconfig.cpp": "31af794c65cd00a8540443f0da9848a1de48200fa1c8a0089cc8fe2eddd1ec68",
+    "tests/test_gmuctx.cpp": "5799e5b350f7fe302248f353b874fd529808aafe10b347073a1ea41500449798",
+    "tests/test_gmumap.cpp": "3d521eeb5d3f1b16536bef4d54823fa28dcc7d4423c31740a0a937a8c7b023f1",
+    "tests/test_gmumem.cpp": "c95cce0b76e79e8b5f50bbe4a85c1fa66216a188df0b03398c21a0be4faa9fa5",
+    "tests/test_gmuplatform.cpp": "ebd70f6d718a9f39b1eda075e187bf3b69509556730810a51d2c4bcecedfd969",
+    "tests/test_gpu.cpp": "0a1f9c18555fccae1bed36731595d0b7cb3f5437c56e2bb3e572abbc3147f07a",
+    "tests/test_irq.cpp": "7673b7aa4e56874e366876a87feafe41731e7925ae1df681f1b389fe7323e837",
+    "tests/test_memory.cpp": "fbbe51c50e21fd9d80ab077d214df6c1641ba894e5787f70ff6c178d41da36e1",
+    "tests/test_pwrup.cpp": "f9d146bd0f57e4e74f3ad467eec09e8d020ce3d5789ae94825ed75c8945b7b1a",
+    "tests/test_ring.cpp": "e337367cf4f02f5139a612b348b1b5b827044e70ff360e5bad5ad5cea4b905f1",
+    "tests/test_sha256.cpp": "19d64203973452fbac152d7e1e5d3f620bc36ff48852dc62bee036d88db19468",
+    "tests/test_smmu_memory.cpp": "1e628769738e40d86611589075b4967990b42ec129d8f316c5dff213b1744bd1",
+    "tests/test_smmuctx.cpp": "1899981788582631322337ed7261dd2f6433d5c9f2059c2430b9638d538a3efd",
+    "tests/test_submit.cpp": "41c7c232ea872038ca5ef808e1b1e608ad7e3dfe9063e989a695aae904a41984",
+    "tests/test_timer.cpp": "95590914cc18f815ea2ef39571ea154b25e45a3b176dc9197d4379e9ff9ab08a",
+    "tests/test_userclient.cpp": "83f2b81ffc25d89bc777c40ead12416a0fc1cc61c375ce5b401b9b6c4674fcad",
+    "tests/test_vm.cpp": "19d888dcca99f9d1617289e8cd11168de7a5b908132fe1e33eda0c0c8fcc5040",
+    "tests/test_vm_alias.cpp": "a98c1fe4b9a882bc16ec8003a9920945bbf4299e499969f4c9c8de5a962fd2e4"
+  },
+  "candidate_policy": {
+    "cpu_page_bytes": [
+      4096,
+      16384
+    ],
+    "runtime_gate_required": true,
+    "gpu_leaf_bytes": 4096,
+    "logical_bytes_separate_from_backing": true,
+    "pool_enabled": false,
+    "import_full_cpu_pages_only": true,
+    "wire_abi_changed": false,
+    "candidate_unintegrated": true
+  },
+  "modified_source_files": {
+    "NativeAdrenoCpu.cpp": {
+      "source_sha256": "b22d613d1c8a73e33ef1ccaf02e0e5096a96c7a7c08ec911dea7b6df4e5e0515",
+      "candidate_sha256": "55a5d49eb20c62d4f7da0d87dcc5dc117021965845b35ef8873189099c99aa94"
+    },
+    "NativeAdrenoGmuMemory.cpp": {
+      "source_sha256": "12a09b352eec6aa04f86b3f488e648228fecfd8d9eee5dc376fd2ee2e9fe3af8",
+      "candidate_sha256": "af6902091879c7af1c3db4089b119379dad91d6c44e99c4912704569d4b0d8b6"
+    },
+    "NativeAdrenoGpuContext.cpp": {
+      "source_sha256": "0d9112f7ea685210221b6e2b4ca62c63bdc2b1b3352ccb67738e43ac1f0d67df",
+      "candidate_sha256": "37ecd055598b171c36ff56db395a2975b80b6bfb4b8376b9782d5a88a78d9acc"
+    },
+    "NativeAdrenoMemory.cpp": {
+      "source_sha256": "37363469c9e1f1e200b368e0bfdb80111722861792411090f3cef67506c9adef",
+      "candidate_sha256": "d78c51e6e465289c8e5957a2d9a8266445502a7801be9b2a42cd892a4ff82fc1"
+    },
+    "NativeAdrenoMemory.h": {
+      "source_sha256": "8137491b5ef2657eb362a4f41cf2c2b8d8cb747fc93d7a63e453194d7c3288cc",
+      "candidate_sha256": "1c6202ffdee6a9f50145667422830d267f3974214201b7ff8247953d5a1912b8"
+    },
+    "NativeAdrenoPublish.cpp": {
+      "source_sha256": "1c342a0ebcb68678c2d83c7d0627c55f99bd0d230651f7a1f9ca23fe270d9647",
+      "candidate_sha256": "6a85bde4a782509c61fd1b12285333f3a494daca94da365ebbc52c9628f10947"
+    },
+    "NativeAdrenoService.cpp": {
+      "source_sha256": "db3c1d2f51ff2cae9d7c9ced0df991a7c238485476ac31b19e4ac3a496575e42",
+      "candidate_sha256": "4f8f7e7b0b193b0d42dce1a80326ac27cb7f133daa05f3075b68d5a211bf62c8"
+    },
+    "NativeAdrenoSubmit.cpp": {
+      "source_sha256": "568c1d317ad6a59c012840e96bc2d1d3b7930e8c60743cf0d6546fb067339546",
+      "candidate_sha256": "a4e59734bc4a06ec1eac2d3758843e4ea0c4f980e6c38c40c69d4b6342f20be6"
+    },
+    "NativeAdrenoUserClient.cpp": {
+      "source_sha256": "246192e878dbb1ace67b73b4f4028753eaca09fe84b4939a2aa4eae0f4d4e2f8",
+      "candidate_sha256": "a95f09ba03b62f6f15803a7365c62c1739d49cacf129666531cc221e6124e833"
+    },
+    "NativeAdrenoVm.cpp": {
+      "source_sha256": "2b8af29039d900d171a2b07649898be7c967651440e5910678fd80ab98ec863b",
+      "candidate_sha256": "ef753af8cee12a8e54c606807776846a656f528b3f5ff61a79aa2bc7abd6339d"
+    },
+    "README.md": {
+      "source_sha256": "0dab347b689812fe87c2d882324e693136d1c4c3de9afb8af3a9d735396ad63b",
+      "candidate_sha256": "ca80cae1f4fb7a688f33dc6ed9919a530118f9d47fdadf7d38c3663877332f82"
+    },
+    "tests/XnuMemoryFixture.h": {
+      "source_sha256": "a6ca900d7e31d5df085019b309c649f35edc3999810a5dcfb31822f52017d1d3",
+      "candidate_sha256": "9a14c77fdaf3306862a5048c2b92a3dc64661f16f412e5713d1835c6b3f5d5b7"
+    },
+    "tests/hostsim/host_gpu_service.cpp": {
+      "source_sha256": "a8971bf8533bd53b9eba2a5d4e3d7bf6de5fcc4b48012bb8d675440a2d01377b",
+      "candidate_sha256": "046def0f03c595ed6cdfd8007f001f54b4cbb526960bf02d48f34a140f4b0bd2"
+    },
+    "tests/test_client.cpp": {
+      "source_sha256": "97f5b0490950f2a9ec6779539ccf9c58340acad0598f74eb59a58b259ee6441c",
+      "candidate_sha256": "a14215f444a832215acb3c7042c10984048c5c44107b13713d568b750512bc7b"
+    },
+    "tests/test_gmuconfig.cpp": {
+      "source_sha256": "31af794c65cd00a8540443f0da9848a1de48200fa1c8a0089cc8fe2eddd1ec68",
+      "candidate_sha256": "3c29bb8a5f0308ba77bf60c7b506d52626776ff9ccef74420ed901ca4ef9072e"
+    },
+    "tests/test_gmuctx.cpp": {
+      "source_sha256": "5799e5b350f7fe302248f353b874fd529808aafe10b347073a1ea41500449798",
+      "candidate_sha256": "b9a09bf1a952966b2a66d99468a03d7117e978bad29760c3530a69a9cbd2c686"
+    },
+    "tests/test_gmumap.cpp": {
+      "source_sha256": "3d521eeb5d3f1b16536bef4d54823fa28dcc7d4423c31740a0a937a8c7b023f1",
+      "candidate_sha256": "a4f3a51021fc9f9f492b64f33a03aac07d33086e79c0e861bbd0a112a7ccca63"
+    },
+    "tests/test_gmumem.cpp": {
+      "source_sha256": "c95cce0b76e79e8b5f50bbe4a85c1fa66216a188df0b03398c21a0be4faa9fa5",
+      "candidate_sha256": "e242f26686e8afe16c4cae1fa803f2fc4bd0f4e6bf6d340842469fd1b7734c99"
+    },
+    "tests/test_memory.cpp": {
+      "source_sha256": "fbbe51c50e21fd9d80ab077d214df6c1641ba894e5787f70ff6c178d41da36e1",
+      "candidate_sha256": "4713ac84c4378e17686e4c3600a9b2df3e9c210775648e3b44126bc761c21de2"
+    },
+    "tests/test_smmu_memory.cpp": {
+      "source_sha256": "1e628769738e40d86611589075b4967990b42ec129d8f316c5dff213b1744bd1",
+      "candidate_sha256": "d803ec85454f48d585b37149d67133948e1694ab3784a31ffeabd70aa40b8463"
+    },
+    "tests/test_smmuctx.cpp": {
+      "source_sha256": "1899981788582631322337ed7261dd2f6433d5c9f2059c2430b9638d538a3efd",
+      "candidate_sha256": "b0304cfe25a6c365fb6b451b45bfb3dd05f1b900888105fb535a51294126117c"
+    },
+    "tests/test_submit.cpp": {
+      "source_sha256": "41c7c232ea872038ca5ef808e1b1e608ad7e3dfe9063e989a695aae904a41984",
+      "candidate_sha256": "9b72f8f3cb5d27731dac56399fc745aa28de39125e7503b21320ca9849f3aff3"
+    },
+    "tests/test_userclient.cpp": {
+      "source_sha256": "83f2b81ffc25d89bc777c40ead12416a0fc1cc61c375ce5b401b9b6c4674fcad",
+      "candidate_sha256": "1ff95fcd72a89c6b5f41803db6a89623e86aea634286150dbb0745ad6bccc868"
+    },
+    "tests/test_vm.cpp": {
+      "source_sha256": "19d888dcca99f9d1617289e8cd11168de7a5b908132fe1e33eda0c0c8fcc5040",
+      "candidate_sha256": "a2d2f6a58d12e1d421260e814254ceb0383c54c7e7847e4222520feb182d0c4b"
+    }
+  },
+  "validation": {
+    "kind": "host-only-xnu-cpu-page-candidate-validation",
+    "recorded_at": "2026-10-26T01:28:44.023529+08:00",
+    "command": "python3 native/gpu/xnu/Adreno740/tests/check_page_geometry.py",
+    "checks": {
+      "cpu4k_gpu4k_boundary_profiles": 121,
+      "cpu16k_gpu4k_boundary_profiles": 125,
+      "legacy_memory_allocation_profiles": 18,
+      "legacy_memory_failure_controls": 16,
+      "legacy_memory_argument_cpu_refusal_controls": 20,
+      "asan": true,
+      "ubsan": true,
+      "warnings_as_errors": true,
+      "actual_cpu_memory_publish_and_cpu_map_method_bodies": true,
+      "wire_abi_sha256_unchanged": true,
+      "submit_vm_cpu4k_mandatory_reassert_cases": 7,
+      "submit_vm_cpu16k_mandatory_reassert_cases": 7,
+      "reassert_unknown_attribute_and_readback_error_cpu_cases": true,
+      "mandatory_reassert_zero_publish_tlb_kick_and_retained_job_refs": true,
+      "failed_mapped_non_ib_bo_quarantined": true
+    },
+    "boundaries": {
+      "xnu_or_kext_built": false,
+      "phone_accessed": false,
+      "live_xnu_page_or_tcr_qualified": false,
+      "real_pmap_or_cpu_view_qualified": false,
+      "real_dma_smmu_ring_or_fence_qualified": false,
+      "gpu_accelerated_desktop_qualified": false
+    },
+    "source_was_left_unchanged": true,
+    "additional_commands": [
+      "python3 native/gpu/xnu/Adreno740/tests/check_submit_cache_failure.py"
+    ],
+    "arm64_object_qualification": {
+      "evidence": "/var/folders/6k/710t9rnn5y7gq5y6_x936sdm0000gn/T/houji-xnu-object-qualification-m2xul88x",
+      "source_log": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r136-kernel-build.log",
+      "source_log_sha256": "f44ebe240e4a49d8668391eaa0c019dcebdb3dd1e1bbfe3ae706386a04511b72",
+      "original_log_line": 1257,
+      "same_kernel_arch_page_macros": true,
+      "linked": false,
+      "actual_xnu_tree_modified": false,
+      "units": {
+        "NativeAdrenoCpu": {
+          "returncode": 0,
+          "object_created": true,
+          "error_count": 0,
+          "errors": [],
+          "warnings": 758,
+          "source_sha256": "55a5d49eb20c62d4f7da0d87dcc5dc117021965845b35ef8873189099c99aa94",
+          "object_sha256": "ed68e0ed5319ce74b3d2d35d1a0d6bc8ce438bbedb82ebd89998148cf54ee71f"
+        },
+        "NativeAdrenoMemory": {
+          "returncode": 0,
+          "object_created": true,
+          "error_count": 0,
+          "errors": [],
+          "warnings": 1022,
+          "source_sha256": "d78c51e6e465289c8e5957a2d9a8266445502a7801be9b2a42cd892a4ff82fc1",
+          "object_sha256": "197305afb5923d9176b89819125b1349cc0fa92add5952c99eb1177efcfd315d"
+        },
+        "NativeAdrenoSubmit": {
+          "returncode": 0,
+          "object_created": true,
+          "error_count": 0,
+          "errors": [],
+          "warnings": 790,
+          "source_sha256": "a4e59734bc4a06ec1eac2d3758843e4ea0c4f980e6c38c40c69d4b6342f20be6",
+          "object_sha256": "657e11c0b09df13b6465756611c35931a29efb15bb5addee3bb6e435ec6e2252"
+        },
+        "NativeAdrenoVm": {
+          "returncode": 0,
+          "object_created": true,
+          "error_count": 0,
+          "errors": [],
+          "warnings": 807,
+          "source_sha256": "ef753af8cee12a8e54c606807776846a656f528b3f5ff61a79aa2bc7abd6339d",
+          "object_sha256": "ffeea4b0d349084f559ae8fe5557c7ec6d94e49442b83882beed2e43840ad575"
+        }
+      }
+    },
+    "test_dependency_sources": {
+      "armsmmu4k-reference": {
+        "path": "${HOUJI_ARTIFACTS}/native-research/armsmmu4k-reference",
+        "commit": "8bb168ad058c28d5c04f179ba407875eacba7ef3",
+        "files": {
+          "ArmSmmu4K.c": "0adb19b483e56e723014ed6cfe2c29f9d9735ae2770f62cf0057b22937dbd157",
+          "ArmSmmu4K.h": "e25063b9134afc7eb79e7c030bc2858608cf0ade5da714d5dfd600fee5007e8e",
+          "ArmSmmu4KAudit.c": "594739cebc43926b1cb0a0e965867bcf1edfb90fab9c51465b65fa47be3755c1",
+          "ArmSmmu4KAudit.h": "1f313acd46db3dfecc115b8c885c5c43f7d23f73690a6157f900dfc77b2c9f6a",
+          "ArmSmmu4KContext.c": "b8e32e32d1f07e71de65f31b12963ab8b01c05755f8c60c2d6f40cb03fe4eca8",
+          "ArmSmmu4KContext.h": "c842e78f37eab2e7cbba28cb89f4b993d9202503e75fee9e49a871101b936e53",
+          "ArmSmmu4KLive.c": "a50375331e7e3affc1b4ff9048508a75c080a468eff7c8f513b1f9937e2ba010",
+          "ArmSmmu4KLive.h": "7532ad419d630dd308628e60746860c992499474d14237f3f39e04e20e0722bb",
+          "ArmSmmu4KMmio.c": "439e6b50a3431c607611aa3b9af1f4f548e53b2fa1c452645a458c0606f7df38",
+          "ArmSmmu4KMmio.h": "face552cf67de969e8e741c0195496949f2c62b418d973e4d71a02f18ab83109",
+          "ArmSmmu4KProgram.c": "3b1d4911b0a48f90b09c721ffd2eb95dbfc02e96165009b23f8c98841f36e2b0",
+          "ArmSmmu4KProgram.h": "171900c3ed400b805c3a1587959f66bc4a19db18aedc8111e862651a90bb8d8f",
+          "ArmSmmu4KStreams.c": "359610de6974c1885b4b7bbf72e6b321a013e1cc44200e1a8f566d09722c009a",
+          "ArmSmmu4KStreams.h": "1cfca0b4e3acba420cc829098b52d61c4905ec64d2aa57883dedae9dfb212969",
+          "ArmSmmu4KTableMemory.c": "b39d3d4fc292b921672c089e930986345637aa029b422821867c72e7203feb92",
+          "ArmSmmu4KTableMemory.h": "316b85ee835686744feb7777b4216917578833e3ff510aeecc4bbe8325568f86"
+        }
+      },
+      "adrenopm4-reference-445f8fe6": {
+        "path": "${HOUJI_ARTIFACTS}/native-research/adrenopm4-reference-445f8fe6",
+        "commit": "445f8fe6d115738352b9d78dc70af6d61aa7f62f",
+        "files": {
+          "AdrenoPM4.c": "c4b0227859a1e771c5f349524b718b08444f518ef960bfa4b50f6fd4ab30ad2f",
+          "AdrenoPM4.h": "86f4e84eece0f2e67f786d03cea8b82c696377fc5af9f890dd164bbfe24abd29"
+        }
+      }
+    }
+  },
+  "candidate_files": {
+    "CANDIDATE.md": "b5c6143edd2376be5530b464520297e2d63abca2abe32c1c584ee400f0067f9d",
+    "Info.plist": "e3257a9697d6bae4a435e73b53f5eb48a1a4c156c375bc194cd1c4dd1258b6f4",
+    "LICENSE": "16fbc0170994a48f60938d9f0d992d3bad113383cf90882f75c206e079c2a2dc",
+    "NativeAdrenoA740HwInit.h": "008e9a923e78798ef54d3c4c37f44bbadd35911515d8832fe04793e51f31588c",
+    "NativeAdrenoABI.h": "b5574e34ee3a368616f722f9fa40ea2c87bbc5c03989a299d9d4f954c9f8be70",
+    "NativeAdrenoAccelerator.cpp": "0efc3af57940465f8a25cf9d341631bbd2384cd36532606537c64452bd0767d5",
+    "NativeAdrenoBoard.cpp": "273fedfdc89c64abab3195fadd27045f606bdd7868920842117a323c193cbd66",
+    "NativeAdrenoBoard.h": "648fefb774118d174bf5ef42ab89579edaf781c4f4f08bce393ee7100e54e19b",
+    "NativeAdrenoClient.cpp": "f280ffcb2c31a195d3305b4c3ee272b624bce7f458dd3290fb0ef5a4bf1ff4b4",
+    "NativeAdrenoClient.h": "ac6a35c5b2e3080655cdf41870f0d0551d0961b773192f7adf2effe283f5e7aa",
+    "NativeAdrenoCpInit.cpp": "02bb5791a021ae115b430187291a7de30002c069d1924ef69a9c3282633bbe49",
+    "NativeAdrenoCpInit.h": "8e192f1925da89e522b1f42d4d5659e8097d90f22e8deb54d5abd103ac80461b",
+    "NativeAdrenoCpu.cpp": "55a5d49eb20c62d4f7da0d87dcc5dc117021965845b35ef8873189099c99aa94",
+    "NativeAdrenoCpuPagePolicy.h": "a78402db00833d494960776551cea10caa019852140ff2816b3e9057a6c8fe27",
+    "NativeAdrenoFirmware.cpp": "87606cac2ded872d3f904decdaa47177192a019d3c365a49e138353a42279233",
+    "NativeAdrenoFirmware.h": "78d42a674a06aed96a5b206b927964772222eda33f93ae6d6509b6a5e9aba75b",
+    "NativeAdrenoFirmwareDefaults.cpp": "3a7dd96fbf51582f993aca45ab65c7bd6c8dd6712ee72698630cf342e63174db",
+    "NativeAdrenoGmuConfig.cpp": "b9ba364145169828cf4c743ea8807f536213878f655ae1351334681e35ddf458",
+    "NativeAdrenoGmuConfig.h": "e07d205c1fa429c1e1d4966e50a7de9bfe7d591027c54d15e11562421a421a1c",
+    "NativeAdrenoGmuContext.cpp": "a6bcf51a336aac8f583e902e0ee2129427b3db33a8512501fe365683d693d05c",
+    "NativeAdrenoGmuContext.h": "ba483ae025cdb82e7bd346c608a92ef854c76e15876658c7958bdcb93a9a203e",
+    "NativeAdrenoGmuMemory.cpp": "af6902091879c7af1c3db4089b119379dad91d6c44e99c4912704569d4b0d8b6",
+    "NativeAdrenoGmuMemory.h": "3c6c40f2bf742fb7970577a195f70802b1918ac9cf420bab42d9e69d1f8973b6",
+    "NativeAdrenoGmuPlatform.cpp": "1a9263b1a48df626a0e3ab4c3145d3450d34082aa9230cb4dbca7f8f97c7f2e0",
+    "NativeAdrenoGmuPlatform.h": "5634adbedceac94f0bb75b2207caeff256115b5d9dcebf38fd88efba4d979d1d",
+    "NativeAdrenoGmuService.cpp": "431c6709c95053a9033e3ec68d9788231fa8b7b892f5650a48e504a4288a6eaa",
+    "NativeAdrenoGmuService.h": "69eb1d457b8bb4798cbc739b13ae86e2eb500e89ed13720deb8ed0728d55e04d",
+    "NativeAdrenoGpu.cpp": "2c3e0238a4fd1be2f5a5224b7ad33b385987b437d27f28e8166406948e48f589",
+    "NativeAdrenoGpu.h": "340259bbb2261da3cf4c0c0c0c8b96278de4980ab997286e7acd35a0f92d5dcf",
+    "NativeAdrenoGpuContext.cpp": "37ecd055598b171c36ff56db395a2975b80b6bfb4b8376b9782d5a88a78d9acc",
+    "NativeAdrenoGpuContext.h": "077bbedefb96f3086047db931f39beb27b5ad0aaa3a110e4c2dc01caa48fa3c0",
+    "NativeAdrenoIrq.cpp": "65c005ce535296871db1b42af7b9e203221102d5a1f9d2c91951ba7cb4a1ee04",
+    "NativeAdrenoIrq.h": "c117f3462603574bf7a922b31105a5f0d59da1bcd1d8f108106c1304c07fc1f4",
+    "NativeAdrenoKernelTime.cpp": "ef6288b1cab7ff77998d9e6b53388714a3ff65022aef0b29697613d80dcc9bd1",
+    "NativeAdrenoKernelTime.h": "c7fcd3e339984278c3c5af98b0de87a72471e04c9855f42ff5934c271d71ec06",
+    "NativeAdrenoMemory.cpp": "d78c51e6e465289c8e5957a2d9a8266445502a7801be9b2a42cd892a4ff82fc1",
+    "NativeAdrenoMemory.h": "1c6202ffdee6a9f50145667422830d267f3974214201b7ff8247953d5a1912b8",
+    "NativeAdrenoPublish.cpp": "6a85bde4a782509c61fd1b12285333f3a494daca94da365ebbc52c9628f10947",
+    "NativeAdrenoPwrup.cpp": "625935493062e63f18d87a691436b4f53cce22969509501e77cbd58d27e398c4",
+    "NativeAdrenoPwrup.h": "708830fae4f6a5cea765992d44135126d7a034a239adece94f094d862819e889",
+    "NativeAdrenoPwrupRegs.h": "8067d9625e922173912eea09e6a504d9c1b31234d4656f8dd4148855882918e1",
+    "NativeAdrenoRing.cpp": "dc2c71b8225ec034b800e01d107939fa7d8a8b5335a2337323c016c9e5fc083e",
+    "NativeAdrenoRing.h": "0811915d30b72a15855714527c4c3f3657ba448597a528c30174765c19b32cda",
+    "NativeAdrenoService.cpp": "4f8f7e7b0b193b0d42dce1a80326ac27cb7f133daa05f3075b68d5a211bf62c8",
+    "NativeAdrenoSha256.cpp": "ee624a483a075b8ca44f1dff2efd66acee38c5ccd784192c23614cdb6605db1f",
+    "NativeAdrenoSha256.h": "4c4f1a23f146c1370615ee52912b9bb0c2a3b919ccf14e07314460ffcdb34a74",
+    "NativeAdrenoSmmuContext.cpp": "caee8d5f6757f983d635fb01e9db820938c1e072f8af784fecd112dc647da4b8",
+    "NativeAdrenoSmmuContext.h": "93ddf63bc1ddf449d3998a4fdc88946bf17e2d303cc6310b872b5d2bb04d68f5",
+    "NativeAdrenoSmmuMemory.cpp": "422a1c2b14408bc2a4855822b7110a4c8b09c31cb5b9820b85dbde648a31d657",
+    "NativeAdrenoSmmuMemory.h": "d2988cc8fe670e569dd14d9556924784994782b6f9efdc1715d2ab281baf3b90",
+    "NativeAdrenoSmmuService.cpp": "7f0b5d3883ffd520ce8631c1d7e1764cde5cad6727a6b86fb5b8aba10e881cab",
+    "NativeAdrenoSmmuService.h": "6e5a666a4c6b28c9dc3ae6c59ce4c55ccb1ef63ac49901cf56759f0dd5a905df",
+    "NativeAdrenoStatus.h": "7305cce3eefbf63176fd08f3d6eb92aa4b874fffb37bda94666fea53d62a2a34",
+    "NativeAdrenoSubmit.cpp": "a4e59734bc4a06ec1eac2d3758843e4ea0c4f980e6c38c40c69d4b6342f20be6",
+    "NativeAdrenoSubmit.h": "03e41ee4afb6bc6ff1970ac298f93cb0add8b49ac300a14fcffef17fd91bd841",
+    "NativeAdrenoTimer.cpp": "281221b6fc5c1175b71d7c54fda8275bab1b08d7b9819f7c60e4e4b10026f22a",
+    "NativeAdrenoTimer.h": "41fd744b29cb12a107d86b6e74a0abe33fa877326e2471e2d534241b016341eb",
+    "NativeAdrenoUserClient.cpp": "a95f09ba03b62f6f15803a7365c62c1739d49cacf129666531cc221e6124e833",
+    "NativeAdrenoUserClient.h": "d1d34d37601e73cb4698f90f292e61494858de6f58325a76add7be03a3d61d0a",
+    "NativeAdrenoVm.cpp": "ef753af8cee12a8e54c606807776846a656f528b3f5ff61a79aa2bc7abd6339d",
+    "NativeAdrenoVm.h": "da9bfcef9d5b7231d0143b853cf9de4535df0f749bb0023e2f052bb7823db6fa",
+    "NativeAdrenoVmAlias.h": "35fe908bd80389a18e395eb3bfdd5a40cb2c133fe6634dbead8d68cf2822eeea",
+    "README.md": "ca80cae1f4fb7a688f33dc6ed9919a530118f9d47fdadf7d38c3663877332f82",
+    "tests/XnuMemoryFixture.h": "9a14c77fdaf3306862a5048c2b92a3dc64661f16f412e5713d1835c6b3f5d5b7",
+    "tests/check_page_geometry.py": "337e46e00c019fe3907cbb4284b5517c2e048a3a4d4b3cebb8aaf53918c29320",
+    "tests/check_submit_cache_failure.py": "9ff147f54b69280968fe8a11d66f3d447d966cfc3f6b0a4ae33c7dac2d17e4a0",
+    "tests/hostsim/builtin_cache.cpp": "0d41011413aa991e3b88436f3711f6549d527b3bd35d9d375e0a4b751d37ca6c",
+    "tests/hostsim/deferred_bo.cpp": "4e9c181dfdeb25f18993332ef075218d1ffd424b0403b1de6918474f0f46eda4",
+    "tests/hostsim/host_gpu_service.cpp": "046def0f03c595ed6cdfd8007f001f54b4cbb526960bf02d48f34a140f4b0bd2",
+    "tests/hostsim/host_iokit_shim.cpp": "6d9291627ced316ad57782f9f0b9607c56bf32fe2e0bd7e0644325791bc3635c",
+    "tests/hostsim/pipeline_cache.cpp": "db530bfff4bb1a746c53bd1f534fdcec044f27da11060a34b9e3dda7dbbae6c2",
+    "tests/hostsim/pipeline_cache_ios.cpp": "d00ddbcc8ca9d9c64f02b4ce6dbf6d8b2b35135a2cb0b1731bb6cbd5fe84a189",
+    "tests/hostsim/plugin_smoke.cpp": "5d70a29e0a663e2315fb25c7d124b909b3a5f9a81e8b726aaf7f475cb40e906a",
+    "tests/hostsim/vulkan_smoke.c": "c5dfd26db68eb67708bcaeadcc0bba199c12572681d7abea9006962b720f4d28",
+    "tests/test_board.cpp": "9c69e63a10fbeace5dbcfbd2658b0849d0988374633bf89b18130277b389422f",
+    "tests/test_client.cpp": "a14215f444a832215acb3c7042c10984048c5c44107b13713d568b750512bc7b",
+    "tests/test_cpinit.cpp": "2723036b9e5298736f83747ab016a07a3e593fc63049205c8891480024e1abbb",
+    "tests/test_gmuconfig.cpp": "3c29bb8a5f0308ba77bf60c7b506d52626776ff9ccef74420ed901ca4ef9072e",
+    "tests/test_gmuctx.cpp": "b9a09bf1a952966b2a66d99468a03d7117e978bad29760c3530a69a9cbd2c686",
+    "tests/test_gmumap.cpp": "a4f3a51021fc9f9f492b64f33a03aac07d33086e79c0e861bbd0a112a7ccca63",
+    "tests/test_gmumem.cpp": "e242f26686e8afe16c4cae1fa803f2fc4bd0f4e6bf6d340842469fd1b7734c99",
+    "tests/test_gmuplatform.cpp": "ebd70f6d718a9f39b1eda075e187bf3b69509556730810a51d2c4bcecedfd969",
+    "tests/test_gpu.cpp": "0a1f9c18555fccae1bed36731595d0b7cb3f5437c56e2bb3e572abbc3147f07a",
+    "tests/test_irq.cpp": "7673b7aa4e56874e366876a87feafe41731e7925ae1df681f1b389fe7323e837",
+    "tests/test_memory.cpp": "4713ac84c4378e17686e4c3600a9b2df3e9c210775648e3b44126bc761c21de2",
+    "tests/test_pwrup.cpp": "f9d146bd0f57e4e74f3ad467eec09e8d020ce3d5789ae94825ed75c8945b7b1a",
+    "tests/test_ring.cpp": "e337367cf4f02f5139a612b348b1b5b827044e70ff360e5bad5ad5cea4b905f1",
+    "tests/test_sha256.cpp": "19d64203973452fbac152d7e1e5d3f620bc36ff48852dc62bee036d88db19468",
+    "tests/test_smmu_memory.cpp": "d803ec85454f48d585b37149d67133948e1694ab3784a31ffeabd70aa40b8463",
+    "tests/test_smmuctx.cpp": "b0304cfe25a6c365fb6b451b45bfb3dd05f1b900888105fb535a51294126117c",
+    "tests/test_submit.cpp": "9b72f8f3cb5d27731dac56399fc745aa28de39125e7503b21320ca9849f3aff3",
+    "tests/test_timer.cpp": "95590914cc18f815ea2ef39571ea154b25e45a3b176dc9197d4379e9ff9ab08a",
+    "tests/test_userclient.cpp": "1ff95fcd72a89c6b5f41803db6a89623e86aea634286150dbb0745ad6bccc868",
+    "tests/test_vm.cpp": "a2d2f6a58d12e1d421260e814254ceb0383c54c7e7847e4222520feb182d0c4b",
+    "tests/test_vm_alias.cpp": "a98c1fe4b9a882bc16ec8003a9920945bbf4299e499969f4c9c8de5a962fd2e4",
+    "validation-result.json": "33b8e3cad9545619f3a93018b2c794c2fb70f32260b6ca7e877e4973e3878843"
+  },
+  "abi_sha256": "b5574e34ee3a368616f722f9fa40ea2c87bbc5c03989a299d9d4f954c9f8be70",
+  "original_source_hashes_recorded": true
+}

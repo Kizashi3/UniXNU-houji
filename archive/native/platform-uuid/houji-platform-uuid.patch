@@ -1,0 +1,31 @@
+--- a/iokit/Kernel/IOPlatformExpert.cpp
++++ b/iokit/Kernel/IOPlatformExpert.cpp
+@@ -2245,6 +2245,28 @@
+ 	}
+ #endif /* defined(__x86_64__) */
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/* This port has no Apple ECID. The host tool supplies a separate,
++	 * device-bound platform UUID for gethostuuid/CurrentHost preferences.
++	 * It does not populate unique-chip-id or an activation identity.
++	 */
++	if (!string) {
++		entry = IORegistryEntry::fromPath("/chosen", gIODTPlane);
++		if (entry) {
++			OSData *data = OSDynamicCast(OSData, entry->getProperty("houji,platform-uuid"));
++			if (data && data->getLength() == sizeof(uuid_t)) {
++				const uint8_t *bytes = (const uint8_t *)data->getBytesNoCopy();
++				if ((bytes[6] & 0xf0) == 0x50 && (bytes[8] & 0xc0) == 0x80) {
++					uuid_unparse(bytes, uuid);
++					string = OSString::withCString(uuid);
++					IOLog("HOUJI ID: device-bound platform UUID %s\n", uuid);
++				}
++			}
++			entry->release();
++		}
++	}
++#endif
++
+ 	if (string) {
+ 		setProperty( kIOPlatformUUIDKey, string );
+ 		gIOPlatformUUIDAndSerialDone = true;

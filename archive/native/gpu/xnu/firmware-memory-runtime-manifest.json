@@ -1,0 +1,196 @@
+{
+  "scope": "CPU-only exact stock GMU firmware/HFI preparation, independent9BO; no SMC/MMIO/TCM/TTBR/stream/device refs; known-aperture AT-only normal WB/NC, DMA-eligible0",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFirmwareMemoryProbe.inc": {
+      "before": null,
+      "after": "7b7a537ae7b84850ba7993d7e4b24a854d8ed867515a164b288080805082da05",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuFirmwareMemoryProbe.inc",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/houji_hfi_inactive.h": {
+      "before": null,
+      "after": "0963b22919a8173ded121154a5ad33435e40f5659f1af2b98d974dd1c2b2fa39",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/hfi-inactive/houji_hfi_inactive.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/houji_hfi_inactive.c": {
+      "before": null,
+      "after": "d76a434598e6fd4d0f17529bf7cd4622245db8e2a1eaf0eaf837a4fa89e85ada",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/hfi-inactive/houji_hfi_inactive.c",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGmuFirmwareImage.h": {
+      "before": null,
+      "after": "ce7f104d31e2b25eb88e25ff51621979aca3be39a14acf2c210dba38f6436884",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r149-generated/HoujiGmuFirmwareImage.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/GpuCodeMemory.h": {
+      "before": null,
+      "after": "ce470ada8d666e1343f04565a5737c5d4ecc3b597fb185152f690f5c9d4a277c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuCodeMemory.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/GpuFirmwareMemory.h": {
+      "before": null,
+      "after": "02e0d1663a1b4883fd31a30a29b1dd734ea1df110df7edbb008b2d4cb996d142",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuFirmwareMemory.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/GpuSharedMemory.h": {
+      "before": null,
+      "after": "4e8d41a3a42c9c2ddf3e51fc160a5b80724708b8783edd6a26ace1e0e8c550b8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuSharedMemory.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/Ace5Gmu/giulia_gpu_firmware.h": {
+      "before": null,
+      "after": "eae640bc4b2656ce1b843860fd47e19c5d94da4e2c2061431d0a36678f5c8c2b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/Ace5Gmu/giulia_gpu_firmware.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/Ace5Gmu/giulia_gpu_hfi.h": {
+      "before": null,
+      "after": "26683bb33cb70fc05a877f2cff41956e46e5dddc87ad94a88e091c4b34f323ce",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/Ace5Gmu/giulia_gpu_hfi.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/Ace5Gmu/giulia_gpu_memory.h": {
+      "before": null,
+      "after": "a881909805efcfb3322697d61e45c0f4c9be09b483cd87b9019ce6ec88b3e94a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/Ace5Gmu/giulia_gpu_memory.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/AdrenoFirmware/AdrenoFirmware.c": {
+      "before": null,
+      "after": "c3cc714a65ce90216a0fc5c6f0e102ae1769c45e559c08f94a0b5f6fa3e97070",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/AdrenoFirmware/AdrenoFirmware.c",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/AdrenoFirmware/AdrenoFirmware.h": {
+      "before": null,
+      "after": "6b2e308f2feae92642f21da2667c3665a2e234ef79e7c5400e7aac7dd3c5b7ed",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/AdrenoFirmware/AdrenoFirmware.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4K.c": {
+      "before": null,
+      "after": "0adb19b483e56e723014ed6cfe2c29f9d9735ae2770f62cf0057b22937dbd157",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4K.c",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4K.h": {
+      "before": null,
+      "after": "e25063b9134afc7eb79e7c030bc2858608cf0ade5da714d5dfd600fee5007e8e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4K.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4KAudit.c": {
+      "before": null,
+      "after": "594739cebc43926b1cb0a0e965867bcf1edfb90fab9c51465b65fa47be3755c1",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4KAudit.c",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4KAudit.h": {
+      "before": null,
+      "after": "1f313acd46db3dfecc115b8c885c5c43f7d23f73690a6157f900dfc77b2c9f6a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4KAudit.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4KContext.c": {
+      "before": null,
+      "after": "b8e32e32d1f07e71de65f31b12963ab8b01c05755f8c60c2d6f40cb03fe4eca8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4KContext.c",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4KContext.h": {
+      "before": null,
+      "after": "c842e78f37eab2e7cbba28cb89f4b993d9202503e75fee9e49a871101b936e53",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4KContext.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4KProgram.c": {
+      "before": null,
+      "after": "3b1d4911b0a48f90b09c721ffd2eb95dbfc02e96165009b23f8c98841f36e2b0",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4KProgram.c",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/ArmSmmu4K/ArmSmmu4KProgram.h": {
+      "before": null,
+      "after": "171900c3ed400b805c3a1587959f66bc4a19db18aedc8111e862651a90bb8d8f",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/ArmSmmu4K/ArmSmmu4KProgram.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoFirmware.cpp": {
+      "before": null,
+      "after": "87606cac2ded872d3f904decdaa47177192a019d3c365a49e138353a42279233",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/Adreno740/NativeAdrenoFirmware.cpp",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoFirmware.h": {
+      "before": null,
+      "after": "78d42a674a06aed96a5b206b927964772222eda33f93ae6d6509b6a5e9aba75b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/Adreno740/NativeAdrenoFirmware.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoSha256.cpp": {
+      "before": null,
+      "after": "ee624a483a075b8ca44f1dff2efd66acee38c5ccd784192c23614cdb6605db1f",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/Adreno740/NativeAdrenoSha256.cpp",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoSha256.h": {
+      "before": null,
+      "after": "4c4f1a23f146c1370615ee52912b9bb0c2a3b919ccf14e07314460ffcdb34a74",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/Adreno740/NativeAdrenoSha256.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "c15f9d949f2a4b2a10251baca97deff1a14d97e8c2190bea3b665348bbec482a",
+      "after": "1a780fc4d28616807b2e4a09ab96fbe5ef35ccc0d1b8b3014135d2d853b3e04e",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r149-HoujiUfsRead.cpp",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/firmware-memory-runtime/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp"
+    },
+    "iokit/conf/files": {
+      "before": "935b9a93d27f54d0624c93e57fba8a3563ec97dd4460c21b40c90e970c3fe93a",
+      "after": "820bcd84a2ce5d0f2937d4d29a7267a3fd1e123036b24efea7774a7819671bd1",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r149-iokit-files",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/firmware-memory-runtime/iokit/conf/files"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "7b3d1d6f0022eb2a514f9a5a03153f3910a1f992ff91196b0a9bd49d7a421949",
+      "after": "ad7944e2617361635f9f9e0cb6ae92a67b4feaf364bbc266485edec190a2e653",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r149-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/firmware-memory-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": true,
+  "C_bridge_host_checks": 105724,
+  "Native_host_profiles": 2743,
+  "content_revalidation": true,
+  "offline_test_artifacts": {
+    "native-host-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-firmware-inactive-r149/native-host-verification.json",
+      "sha256": "4f3ca9459622442c11e80c0b0d657483f856e2e4db0806076cedcac638cee0d6"
+    },
+    "native-host-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-firmware-inactive-r149/native-host-output.txt",
+      "sha256": "d873733befedda522804646fb1a8a2575f16e7a8efdb78530d0688c05353c65c"
+    },
+    "c-bridge-host-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-firmware-inactive-r149/c-bridge-host-verification.json",
+      "sha256": "d97e96a3518da480049bfa15af924f2a28bfea4424ad152a0114e6e2e72500b1"
+    },
+    "main-host-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-firmware-inactive-r149/main-host-output.txt",
+      "sha256": "22ae9370a4dfed8fbc152928b3d3e1913acf4ce57776660b25fbea9f8cfe4df2"
+    },
+    "native_adapter_tested_source_sha256": "7b7a537ae7b84850ba7993d7e4b24a854d8ed867515a164b288080805082da05"
+  },
+  "inactive_failure_reporting": "CPU-only no-device-publication refusal commits report; active GPU uncertain paths unchanged no filesystem save",
+  "runtime_scope": "CPU-only firmware/HFI allocation, content, aliases and page-table audit",
+  "inactive_firmware_memory_qualified": true,
+  "DMA_eligible": false,
+  "result_path": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r149-result.json",
+  "result_sha256": "db8a54c47d9eb9a80e322cf9dece72c689e683bbd02c46839e412925c14f5813"
+}

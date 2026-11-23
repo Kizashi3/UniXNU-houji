@@ -1,0 +1,19 @@
+{
+  "scope": "Append bounded fixed-path keyboard geometry logs after verified GPU reset/halt; no interactive polling",
+  "files": {
+    "HoujiGpuProbeLog.inc": {
+      "before_sha256": "bd7cbd5f9ebe014a7cf787b8ad1012222c9e2e417914608ca415b7833a78e37b",
+      "after_sha256": "1813766b6cfee3954eba33a320a9fcb50fb1f9c244c64486bea5fd54f38f92fb"
+    },
+    "HoujiGpuNativeLive.inc": {
+      "before_sha256": "c330ab71fb81a61e4e7aec877a3c8328dee619d3a5a01c9242c827796448a84b",
+      "after_sha256": "08fa50df2f1f0d9992bc0e4589d91b75cee57eb55c9e14a0519b6ec8b2cde679"
+    }
+  },
+  "maximum_source_bytes_per_file": 32768,
+  "maximum_print_bytes_per_file": 8192,
+  "expected_uid": 501,
+  "phone_accessed": false,
+  "hardware_tested": false,
+  "history_note": "Append-only logs may include earlier boots; inspect constructor PID and runtime geometry before attribution."
+}

@@ -1,0 +1,61 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -85,6 +85,13 @@
+ struct HoujiColourObservation {uint32_t sequence,values[12];};
+ static HoujiColourObservation houji_fb_colours[12];
+ static uint32_t houji_fb_colour_count;
++static HoujiColourObservation houji_fb_colour_peaks[SWEET_FB_LAYERS];
++static uint64_t houji_fb_colour_frames,houji_fb_colour_purple,houji_fb_colour_zero_alpha;
++static void houjiSaveColour(HoujiColourObservation &slot,uint32_t n,const uint32_t *values){
++ __atomic_store_n(&slot.sequence,0u,__ATOMIC_RELEASE);
++ for(unsigned i=0;i<12;i++)__atomic_store_n(&slot.values[i],values[i],__ATOMIC_RELAXED);
++ __atomic_store_n(&slot.sequence,n,__ATOMIC_RELEASE);
++}
+ /* Read 64 points from the already acquired render surface, with the existing
+  * GPU fence/issuer guard held. Store only colour counts, never pixels/text. */
+ static void houjiObserveColours(uint32_t frame,uint32_t layer,SweetSurface*s,uintptr_t src,
+@@ -97,22 +104,38 @@
+   uint32_t value=*(const volatile uint32_t*)at,alpha=value>>24;
+   if(!(value&0xffffffu)){if(!alpha)++transparentBlack;else if(alpha==255)++opaqueBlack;}
+   if(!alpha)++zeroAlpha;
+-  if((value&255)>192 && ((value>>8)&255)<48 && ((value>>16)&255)>192)++magenta;
+- }
++  uint32_t blue=value&255,green=(value>>8)&255,red=(value>>16)&255;
++  // Broad hue observation includes the owner's pale/dark purple shadows. It
++  // can also count intentional wallpaper colours, so is not a corruption test.
++  uint32_t low=red<blue?red:blue,high=red>blue?red:blue;
++  if(low>=24 && low>green+green/2+8 && high<=low*3)++magenta;
++ }
++ __atomic_add_fetch(&houji_fb_colour_frames,1ull,__ATOMIC_RELAXED);
++ __atomic_add_fetch(&houji_fb_colour_purple,(uint64_t)magenta,__ATOMIC_RELAXED);
++ __atomic_add_fetch(&houji_fb_colour_zero_alpha,(uint64_t)zeroAlpha,__ATOMIC_RELAXED);
+  if((frame&15) && !magenta)return;
+  uint32_t n=__atomic_add_fetch(&houji_fb_colour_count,1u,__ATOMIC_RELAXED);
+  auto &slot=houji_fb_colours[(n-1)%12];
+  uint32_t values[12]={frame,layer,s->pixelFormat,(uint32_t)w,(uint32_t)h,(uint32_t)dx,(uint32_t)dy,64,opaqueBlack,transparentBlack,magenta,zeroAlpha};
+- __atomic_store_n(&slot.sequence,0u,__ATOMIC_RELEASE);
+- for(unsigned i=0;i<12;i++)__atomic_store_n(&slot.values[i],values[i],__ATOMIC_RELAXED);
+- __atomic_store_n(&slot.sequence,n,__ATOMIC_RELEASE);
++ houjiSaveColour(slot,n,values);
++ // The copy workloop is the sole writer. Keep each layer's strongest hue
++ // observation for the whole boot, even after the owner changes applications.
++ if(layer<SWEET_FB_LAYERS && magenta>__atomic_load_n(&houji_fb_colour_peaks[layer].values[10],__ATOMIC_RELAXED))
++  houjiSaveColour(houji_fb_colour_peaks[layer],n,values);
+ }
+ static void houjiReportColours(void){
++ IOLog("HOUJI COLOUR LIFETIME: surfaces=%llu sampled-points=%llu purple-candidates=%llu alpha-zero=%llu; aggregate only, intentional colours included\n",__atomic_load_n(&houji_fb_colour_frames,__ATOMIC_RELAXED),__atomic_load_n(&houji_fb_colour_frames,__ATOMIC_RELAXED)*64,__atomic_load_n(&houji_fb_colour_purple,__ATOMIC_RELAXED),__atomic_load_n(&houji_fb_colour_zero_alpha,__ATOMIC_RELAXED));
++ for(auto &slot:houji_fb_colour_peaks){
++  uint32_t n=__atomic_load_n(&slot.sequence,__ATOMIC_ACQUIRE),v[12];if(!n)continue;
++  for(unsigned i=0;i<12;i++)v[i]=__atomic_load_n(&slot.values[i],__ATOMIC_RELAXED);
++  if(n!=__atomic_load_n(&slot.sequence,__ATOMIC_ACQUIRE))continue;
++  IOLog("HOUJI COLOUR PEAK: n=%u frame=%u layer=%u fmt=%x rect=%ux%u dst=%u,%u samples=%u opaque-black=%u transparent-black=%u purple-candidates=%u alpha-zero=%u; retained across scene changes\n",n,v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9],v[10],v[11]);
++ }
+  for(auto &slot:houji_fb_colours){
+   uint32_t n=__atomic_load_n(&slot.sequence,__ATOMIC_ACQUIRE),v[12];if(!n)continue;
+   for(unsigned i=0;i<12;i++)v[i]=__atomic_load_n(&slot.values[i],__ATOMIC_RELAXED);
+   if(n!=__atomic_load_n(&slot.sequence,__ATOMIC_ACQUIRE))continue;
+-  IOLog("HOUJI COLOUR SOURCE: n=%u frame=%u layer=%u fmt=%x rect=%ux%u dst=%u,%u samples=%u opaque-black=%u transparent-black=%u magenta=%u alpha-zero=%u; completed source samples, packed-word counts only\n",n,v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9],v[10],v[11]);
++  IOLog("HOUJI COLOUR SOURCE: n=%u frame=%u layer=%u fmt=%x rect=%ux%u dst=%u,%u samples=%u opaque-black=%u transparent-black=%u purple-candidates=%u alpha-zero=%u; completed source samples, packed-word counts only\n",n,v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9],v[10],v[11]);
+  }
+  uint64_t now=mach_absolute_time(),elapsedNs=0,gapNs=0,workerNs=0;
+  absolutetime_to_nanoseconds(now-houji_fb_started_at,&elapsedNs);

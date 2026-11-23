@@ -1,0 +1,35 @@
+{
+  "scope": "XNU CPU-only runtime qualification of owned 16K backing for 4K logical GPU BOs; no GPU/SMMU/device publication",
+  "boot_argument": "houji_gpu_mem_probe=1",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoCpu.cpp": {
+      "before": null,
+      "after": "55a5d49eb20c62d4f7da0d87dcc5dc117021965845b35ef8873189099c99aa94"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoMemory.cpp": {
+      "before": null,
+      "after": "d78c51e6e465289c8e5957a2d9a8266445502a7801be9b2a42cd892a4ff82fc1"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoMemory.h": {
+      "before": null,
+      "after": "1c6202ffdee6a9f50145667422830d267f3974214201b7ff8247953d5a1912b8"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoCpuPagePolicy.h": {
+      "before": null,
+      "after": "a78402db00833d494960776551cea10caa019852140ff2816b3e9057a6c8fe27"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuMemoryProbe.inc": {
+      "before": null,
+      "after": "d3d95a47fe96e7d0f83d88f7462ce3b5a5832a646ecca59408be0c6d6a711903"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "1a679fc5002529e6756d9896747f74b23bfaca4ac0d157dcb72eb8b26a31802a",
+      "after": "f106eb6854d041a874144e0cd0a0bd0527b7a6016512f7692dae54ef6974b7de"
+    },
+    "iokit/conf/files": {
+      "before": "62224867eadc75ed009eda03ad13784480c8d42f5482762b3e3635d0b6481e37",
+      "after": "14b64d787bdf2205afdb16786b143275600ce03ec305e7278bd8b47de5941db7"
+    }
+  },
+  "hardware_tested": false
+}

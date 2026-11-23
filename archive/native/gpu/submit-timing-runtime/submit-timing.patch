@@ -1,0 +1,151 @@
+--- a/HoujiUfsRead.cpp
++++ b/HoujiUfsRead.cpp
+@@ -359,6 +359,7 @@
+   IOLockUnlock(gHost.lock);
+   return r;
+ }
++extern "C" unsigned houji_gpu_cached_timing(char *,unsigned);
+ static const char *saveNativeLog(void) {
+   static uint8_t metadata[7*4096],image[65536];
+   nativeStage("logfs metadata read");
+@@ -374,6 +375,7 @@
+   bzero(image,sizeof(image));
+   unsigned used=gNativeTextBytes;
+   memcpy(image+4096,gNativeText,used);
++  used+=houji_gpu_cached_timing(reinterpret_cast<char *>(image+4096+used),8192);
+   static const char marker[]="\n--- XNU kernel message buffer (tail; NULs removed) ---\n";
+   memcpy(image+4096+used,marker,sizeof(marker)-1);used+=sizeof(marker)-1;
+   used+=copyKernelMessages(reinterpret_cast<char *>(image+4096+used),sizeof(image)-4096-used);
+--- a/NativeAdrenoPublish.cpp
++++ b/NativeAdrenoPublish.cpp
+@@ -458,6 +458,8 @@
+     }
+ }
+ static uint64_t nativeAdrenoDispatchPerf[20][4]; // calls, time us, max us, cached path
++extern "C" volatile uint64_t native_adreno_submit_cost[12];
++extern "C" volatile uint32_t native_adreno_io_coherent,native_adreno_coherent_skips[4],native_adreno_wc_audit[6],native_adreno_wc_distrusted;
+ extern "C" uint64_t houji_gpu_submit_activity(void) {
+  return __atomic_load_n(&nativeAdrenoDispatchPerf[NativeAdrenoMethodSubmit][0],__ATOMIC_RELAXED);
+ }
+@@ -866,7 +868,46 @@
+ extern "C" void houji_gpu_dvfs_history_report(void);
+ extern "C" volatile uint32_t native_adreno_client_stats[5][6];
+ extern "C" volatile uint32_t native_adreno_window_overflow[4][3];
++// Bounded cached observations for the periodic log snapshot, before teardown.
++// Try the existing lock only for copying text; never hold it while printing.
++extern "C" unsigned houji_gpu_dvfs_snapshot(char *,unsigned);
++extern "C" unsigned houji_gpu_cached_timing(char *out,unsigned capacity) {
++ if(!out || !capacity)return 0;
++ static char rows[48][96];static uint32_t scratch_busy;
++ if(__atomic_exchange_n(&scratch_busy,1u,__ATOMIC_ACQUIRE)){
++  int n=snprintf(out,capacity,"HOUJI CACHED TIMING: scratch busy; counters omitted\n");
++  return n>0?((unsigned)n<capacity?(unsigned)n:capacity-1):0;
++ }
++ unsigned used=0;out[0]=0;bzero(rows,sizeof rows);bool copied=false;
++ if(g.lock && IOLockTryLock(g.lock)) {
++  memcpy(rows,native_adreno_metal_rows,sizeof rows);
++  IOLockUnlock(g.lock);copied=true;
++ }
++ auto append=[&](const char *format,auto... args){
++  if(used>=capacity-1)return;int n=snprintf(out+used,capacity-used,format,args...);
++  if(n>0)used+=(unsigned)n<capacity-used?(unsigned)n:capacity-used-1;
++ };
++ append("HOUJI CACHED TIMING: bridge-copied=%u; RAM only; snapshot header before kernel tail\n",copied);
++ const char *phases[]={"all","wc-reassert","publish","audit"};
++ for(unsigned phase=0;phase<4;++phase){
++  uint64_t v[3];for(unsigned i=0;i<3;++i)v[i]=__atomic_load_n(&native_adreno_submit_cost[phase*3+i],__ATOMIC_RELAXED);
++  append("HOUJI CACHED SUBMIT: %s n=%llu us=%llu max=%llu\n",phases[phase],v[0],v[1],v[2]);
++ }
++ append("HOUJI CACHED WC: coherent=%u audit=%u dirty=%u stale=%u failures=%u resets=%u\n",
++  native_adreno_io_coherent,native_adreno_wc_audit[0],native_adreno_wc_audit[2],native_adreno_wc_audit[3],native_adreno_wc_audit[4],native_adreno_wc_audit[5]);
++ for(unsigned row=0;row<48;++row)if(copied && rows[row][0])append("HOUJI CACHED METAL %u: %.95s\n",row,rows[row]);
++ used+=houji_gpu_dvfs_snapshot(out+used,capacity-used);
++ __atomic_store_n(&scratch_busy,0u,__ATOMIC_RELEASE);
++ return used;
++}
++
+ static void nativeAdrenoStopDiagnostics(void){
++ const char *phases[]={"all","wc-reassert","publish","audit"};
++ IOLog("HOUJI CACHE POLICY: coherent=%u skipped=%u/%u/%u/%u wc-reset=%u distrusted=%u dirty=%u stale=%u; cached observations only\n",native_adreno_io_coherent,native_adreno_coherent_skips[0],native_adreno_coherent_skips[1],native_adreno_coherent_skips[2],native_adreno_coherent_skips[3],native_adreno_wc_audit[5],native_adreno_wc_distrusted,native_adreno_wc_audit[2],native_adreno_wc_audit[3]);
++ for(unsigned phase=0;phase<4;++phase){
++  uint64_t v[3];for(unsigned i=0;i<3;++i)v[i]=__atomic_load_n(&native_adreno_submit_cost[phase*3+i],__ATOMIC_RELAXED);
++  IOLog("HOUJI SUBMIT COST: phase=%s calls=%llu total-us=%llu max-us=%llu; CPU wall time, original validation and cache policy\n",phases[phase],v[0],v[1],v[2]);
++ }
+  houji_cpu_scheduler_report();
+  houji_cpu_dvfs_history_report();
+  houji_gpu_dvfs_history_report();
+@@ -893,6 +934,7 @@
+   if(rec.slot<NativeAdrenoMaxClients){const auto&w=kClientWindows[rec.slot];IOLog("HOUJI GPU VA WINDOW: name=%.19s slot=%u base=%llx end=%llx bytes=%llu high-water-end-MiB=%u; GPU virtual addresses, not physical RAM usage\n",rec.name,rec.slot,w.start,w.start+w.bytes,w.bytes,rec.peak_mib);}
+  }
+ }
++
+ extern "C" int native_adreno_provider_stop(int(*stop)(void*),void*c){if(!g.lock || !stop)return 1;IOLockLock(g.lock);g.dying=true;g.published=false;(void)native_adreno_board_quiesce();nativeAdrenoStopDiagnostics();int s=stop(c);IOLockUnlock(g.lock);return s;}
+ extern "C" IOMemoryDescriptor *native_gop_handoff_memory(void){return nullptr;}
+ extern "C" IOReturn native_gop_handoff_call(uint32_t,task_t,const void*,size_t,void*,size_t){return kIOReturnUnsupported;}
+--- a/NativeAdrenoSubmit.cpp
++++ b/NativeAdrenoSubmit.cpp
+@@ -2,6 +2,23 @@
+ #include "NativeAdrenoSubmit.h"
+ #include "AdrenoPM4.h"
+ #include <IOKit/IOLib.h>
++// Optional board clock: host checks without a published driver collect no
++// timings. Observations never change submission, references or cache policy.
++extern "C" uint64_t (*native_adreno_vm_now_us)(void);
++extern "C" {volatile uint64_t native_adreno_submit_cost[12];}
++static uint64_t submitDiagNow(void) {return native_adreno_vm_now_us?native_adreno_vm_now_us():0;}
++static void submitDiagRecord(unsigned slot,uint64_t began) {
++    if(!began)return;
++    const uint64_t end=submitDiagNow();if(end<began)return;
++    const uint64_t us=end-began;
++    __atomic_fetch_add(&native_adreno_submit_cost[slot],1ull,__ATOMIC_RELAXED);
++    __atomic_fetch_add(&native_adreno_submit_cost[slot+1],us,__ATOMIC_RELAXED);
++    uint64_t peak=__atomic_load_n(&native_adreno_submit_cost[slot+2],__ATOMIC_RELAXED);
++    while(us>peak && !__atomic_compare_exchange_n(&native_adreno_submit_cost[slot+2],&peak,us,false,__ATOMIC_RELAXED,__ATOMIC_RELAXED)){}
++}
++struct SubmitDiagScope {unsigned slot;uint64_t began;
++    explicit SubmitDiagScope(unsigned s):slot(s),began(submitDiagNow()){}
++    ~SubmitDiagScope(){submitDiagRecord(slot,began);}};
+ 
+ /* CP_INDIRECT_BUFFER is opcode 0x3f with a 3-word payload: 64-bit GPU address
+  * and IB_SIZE in dwords (bits 0..19), exactly as the pinned adreno_pm4.xml
+@@ -75,6 +92,7 @@
+ IOReturn NativeAdrenoSubmit::submit(const NativeAdrenoSubmitBuffer *buffers,size_t count,
+     uint32_t queue,uint32_t *fence)
+ {
++    SubmitDiagScope measured(0);
+     if(!fence)return kIOReturnBadArgument;*fence=0;
+     if(!attached_ || poisoned_)return kIOReturnNotReady;
+     if(!buffers || !count || count>SubmitMaxBuffers)return kIOReturnBadArgument;
+@@ -127,7 +145,8 @@
+         /* int-100: the dirty IB page was back at XNU's default (cacheable) attribute. Write-combine every such page again first; the
+          * pmap writes its lines back on the way, so the audit below should then find none. */
+         uint32_t reset=0;
+-        const IOReturn reasserted=vm_->reassertWriteCombined(&reset);
++        IOReturn reasserted;
++        {SubmitDiagScope measured(3);reasserted=vm_->reassertWriteCombined(&reset);}
+         native_adreno_wc_audit[5]=native_adreno_wc_audit[5]+reset;
+         if(reasserted) {
+             /* Mandatory page-attribute correction failed. Its error is not
+@@ -149,10 +168,12 @@
+         ++audit_tick_;
+         const bool audit_now=audit_tick_<=16 || (audit_tick_&7)==1;
+         if(!audit_now)budget=0;
++        const uint64_t audit_began=audit_now?submitDiagNow():0;
+         for(size_t i=0;i<count && budget && !audited;++i) {
+             const size_t bytes=buffers[i].bytes<budget?(size_t)buffers[i].bytes:budget;
+             audited=vm_->auditRange(buffers[i].iova,bytes,&lines,&dirty,&stale);budget-=bytes;
+         }
++        submitDiagRecord(9,audit_began);
+         if(audit_now && audited!=kIOReturnUnsupported) {   /* no board hook (host): nothing to compare */
+             native_adreno_wc_audit[0]=native_adreno_wc_audit[0]+1;
+             native_adreno_wc_audit[1]=native_adreno_wc_audit[1]+lines;
+@@ -166,7 +187,8 @@
+         }
+     }
+     (void)vm_->sampleWord(buffers[0].iova,&cached,&before);
+-    IOReturn status=vm_->publishMapped();
++    IOReturn status;
++    {SubmitDiagScope measured(6);status=vm_->publishMapped();}
+     if(!status) {
+         (void)vm_->sampleWord(buffers[0].iova,&ignored,&after);
+         native_adreno_coherence[0]=native_adreno_coherence[0]+1;

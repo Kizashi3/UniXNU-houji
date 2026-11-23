@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "scope": "DarwinBoot pre-EBS scalar power-handoff import only; no device execution or whole UEFI build by this layer",
+  "guid": "02bec0e7-e434-48c6-ba89-3b35b5b61e47",
+  "guid_initializer": "HOUJI_GPU_POWER_HANDOFF_GUID",
+  "vendor_table": "immutable 1376-byte hph_record; never retained in XNU ADT",
+  "property": "/chosen/houji,gpu-power-handoff",
+  "wire_bytes": 1376,
+  "import_order": "ReadFile ADT -> existing complete AdtNode validation -> strict slot/unique GUID/hph_decode+complete -> scalar hpa_bind -> original AllocateWindow -> original Tree copy -> ExitBootServices",
+  "legacy_behavior": "No target property and no GUID: unchanged; property/GUID disagreement always refuses",
+  "source_qualification": "Actual hph_decode plus complete==1, no synthetic qualification",
+  "request_abi_and_window_code": "byte-identical after removing one include and 2-line checked call",
+  "rollback": "Restore both before files and remove eight newly-added headers, or reverse patch from DarwinBoot root after verifying listed after hashes",
+  "driver": "${HOUJI_ARTIFACTS}/native-port/DarwinBoot/DarwinBootPkg/Driver",
+  "patch_sha256": "64b3bac23660a39a1407ca22bf4dd15bf40b5314de94bdf90036b3e7b76758de",
+  "files": [
+    {
+      "name": "DarwinBoot.c",
+      "before_sha256": "a678081027bdfb4baabf816ea031a88a93a2c62bfb3e5a71da1eb3e7bd8d6c90",
+      "after_sha256": "6229e65582b27c504cd612594d163dfc8d454c2c427a88266c1e233d52411291",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/handoff/darwinboot-power-handoff-before.c"
+    },
+    {
+      "name": "DarwinBoot.inf",
+      "before_sha256": "710ea445f6e21a84a8cc0e56307b637a85f25efc75c07e9736e531611f78dda7",
+      "after_sha256": "c92c206502eb1e92a11358f98d08062008c4e100e98ecee0dc469048cce78738",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/handoff/darwinboot-power-handoff-before.inf"
+    },
+    {
+      "name": "DarwinBootGpuHandoff.h",
+      "before": "absent",
+      "after_sha256": "b475f0e850de9f01518df542ba4d2ac25a7aeeae6470aea6a7503e135fa3a8c9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/handoff/DarwinBootGpuHandoff.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "GpuPowerHandoffAdt.h",
+      "before": "absent",
+      "after_sha256": "5fb3e48820e4b8ba1afc9ff04b6b2a920a52eaefe71e4ddcbdf18b2a6e88673b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/handoff/GpuPowerHandoffAdt.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "GpuPowerHandoffGuid.h",
+      "before": "absent",
+      "after_sha256": "178d3433a0ccd2c0614e31cd20de7fee7e66bcc5bf3f56004a25556398da9801",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/handoff/GpuPowerHandoffGuid.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "GpuPowerOnlyHandoff.h",
+      "before": "absent",
+      "after_sha256": "0f6e85b80f048fb0a119d0415a4f2294a7b0304a6616aa4f02dc61fed0942dec",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuPowerOnlyHandoff.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "GpuBusProbe.h",
+      "before": "absent",
+      "after_sha256": "e10575d8d40dbad94017022442186f3b36fa01a3b37bf77a13221e43db8eb1db",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuBusProbe.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "GpuPowerPolicy.h",
+      "before": "absent",
+      "after_sha256": "b4f0484c6e06803a72ccecb117de55eb0a0b7eb459f9f7619d6dc9b4247a71f6",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuPowerPolicy.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "GpuPowerReport.h",
+      "before": "absent",
+      "after_sha256": "772369beb38d140d776132b370e40d579f9495711702597591691434fea63c03",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuPowerReport.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "GpuClockWitness.h",
+      "before": "absent",
+      "after_sha256": "2d53d7273cad9fafe351436656e5edae26b13f364e0a73ddcea8150cc0f520e0",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuClockWitness.h",
+      "rollback": "remove this newly-added header"
+    },
+    {
+      "name": "DarwinBootZapHandoff.h",
+      "before_sha256": null,
+      "after_sha256": "a739ee8ec76755c2e53cff8869ac771f391b081cf01d8be4e414a5035b4903ef"
+    },
+    {
+      "name": "HoujiZapHandoff.h",
+      "before_sha256": null,
+      "after_sha256": "deef2cd43a1e46a72f363257674d8974bbc6db37026494f5d9d336125beae3b9"
+    },
+    {
+      "name": "HoujiZapTrial.h",
+      "before_sha256": null,
+      "after_sha256": "49def4c95d84dc79fc71bc1b9089ec9a04fbd97d02f545e4e3920aceeca4fca6"
+    }
+  ],
+  "verification": {
+    "host_tests": {
+      "command": "python3 native/gpu/handoff/check-darwinboot-power-handoff.py",
+      "actual_driver_helper_cases": 2780,
+      "asan": true,
+      "ubsan": true,
+      "warnings": "-Wall -Wextra -Werror",
+      "source": "actual Driver header + real hph_run/gpp_prepare/hph_decode bodies; only firmware table/print/MMIO peers mocked",
+      "request_window_and_remaining_loader": "exact byte comparison against saved before file passes after removing one include and 2-line call",
+      "ordering": "existing complete AdtNode < checked import < AllocateWindow < final Tree scalar copy < ExitBootServices"
+    },
+    "portable_adt_tests": {
+      "command": "python3 tests/check-gpu-handoff-adt.py",
+      "C11_cases": 10268,
+      "CXX14_cases": 10268,
+      "asan": true,
+      "ubsan": true
+    },
+    "whole_uefi_build": "not run; root owns unified build",
+    "device": "not accessed"
+  },
+  "test_sha256": "e9289d96ff4fd82bc322cb7bc4e64d8664aed5efbcd44e2b40e1bc7aa63c3d6b",
+  "current_generated_makefile": "${HOUJI_UEFI_ROOT}/Build/houjiPkg/DEBUG_CLANGPDB/AARCH64/DarwinBootPkg/Driver/DarwinBoot/GNUmakefile",
+  "actual_inf": "${HOUJI_ARTIFACTS}/native-port/DarwinBoot/DarwinBootPkg/Driver/DarwinBoot.inf",
+  "hardware_tested": true,
+  "hardware_evidence": {
+    "run": "r140",
+    "result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r140-result.json",
+    "scope": "scalar transfer and 131 independent XNU read-only samples/recheck only; no CM3 release, GPU execution or DMA"
+  },
+  "new_ZAP_reservation": "loader only:7ownedEFIpages/selected16Kmetadata plus target4K AT; no target data access"
+}

@@ -1,0 +1,1 @@
+Adopt the real initialized idle ring; actual NativeAdrenoRing submits fixed framed CP_BLIT and observes CP EVENT_WRITE7 fences. Qualification loops32 poisoned output/readback cases under one live owner. Still terminal: no published userspace provider or desktop acceleration claim. No table/root changes, arbitrary IB, BO release or route retirement.

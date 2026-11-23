@@ -1,0 +1,14 @@
+{
+  "base": "qualified r196",
+  "reference": "https://github.com/markakash/UniXNU-ishtar/blob/901611d6e51b2f84f7755f72ba3762c816727395/xnu/patches-ishtar/2027-ishtar-surface-use-counts.patch",
+  "files": {
+    "SweetSurface.cpp": {
+      "before": "918d09688612d2995ba030791f51c07e4cfa047e121b3c4ff5648dc91ffa2a58",
+      "after": "41f13de35a1abcff5c141dc90386aac2bb6a21f09518d18e1b46aa7d17475263"
+    },
+    "SweetFramebuffer.cpp": {
+      "before": "bc0d8d2d3da042ba079ad73ee744acbcc11ee9c3bbfcbb7e6ef90b25a004128c",
+      "after": "e7e3902ccd70aa4728d9ecf9cd9a89f1d9dea11350974f181d5b36a4d6fbabc3"
+    }
+  }
+}

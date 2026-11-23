@@ -1,0 +1,397 @@
+--- a/osfmk/ipc/ipc_kmsg.c
++++ b/osfmk/ipc/ipc_kmsg.c
+@@ -1880,10 +1880,20 @@
+  *	Conditions:
+  *		Nothing locked.
+  */
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++#include <kern/clock.h>
++#include <pexpert/pexpert.h>
++#include <kern/host.h>
++#include "HoujiLocationIpc.inc"
++#endif
++
+ void
+ ipc_kmsg_free(
+ 	ipc_kmsg_t      kmsg)
+ {
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++    houji_location_ipc_freed((uintptr_t)kmsg);
++#endif
+ 	mach_msg_size_t msg_buf_size = 0, udata_buf_size = 0, dsc_count = 0;
+ 	void *msg_buf = NULL, *udata_buf = NULL;
+ 	ipc_kmsg_vector_t *vec = NULL;
+@@ -2910,6 +2920,9 @@
+ 
+ 	port = hdr->msgh_remote_port;
+ 	assert(IP_VALID(port));
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++    houji_location_ipc_observe(port, hdr, th, (uintptr_t)kmsg);
++#endif
+ 	ip_mq_lock(port);
+ 
+ 	/*
+@@ -6403,9 +6416,15 @@
+ 	mach_msg_return_t mr;
+ 
+ 	ikm_validate_sig(kmsg);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++    bool houji_tracked = houji_location_ipc_receiving((uintptr_t)kmsg, task_pid(space->is_task));
++#endif
+ 
+ 	mr = ipc_kmsg_copyout_header(kmsg, space, option);
+ 	if (mr != MACH_MSG_SUCCESS) {
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++        houji_location_ipc_received(houji_tracked, mr);
++#endif
+ 		return mr;
+ 	}
+ 
+@@ -6417,6 +6436,9 @@
+ 		}
+ 	}
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++    houji_location_ipc_received(houji_tracked, mr);
++#endif
+ 	return mr;
+ }
+ 
+--- a/bsd/kern/kern_exit.c
++++ b/bsd/kern/kern_exit.c
+@@ -1448,6 +1448,14 @@
+  * to zombie, and unlink proc from allproc and parent's lists.  Save exit
+  * status and rusage for wait().  Check for child processes and orphan them.
+  */
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++#include <kern/clock.h>
++#include <pexpert/pexpert.h>
++#include <arm/thread.h>
++#include <arm64/proc_reg.h>
++#include "HoujiExitObserver.inc"
++#endif
++
+ int
+ exit1(proc_t p, int rv, int *retval)
+ {
+@@ -1583,6 +1591,9 @@
+ 	proc_transend(p, 1);
+ 	proc_unlock(p);
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++    houji_location_exit_observe(p, rv, exit_reason);
++#endif
+ 	proc_prepareexit(p, rv, perf_notify);
+ 
+ 	/* Last thread to terminate will call proc_exit() */
+--- a/bsd/dev/arm/systemcalls.c
++++ b/bsd/dev/arm/systemcalls.c
+@@ -41,7 +41,11 @@
+ extern void dtrace_systrace_syscall_return(unsigned short, int, int *);
+ #endif  /* CONFIG_DTRACE */
+ 
+-extern void
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++extern void houji_location_syscall_observe(proc_t, int, int, uint32_t, uint32_t, uint64_t);
++#endif
++
++void
+ unix_syscall(struct arm_saved_state * regs, thread_t thread_act, struct proc * proc);
+ 
+ static int      arm_get_syscall_args(uthread_t, struct arm_saved_state *, const struct sysent *);
+@@ -180,6 +184,9 @@
+ 	AUDIT_SYSCALL_ENTER(code, proc, uthread);
+ 	error = (*(callp->sy_call))(proc, &uthread->uu_arg[0], &(uthread->uu_rval[0]));
+ 	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++    houji_location_syscall_observe(proc, code, error, uthread->uu_rval[0], uthread->uu_rval[1], uthread->uu_arg[0]);
++#endif
+ 
+ #if CONFIG_MACF
+ skip_syscall:
+@@ -260,6 +267,9 @@
+ #endif /* DEBUG || DEVELOPMENT */
+ 
+ 	AUDIT_SYSCALL_EXIT(code, proc, uthread, error);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++    houji_location_syscall_observe(proc, code, error, uthread->uu_rval[0], uthread->uu_rval[1], uthread->uu_arg[0]);
++#endif
+ 
+ 	/*
+ 	 * Get index into sysent table
+--- a/osfmk/kern/exception.c
++++ b/osfmk/kern/exception.c
+@@ -1129,3 +1129,12 @@
+ 
+ 	return ret;
+ }
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++uint64_t houji_task_mach_header(task_t task) {
++  task_lock(task);
++  uint64_t address = task->mach_header_vm_address;
++  task_unlock(task);
++  return address;
++}
++#endif
+--- /dev/null
++++ b/osfmk/ipc/HoujiLocationIpc.inc
+@@ -0,0 +1,150 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++// Observes the unbounded locationd MIG call seen in the owner's r34 stackshot.
++// No messages, timeouts, rights, return values or service states are modified.
++// Narrow BSD declarations avoid importing BSD typedefs into the osfmk build.
++extern void proc_selfname(char *buf, int size);
++extern void proc_name(int pid, char *buf, int size);
++
++static int houji_location_ipc_enabled = -1;
++static LCK_GRP_DECLARE(houji_location_ipc_group, "houji-location-ipc");
++static LCK_SPIN_DECLARE(houji_location_ipc_lock, &houji_location_ipc_group);
++static struct {
++  uint64_t requests, replies, request_tid, reply_tid, last_time;
++  int location_pid, peer_pid, reply_pid;
++  uint32_t peer_name, peer_kotype, peer_queued, peer_state, host_slot;
++  uintptr_t request_token;
++  uint64_t receive_attempts, receive_results, freed_unreceived;
++  int receive_pid;
++  uint32_t receive_status;
++} houji_location_ipc;
++
++static bool houji_location_ipc_is_enabled(void) {
++  int enabled = __atomic_load_n(&houji_location_ipc_enabled, __ATOMIC_RELAXED);
++  if (enabled < 0) {
++    int requested = 0;
++    PE_parse_boot_argn("houji_location_ipc", &requested, sizeof(requested));
++    enabled = requested == 1;
++    __atomic_store_n(&houji_location_ipc_enabled, enabled, __ATOMIC_RELAXED);
++  }
++  return enabled == 1;
++}
++
++static void houji_location_ipc_observe(ipc_port_t port,
++    const mach_msg_header_t *header, thread_t thread, uintptr_t token) {
++  if (!houji_location_ipc_is_enabled() ||
++      (header->msgh_id != 1203 && header->msgh_id != 1303)) return;
++  char name[32];
++  proc_selfname(name, sizeof(name));
++  bool request = header->msgh_id == 1203 && strcmp(name, "locationd") == 0;
++  if (!request && header->msgh_id != 1303) return;
++  int peer = -1;
++  uint32_t receiver_name = 0, kotype = 0, queued = 0, state = 0;
++  // Same receiver inspection and queue lock used by XNU's existing IPC trace.
++  ip_mq_lock(port);
++  if (ip_active(port)) {
++    kotype = ip_kotype(port);
++    queued = port->ip_messages.imq_msgcount;
++    if (port->ip_tempowner) {
++      state = 1;
++      if (ip_get_imp_task(port) != IIT_NULL)
++        peer = task_pid(port->ip_imp_task->iit_task);
++    } else if (ip_in_a_space(port)) {
++      state = 2;
++      ipc_space_t space = ip_get_receiver(port);
++      if (space && is_active(space)) {
++        peer = task_pid(space->is_task);
++        receiver_name = port->ip_receiver_name;
++      }
++    } else {
++      state = ip_in_transit(port) ? 3 : 4;
++    }
++  }
++  ip_mq_unlock(port);
++  uint32_t host_slot = 0;
++  if (request) {
++    // No port or observer lock held. Compare the live destination reference
++    // with registered host service ports; do not copy/create any send rights.
++    host_lock(&realhost);
++    for (unsigned slot = 1; slot <= HOST_MAX_SPECIAL_PORT; slot++)
++      if (realhost.special[slot] == port) { host_slot = slot; break; }
++    host_unlock(&realhost);
++  }
++  int sender = task_pid(current_task());
++  uint64_t time;
++  clock_get_uptime(&time);
++  lck_spin_lock(&houji_location_ipc_lock);
++  if (request) {
++    houji_location_ipc.requests++;
++    houji_location_ipc.location_pid = sender;
++    houji_location_ipc.peer_pid = peer;
++    houji_location_ipc.peer_name = receiver_name;
++    houji_location_ipc.peer_kotype = kotype;
++    houji_location_ipc.peer_queued = queued;
++    houji_location_ipc.peer_state = state;
++    houji_location_ipc.host_slot = host_slot;
++    __atomic_store_n(&houji_location_ipc.request_token, token, __ATOMIC_RELEASE);
++    houji_location_ipc.request_tid = thread_tid(thread);
++    houji_location_ipc.last_time = time;
++  } else if (houji_location_ipc.location_pid > 0 && peer == houji_location_ipc.location_pid) {
++    houji_location_ipc.replies++;
++    houji_location_ipc.reply_pid = sender;
++    houji_location_ipc.reply_tid = thread_tid(thread);
++    houji_location_ipc.last_time = time;
++  }
++  lck_spin_unlock(&houji_location_ipc_lock);
++}
++
++// The kmsg pointer is an opaque comparison token, never dereferenced or retained.
++// Free clears the token, so allocator reuse cannot look like a later receipt.
++static void houji_location_ipc_freed(uintptr_t token) {
++  if (!houji_location_ipc_is_enabled() || !token ||
++      token != __atomic_load_n(&houji_location_ipc.request_token, __ATOMIC_ACQUIRE)) return;
++  lck_spin_lock(&houji_location_ipc_lock);
++  if (token && houji_location_ipc.request_token == token) {
++    houji_location_ipc.freed_unreceived++;
++    __atomic_store_n(&houji_location_ipc.request_token, 0, __ATOMIC_RELEASE);
++  }
++  lck_spin_unlock(&houji_location_ipc_lock);
++}
++
++static bool houji_location_ipc_receiving(uintptr_t token, int pid) {
++  if (!houji_location_ipc_is_enabled() || !token ||
++      token != __atomic_load_n(&houji_location_ipc.request_token, __ATOMIC_ACQUIRE)) return false;
++  bool tracked = false;
++  lck_spin_lock(&houji_location_ipc_lock);
++  if (token && houji_location_ipc.request_token == token) {
++    tracked = true;
++    __atomic_store_n(&houji_location_ipc.request_token, 0, __ATOMIC_RELEASE);
++    houji_location_ipc.receive_attempts++;
++    houji_location_ipc.receive_pid = pid;
++  }
++  lck_spin_unlock(&houji_location_ipc_lock);
++  return tracked;
++}
++
++static void houji_location_ipc_received(bool tracked, uint32_t status) {
++  if (!tracked) return;
++  lck_spin_lock(&houji_location_ipc_lock);
++  houji_location_ipc.receive_results++;
++  houji_location_ipc.receive_status = status;
++  lck_spin_unlock(&houji_location_ipc_lock);
++}
++
++void houji_location_ipc_report(void) {
++  if (!houji_location_ipc_is_enabled()) return;
++  typeof(houji_location_ipc) snapshot;
++  lck_spin_lock(&houji_location_ipc_lock);
++  snapshot = houji_location_ipc;
++  lck_spin_unlock(&houji_location_ipc_lock);
++  char name[32] = "unresolved";
++  if (snapshot.peer_pid > 0) proc_name(snapshot.peer_pid, name, sizeof(name));
++  printf("HOUJI LOCATION IPC: requests=%llu replies=%llu locationd=%d peer=%d(%s) port-name=%x kotype=%u queued=%u request-tid=%llu reply-pid=%d reply-tid=%llu last-ticks=%llu\n",
++      snapshot.requests, snapshot.replies, snapshot.location_pid, snapshot.peer_pid,
++      name, snapshot.peer_name, snapshot.peer_kotype, snapshot.peer_queued,
++      snapshot.request_tid, snapshot.reply_pid, snapshot.reply_tid, snapshot.last_time);
++  char receiver[32] = "unresolved";
++  if (snapshot.receive_pid > 0) proc_name(snapshot.receive_pid, receiver, sizeof(receiver));
++  printf("HOUJI LOCATION ROUTE: state=%u host-slot=%u receive-attempts=%llu results=%llu receiver=%d(%s) status=%x freed-unreceived=%llu\n",
++      snapshot.peer_state, snapshot.host_slot, snapshot.receive_attempts, snapshot.receive_results,
++      snapshot.receive_pid, receiver, snapshot.receive_status, snapshot.freed_unreceived);
++}
+--- /dev/null
++++ b/bsd/kern/HoujiExitObserver.inc
+@@ -0,0 +1,105 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++// Passive exit status for boot services. Never holds a process reference or
++// changes exit status/reason; the exiting process remains live at the hook.
++extern uint64_t houji_task_mach_header(task_t);
++static LCK_GRP_DECLARE(houji_exit_group, "houji-service-exit");
++static LCK_SPIN_DECLARE(houji_exit_lock, &houji_exit_group);
++static int houji_exit_enabled = -1;
++static const char *const houji_exit_names[] = {
++  "fairplayd.H2", "locationd", "backboardd", "SpringBoard", "com.apple.migra"
++};
++struct HoujiExitCall { int code, error; uint32_t rv0, rv1; };
++static struct HoujiExitCall houji_exit_calls[24], houji_exit_last_calls[24];
++struct HoujiExitOpen { char path[160]; int error, copy_error; };
++static struct HoujiExitOpen houji_exit_opens[8], houji_exit_last_opens[8];
++static unsigned houji_exit_open_count, houji_exit_last_open_count;
++static unsigned houji_exit_call_count, houji_exit_last_call_count;
++static int houji_exit_call_pid;
++static struct {
++  uint64_t count, time, reason_code, mach_header, pc, lr;
++  int pid, status;
++  uint32_t reason_namespace;
++} houji_exit_records[5];
++static bool houji_exit_is_enabled(void) {
++  int enabled = __atomic_load_n(&houji_exit_enabled, __ATOMIC_RELAXED);
++  if (enabled < 0) {
++    int requested = 0;
++    PE_parse_boot_argn("houji_location_ipc", &requested, sizeof(requested));
++    enabled = requested == 1;
++    __atomic_store_n(&houji_exit_enabled, enabled, __ATOMIC_RELAXED);
++  }
++  return enabled == 1;
++}
++void houji_location_syscall_observe(proc_t p, int code, int error, uint32_t rv0, uint32_t rv1, uint64_t arg0) {
++  if (!houji_exit_is_enabled() || strcmp(p->p_comm, "fairplayd.H2")) return;
++  int pid = proc_getpid(p);
++  struct HoujiExitOpen opened = {.error = error};
++  if (code == 5) {
++    size_t length = 0;
++    opened.copy_error = copyinstr((user_addr_t)arg0, opened.path, sizeof(opened.path), &length);
++    opened.path[sizeof(opened.path)-1] = 0;
++  }
++  lck_spin_lock(&houji_exit_lock);
++  if (houji_exit_call_pid != pid) { houji_exit_call_pid = pid; houji_exit_call_count = 0; houji_exit_open_count = 0; }
++  houji_exit_calls[houji_exit_call_count++ % 24] = (struct HoujiExitCall){code,error,rv0,rv1};
++  if (code == 5) houji_exit_opens[houji_exit_open_count++ % 8] = opened;
++  lck_spin_unlock(&houji_exit_lock);
++}
++static void houji_location_exit_observe(proc_t p, int status,
++    const struct os_reason *reason) {
++  if (!houji_exit_is_enabled()) return;
++  unsigned id;
++  for (id = 0; id < 5; id++)
++    if (!strncmp(p->p_comm, houji_exit_names[id], strlen(houji_exit_names[id]))) break;
++  if (id == 5) return;
++  uint64_t time, mh = 0, pc = 0, lr = 0;
++  task_t task = proc_task(p);
++  if (task == current_task()) {
++    mh = houji_task_mach_header(task);
++    arm_saved_state_t *regs = find_user_regs(current_thread());
++    if (regs && is_saved_state64(regs)) { pc = get_saved_state_pc(regs); lr = get_saved_state_lr(regs); }
++  }
++  clock_get_uptime(&time);
++  lck_spin_lock(&houji_exit_lock);
++  houji_exit_records[id].count++;
++  houji_exit_records[id].pid = proc_getpid(p);
++  houji_exit_records[id].status = status;
++  houji_exit_records[id].time = time;
++  houji_exit_records[id].mach_header = mh;
++  houji_exit_records[id].pc = pc; houji_exit_records[id].lr = lr;
++  if (!id && houji_exit_call_pid == proc_getpid(p)) {
++    houji_exit_last_call_count = houji_exit_call_count < 24 ? houji_exit_call_count : 24;
++    houji_exit_last_open_count = houji_exit_open_count < 8 ? houji_exit_open_count : 8;
++    unsigned first_open = houji_exit_open_count - houji_exit_last_open_count;
++    for (unsigned i = 0; i < houji_exit_last_open_count; i++)
++      houji_exit_last_opens[i] = houji_exit_opens[(first_open+i)%8];
++    unsigned first = houji_exit_call_count - houji_exit_last_call_count;
++    for (unsigned i = 0; i < houji_exit_last_call_count; i++)
++      houji_exit_last_calls[i] = houji_exit_calls[(first + i) % 24];
++  }
++  houji_exit_records[id].reason_namespace = reason ? reason->osr_namespace : 0;
++  houji_exit_records[id].reason_code = reason ? reason->osr_code : 0;
++  lck_spin_unlock(&houji_exit_lock);
++}
++void houji_location_exit_report(void) {
++  if (!houji_exit_is_enabled()) return;
++  typeof(houji_exit_records) snapshot;
++  struct HoujiExitCall calls[24]; unsigned count, open_count;
++  struct HoujiExitOpen opens[8];
++  lck_spin_lock(&houji_exit_lock);
++  memcpy(snapshot, houji_exit_records, sizeof(snapshot));
++  memcpy(calls, houji_exit_last_calls, sizeof(calls)); count = houji_exit_last_call_count;
++  memcpy(opens, houji_exit_last_opens, sizeof(opens)); open_count = houji_exit_last_open_count;
++  lck_spin_unlock(&houji_exit_lock);
++  for (unsigned id = 0; id < 5; id++) {
++    if (!snapshot[id].count) continue;
++    printf("HOUJI SERVICE EXIT: %s count=%llu last-pid=%d status=%x namespace=%u reason=%llx time=%llu mh=%llx pc=%llx lr=%llx\n",
++        houji_exit_names[id], snapshot[id].count, snapshot[id].pid,
++        snapshot[id].status, snapshot[id].reason_namespace,
++        snapshot[id].reason_code, snapshot[id].time, snapshot[id].mach_header, snapshot[id].pc, snapshot[id].lr);
++  }
++  for (unsigned i = 0; i < count; i++)
++    printf("HOUJI FAIRPLAY BSD: %u code=%d error=%d rv0=%x rv1=%x\n",i,calls[i].code,calls[i].error,calls[i].rv0,calls[i].rv1);
++  for (unsigned i = 0; i < open_count; i++)
++    printf("HOUJI FAIRPLAY OPEN: %u error=%d copy=%d path=%s\n", i, opens[i].error, opens[i].copy_error, opens[i].path);
++}

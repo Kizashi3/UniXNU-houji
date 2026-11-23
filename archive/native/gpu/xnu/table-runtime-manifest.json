@@ -1,0 +1,50 @@
+{
+  "scope": "CPU-only inactive GPU4K table construction and physical audit on XNU16K backing; no device publication",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KContext.c": {
+      "before": null,
+      "after": "b8e32e32d1f07e71de65f31b12963ab8b01c05755f8c60c2d6f40cb03fe4eca8"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KAudit.c": {
+      "before": null,
+      "after": "594739cebc43926b1cb0a0e965867bcf1edfb90fab9c51465b65fa47be3755c1"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KProgram.c": {
+      "before": null,
+      "after": "3b1d4911b0a48f90b09c721ffd2eb95dbfc02e96165009b23f8c98841f36e2b0"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4K.c": {
+      "before": null,
+      "after": "0adb19b483e56e723014ed6cfe2c29f9d9735ae2770f62cf0057b22937dbd157"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KProgram.h": {
+      "before": null,
+      "after": "171900c3ed400b805c3a1587959f66bc4a19db18aedc8111e862651a90bb8d8f"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4K.h": {
+      "before": null,
+      "after": "e25063b9134afc7eb79e7c030bc2858608cf0ade5da714d5dfd600fee5007e8e"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KContext.h": {
+      "before": null,
+      "after": "c842e78f37eab2e7cbba28cb89f4b993d9202503e75fee9e49a871101b936e53"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KAudit.h": {
+      "before": null,
+      "after": "1f313acd46db3dfecc115b8c885c5c43f7d23f73690a6157f900dfc77b2c9f6a"
+    },
+    "iokit/conf/files": {
+      "before": "14b64d787bdf2205afdb16786b143275600ce03ec305e7278bd8b47de5941db7",
+      "after": "935b9a93d27f54d0624c93e57fba8a3563ec97dd4460c21b40c90e970c3fe93a"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuTableProbe.inc": {
+      "before": null,
+      "after": "29449df42c27ec8a0258af0015ea9a2f52f04d6188505489e330e9d32883b337"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "5735277294bf8e71a6d5428a78f33318656b0441d1a9b0febd379d232c1418cc",
+      "after": "e5a12fc93fe35f9d262a91773f76b355f4eb8e6b7a22922164177f978e140b09"
+    }
+  },
+  "hardware_tested": false
+}

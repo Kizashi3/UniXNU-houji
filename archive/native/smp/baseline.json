@@ -1,0 +1,9 @@
+{
+  "iokit/Kernel/arm/SweetCPU.cpp": "ab802992a994761df9a8b124771ad7a806df720577496a21ac3a8d6648545f4e",
+  "osfmk/arm64/start.s": "178f0650a6573640d9a1513b8dad8c89e8e239f7513966d5c860ad0d64cb9685",
+  "pexpert/arm/pe_fiq.c": "161c0133c386c303c883c06042506cbcd3c26f7dc80c3b346a94e90a145a14ba",
+  "osfmk/arm64/sleh.c": "ad1d58282a027eb7b4871c62b0c12c27b3f3f3eacb0135ea850db55b68110e60",
+  "iokit/Kernel/IOPlatformExpert.cpp": "f4841e629ed328d579e6a1981c43d64d777f5b0bd33f8505491a8fb50c8ea052",
+  "osfmk/ipc/ipc_kmsg.c": "c058076277cc8e62fc000f7999404df9f32fc249b7aeeffe6852205de9c3a996",
+  "osfmk/arm64/cpu.c": "39e96d694f94262296d22f52d2e38614fd88a31b7ff77018da540d3cf3d70a1b"
+}

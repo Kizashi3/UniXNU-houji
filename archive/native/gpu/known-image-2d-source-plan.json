@@ -1,0 +1,396 @@
+{
+  "status": "offline source-qualified fixed cold-context CP_BLIT candidate; NOT hardware-executed",
+  "executor_implemented": "standalone bounded callback executor only; no driver adapter integration",
+  "driver_integration": false,
+  "phone_accessed": false,
+  "mesa_commit": "85fda3b36405bcaea8bffc64aa4f2651dc90770d",
+  "sources": [
+    {
+      "path": "src/freedreno/registers/adreno/a6xx.xml",
+      "sha256": "142f225bc4ae56a910c910f1d233cc7890587c74fbdec8c390466ffbdf5e0faa",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/registers/adreno/a6xx.xml"
+    },
+    {
+      "path": "src/freedreno/registers/adreno/a6xx_enums.xml",
+      "sha256": "08d56c3ee45ebaa151a8adc7adf7c372ecf89ca72fabc09da1d64645c31f06d4",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/registers/adreno/a6xx_enums.xml"
+    },
+    {
+      "path": "src/freedreno/registers/adreno/adreno_pm4.xml",
+      "sha256": "f8137e5d31a3cfce27cba0a8bc269e460067dca9ccb95e620404b7fc752913fb",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/registers/adreno/adreno_pm4.xml"
+    },
+    {
+      "path": "src/freedreno/registers/adreno/adreno_common.xml",
+      "sha256": "f898e4eee3de5f92d25597f003e5550a24fe50552d25555d6916dcd1b922d6f6",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/registers/adreno/adreno_common.xml"
+    },
+    {
+      "path": "src/freedreno/vulkan/tu_clear_blit.cc",
+      "sha256": "acdaba13052d013ecbcbf990fabc5b6046aca031262b5fa954377479889762d4",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/vulkan/tu_clear_blit.cc"
+    },
+    {
+      "path": "src/freedreno/vulkan/tu_cmd_buffer.cc",
+      "sha256": "18d8b6b70594f768ceb373f45f697f3292c6d82cbaa45f1fbbdaa0c0812372f3",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/vulkan/tu_cmd_buffer.cc"
+    },
+    {
+      "path": "src/freedreno/common/freedreno_devices.py",
+      "sha256": "3a343e614b30509a01db4a22380eaa4604abafbb59552cd8b177c5912b29aef6",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/common/freedreno_devices.py"
+    },
+    {
+      "path": "src/freedreno/common/fd6_gmem_cache.h",
+      "sha256": "69b7f3259938d52cb90f5f369cac99620f8192d79a4b18b8e195dab5dd320d00",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/common/fd6_gmem_cache.h"
+    },
+    {
+      "path": "src/freedreno/common/freedreno_gpu_event.h",
+      "sha256": "eb1b91975fcb1fbd5678ff255fd5858a326ed6e79df2704d181a101e92c03648",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/common/freedreno_gpu_event.h"
+    },
+    {
+      "path": "src/freedreno/fdl/fd6_format_table.c",
+      "sha256": "0b1e10b9bb958896e116e7f2f6ff0aca52bb2f57e98681b12b2f5e3263e3b054",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/fdl/fd6_format_table.c"
+    },
+    {
+      "path": "src/freedreno/common/freedreno_pm4.h",
+      "sha256": "70b5e5f6f1ee45c3bed27d08ad1a798cb2f8662a76b32e47c0907e08aea26258",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/common/freedreno_pm4.h"
+    },
+    {
+      "path": "src/freedreno/vulkan/tu_cs.h",
+      "sha256": "6145d54d5fe68f3a41b0063c365922aa45514f0697be91ebc1aa0dc459cbff5d",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/vulkan/tu_cs.h"
+    },
+    {
+      "path": "src/freedreno/vulkan/tu_common.h",
+      "sha256": "c5fb920072eb83e7b307a150d0bdd1cf00a258b060997beb10ee2ab00bdba376",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/vulkan/tu_common.h"
+    },
+    {
+      "path": "src/freedreno/vulkan/tu_device.h",
+      "sha256": "41ea869127790bd3eb7312593bbd60fca27f5075f6eb90994e5591bf9b8b1d7f",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/vulkan/tu_device.h"
+    },
+    {
+      "path": "src/freedreno/common/freedreno_common.h",
+      "sha256": "492831e788fc5a0b35fee3ed182e9663a1293fd2a2f2ee255ee4b1a1edb569a5",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/common/freedreno_common.h"
+    },
+    {
+      "path": "src/freedreno/common/freedreno_vrs.h",
+      "sha256": "9beeb4626371fc5edc4477418902ccc200ae058f69a71223ab202dc40fcfd1e1",
+      "url": "https://gitlab.freedesktop.org/mesa/mesa/-/blob/85fda3b36405bcaea8bffc64aa4f2651dc90770d/src/freedreno/common/freedreno_vrs.h"
+    }
+  ],
+  "classification": {
+    "CP_MEM_WRITE": "CP memory-engine writes; no raster/shader proof",
+    "CP_MEMCPY": "CP bulk copy; no raster/shader proof",
+    "CP_BLIT_SOLID_COLOR": "dedicated 2D RB/GRAS/SP/TPL1 operation; graphics-block result, no shader proof",
+    "triangle": "vertex/fragment shader, raster and color-output proof; requires separately compiled A750 pipeline"
+  },
+  "candidate": {
+    "chip_id": "0x43051401",
+    "generation": "A7XX/gen3",
+    "width": 32,
+    "height": 32,
+    "format": "PIPE_FORMAT_R8G8B8A8_UNORM",
+    "format_code": "0x30",
+    "tile_mode": 0,
+    "color_swap": "WZYX=0",
+    "samples": 1,
+    "pitch_bytes": 128,
+    "pitch_register": "0x2",
+    "data_bytes": 4096,
+    "expected_rgba_bytes": [
+      255,
+      0,
+      0,
+      255
+    ],
+    "expected_le_u32": "0xff0000ff",
+    "expected_ieee_crc32": "0xe843b26a",
+    "BO_class": "class2 unprivileged RW/NX only",
+    "arena_bounds": [
+      "0x62080000",
+      "0x620c0000"
+    ],
+    "allocation_rule": "qualify mGpuOnlyNext[2] and retain through completion/reset; do not assume the class is unoccupied",
+    "bounds_rule": "4K aligned image, complete image inside class2, distinct prefix/suffix guard pages; no ring/class3 or framebuffer/PT address may be a destination"
+  },
+  "register_body": [
+    {
+      "reg": "0x8c01",
+      "name": "RB_A2D_PIXEL_CNTL",
+      "value": "0x0"
+    },
+    {
+      "reg": "0x8c00",
+      "name": "RB_A2D_BLT_CNTL",
+      "value": "0x00f03080",
+      "fields": "solid1,RGBA8,maskF,ifmtUNORM8,rotate0,scissor0"
+    },
+    {
+      "reg": "0x8400",
+      "name": "GRAS_A2D_BLT_CNTL",
+      "value": "0x00f03080"
+    },
+    {
+      "reg": "0xb2d2",
+      "name": "TPL1_A2D_BLT_CNTL",
+      "value": "0x20000000",
+      "fields": "A7xx only: TEX_2D=1,raw_copy0"
+    },
+    {
+      "reg": "0xa9bf",
+      "name": "SP_A2D_OUTPUT_INFO",
+      "value": "0x0000f180",
+      "fields": "A7xx address; FLOAT type0,RGBA8,maskF"
+    },
+    {
+      "reg": "0x8c2c..0x8c2f",
+      "name": "RB_A2D_CLEAR_COLOR_DW0..3",
+      "value": [
+        "0xff",
+        "0x0",
+        "0x0",
+        "0xff"
+      ],
+      "fields": "per-channel UNORM8 integers, NOT packed FF0000FF in DW0"
+    },
+    {
+      "reg": "0x8c17",
+      "name": "RB_A2D_DEST_BUFFER_INFO",
+      "value": "0x30"
+    },
+    {
+      "reg": "0x8c18..0x8c19",
+      "name": "RB_A2D_DEST_BUFFER_BASE",
+      "value": "owned class2 image IOVA, 64-byte aligned; high=0 for this fixed arena"
+    },
+    {
+      "reg": "0x8c1a",
+      "name": "RB_A2D_DEST_BUFFER_PITCH",
+      "value": "0x2"
+    },
+    {
+      "reg": "0x8c20..0x8c22",
+      "name": "RB_A2D_DEST_FLAG_BUFFER_BASE/PITCH",
+      "value": [
+        "0",
+        "0",
+        "0"
+      ],
+      "fields": "no UBWC flags"
+    },
+    {
+      "reg": "0x8c34",
+      "name": "RB_A2D_DEST_BUFFER_ARRAY_PITCH",
+      "value": "0x0",
+      "fields": "A7xx init_hw_rp"
+    },
+    {
+      "reg": "0x8405",
+      "name": "GRAS_A2D_DEST_TL",
+      "value": "0x0"
+    },
+    {
+      "reg": "0x8406",
+      "name": "GRAS_A2D_DEST_BR",
+      "value": "0x001f001f",
+      "fields": "inclusive endpoints"
+    }
+  ],
+  "cache_and_control": {
+    "2d_trigger": {
+      "opcode": "CP_BLIT=0x2c",
+      "payload_words": 1,
+      "header": "0x702c0001",
+      "payload": "BLIT_OP_SCALE=3"
+    },
+    "event_opcode": "CP_EVENT_WRITE7=0x46, single-payload header70460001; write_enabled0 and no destination for cache-only events",
+    "pre_events": [
+      "CCU_CLEAN_COLOR=0x21",
+      "CCU_CLEAN_DEPTH=0x20",
+      "CCU_INVALIDATE_COLOR=0x19",
+      "CCU_INVALIDATE_DEPTH=0x18"
+    ],
+    "post_events": [
+      "CCU_CLEAN_COLOR=0x21",
+      "CACHE_CLEAN=0x31",
+      "CP_WAIT_FOR_IDLE opcode0x26 header70268000"
+    ],
+    "important": "CP_BLIT writes CCU, not automatically sysmem. A CP_MEM_WRITE canary alone does not replace CCU flush/completion.",
+    "A750_CCU_SYS_MEM": {
+      "num_ccu": 6,
+      "per_ccu_depth": 262144,
+      "per_ccu_color": 65536,
+      "depth_offset": "0x0",
+      "color_offset": "0x180000",
+      "RB_CCU_CACHE_CNTL_0x88e5": "0xc0000000",
+      "cache_sizes": "FULL=0"
+    },
+    "A750_VPC_SYS_MEM": {
+      "per_ccu_attr_size": "0x20000",
+      "attr_base": "0x1e0000",
+      "VPC_ATTR_BUF_GMEM_SIZE_0x9308": "0x20000",
+      "VPC_ATTR_BUF_GMEM_BASE_0x9309": "0x1e0000",
+      "PC_ATTR_BUF_GMEM_SIZE_0x9b09": "0x20000",
+      "total_end": "0x2a0000, inside target 3MiB GMEM",
+      "thread_rule": "Mesa emits BOTH before VPC/PC config and restores BR; do not copy A740 omission"
+    },
+    "A750_static_RB": {
+      "RB_DBG_ECO_CNTL": "1",
+      "RB_DBG_ECO_CNTL_blit": "1",
+      "RB_RBP_CNTL": "0",
+      "RB_CCU_CNTL_A7xx": "static resolve/unresolve fields are distinct from RB_CCU_CACHE_CNTL; source needs WFI before this change"
+    },
+    "format_limits": "linear/non-sRGB/no-MSAA/no-UBWC/no-depth/no-source texture; no compiled shader required"
+  },
+  "unclosed_runtime_qualifications": [
+    {
+      "id": "secure-mode",
+      "evidence": "Linux a6xx_gpu.c1492-1523, OnePlus gen7.c1130-1158 and sheng GpuPowerProbe.cpp572-654 authenticate OEM ZAP then CP_SET_SECURE_MODE(0). r131 did not do so and did not capture TRUST_CNTL. Successful CP_MEM_WRITE does not establish normal RB rendering mode.",
+      "next": "read-only TRUST/TSB state and supported queries; authenticated stock ZAP route if required; never guess-write TRUST_CNTL"
+    },
+    {
+      "id": "A750-context-baseline",
+      "evidence": "The offline candidate preserves the complete selected tu_init_hw/static/magic and BR/BV bin preambles, source-emitted using the pinned generated packers; all 573 DWORDs match. No hardware 2D execution evidence yet.",
+      "next": "Bind actual retained class 2 backing in the native adapter and execute after authenticated mode exit; preserve all existing power, ownership, fault and quiescence proofs."
+    },
+    {
+      "id": "unprivileged-target-lifetime",
+      "evidence": "class2 has page permissions but runtime allocation/retention and no overlap must be qualified in the real adapter.",
+      "next": "mGpuOnlyNext[2] real preflight and retained owned BO; verify guards and complete data, not only canary"
+    },
+    {
+      "id": "completion-and-coherency",
+      "evidence": "tu_clear_blit.cc5890 and fd6_blitter.cc1274 explicitly require CCU clean after CP_BLIT. CPU observation must follow GPU completion and existing NC/cache discipline.",
+      "next": "bounded ring drain, busy/RBBM idle, SMMU faults/IRQ snapshot, full 1024 pixels plus guards; stop/retain on failure"
+    }
+  ],
+  "reference_stack": {
+    "NativeAdreno_4e0314df": "transport/BO/SMMU/ring support, not a serialized A750 2D program",
+    "sheng_516a7804": "CP_MEM_WRITE then authenticated ZAP exit; CP_MEMCPY test is CP copy only",
+    "AdrenoMetal_454ff2ce": "NativeTurnipSmoke.h real vk fill, compute and 32x32 triangle with pixel readback; SPIR-V/shader source is reusable, A740 native IR3/pipeline binary must not be copied to A750",
+    "Ace5_local_ios16_sources": "sources.json labels hardware_verified false; no serialized known-image PM4 found"
+  },
+  "cold_context_candidate": {
+    "header": "native/gpu/uefi/GpuKnownImage2d.h",
+    "runtime_integrated": false,
+    "hardware_executed": false,
+    "qualification_script": "scripts/qualify-gpu-known-image-2d.py",
+    "source_branch": "A7XX/FD750 selected complete tu_init_hw plus BR/BV bin preambles; deliberate r2d CP_BLIT solid-color. Not default A750 Vulkan generic-clear byte equivalence.",
+    "configuration": {
+      "debug_stomps": false,
+      "autotune_preempt_latency_tracking": false,
+      "simultaneous_use": false,
+      "use_tex_coord_round_nearest_even_mode": false,
+      "kmd_preemption": "must remain disabled, explicitly required; no context-switch backing invented",
+      "gmem_bytes": 3145728,
+      "num_ccu": 6,
+      "sysmem_color_ccu_offset": "0x180000",
+      "sysmem_vpc_attr_offset": "0x1e0000",
+      "gmem_color_ccu_offset": "0x2ac000",
+      "gmem_vpc_attr_offset": "0x2b8000"
+    },
+    "bindings": [
+      {
+        "page": 0,
+        "iova": "0x62080000",
+        "role": "prefix guard A5"
+      },
+      {
+        "page": 1,
+        "iova": "0x62081000",
+        "role": "owned zero border-color BO; no texture fetch for solid clear"
+      },
+      {
+        "page": 2,
+        "iova": "0x62082000",
+        "role": "BR bin preamble"
+      },
+      {
+        "page": 3,
+        "iova": "0x62083000",
+        "role": "BV bin preamble"
+      },
+      {
+        "page": 4,
+        "iova": "0x62084000",
+        "role": "247-DWORD prefix and 2D IB"
+      },
+      {
+        "page": 5,
+        "iova": "0x62085000",
+        "role": "4096-byte image; CPU poison6D, never expected red"
+      },
+      {
+        "page": 6,
+        "iova": "0x62086000",
+        "role": "suffix guard5A"
+      }
+    ],
+    "streams": {
+      "br": {
+        "dwords": 164,
+        "sha256_le": "777904309b8c8222f480da0eee4ec1fb74e31167e0bb39c43d99eb833321f8c9"
+      },
+      "bv": {
+        "dwords": 158,
+        "sha256_le": "e129f2ca190a7111d57b25336ad3cef8fa62f5b30dadeaaa90b88e1a61be7778"
+      },
+      "body": {
+        "dwords": 34,
+        "sha256_le": "6435e269f0b0052d4f7d3a510bba034d8c4b1a9ff30dbb75649cd9736101020b"
+      },
+      "ib": {
+        "dwords": 4,
+        "sha256_le": "dc045684546c824923313bb5364fbbc902240b935937b33a0bbef3920ea0778c"
+      },
+      "prefix": {
+        "dwords": 213,
+        "sha256_le": "3ad6bf2d576107394ec3160ad9cadfe1be1e880d7e9c3f92650c85d135bb64a8"
+      }
+    },
+    "generated_inputs": [
+      {
+        "path": "common/freedreno_devices.h",
+        "sha256": "2074e3ac9878f2344eca2d4f202060c5c5d75bc11c383adaee33e52b9ea9d40d"
+      },
+      {
+        "path": "registers/adreno/adreno_pm4.xml.h",
+        "sha256": "8253409f517a2eb03edd5c889b9a654705e69c1d4b17b74d9b0b4edce5804e85"
+      },
+      {
+        "path": "registers/adreno/adreno_common.xml.h",
+        "sha256": "d141cd0b689a86ba266ee3801d37f224e6b742964864ac7782d9730c3e05db01"
+      },
+      {
+        "path": "registers/adreno/a6xx_enums.xml.h",
+        "sha256": "a2195a443d392c2f1967cfce5c5b9c3b57dc644b2855e8476a4f3c1c9fa0619c"
+      },
+      {
+        "path": "registers/adreno/a7xx_enums.xml.h",
+        "sha256": "502cb504c9f4c2670d6ab470fd5c9e90c97139d1793e9b8898b765e5d120a190"
+      },
+      {
+        "path": "registers/adreno/a6xx.xml.h",
+        "sha256": "e3b90b3e65060a022f4ad15462659d430c455c0a0bf1dc2a14dba5e69324d65d"
+      },
+      {
+        "path": "registers/adreno/a6xx-pack.xml.h",
+        "sha256": "557dfdd19f7f93a45befda9cabcbe1e2bd175814f7e4eee84e00e315b1b0f2a7"
+      },
+      {
+        "path": "registers/adreno/adreno-pm4-pack.xml.h",
+        "sha256": "208791a63788a1466e4065af9c72f0ef36cb8ea7f96addf13935c7e633fd608c"
+      }
+    ],
+    "expected_result": "All 1024 RGBA8 pixels red; full-image CRC32 e843b26a; every other byte of the 7 pages unchanged.",
+    "adapter_contract": "Prepare at the actual virgin class 2 cursor 0x80000; retain 0x62080000..0x62087000; publish every page to PoC. Require authenticated ZAP, completed CP_SET_SECURE_MODE(0), fresh ownership and KMD preemption disabled. Use the existing bounded full-idle/fault proof; invalidate to PoC then compare every page. Never access FS while the engine is live. Retain every partial or unknown failure through final stop/reset isolation."
+  }
+}

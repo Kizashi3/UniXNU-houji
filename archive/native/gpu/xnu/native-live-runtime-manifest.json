@@ -1,0 +1,89 @@
+{
+  "scope": "Exact same-owner retained live handoff plus new independent UFS DMA/read/write qualification;10-second runtime worker then real CM3 reset/halt/terminal log. No IOKit provider/Metal/desktop claim",
+  "hardware_tested": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/RootCommands.h": {
+      "before": "aaf750e39ec29830ccae4357645a9fe227af946d8b29f809bf31b3f9419ab5f2",
+      "after": "a039dcce41cdeaa8864f4c692eb56b2483ef1f7b6a0a96eede55b0c915a17e1c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/RootCommands.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "e8cbc3e8a03163a1a6785ae22f8583496bb6ecea0c575e64e6b3f2f13428a6da",
+      "after": "43b716bb2e2205132478f69b9d99e8f3457f752eda27a4c9e3efcc991fb14311",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.c": {
+      "before": "23d4085711e7608e4ddbaf1e463d24bcb1f52be808a90e406063e72cd0ec0095",
+      "after": "a874efbc9ad4218f5d3d8c5440ff9c1e5d3fdec374f5acecf3f01b19e36efcbb",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/houji_full_host_runtime.c"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc": {
+      "before": null,
+      "after": "bd88129f549922c18dc5266789011e9a5c03361881cec73df4c5c1d7c86c38fa",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/HoujiGpuNativeLive.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuHostRing.h": {
+      "before": "2d630f2ec6a2476395617f4dc4b3ed519dba3419aa2ec2a665849a226126156c",
+      "after": "b14667661ebaf5bdbd12054ccb253ff5aa10d24d253ba330825f9610e9bfa2f5",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/GpuHostRing.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "70631535827991a45c099fcef5161c757a51db386f4daf9fff50bcc991ab3ac5",
+      "after": "8b5613b53342aa09622562fea1fc3991bc3e145290c6e7c1ce86488f986772a2",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/HoujiUfsRead.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "0114d4d192a12ea0520d8551240faaeaa497af1c0d840651a12fd146a0743c5c",
+      "after": "4146e13524ed7291818367e92c0d3decd6d56472653f39e4799a1b4890157a53",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/HoujiGpuFullHostProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeCp.inc": {
+      "before": "99bd043c859859f66813212e5c1b8ff36e8a0f7eb08a4b0112ef8ea0743e29ae",
+      "after": "a5d6eba253ff079d1289601a4218498a3ae0f7d9fcc40aa8669c42f4aaccdf5c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/HoujiGpuNativeCp.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeClient.inc": {
+      "before": "d7dfc337bf0623bbd79a37a0a91d7e286d8b77a6d31778765dd54275abc02e21",
+      "after": "e96298e6fdd65bfb4fd7271e3ae99895f3298739deff9b46828cbdf44de23bbf",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/HoujiGpuNativeClient.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.h": {
+      "before": "c257d181e50727cc954affdc22cc7763a6e368ee396f7384abebc912755c8b5e",
+      "after": "57a09c6cf158831550d1833fc3220c3be29ac2b8c011433987d237400aafe4a7",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/houji_full_host_runtime.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuStockGmu.h": {
+      "before": "c96fae9333b6220ccb7a14386fcb05cce3b6511158d393376d4c11d4140077ad",
+      "after": "d5ec5bfe1ec7757e430c3cba808f509737b2743b23f9e0b613cd88ec481667d2",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-runtime/GpuStockGmu.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuDesktopPerfProfile.h": {
+      "before": null,
+      "after": "78a7c43566832ce70e82850bd171efff3c74de4f5deeb878a06836f50271ab5a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/desktop-perf500-runtime/GpuDesktopPerfProfile.h"
+    }
+  },
+  "offline_evidence": {
+    "lifecycle": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-live-host/test.log",
+      "sha256": "f90b968efb941ac80ccbe1d51a26c62f0dd5b18b2f7af900254470ec60985f1d"
+    },
+    "linked_review": {
+      "path": "/tmp/r165-vm-linked/review.json",
+      "sha256": "0125f915df08f263c35f0ba74b9d56db163eddcba3765b808fc8d55d552094f6"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r165-client-linked/review.json",
+      "sha256": "7282bbc38e0ca709d96b7de9e42f604febd64256cce819037a94b58daeea588f"
+    },
+    "linked_live": {
+      "path": "/tmp/r187-live-linked/review.json",
+      "sha256": "4f61621c96fcd8bf2975df3364d3409fa28281e41dfea012b9e43318f3d42704"
+    }
+  },
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r166-result.json",
+  "live_owner_qualified": true,
+  "UFS_coexistence_qualified": true,
+  "desktop_acceleration": false,
+  "touch_start_order": "Read-only preflight before GPU bootstrap; touch worker only after qualified same-owner GPU/UFS coexistence, or after GPU-disabled probes"
+}

@@ -1,0 +1,25 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = HoujiHighRAMProbe
+  FILE_GUID = 8BA6D01E-5D3D-4317-9752-06EEC5FDE1D0
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT = HoujiHighRAMProbeEntry
+[Sources]
+  HoujiHighRAMProbe.c
+[Packages]
+  MdePkg/MdePkg.dec
+  houjiPkg/houji.dec
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  CacheMaintenanceLib
+  MemoryAllocationLib
+  PcdLib
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+[FeaturePcd]
+  gHoujiPkgTokenSpaceGuid.PcdHoujiHighRAMProbeEnable
+  gHoujiPkgTokenSpaceGuid.PcdHoujiHighRAMEnable
+  gHoujiPkgTokenSpaceGuid.PcdHoujiRootRAMEnable

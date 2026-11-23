@@ -1,0 +1,11 @@
+{
+  "scope": "ishtar-inspired completed GPU surface copy plus bounded CPU view cache acquire; no DPU MMIO/route/pageflip or shader ABI changes",
+  "reference_commit": "02ae393e19247e42a6722e5b4970dc239f0c3ffd",
+  "no_GPU_reference_retirement_or_wait_in_copy_gate": true,
+  "no_overwrite_newer_swap_when_deferred": true,
+  "boot_flags": [
+    "houji_fb_gpu_sync=1",
+    "houji_fb_gpu_cache=1"
+  ],
+  "hardware_tested": false
+}

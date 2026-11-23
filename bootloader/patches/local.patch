@@ -1,0 +1,266 @@
+diff --git a/DarwinBootPkg/Driver/BootArgs.h b/DarwinBootPkg/Driver/BootArgs.h
+index aefcd90..0ffd995 100644
+--- a/DarwinBootPkg/Driver/BootArgs.h
++++ b/DarwinBootPkg/Driver/BootArgs.h
+@@ -4,7 +4,7 @@
+ 
+ #include <Base.h>
+ 
+-// Darwin 23 pexpert/pexpert/arm64/boot.h ABI; all fields are little-endian.
++// Darwin 22 pexpert/pexpert/arm64/boot.h ABI; all fields are little-endian.
+ typedef struct {
+   UINT16  Revision;
+   UINT16  Version;
+@@ -18,7 +18,7 @@ typedef struct {
+   UINT32  TreePadding;
+   UINT64  DeviceTree;
+   UINT32  DeviceTreeLength;
+-  CHAR8   CommandLine[1024];
++  CHAR8   CommandLine[608];
+   UINT32  FlagsPadding;
+   UINT64  BootFlags;
+   UINT64  MemorySizeActual;
+@@ -27,7 +27,7 @@ typedef struct {
+ STATIC_ASSERT (OFFSET_OF (DARWIN_BOOT_ARGS, DeviceTree) == 0x60, "DT ABI");
+ STATIC_ASSERT (OFFSET_OF (DARWIN_BOOT_ARGS, Video) == 0x28, "video ABI");
+ STATIC_ASSERT (OFFSET_OF (DARWIN_BOOT_ARGS, CommandLine) == 0x6c, "command line ABI");
+-STATIC_ASSERT (OFFSET_OF (DARWIN_BOOT_ARGS, MemorySizeActual) == 0x478, "memory ABI");
+-STATIC_ASSERT (sizeof (DARWIN_BOOT_ARGS) == 0x480, "boot_args ABI");
++STATIC_ASSERT (OFFSET_OF (DARWIN_BOOT_ARGS, MemorySizeActual) == 0x2d8, "memory ABI");
++STATIC_ASSERT (sizeof (DARWIN_BOOT_ARGS) == 0x2e0, "boot_args ABI");
+ 
+ #endif
+diff --git a/DarwinBootPkg/Driver/DarwinBoot.c b/DarwinBootPkg/Driver/DarwinBoot.c
+index 109479e..35de0f1 100644
+--- a/DarwinBootPkg/Driver/DarwinBoot.c
++++ b/DarwinBootPkg/Driver/DarwinBoot.c
+@@ -5,6 +5,7 @@
+ #include <Library/BaseMemoryLib.h>
+ #include <Library/DebugLib.h>
+ #include <Library/MemoryAllocationLib.h>
++#include <Library/CacheMaintenanceLib.h>
+ #include <Library/UefiBootServicesTableLib.h>
+ #include <Library/PrintLib.h>
+ #include <Library/UefiLib.h>
+@@ -16,9 +17,12 @@
+ #include "BootVideo.h"
+ #include "PackedRamdisk.h"
+ #include "WindowSize.h"
++#include "OwnedMemoryTest.h"
++#include "DarwinBootGpuHandoff.h"
++#include "DarwinBootZapHandoff.h"
+ 
+ #define WINDOW_SIZE  SIZE_256MB
+-#define BLOCK_SIZE   SIZE_2MB
++#define BLOCK_SIZE   SIZE_32MB
+ #define MAX_SEGMENTS 64
+ 
+ typedef struct {
+@@ -43,6 +47,34 @@ VOID EFIAPI DarwinEnter (UINT64 Args, UINT64 Entry, UINT64 Memory, UINT64 Size,
+ 
+ #define READ_SYSREG(Name)  ({ UINT64 Value_; __asm__ volatile ("mrs %0, " #Name : "=r" (Value_)); Value_; })
+ 
++#if defined (HOUJI_LOW_UEFI_ALLOCS)
++STATIC void FlushOwnedMemory (void *Base, unsigned long long Bytes) {
++  WriteBackInvalidateDataCacheRange (Base, (UINTN)Bytes);
++}
++
++STATIC EFI_STATUS VerifyHighWindow (EFI_PHYSICAL_ADDRESS Address, UINT64 Bytes) {
++  EFI_PHYSICAL_ADDRESS Ordinary = 0;
++  VOID *Pool = AllocatePool (SIZE_4KB);
++  EFI_STATUS Status = gBS->AllocatePages (AllocateAnyPages, EfiLoaderData, 4, &Ordinary);
++  BOOLEAN Low = Pool != NULL && !EFI_ERROR (Status) &&
++                (UINTN)Pool <= 0xFFFFFFFFULL - SIZE_4KB &&
++                Ordinary <= 0xFFFFFFFFULL - SIZE_16KB;
++  if (Pool != NULL) { FreePool (Pool); }
++  if (!EFI_ERROR (Status)) { gBS->FreePages (Ordinary, 4); }
++  if (!Low || (Bytes != SIZE_2GB && Bytes != SIZE_8GB) || Address < 0x8C0000000ULL ||
++      Address > 0xBEA400000ULL - Bytes) { return EFI_UNSUPPORTED; }
++  Print (L"HOUJI MEMORY: automatic page/pool allocations below 4 GiB PASS\n");
++  Print (L"HOUJI MEMORY: testing owned %lu GiB at %lx, two full patterns\n", Bytes >> 30, Address);
++  if (!DarwinTestOwnedMemory ((volatile unsigned long long *)(UINTN)Address,
++                             Bytes / sizeof (UINT64), FlushOwnedMemory)) {
++    Print (L"HOUJI MEMORY: full-window verification FAILED\n");
++    return EFI_DEVICE_ERROR;
++  }
++  Print (L"HOUJI MEMORY: full %lu GiB write/flush/read PASS\n", Bytes >> 30);
++  return EFI_SUCCESS;
++}
++#endif
++
+ STATIC UINT32 U32 (CONST VOID *P) { return ReadUnaligned32 ((CONST UINT32 *)P); }
+ STATIC UINT64 U64 (CONST VOID *P) { return ReadUnaligned64 ((CONST UINT64 *)P); }
+ 
+@@ -174,7 +206,8 @@ ParseKernel (CONST UINT8 *Data, UINTN Size, KERNEL *Kernel)
+           (Kernel->Segments[Other].Address < Segment->Address + Segment->Size)) { return EFI_LOAD_ERROR; }
+     }
+   }
+-  if (!Executable || (Kernel->Entry & 3) || (Kernel->Base & EFI_PAGE_MASK) ||
++  Kernel->Base &= ~((UINT64)SIZE_32MB - 1);
++  if (!Executable || (Kernel->Entry & 3) || (Kernel->Base & (SIZE_16KB - 1)) ||
+       (Kernel->Base > MAX_UINT64 - WINDOW_SIZE) ||
+       (Kernel->End - Kernel->Base > WINDOW_SIZE - SIZE_2MB)) { return EFI_LOAD_ERROR; }
+   return EFI_SUCCESS;
+@@ -182,7 +215,7 @@ ParseKernel (CONST UINT8 *Data, UINTN Size, KERNEL *Kernel)
+ 
+ STATIC
+ BOOLEAN
+-AdtNode (CONST UINT8 *Data, UINTN Size, UINTN *Offset, UINTN Depth, UINTN ParentPath, UINTN *RamdiskOffset, UINTN *TrustCacheOffset, UINT64 *WindowSize, BOOLEAN *KeepPacked)
++AdtNode (CONST UINT8 *Data, UINTN Size, UINTN *Offset, UINTN Depth, UINTN ParentPath, UINTN *RamdiskOffset, UINTN *TrustCacheOffset, UINT64 *WindowSize, BOOLEAN *KeepPacked, UINTN *DramBaseOffset, UINTN *DramSizeOffset)
+ {
+   UINT32 Properties;
+   UINT32 Children;
+@@ -192,6 +225,8 @@ AdtNode (CONST UINT8 *Data, UINTN Size, UINTN *Offset, UINTN Depth, UINTN Parent
+   UINTN  Candidate;
+   UINTN  TrustCandidate;
+   UINTN  MemoryCandidate;
++  UINTN  DramBaseCandidate;
++  UINTN  DramSizeCandidate;
+   CONST UINT8 *Name;
+   UINTN  NameLength;
+ 
+@@ -200,6 +235,8 @@ AdtNode (CONST UINT8 *Data, UINTN Size, UINTN *Offset, UINTN Depth, UINTN Parent
+   Candidate = MAX_UINTN;
+   TrustCandidate = MAX_UINTN;
+   MemoryCandidate = MAX_UINTN;
++  DramBaseCandidate = MAX_UINTN;
++  DramSizeCandidate = MAX_UINTN;
+   if ((Depth > 64) || (Size - *Offset < 8)) { return FALSE; }
+   Properties = U32 (Data + *Offset);
+   Children = U32 (Data + *Offset + 4);
+@@ -233,6 +270,14 @@ AdtNode (CONST UINT8 *Data, UINTN Size, UINTN *Offset, UINTN Depth, UINTN Parent
+       if ((MemoryCandidate != MAX_UINTN) || (Length != 8)) { return FALSE; }
+       MemoryCandidate = *Offset;
+     }
++    if (AsciiStrCmp ((CONST CHAR8 *)(Data + *Offset - 36), "dram-base") == 0) {
++      if ((DramBaseCandidate != MAX_UINTN) || (Length != 8)) { return FALSE; }
++      DramBaseCandidate = *Offset;
++    }
++    if (AsciiStrCmp ((CONST CHAR8 *)(Data + *Offset - 36), "dram-size") == 0) {
++      if ((DramSizeCandidate != MAX_UINTN) || (Length != 8)) { return FALSE; }
++      DramSizeCandidate = *Offset;
++    }
+     *Offset += Length;
+     if (ALIGN_VALUE (*Offset, 4) > Size) { return FALSE; }
+     *Offset = ALIGN_VALUE (*Offset, 4);
+@@ -249,6 +294,14 @@ AdtNode (CONST UINT8 *Data, UINTN Size, UINTN *Offset, UINTN Depth, UINTN Parent
+     if (*TrustCacheOffset != MAX_UINTN) { return FALSE; }
+     *TrustCacheOffset = TrustCandidate;
+   }
++  if (DramBaseCandidate != MAX_UINTN) {
++    if ((Path != 1) || (*DramBaseOffset != MAX_UINTN) || (U64 (Data + DramBaseCandidate) != 0)) { return FALSE; }
++    *DramBaseOffset = DramBaseCandidate;
++  }
++  if (DramSizeCandidate != MAX_UINTN) {
++    if ((Path != 1) || (*DramSizeOffset != MAX_UINTN) || (U64 (Data + DramSizeCandidate) != 0)) { return FALSE; }
++    *DramSizeOffset = DramSizeCandidate;
++  }
+   if (MemoryCandidate != MAX_UINTN) {
+     if ((Path != 1) || (*WindowSize != 0)) { return FALSE; }
+     *WindowSize = U64 (Data + MemoryCandidate);
+@@ -256,7 +309,7 @@ AdtNode (CONST UINT8 *Data, UINTN Size, UINTN *Offset, UINTN Depth, UINTN Parent
+   }
+   if (Children > (Size - *Offset) / 8) { return FALSE; }
+   for (Index = 0; Index < Children; Index++) {
+-    if (!AdtNode (Data, Size, Offset, Depth + 1, Path, RamdiskOffset, TrustCacheOffset, WindowSize, KeepPacked)) { return FALSE; }
++    if (!AdtNode (Data, Size, Offset, Depth + 1, Path, RamdiskOffset, TrustCacheOffset, WindowSize, KeepPacked, DramBaseOffset, DramSizeOffset)) { return FALSE; }
+   }
+   return TRUE;
+ }
+@@ -475,6 +528,8 @@ Boot (
+   BOOLEAN                         RamdiskPacked;
+   BOOLEAN                         KeepPacked;
+   UINTN                           TrustCacheOffset;
++  UINTN                           DramBaseOffset;
++  UINTN                           DramSizeOffset;
+   UINT64                          TrustCacheAddress;
+   DARWIN_BOOT_ARGS                *Args;
+   EFI_MEMORY_DESCRIPTOR           *Map;
+@@ -484,7 +539,7 @@ Boot (
+   UINTN                           Stride;
+   UINT32                          Version;
+   UINTN                           Attempt;
+-  CHAR8                           CommandLine[1024];
++  CHAR8                           CommandLine[608];
+   UINT64                          Video[6];
+ 
+   (VOID)This;
+@@ -530,9 +585,13 @@ Boot (
+   Offset = 0;
+   RamdiskOffset = MAX_UINTN;
+   TrustCacheOffset = MAX_UINTN;
++  DramBaseOffset = MAX_UINTN;
++  DramSizeOffset = MAX_UINTN;
+   WindowSize = 0;
+   KeepPacked = FALSE;
+-  if (!AdtNode (Tree, TreeSize, &Offset, 0, 3, &RamdiskOffset, &TrustCacheOffset, &WindowSize, &KeepPacked) || (Offset != TreeSize)) { Status = EFI_COMPROMISED_DATA; goto Fail; }
++  if (!AdtNode (Tree, TreeSize, &Offset, 0, 3, &RamdiskOffset, &TrustCacheOffset, &WindowSize, &KeepPacked, &DramBaseOffset, &DramSizeOffset) || (Offset != TreeSize) || (DramBaseOffset == MAX_UINTN) || (DramSizeOffset == MAX_UINTN)) { Status = EFI_COMPROMISED_DATA; goto Fail; }
++  Status = DarwinGpuBindPowerHandoff (Tree, TreeSize);
++  if (EFI_ERROR (Status)) { goto Fail; }
+   if (KeepPacked && (!RamdiskPacked || (RamdiskOffset == MAX_UINTN))) { Status = EFI_COMPROMISED_DATA; goto Fail; }
+   if (WindowSize == 0) { WindowSize = WINDOW_SIZE; }
+   if (Kernel.Base > MAX_UINT64 - WindowSize) { Status = EFI_LOAD_ERROR; goto Fail; }
+@@ -561,10 +620,17 @@ Boot (
+   if (EFI_ERROR (Status)) { goto Fail; }
+   Status = AllocateWindow (&Kernel, WindowSize, &Address);
+   if (EFI_ERROR (Status)) { goto Fail; }
++#if defined (HOUJI_LOW_UEFI_ALLOCS)
++  Status = VerifyHighWindow (Address, WindowSize);
++  if (EFI_ERROR (Status)) { goto Fail; }
++#endif
++  Status = DarwinPrepareZapHandoff (Tree, TreeSize, Address, WindowSize);
++  Print (L"HOUJI ZAP HANDOFF: ready=%u code=%u metadata=%lx raw=%lx retained=%u status=%r\n", mHzrLoader.ready, mHzrLoader.code, mHzrLoader.metadata, mHzrLoader.raw, mHzrLoader.raw_retained, Status);
++  if (EFI_ERROR (Status)) { goto Fail; }
+   ArgsAddress = ALIGN_VALUE (Address + Kernel.End - Kernel.Base, SIZE_16KB);
+-  TreeAddress = ArgsAddress + EFI_PAGE_SIZE;
+-  RamdiskAddress = ALIGN_VALUE (TreeAddress + TreeSize, EFI_PAGE_SIZE);
+-  RamdiskBytes = ALIGN_VALUE (KeepPacked ? Request->RamdiskSize : RamdiskExpandedSize, EFI_PAGE_SIZE);
++  TreeAddress = ArgsAddress + SIZE_16KB;
++  RamdiskAddress = ALIGN_VALUE (TreeAddress + TreeSize, SIZE_16KB);
++  RamdiskBytes = ALIGN_VALUE (KeepPacked ? Request->RamdiskSize : RamdiskExpandedSize, SIZE_16KB);
+   TrustCacheAddress = RamdiskAddress + RamdiskBytes;
+   Used = ALIGN_VALUE (TrustCacheAddress + TrustCacheSize, SIZE_16KB) - Address;
+   if (Used > WindowSize - BLOCK_SIZE) { Status = EFI_BAD_BUFFER_SIZE; goto Fail; }
+@@ -586,6 +652,9 @@ Boot (
+   Args->DeviceTreeLength = (UINT32)TreeSize;
+   CopyMem (Args->CommandLine, CommandLine, sizeof (CommandLine));
+   CopyMem ((VOID *)(UINTN)TreeAddress, Tree, TreeSize);
++  // Keep the ADT and boot_args consistent with the owned contiguous window.
++  WriteUnaligned64 ((UINT64 *)(UINTN)(TreeAddress + DramBaseOffset), Args->PhysicalBase);
++  WriteUnaligned64 ((UINT64 *)(UINTN)(TreeAddress + DramSizeOffset), Args->MemorySize);
+   if (Request->Ramdisk != NULL) {
+     if (KeepPacked) { CopyMem ((VOID *)(UINTN)RamdiskAddress, Request->Ramdisk, Request->RamdiskSize); }
+     else { CopyRamdisk ((VOID *)(UINTN)RamdiskAddress, Request->Ramdisk, Request->RamdiskSize, RamdiskPacked); }
+diff --git a/DarwinBootPkg/Driver/DarwinBoot.inf b/DarwinBootPkg/Driver/DarwinBoot.inf
+index 3a90c96..76e95c0 100644
+--- a/DarwinBootPkg/Driver/DarwinBoot.inf
++++ b/DarwinBootPkg/Driver/DarwinBoot.inf
+@@ -12,6 +12,18 @@
+   PackedRamdisk.h
+   BootArgs.h
+   BootVideo.h
++  OwnedMemoryTest.h
++  DarwinBootZapHandoff.h
++  HoujiZapHandoff.h
++  HoujiZapTrial.h
++  DarwinBootGpuHandoff.h
++  GpuPowerHandoffAdt.h
++  GpuPowerHandoffGuid.h
++  GpuPowerOnlyHandoff.h
++  GpuPowerReport.h
++  GpuPowerPolicy.h
++  GpuBusProbe.h
++  GpuClockWitness.h
+   DiagFont.h
+   Entry.S
+ 
+@@ -22,7 +34,9 @@
+ [LibraryClasses]
+   BaseLib
+   BaseMemoryLib
++  CacheMaintenanceLib
+   DebugLib
++  DxeServicesTableLib
+   MemoryAllocationLib
+   PrintLib
+   UefiBootServicesTableLib

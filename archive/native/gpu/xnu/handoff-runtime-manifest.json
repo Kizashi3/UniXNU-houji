@@ -1,0 +1,43 @@
+{
+  "scope": "XNU independently observed cold GPU power handoff; strict RO MMIO whitelist only, no DMA/context/CM3 writes",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GpuPowerOnlyHandoff.h": {
+      "before": null,
+      "after": "0f6e85b80f048fb0a119d0415a4f2294a7b0304a6616aa4f02dc61fed0942dec"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuBusProbe.h": {
+      "before": null,
+      "after": "e10575d8d40dbad94017022442186f3b36fa01a3b37bf77a13221e43db8eb1db"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuClockWitness.h": {
+      "before": null,
+      "after": "2d53d7273cad9fafe351436656e5edae26b13f364e0a73ddcea8150cc0f520e0"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuPowerPolicy.h": {
+      "before": null,
+      "after": "b4f0484c6e06803a72ccecb117de55eb0a0b7eb459f9f7619d6dc9b4247a71f6"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuPowerReport.h": {
+      "before": null,
+      "after": "772369beb38d140d776132b370e40d579f9495711702597591691434fea63c03"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuHandoffProbe.inc": {
+      "before": null,
+      "after": "8b6ebe7847b5f7e6991d3c797f26e6f27e26a2ab3cc59106f158ce197bed3ee2"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "e5a12fc93fe35f9d262a91773f76b355f4eb8e6b7a22922164177f978e140b09",
+      "after": "8ba3f2c413ed43b67219ec53fdb66b668a9570a8656d36b22314938a82f6ed91"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "ea3cb22f5cc91b87858daaa3be83af97dbf1d6384dbe3e3e7a81345094a87003",
+      "after": "ee22e8867d3ebe84ef22b36522d3f8fed81b18d472a3aec65484c0b510e7df08"
+    }
+  },
+  "hardware_tested": true,
+  "hardware_evidence": {
+    "run": "r140",
+    "result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r140-result.json",
+    "scope": "scalar transfer and 131 independent XNU read-only samples/recheck only; no CM3 release, GPU execution or DMA"
+  }
+}

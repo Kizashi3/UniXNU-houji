@@ -1,0 +1,18 @@
+{
+  "base": "454ff2ce83766ce7b3e0f355e83f1d72907708b3",
+  "reference": "ce5e19e33e05e1873d38d818e23cabfe0ac708c3",
+  "backports": [
+    "non-nil refusing encoder",
+    "first non-creation-problem hook",
+    "explicit cache export only"
+  ],
+  "board_changes": [
+    "explicitly selected backboardd uses render-server device path",
+    "disable deep/compressed framebuffer using preferences",
+    "keep current qualified CPU scanout",
+    "global shader priming only with explicit library list"
+  ],
+  "iOS16_ABI_and_no_iPad17_memory_offsets": true,
+  "hardware_tested": false,
+  "patch_sha256": "a429fbbd6e2743c64f183c1e4291f52bc68e69e4d60689e371e0e9c9108ef809"
+}

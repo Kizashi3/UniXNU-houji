@@ -1,0 +1,63 @@
+{
+  "status": "source-bound data only; not loaded or authenticated",
+  "generator": "scripts/make-gpu-zap-assets.py",
+  "source": "${HOUJI_ARTIFACTS}/native-research/houji-gpu-firmware-20261025/gen70900_zap.mbn",
+  "source_bytes": 12088,
+  "source_sha256": "ab6035deaf3df20b52f1fc0b27b10f2ad392398e2eb802b68746d5511981931e",
+  "metadata": {
+    "bytes": 4044,
+    "sha256": "29096ea050fd2b44032fc5fe7bea148a1427e1443694d34e318160ad839cdb1a",
+    "crc32_ieee": "c73aee66",
+    "layout": "ELF header/program-header bytes [0,148) + hash bytes [8192,12088)"
+  },
+  "segment": {
+    "bytes": 1072,
+    "sha256": "bb8e56248f7ae112e8df6a1a365afe616ab24f9faf330b4b94115b3d7efa998f",
+    "crc32_ieee": "ef6cc69b",
+    "file_offset": 4096,
+    "relocated_destination": 2601099264,
+    "bss_bytes": 0
+  },
+  "reservation": {
+    "base": 2601099264,
+    "bytes": 8192,
+    "load_span": 4096,
+    "pas_id": 13,
+    "relocatable": true
+  },
+  "program_headers": [
+    {
+      "type": 0,
+      "offset": 0,
+      "vaddr": 0,
+      "paddr": 0,
+      "filesz": 148,
+      "memsz": 0,
+      "flags": 117440512,
+      "align": 0
+    },
+    {
+      "type": 1,
+      "offset": 4096,
+      "vaddr": 4096,
+      "paddr": 4096,
+      "filesz": 1072,
+      "memsz": 1072,
+      "flags": 134217735,
+      "align": 1048576
+    },
+    {
+      "type": 0,
+      "offset": 8192,
+      "vaddr": 0,
+      "paddr": 0,
+      "filesz": 3896,
+      "memsz": 3896,
+      "flags": 33554432,
+      "align": 4096
+    }
+  ],
+  "header_sha256": "bdbaa5abd8d95a899f05aeecc48c597f1e39f21c1ed01107a5c62a77462aeb05",
+  "source_plan": "native/gpu/zap-load-source-plan.json",
+  "runtime_writes_or_calls": false
+}

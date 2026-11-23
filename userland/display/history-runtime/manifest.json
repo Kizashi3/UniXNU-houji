@@ -1,0 +1,17 @@
+{
+  "files": {
+    "iokit/Kernel/arm/SweetFramebuffer.cpp": {
+      "before_sha256": "9a7d92372da1358492f0cff6023e60a46352120d64f5de0361ca6df592ed8afa",
+      "after_sha256": "346f94a9c43d9f29aa6b9689b6e7f6a07743e53e9b72386f7d5cee95235f99ac"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before_sha256": "4345e1aba47dc568ec27edfb7e20df2d58baf8d5630d1f029000bf48c8998935",
+      "after_sha256": "40ae2927e4589f17fe5922961d1fad8794b939beb3d4b020074548c778c6f498"
+    }
+  },
+  "capacity_windows": 40,
+  "window_seconds": 5,
+  "fields": "uptime, duration, swaps, presents, average/max CPU copy, missed timer ticks",
+  "scope": "Cached CPU snapshots, printed once at existing terminal diagnostics; no new device reads or render work",
+  "hardware_qualified": false
+}

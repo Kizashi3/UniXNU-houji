@@ -1,0 +1,24 @@
+{
+  "files": {
+    "factory-dvfs.patch": "d709ce2a90b554f2a65d100a7c736743ec31f12e3ce05aa0f72316f0c6c3d35f",
+    "HoujiGpuGovernorPolicy.h": "db32f3af080c117f941b5fcec8abcc50861afb3c4e28c4798994873123a3f786",
+    "houji_full_host_runtime.c": "28378fb074b537378d9040a3834a7bd71745600a98de12425b494fe8be1f2e80",
+    "HoujiGpuDvfs.inc": "83b5cbae64ec97488adf57258f1f2258ef060c60a02aa20f4e6de9ac29ce2a93",
+    "HoujiGpuFullHostProbe.inc": "0ec0a827d18dd4ea220765abc9356ecec1201dd1108a9f049ad4ee7c6a56bade",
+    "HoujiGpuFactoryOpp.h": "2b3810e40eff620417b31c9d97c415b68dce559c252fb1c5c8b7a4f8b17c2de8",
+    "README.md": "bd74f131413e8bf269c6187ff1433560233a9e42106fa6727339925bf951e7ea",
+    "GpuDesktopPerfProfile.h": "2a650673f94cff7cc3bc42ffa7b449fcbb52ff7c973d7e88b89a84e860bc6c3a",
+    "factory-opps.json": "9890cb6c1551fe13b6b44433327207e1680364fd23bc6a06f29b6cebae9447ce",
+    "before/houji_full_host_runtime.c": "a5e78f5644bcb7c915297876b0cfe0f8ebaf26f879bcbd002e246afaa1d6983e",
+    "before/HoujiGpuDvfs.inc": "c9807669a3fbd37db8fea8422ce34bdf8593a06f98f7a3731a792769aa9979d5",
+    "before/HoujiGpuFullHostProbe.inc": "4c2aad5b1be03c6ab49768e80cee041fd54e73b5920055f9c2ec321ed0004df0",
+    "before/GpuDesktopPerfProfile.h": "78a7c43566832ce70e82850bd171efff3c74de4f5deeb878a06836f50271ab5a"
+  },
+  "factory_levels": 12,
+  "factory_max_request_MHz": 903,
+  "boot_request_MHz": 500,
+  "CPU_policy_changed": false,
+  "thermal_feedback_qualified": false,
+  "hardware_qualified": false,
+  "diagnostic_cap_MHz": 500
+}

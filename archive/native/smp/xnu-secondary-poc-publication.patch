@@ -1,0 +1,56 @@
+--- a/iokit/Kernel/arm/SweetCPU.cpp
++++ b/iokit/Kernel/arm/SweetCPU.cpp
+@@ -21,8 +21,9 @@
+ extern "C" void houji_secondary_entry(void);
+ // sched_prim.h only exports this internal primitive to osfmk.
+ extern "C" processor_t thread_bind(processor_t processor);
+ extern "C" uint64_t houji_cpu_context_pa(unsigned int logical_cpu);
++extern "C" uint32_t houji_publish_secondary_state(uint64_t *tcr, uint64_t *root);
+ extern "C" char LowResetVectorBase[], const_boot_args[];
+ extern "C" uint64_t houji_smp_timer_irqs[8];
+ extern "C" uint64_t houji_smp_ipi_irqs[8];
+ uint64_t houji_smp_timer_irqs[8];
+@@ -265,8 +266,14 @@
+   // The new core starts with caches off. Publish code/boot arguments to PoC;
+   // XNU cpu_start() already flushes the per-CPU context and entry array.
+   flush_dcache((vm_offset_t)LowResetVectorBase, 0x10000, FALSE);
+   flush_dcache((vm_offset_t)const_boot_args, 0x1000, FALSE);
++  // common_start reads these real osfmk entities with caches still disabled.
++  // The typed helper snapshots them, then publishes their exact sizeof to PoC.
++  uint64_t publishedTcr = 0, publishedRoot = 0;
++  const uint32_t publishedBytes = houji_publish_secondary_state(&publishedTcr, &publishedRoot);
++  IOLog("HOUJI SMP: secondary PoC published TCR=%llx root=%llx bytes=%u; CPU0 snapshots, not secondary execution proof\n",
++      publishedTcr, publishedRoot, publishedBytes);
+   IOLog("HOUJI SMP: PSCI CPU_ON affinity=%x entry=%llx context=%llx\n",
+       physicalID, (uint64_t)entry, context);
+   register uint64_t x0 __asm__("x0") = 0xc4000003ULL;
+   register uint64_t x1 __asm__("x1") = physicalID;
+--- a/osfmk/arm64/cpu.c
++++ b/osfmk/arm64/cpu.c
+@@ -888,8 +888,26 @@
+ }
+ #endif
+ 
+ #if defined(SWEET)
++/*
++ * PSCI CPU_ON starts a secondary with caches off. Its reset assembly reads
++ * these CPU0-populated objects before enabling the MMU. DSB orders stores but
++ * does not publish dirty cache lines to PoC. Keep their real types in osfmk.
++ * Snapshot first; this helper neither writes control registers nor prints.
++ */
++uint32_t
++houji_publish_secondary_state(uint64_t *tcr, uint64_t *root)
++{
++    const uint64_t published_tcr = sysreg_restore.tcr_el1;
++    const uint64_t published_root = cpu_ttep;
++    flush_dcache((vm_offset_t)&sysreg_restore, sizeof(sysreg_restore), FALSE);
++    flush_dcache((vm_offset_t)&cpu_ttep, sizeof(cpu_ttep), FALSE);
++    if (tcr) { *tcr = published_tcr; }
++    if (root) { *root = published_root; }
++    return (uint32_t)(sizeof(sysreg_restore) + sizeof(cpu_ttep));
++}
++
+ /* Private cpu_data layout stays inside osfmk; IOCPU only needs its physical address. */
+ uint64_t
+ houji_cpu_context_pa(unsigned int logical_cpu)
+ {

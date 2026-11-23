@@ -1,0 +1,26 @@
+{
+  "scope": "Coarse capacity-class-aware scheduler: E=[0,1], P=[2,3,4,5,6,7]; generic GIC and original DVFS domains retained",
+  "files": {
+    "pexpert/pexpert/arm64/SWEET.h": {
+      "before": "248c4180d0ba6ef834c00f660269e9f2ea6bdb27f69e4e20f73cf947aaf1c8a2",
+      "after": "ba29cf52815a78a8f869c939c479774c3f287126bec959831bf46a1d7ef660ed"
+    },
+    "pexpert/pexpert/arm64/board_config.h": {
+      "before": "18743c1a6536505295d209d7d22ada6a276e3d25ae10bed1c33a2ee6abfab0ba",
+      "after": "012a17e466eb8d0f347bb9f102440bc343cf68c06cdf4ba7844b3aaa4f3920a4"
+    },
+    "iokit/Kernel/arm/SweetCPU.cpp": {
+      "before": "bf2c8e221a8bf83964b7a793eaea5f15c9ee1bdda4385c26b73c2b6d6409a28d",
+      "after": "f74ef5dd05c94bcb5dd83e9fc8d0e2679f59e8163ef096781a1e2275a40296ef"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "36b2bf3ff641a50941db3775a433f9ed709a8a100a423fd46ffb917341374f80",
+      "after": "28d20b7909db44edb3626cb35fc521b3e0c4a20893e5ee425d150f41a5973d9f"
+    }
+  },
+  "hardware_qualified": false,
+  "voltage_clock_table_changes": false,
+  "HAS_CLUSTER": 0,
+  "MAX_CPU_CLUSTERS": 2,
+  "APPLE_ARM64_ARCH_FAMILY_enabled": false
+}

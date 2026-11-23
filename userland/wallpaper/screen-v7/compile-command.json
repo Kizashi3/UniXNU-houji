@@ -1,0 +1,19 @@
+[
+  "xcrun",
+  "clang",
+  "-target",
+  "arm64-apple-ios16.0",
+  "-isysroot",
+  "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk",
+  "-O2",
+  "-fobjc-arc",
+  "-I",
+  "${HOUJI_PORT_ROOT}/out/wallpaper-gestalt-v7",
+  "${HOUJI_PORT_ROOT}/out/wallpaper-gestalt-v7/WallpaperBootstrap.m",
+  "-framework",
+  "Foundation",
+  "-framework",
+  "UIKit",
+  "-o",
+  "${HOUJI_PORT_ROOT}/out/wallpaper-gestalt-v7/WallpaperBootstrap"
+]

@@ -1,0 +1,26 @@
+{
+  "scope": "r145 source-bound initial disabled-context SCTLR mask0x41 before first known-image write; prepared exact0 and running27 unchanged; no original context replay",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GmuExternalCanary.h": {
+      "before": "ba03ad233a4acacb26fe68659ba34753c6ae73a0f40c45206551aa30254f9295",
+      "after": "c886d564ac1c924900fe9e6a0c05664da48daded51e689ff7fc80b52ad653fce",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/GmuExternalCanary.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-disabled-context-runtime/before-GmuExternalCanary.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuExternalCanaryProbe.inc": {
+      "before": "fd000fc2be36803e89aa228d588745321894a379b3f006e6252674102672d4d3",
+      "after": "8efb05e2a025ade6eda3d78073c221965f687286314db72aa864ad75587298a5",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuExternalCanaryProbe.inc",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-disabled-context-runtime/before-HoujiGpuExternalCanaryProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "d8eb85021cfad39d4c50b1de5d44ca3c895db38bb9644f5e6e69035783616269",
+      "after": "0686cf466155cd3cd8bdb1ccd88a29790796d76e14a7b84e06d3d8029837867a",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r145-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-disabled-context-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": false,
+  "native_host_cases": 5023,
+  "core_host_cases": 3457
+}

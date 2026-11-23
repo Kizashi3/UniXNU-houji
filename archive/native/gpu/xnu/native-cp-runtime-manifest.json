@@ -1,0 +1,61 @@
+{
+  "scope": "Native CP_INIT + two CP_MEM_WRITE, fixed original r131 profile; fresh CM3/GX/GBIF stop permits terminal checkpoint; no PAS/ZAP/2D/Metal",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.c": {
+      "before": "2efbb8786cbff03641cff175e2137822809a40fb899dd68c02da2972a3fdebce",
+      "after": "0f4e70807c0df0243549847141b01fc120d821bde2405fd95f13925fe65f1cb9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-cp-runtime/houji_full_host_runtime.c"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_native_full_host_graph.c": {
+      "before": "67e2686fbe66d52eedf8a45ab811e11f1ffc7b6db46882c14d465c8a688b36dd",
+      "after": "67e2686fbe66d52eedf8a45ab811e11f1ffc7b6db46882c14d465c8a688b36dd",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-cp-runtime/houji_native_full_host_graph.c"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuHostRing.h": {
+      "before": null,
+      "after": "2d630f2ec6a2476395617f4dc4b3ed519dba3419aa2ec2a665849a226126156c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-cp-runtime/GpuHostRing.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "581dbf130e70f513382df4e4a2b01d3efc9ab7eefa4d9bd32497b24e1c987ee9",
+      "after": "88a556d33e45104b22104f945d333104806b376fed1c1585ebca381d352ab6ba",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-cp-runtime/HoujiGpuFullHostProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeCp.inc": {
+      "before": null,
+      "after": "6e6d33a0dd0ff6247f74048f7df2fc19cd2b96da9f72929e07ba9e33224a706d",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-cp-runtime/HoujiGpuNativeCp.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.h": {
+      "before": "585639a4f9d820c5c5b76faf7297ff4767a1f4e9c8454dccf7e192396fb9405f",
+      "after": "e45b4b4b2a5915cd10f390cc9f52da6aa362ba69a110ecf15a9e967b740e4b2b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-cp-runtime/houji_full_host_runtime.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_native_full_host_graph.h": {
+      "before": "b937ce4f02fb4a0d7d6d491e33aae32ab3ad81323e48488523cd8946ac6c1dc8",
+      "after": "b937ce4f02fb4a0d7d6d491e33aae32ab3ad81323e48488523cd8946ac6c1dc8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-cp-runtime/houji_native_full_host_graph.h"
+    }
+  },
+  "offline_evidence": {
+    "critical_boundary": {
+      "path": "/tmp/houji-native-cp-check/verification.json",
+      "sha256": "dc33851873cee20c09f2f5d83186923d76e1c9742078d109bee595b9a4ff491f"
+    },
+    "critical_output": {
+      "path": "/tmp/houji-native-cp-check/test.log",
+      "sha256": "ba995b34a2175fe901d66e6ca385eec838e77e740f5a725271d9b8057635a4ae"
+    },
+    "final_boundary_output": {
+      "path": "/tmp/houji-native-cp-check/final-test.log",
+      "sha256": "9b8ca06b24a966f3d0180338a2ed8a7245494c5017ca5a2f2554110d101e49e4"
+    },
+    "test_source": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-cp-host/run.py",
+      "sha256": "0dd2f40b0a04213e918140e9fee2cfd38cc479d16a4ef62c8096400d81ce3e10"
+    }
+  },
+  "hardware_evidence": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r155-result.json",
+  "hardware_status": "PASS_NATIVE_CP_INIT_AND_TWO_GPU_WRITEBACKS"
+}

@@ -1,0 +1,99 @@
+{
+  "scope": "fixed signed PAS13+MODE0+first25DWcontext+CP_BLIT+twoGPUwritebacks; retained reserved CPU16K NormalNC import; no shaders/Metal",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GpuKnownImage2d.h": {
+      "before": null,
+      "after": "7947d1d6008d4ea6a5ca312b9f9c7585c11136df8c25d59273dc644abde80fc9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/GpuKnownImage2d.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": null,
+      "after": "e94d3cd308db200146095c84df8ef8f053413e532372a542b348c86f06b65730",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.c": {
+      "before": "0f4e70807c0df0243549847141b01fc120d821bde2405fd95f13925fe65f1cb9",
+      "after": "0f4e70807c0df0243549847141b01fc120d821bde2405fd95f13925fe65f1cb9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/houji_full_host_runtime.c"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_native_full_host_graph.c": {
+      "before": "67e2686fbe66d52eedf8a45ab811e11f1ffc7b6db46882c14d465c8a688b36dd",
+      "after": "67e2686fbe66d52eedf8a45ab811e11f1ffc7b6db46882c14d465c8a688b36dd",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/houji_native_full_host_graph.c"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuFirstContext.h": {
+      "before": null,
+      "after": "62886b2883a13de6f68b007ed60227deda6b6e8897cd5f80c16e7fd6bd72ef6c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/GpuFirstContext.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuHostRing.h": {
+      "before": "2d630f2ec6a2476395617f4dc4b3ed519dba3419aa2ec2a665849a226126156c",
+      "after": "2d630f2ec6a2476395617f4dc4b3ed519dba3419aa2ec2a665849a226126156c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/GpuHostRing.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "88a556d33e45104b22104f945d333104806b376fed1c1585ebca381d352ab6ba",
+      "after": "ee7707f8672b1c30c85957ca199611952b25e35627a04bbb0075aef1d79f6d97",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/HoujiGpuFullHostProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeGfx.inc": {
+      "before": null,
+      "after": "38796c0a568ff90805bae98b8cb9eb816df785b2f7f749b09a0b33be1069591e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/HoujiGpuNativeGfx.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeCp.inc": {
+      "before": "6e6d33a0dd0ff6247f74048f7df2fc19cd2b96da9f72929e07ba9e33224a706d",
+      "after": "c44a2253e5b15ec51bc20d4aba2948268751622ba1694d10b4364e09ae48f4f2",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/HoujiGpuNativeCp.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuZapAssets.h": {
+      "before": null,
+      "after": "bdbaa5abd8d95a899f05aeecc48c597f1e39f21c1ed01107a5c62a77462aeb05",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/GpuZapAssets.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapHandoff.h": {
+      "before": null,
+      "after": "deef2cd43a1e46a72f363257674d8974bbc6db37026494f5d9d336125beae3b9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/HoujiZapHandoff.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.h": {
+      "before": "e45b4b4b2a5915cd10f390cc9f52da6aa362ba69a110ecf15a9e967b740e4b2b",
+      "after": "e45b4b4b2a5915cd10f390cc9f52da6aa362ba69a110ecf15a9e967b740e4b2b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/houji_full_host_runtime.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_native_full_host_graph.h": {
+      "before": "b937ce4f02fb4a0d7d6d491e33aae32ab3ad81323e48488523cd8946ac6c1dc8",
+      "after": "b937ce4f02fb4a0d7d6d491e33aae32ab3ad81323e48488523cd8946ac6c1dc8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/houji_native_full_host_graph.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuZapLoad.h": {
+      "before": null,
+      "after": "d47e300f34dc4640f853ac6e60eb8f51b76c9caecd0aa2052caed4682d39b359",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/GpuZapLoad.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuPasProbe.h": {
+      "before": null,
+      "after": "e136521dde64d756b8f73b66c9e452dc8e44d72756b367aed447fbe09a25ecca",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-gfx-runtime/GpuPasProbe.h"
+    }
+  },
+  "offline_evidence": {
+    "critical_output": {
+      "path": "/tmp/houji-native-gfx-check/final-test.log",
+      "sha256": "df6a527ff80dec3782fb516726c10d8266d2f8a138c0d39b9f6a3baffe410901"
+    },
+    "critical_source": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-gfx-host/run.py",
+      "sha256": "27f58a4bbf1937c012f439be4abfffdadfbd310509e8f4ac116aaa961459e3e1"
+    }
+  },
+  "critical_profiles": [
+    "synthetic execution boundary success",
+    "corrupted synthetic image denied",
+    "wrong current trial refused before maps/SMC/GPU"
+  ],
+  "not_GPU_emulation": true,
+  "hardware_evidence": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r156-result.json",
+  "hardware_status": "PASS_NATIVE_SIGNED_ZAP_FIRST_CONTEXT_AND_CP_BLIT"
+}

@@ -1,0 +1,204 @@
+{
+  "status": "Read-only source audit. No PAS initialization, firmware copy, authentication, shutdown or GPU mode transition executed.",
+  "firmware": {
+    "path": "${HOUJI_ARTIFACTS}/native-research/houji-gpu-firmware-20261025/gen70900_zap.mbn",
+    "bytes": 12088,
+    "sha256": "ab6035deaf3df20b52f1fc0b27b10f2ad392398e2eb802b68746d5511981931e",
+    "provenance": "Existing local capture from this phone odm_a /firmware; matches zap-provenance.json",
+    "elf": {
+      "class": 32,
+      "endianness": "little",
+      "machine": 164,
+      "phnum": 3
+    },
+    "metadata": {
+      "header_bytes": 148,
+      "hash_file_offset": "0x2000",
+      "hash_bytes": 3896,
+      "combined_bytes": 4044,
+      "sha256": "29096ea050fd2b44032fc5fe7bea148a1427e1443694d34e318160ad839cdb1a"
+    },
+    "load_segment": {
+      "index": 1,
+      "type": "PT_LOAD",
+      "file_offset": "0x1000",
+      "physical_address": "0x1000",
+      "filesz": 1072,
+      "memsz": 1072,
+      "flags": "0x08000007",
+      "relocatable": true,
+      "sha256": "bb8e56248f7ae112e8df6a1a365afe616ab24f9faf330b4b94115b3d7efa998f",
+      "relocated_target_offset": 0,
+      "aligned_span": "0x1000"
+    }
+  },
+  "reservation": {
+    "dts": "device-baseline/live-fdt.dts:242-245,15050-15052",
+    "memory_region_phandle": "0x303",
+    "base": "0x9b09a000",
+    "bytes": "0x2000",
+    "no_map": true,
+    "uefi_source": "${HOUJI_UEFI_ROOT}/Platforms/Xiaomi/houjiPkg/Library/MemoryMapLib/MemoryMapLib.c:17",
+    "uefi_region": "PIL_Reserved [0x8bc00000,0xa2b80000)",
+    "runtime_requirement": "Verify current GCD/HOB reservation and no overlap before a later load. Do not allocate this region from the ordinary EFI pool or map it into bank0/class2/class3."
+  },
+  "r131": {
+    "trust_cntl_captured": false,
+    "tsb_base_size_cntl_captured": true,
+    "nonsecure_proven": false,
+    "source": "evidence/logfs-recovery-r131/UniXNU.log",
+    "warning": "TSB=0 and CP_MEM_WRITE success are not proof of CP non-secure mode. No PAS or CP_SET_SECURE_MODE was attempted in the r131 host path."
+  },
+  "source": [
+    {
+      "id": "target-kernel",
+      "repo": "OnePlusOSS/android_kernel_oneplus_sm8650",
+      "commit": "d763ed47deec55451366c1187f813f2f309d88a7",
+      "path": "drivers/firmware/qcom_scm.c",
+      "url": "https://github.com/OnePlusOSS/android_kernel_oneplus_sm8650/blob/d763ed47deec55451366c1187f813f2f309d88a7/drivers/firmware/qcom_scm.c",
+      "blob_sha": "5aa4592e1235257ea9d4d3d733f6f576345930b0"
+    },
+    {
+      "id": "target-smc",
+      "repo": "OnePlusOSS/android_kernel_oneplus_sm8650",
+      "commit": "d763ed47deec55451366c1187f813f2f309d88a7",
+      "path": "drivers/firmware/qcom_scm-smc.c",
+      "url": "https://github.com/OnePlusOSS/android_kernel_oneplus_sm8650/blob/d763ed47deec55451366c1187f813f2f309d88a7/drivers/firmware/qcom_scm-smc.c",
+      "blob_sha": "9c6a05843c57b7821e2d902bb7f66cc71a6f5019"
+    },
+    {
+      "id": "target-ids",
+      "repo": "OnePlusOSS/android_kernel_oneplus_sm8650",
+      "commit": "d763ed47deec55451366c1187f813f2f309d88a7",
+      "path": "drivers/firmware/qcom_scm.h",
+      "url": "https://github.com/OnePlusOSS/android_kernel_oneplus_sm8650/blob/d763ed47deec55451366c1187f813f2f309d88a7/drivers/firmware/qcom_scm.h",
+      "blob_sha": "650448bb7018f546e855449175866a0c339c0724"
+    },
+    {
+      "id": "target-zap-loader",
+      "repo": "OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8650",
+      "commit": "453d8875f815bf9dfad9035982861226a4823a6c",
+      "path": "vendor/qcom/opensource/graphics-kernel/kgsl_util.c",
+      "url": "https://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8650/blob/453d8875f815bf9dfad9035982861226a4823a6c/vendor/qcom/opensource/graphics-kernel/kgsl_util.c",
+      "blob_sha": "cb65817507c5043fddb7f5576c016fcf89104953"
+    },
+    {
+      "id": "mdt-loader",
+      "repo": "torvalds/linux",
+      "commit": "21a7f44fd0765fcc5194130b28767786eba1d1e7",
+      "path": "drivers/soc/qcom/mdt_loader.c",
+      "url": "https://github.com/torvalds/linux/blob/21a7f44fd0765fcc5194130b28767786eba1d1e7/drivers/soc/qcom/mdt_loader.c",
+      "blob_sha": "002100fe2d3237a4843d704fe75e5f1ee50d59cf"
+    }
+  ],
+  "query_only": {
+    "preconditions": [
+      "same-boot already-verified ARM64 SiP SCM convention",
+      "existing owned CX/CFG/AHB and existing transport guards",
+      "full raw results retained; unfamiliar transport/WAITQ statuses quarantine; no new exception recovery"
+    ],
+    "availability": {
+      "input_x0": "0x42000601",
+      "input_x1": 1,
+      "input_x2_targets": [
+        "0x02000207",
+        "0x02000201",
+        "0x02000202",
+        "0x02000205"
+      ],
+      "other_input_x3_to_x7": 0,
+      "result": "transport success and full a0=0, availability = !!a1; a1=0 means unavailable only on successful query"
+    },
+    "supported": {
+      "input_x0": "0x42000207",
+      "input_x1": 1,
+      "input_x2": 13,
+      "other_input_x3_to_x7": 0,
+      "result": "transport success and full a0=0, supported = !!a1. a1 is boolean result, not the init/auth status code"
+    },
+    "effects": "No metadata pointer, no firmware or register writes, no PAS state initialization. Target qcom_scm_pas_supported() has no qcom_scm_clk_enable/bw_enable calls.",
+    "limitation": "Support/availability do not prove an image has been authenticated, a reserved region is writable, or GPU mode has changed."
+  },
+  "later_authenticated_sequence": [
+    {
+      "stage": 0,
+      "action": "CP_INIT and idle have completed; retain OOB/power; verify stock firmware hash, bounded ELF metadata, reservation ownership, no overlapping allocation and all relevant prior diagnostics. Save a durable checkpoint before mutation."
+    },
+    {
+      "stage": 1,
+      "action": "Metadata buffer only: concatenate 148 header bytes with 3896 hash bytes into 4044 bytes in an owned coherent/NC physical allocation; publish to device/secure firmware. Retain the allocation on any ambiguous return."
+    },
+    {
+      "stage": 2,
+      "action": "PAS INIT_IMAGE",
+      "frame": {
+        "x0": "0x42000201",
+        "x1": "0x82",
+        "x2": 13,
+        "x3": "metadata physical address",
+        "x4": 0,
+        "x5": 0,
+        "x6": 0,
+        "x7": 0
+      },
+      "result": "full a0=0 and a1=0; the target Linux wrapper returns transport error or a1"
+    },
+    {
+      "stage": 3,
+      "action": "PAS MEM_SETUP only because this exact ELF has QCOM_MDT_RELOCATABLE",
+      "frame": {
+        "x0": "0x42000202",
+        "x1": 3,
+        "x2": 13,
+        "x3": "0x9b09a000",
+        "x4": "0x1000",
+        "x5": 0,
+        "x6": 0,
+        "x7": 0
+      },
+      "result": "full a0=0 and a1=0"
+    },
+    {
+      "stage": 4,
+      "action": "Copy the sole 1072-byte PT_LOAD from file+0x1000 into reservation+0; no file/header/hash bytes outside this segment are GPU microcode. Zero only any source-declared BSS (none in this ELF). Publish stores before AUTH_RESET. Never copy the whole 12088-byte MBN into the 8192-byte reservation."
+    },
+    {
+      "stage": 5,
+      "action": "PAS AUTH_AND_RESET",
+      "frame": {
+        "x0": "0x42000205",
+        "x1": 1,
+        "x2": 13,
+        "x3": 0,
+        "x4": 0,
+        "x5": 0,
+        "x6": 0,
+        "x7": 0
+      },
+      "result": "full a0=0 and a1=0; stop on error. No CPU accesses to the firmware reservation after the secure firmware may have taken ownership."
+    },
+    {
+      "stage": 6,
+      "action": "Only after the complete authenticated load succeeded: submit CP_SET_SECURE_MODE opcode0x66 payload0 through the existing ring, wait bounded completion/idle, sample raw TRUST/TSB/faults before and after. Do not substitute a guessed TRUST_CNTL write."
+    },
+    {
+      "stage": 7,
+      "action": "A later known-image test may be qualified only by the actual non-secure transition and A750 graphics-context baseline. Support query or CP writeback alone does not grant this qualification."
+    }
+  ],
+  "retention_and_cleanup": {
+    "query_only": "May return to the normal existing diagnostic-stop path; no newly allocated PAS memory or changed PAS image state.",
+    "after_mutation": "Once INIT_IMAGE or MEM_SETUP has been called, nonzero/timeout is not proof that no secure state changed. Keep metadata and the reserved image range retained until the qualified recovery or cold reset; do not clear the range as cleanup.",
+    "after_auth": "No direct memset/readback/remap/free of the reserved image as cleanup. Treat it as secure-owned until a source-backed shutdown/reset protocol establishes release.",
+    "pas_shutdown": "Target qcom_scm_pas_shutdown is service2 cmd6 arginfo1 PAS13, but the graphics driver unloads on specific hibernation/deepsleep paths. Do not use it automatically as error cleanup or blindly retry it in this experiment.",
+    "timeouts": "Existing SCM retry bounds govern returned INTERRUPTED/BUSY states only, not elapsed time inside one SMC. The source does not establish a cancellable hard deadline.",
+    "providers": "Target write wrappers enable SCM core/iface/bus and interconnect votes when configured. This phone's captured qcom_scm DT node has no clock/interconnect properties, and those providers are optional in the target driver; this is not measured proof of secure-world loading readiness."
+  },
+  "minimal_next_round": [
+    "Capture raw TRUST/TSB at the qualified idle phases using the independently audited read-only snapshot adapter.",
+    "Query call availability for cmd7/1/2/5 and PAS_SUPPORTED(13) via the exact same-boot native ARM64 transport, record full status and elapsed time, then stop. No PAS mutation or mode-exit packet in this query round.",
+    "Record the current GCD/HOB reservation covering 0x9b09a000+0x2000 and the held allocation list so the next authenticated loader can avoid overlap.",
+    "A subsequent merged authenticated-load + mode-exit + bounded 2D test can follow once these actual results and A750 graphics preamble are qualified; a missing result is a concrete next check, not a permanent blocker."
+  ]
+}
+

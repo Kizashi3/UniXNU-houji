@@ -1,0 +1,12 @@
+{
+  "reference": "ShueiTsuki/data-a-live",
+  "revision": "1c0182a271caf1aa47b17083d10a2ef59f2d8c24",
+  "reference_script": "tools/turnip/pandora_bo_finish_order.py",
+  "actual_mesa_source": "${HOUJI_ARTIFACTS}/native-research/mesa-adrenometal-pin-85fda3b3/src/freedreno/vulkan/tu_knl_darwin.cc",
+  "before_sha256": "0b6092ded7f8df59048ad3fbafb66dba71a7c98c55f9fdd7086150d08eb22a13",
+  "after_sha256": "c7eae5b4b5766da902783b30f60f9648b095ada48efc057a3d82b390fb8c7764",
+  "scope": "Zero BO struct under retire lock, before returning its kernel slot",
+  "shader_or_frequency_changes": false,
+  "phone_accessed": false,
+  "hardware_qualified": false
+}

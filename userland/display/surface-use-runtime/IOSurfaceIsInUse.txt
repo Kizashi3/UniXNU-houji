@@ -1,0 +1,14 @@
+Using config file: ${HOUJI_ARTIFACTS}/native-port/host-tools/ipsw-3.1.739/empty-config.yaml
+   • Loading symbol cache file...
+   • Locating symbol: _IOSurfaceIsInUse
+
+_IOSurfaceIsInUse:
+0x1a3980840:  c0 00 00 b4   cbz	x0, loc_1a3980858 ; ⤵ 0x18
+0x1a3980844:  28 e9 1c d0   adrp	x8, 0x1dd6a6000
+0x1a3980848:  08 a1 22 91   add	x8, x8, #0x8a8 ; _OBJC_IVAR_$_IOSurface._impl
+0x1a398084c:  08 01 80 b9   ldrsw	x8, [x8]
+0x1a3980850:  00 68 68 f8   ldr	x0, [x0, x8]
+0x1a3980854:  9f 0a 00 14   b	_IOSurfaceClientIsInUse
+0x1a3980858:  ; loc_1a3980858
+0x1a3980858:  c0 03 5f d6   ret
+

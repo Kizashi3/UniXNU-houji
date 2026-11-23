@@ -1,0 +1,54 @@
+{
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "a6e63a51a6d8ba398889bc6743fd438d374f6da3e99eef4d708b40e6a3460948",
+      "after": "5b82c10431e5ba95bf3df6fc812053ae2eb18ae8ab315daaf45e88006f2f554b"
+    },
+    "bsd/dev/sweet_sample.c": {
+      "before": "b5cfff79b4344821946146ef0cb388fedc7f0a9250c25b6106dee6d77f76c150",
+      "after": "ca156d203f406502a4a658b9a44a0da31ff7019589c83132e92d5ed666259cbf"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTouchDriver.inc": {
+      "before": null,
+      "after": "700865cffdedada023b3c4c29e11d3e4b98bdf02fb3a85c8d6aead06e30a132b"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTouchReport.h": {
+      "before": null,
+      "after": "0ba5036dc2aff2a9fdb7fbb4bcbed508904dc05e38cc2ba4d8d08fb688c812ea"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTouchWire.h": {
+      "before": null,
+      "after": "aa02e7d323441ad8dd15deedf6f4c91f38fc1669217295af90d8a0de3f9b6ad2"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTouchGpio.h": {
+      "before": null,
+      "after": "81bb56aaa77131d2c9a51399d408dfa11d3deff337eb1731cb40169aa57df075"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTouchDescriptor.h": {
+      "before": null,
+      "after": "7ecff47ae3ac2bb56769d66634b0f1900a806c51ca9025560610668e12064c44"
+    }
+  },
+  "mode": "opt-in physical touch controller worker; volatile GPIO and TouchCom report commands only",
+  "boot_argument": "houji_touch=1",
+  "firmware_gate": "UEFI ldob9/12 and clock native API calls must succeed before enabling kernel boot flag",
+  "persistent_firmware_writes": false,
+  "kernel_gcc_gpi_smmu_dma_writes": false,
+  "hardware_tested": true,
+  "protocol_reference": "tycykp/UniXNU-OnePlus-Ace5@aaa100d19f6fb14e5897a7e496edf7838d4d4e9f",
+  "additional_reference": "ShueiTsuki/data-a-live@66b556ca8c86c8830610f1458d3c39d57952f1bc wsl/pandora_touch.c; protocol/initialization comparison; APSL-2.0 source not copied into this BSD worker",
+  "previous_trial": "r49: firmware clock/power handoff and real identify passed; stopped at unnecessarily strict device maximum write upper bound before contacts",
+  "write_bound": "minimum of advertised positive controller limit and fixed host packet buffer (515); zero retains host limit like the reference driver",
+  "large_report_handling": "At most 8192 bytes, fixed BSS scratch, exact v1 continuation and EOM; never interpreted as contacts",
+  "native_descriptor": "Read current descriptor; no SET_TOUCH_REPORT_CONFIG; checked single-loop field decoder and repeated descriptor hex snapshot",
+  "hardware_result": {
+    "trial": "r52",
+    "worker_stage": 5,
+    "worker_error": 0,
+    "physical_report_frames": 78,
+    "sweet_hid_calls": 78,
+    "human_confirmed_usable_setup_touch": true,
+    "scope": "physical touch in iOS Hello/Setup; not a full multi-touch qualification"
+  },
+  "passive_worker_diagnostics": "r57: cached polling phase, loop/IRQ counters and entered/completed HID calls; no new hardware reads, no contact or scheduling behavior changes"
+}

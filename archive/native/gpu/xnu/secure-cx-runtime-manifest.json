@@ -1,0 +1,59 @@
+{
+  "scope": "same-worker fixed original secure-CX convention/availability/INIT only, after actual NC canary and inactiveFW memory; independent RO owner/maps, no stockFW/HFI/CP execution",
+  "hardware_tested": true,
+  "desktop_acceleration_claim": false,
+  "DMA_eligible": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuSecureCxProbe.inc": {
+      "before": null,
+      "after": "119a3c2661bb1dee1efa5e5171b5676f4cafe4713f64c5617167c4cb19c885b8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuSecureCxProbe.inc",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/vendor/Ace5Gmu/giulia_gpu_scm.h": {
+      "before": null,
+      "after": "b720ed219a955299f63293b78f12df16976b066a8e4b287025e515d151e9b7b6",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/vendor/Ace5Gmu/giulia_gpu_scm.h",
+      "rollback": null
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "ed8c8e1c0487e30af125f2c1d14760d0c69c2473a8d47ead3df8eed46ada44a1",
+      "after": "48c0224d2447333aab9b5d93665c1a2cfe6d55286a67ae4f661170053dc61f91",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r151-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/secure-cx-runtime/before-iokit_Kernel_houji-ufs-root_HoujiLogAllocation.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "1a780fc4d28616807b2e4a09ab96fbe5ef35ccc0d1b8b3014135d2d853b3e04e",
+      "after": "3acab695a84b5800b68088cee89d7fb285f0ec495908fa3ad3e68d7f9a03ad3a",
+      "source": "${HOUJI_PORT_ROOT}/native/ufs-root/HoujiUfsRead.cpp",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/secure-cx-runtime/before-HoujiUfsRead.cpp"
+    }
+  },
+  "offline_test_artifacts": {
+    "native-host-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-secure-cx-r151/native-host-verification.json",
+      "sha256": "1c22a36d2fd54b1f85019883b06b24bd1f90c18fa9c24a14c81dea141275336c"
+    },
+    "native-host-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-secure-cx-r151/native-host-output.txt",
+      "sha256": "caf1fab4fde216e5484769165e20d086d6e6a650453d35c465a2d8a4100aaf21"
+    },
+    "candidate-sha256.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-secure-cx-r151/candidate-sha256.json",
+      "sha256": "22091a6008ebc93f4da947e412f798d47d9d20c106de3b49ef0e0d15de8b38bd"
+    },
+    "main-host-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-secure-cx-r151/main-host-output.txt",
+      "sha256": "334f95ac36d0662c3d933008564ecda71ec7865065a101d6232cd998b1f8c50c"
+    },
+    "native_adapter_tested_source_sha256": "119a3c2661bb1dee1efa5e5171b5676f4cafe4713f64c5617167c4cb19c885b8"
+  },
+  "Native_host_profiles": 154,
+  "original_ggs_helper_unchanged_sha256": "b720ed219a955299f63293b78f12df16976b066a8e4b287025e515d151e9b7b6",
+  "false_parent_exit": "panic directly to opted-in PSCI path, no checkpoint or resource release after false",
+  "success_parent_exit": "ordinary checkpoint3 only after complete post-save cold/lease proof",
+  "no_GPU_MMIO_writes_in_new_adapter": true,
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r151-result.json",
+  "hardware_result_sha256": "d3dafa000185e5965926e5f89547f637ee7c08878d3846fcd9ff2a0d471fc480",
+  "verified_scope": "same-boot completed NormalNC GMU canary + inactive original firmware/HFI memory + fixed convention/availability/secure-CX INIT; no stock firmware/HFI execution"
+}

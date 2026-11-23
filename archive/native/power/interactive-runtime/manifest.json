@@ -1,0 +1,39 @@
+{
+  "files": {
+    "osfmk/kern/sched_clutch.c": {
+      "before": "2557711eab1ddfa409f56df9e8ac285d0e231d75259875172d5f23b7624e065f",
+      "after": "360828dc542ae39a112bf398bfd14def956aed3145c65d32c2c6765dd792f01f",
+      "source": "${HOUJI_PORT_ROOT}/native/power/interactive-runtime/osfmk/kern/sched_clutch.c"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuDvfs.inc": {
+      "before": "daebfc59df6f2a91c5798a63a4d2d21bbe078554e4597c4e93a65125ec655609",
+      "after": "c9807669a3fbd37db8fea8422ce34bdf8593a06f98f7a3731a792769aa9979d5",
+      "source": "${HOUJI_PORT_ROOT}/native/power/interactive-runtime/iokit/Kernel/houji-ufs-root/HoujiGpuDvfs.inc"
+    },
+    "iokit/Kernel/arm/SweetCPU.cpp": {
+      "before": "f74ef5dd05c94bcb5dd83e9fc8d0e2679f59e8163ef096781a1e2275a40296ef",
+      "after": "3184a74e56f8175f9f6c229bcaad856a66434dbdfbbd90ca61b585f9fd9bb8b0",
+      "source": "${HOUJI_PORT_ROOT}/native/power/interactive-runtime/iokit/Kernel/arm/SweetCPU.cpp"
+    },
+    "iokit/Kernel/arm/HoujiDvfsPolicy.h": {
+      "before": "e187142e0865ae5fffd4df32017d51e170820f31dd1b390184db4b10046c3905",
+      "after": "92e3d6f63d7fded77137ae9a897c394b9b3aefee09fcc4ef9ffdcc0a7fa756c6",
+      "source": "${HOUJI_PORT_ROOT}/native/power/interactive-runtime/iokit/Kernel/arm/HoujiDvfsPolicy.h"
+    },
+    "iokit/Kernel/arm/HoujiCpuDvfs.inc": {
+      "before": "360949f426380a14665fda50ba1a47c2cd84f983627799d4ad2cac8facefb889",
+      "after": "e2185827438897fff1f118d170f91dc9b09a6d4913d63df2a26c1526888f658b",
+      "source": "${HOUJI_PORT_ROOT}/native/power/interactive-runtime/iokit/Kernel/arm/HoujiCpuDvfs.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "28d20b7909db44edb3626cb35fc521b3e0c4a20893e5ee425d150f41a5973d9f",
+      "after": "f07e3463a93e0f8d9f0e354bbb614eb1201c16a473dd8955d4d7ca9917a66ea2",
+      "source": "${HOUJI_PORT_ROOT}/native/power/interactive-runtime/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp"
+    }
+  },
+  "base_trial": 209,
+  "candidate_trial": 210,
+  "frequency_caps_changed": false,
+  "voltages_changed": false,
+  "qualified_hardware": false
+}

@@ -1,0 +1,36 @@
+{
+  "scope": "XNU owned, held-reset GMU internal TCM only;42 program+42 restore,16stack read-only,58 finalverify; no CM3release/DMA/firmwareexecution",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GmuHeldTcm.h": {
+      "before": null,
+      "after": "30fbab4ae8b802a612031de574ba1fb6d27293e4f76e222d7cfd1210b9305631",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/GmuHeldTcm.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuHeldTcmProbe.inc": {
+      "before": null,
+      "after": "493ed282ac9ad251185fb0e1db61f1b0ce8e4c843f9d0646d46153f9d959465b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuHeldTcmProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuGmuCode.h": {
+      "before": null,
+      "after": "3250956997b9d1356fe2713e3dc48e2bda61876e8fd207fbb3d4753848ebffc5",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/uefi/GpuGmuCode.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "8ba3f2c413ed43b67219ec53fdb66b668a9570a8656d36b22314938a82f6ed91",
+      "after": "ee4940f35adce670100262b7050bceabaaa5a8ca7f9ac1c503ae4c94f5ee12af",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/held-tcm-runtime/before-HoujiUfsRead.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "ee22e8867d3ebe84ef22b36522d3f8fed81b18d472a3aec65484c0b510e7df08",
+      "after": "41cbe939881bb2f0b8cbcc8286de7810d1589625bd43e3855d474f5fc890580c",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/held-tcm-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": true,
+  "hardware_evidence": {
+    "run": "r141",
+    "result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r141-result.json",
+    "scope": "CPU-owned TCM84stores/216reads,58word restoration proof only; CM3/GPU execution0"
+  }
+}

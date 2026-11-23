@@ -1,0 +1,6 @@
+{
+  "before_sha256": "e7e3902ccd70aa4728d9ecf9cd9a89f1d9dea11350974f181d5b36a4d6fbabc3",
+  "after_sha256": "2916a99412f3a9818f726052a61710e1f217b00795eea8fb0d8ae2a3640c87a0",
+  "scope": "explicit60Hz default and persistent actual bootarg/timer cadence diagnostics; GPU ownership, frame lifetime and CPU-copy guards unchanged; bounded atomic source/destination mismatch records; no scaler/format changes",
+  "hardware_qualified": false
+}

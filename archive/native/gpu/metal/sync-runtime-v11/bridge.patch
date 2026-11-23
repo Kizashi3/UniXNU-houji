@@ -1,0 +1,145 @@
+--- a/NativeBridgeMetalFrontend.mm
++++ b/NativeBridgeMetalFrontend.mm
+@@ -48,6 +48,7 @@
+ static Timed gTimeWaitScheduled,gTimeWaitCompleted;
+ static Timed gTimeResourceWait;
+ static std::atomic<uint64_t> gResourceChecks,gResourceSkipped;
++static std::atomic<uint64_t> gResidencyCompute,gResidencyRender,gBarrierCompute,gBarrierRender,gResourceApiFailures;
+ static Timed gTimeSurfaceFlush;
+ static std::atomic<uint64_t> gSurfaceFlushBytes,gSurfaceFlushDuplicates;
+ struct EncodedWork {uint32_t passes,draws,dispatches,blits;uint64_t pixels;};
+@@ -545,6 +546,7 @@
+ @interface NBEncoder : NBObject
+ @property(nonatomic) NmbEncoder *handle;
+ @property(nonatomic,strong) NBCommandBuffer *commandBuffer;
++- (void)declareResource:(id<MTLResource>)resource usage:(MTLResourceUsage)usage stages:(MTLRenderStages)stages;
+ @end
+ static void waitForResource(id resource) {
+  const uint64_t began=nowUs();
+@@ -562,6 +564,17 @@
+ }
+ @implementation NBEncoder
+ - (void)dealloc {if(_handle)nmb_encoder_discard(_handle);}
++- (void)declareResource:(id<MTLResource>)resource usage:(MTLResourceUsage)usage stages:(MTLRenderStages)stages {
++ NmbBuffer *buffer=nullptr;NmbTexture *texture=nullptr;
++ if([(id)resource isKindOfClass:[NBBuffer class]])buffer=[(NBBuffer *)resource handle];
++ else if([(id)resource isKindOfClass:[NBTexture class]]) {
++  NBTexture *value=(NBTexture *)resource;texture=value.handle;
++  if(value.surface)[_commandBuffer.surfaces addObject:value];
++ }
++ else {gResourceApiFailures++;[_commandBuffer refuse:@"foreign residency resource"];return;}
++ [_commandBuffer.resourceOwners addObject:resource];
++ if(![self check:nmb_encoder_use_resource(_handle,buffer,texture,usage,stages) what:"useResource"])gResourceApiFailures++;
++}
+ - (bool)check:(bool)ok what:(const char *)what {
+  if(!ok)[_commandBuffer refuse:[NSString stringWithFormat:@"%s: %@",what,lastError()]];
+  return ok;
+@@ -634,8 +647,10 @@
+ }
+ - (void)dispatchThreads:(MTLSize)t threadsPerThreadgroup:(MTLSize)g {[self dispatch:t group:g threads:true];}
+ - (void)dispatchThreadgroups:(MTLSize)t threadsPerThreadgroup:(MTLSize)g {[self dispatch:t group:g threads:false];}
+-- (void)useResource:(id<MTLResource>)r usage:(MTLResourceUsage)u {(void)r;(void)u;}
+-- (void)memoryBarrierWithScope:(MTLBarrierScope)s {(void)s;}
++- (void)useResource:(id<MTLResource>)r usage:(MTLResourceUsage)u {gResidencyCompute++;[self declareResource:r usage:u stages:0];}
++- (void)memoryBarrierWithScope:(MTLBarrierScope)s {
++ gBarrierCompute++;if(![self check:nmb_encoder_memory_barrier_scope(self.handle,s,0,0) what:"memoryBarrierWithScope"])gResourceApiFailures++;
++}
+ @end
+ 
+ @interface NBRenderEncoder : NBEncoder
+@@ -733,7 +748,10 @@
+ - (void)drawIndexedPrimitives:(MTLPrimitiveType)t indexCount:(NSUInteger)n indexType:(MTLIndexType)k indexBuffer:(id<MTLBuffer>)b indexBufferOffset:(NSUInteger)o {
+  [self drawIndexedPrimitives:t indexCount:n indexType:k indexBuffer:b indexBufferOffset:o instanceCount:1 baseVertex:0 baseInstance:0];
+ }
+-- (void)useResource:(id<MTLResource>)r usage:(MTLResourceUsage)u stages:(MTLRenderStages)s {(void)r;(void)u;(void)s;}
++- (void)useResource:(id<MTLResource>)r usage:(MTLResourceUsage)u stages:(MTLRenderStages)s {gResidencyRender++;[self declareResource:r usage:u stages:s];}
++- (void)memoryBarrierWithScope:(MTLBarrierScope)s afterStages:(MTLRenderStages)a beforeStages:(MTLRenderStages)b {
++ gBarrierRender++;if(![self check:nmb_encoder_memory_barrier_scope(self.handle,s,a,b) what:"render memoryBarrierWithScope"])gResourceApiFailures++;
++}
+ - (void)updateFence:(id<MTLFence>)fence afterStages:(MTLRenderStages)stages {[self fence:fence stages:stages update:true];}
+ - (void)waitForFence:(id<MTLFence>)fence beforeStages:(MTLRenderStages)stages {[self fence:fence stages:stages update:false];}
+ @end
+@@ -1735,6 +1753,7 @@
+  row("J completed wait n=%llu total=%llums max=%llums",(unsigned long long)gTimeWaitCompleted.count.load(),ms(gTimeWaitCompleted.total.load()),ms(gTimeWaitCompleted.slowest.load()));
+  row("J resource wait n=%llu total=%llums max=%llums",(unsigned long long)gTimeResourceWait.count.load(),ms(gTimeResourceWait.total.load()),ms(gTimeResourceWait.slowest.load()));
+  row("J resource checks=%llu skipped=%llu",(unsigned long long)gResourceChecks.load(),(unsigned long long)gResourceSkipped.load());
++ row("A residency c%llu/r%llu scope-barrier c%llu/r%llu refused%llu",(unsigned long long)gResidencyCompute.load(),(unsigned long long)gResidencyRender.load(),(unsigned long long)gBarrierCompute.load(),(unsigned long long)gBarrierRender.load(),(unsigned long long)gResourceApiFailures.load());
+  row("J surface cache n=%llu bytes=%llu dup=%llu us=%llu max=%llu",(unsigned long long)gTimeSurfaceFlush.count.load(),
+   (unsigned long long)gSurfaceFlushBytes.load(),(unsigned long long)gSurfaceFlushDuplicates.load(),
+   (unsigned long long)gTimeSurfaceFlush.total.load(),(unsigned long long)gTimeSurfaceFlush.slowest.load());
+--- a/bridge/NativeMetalObjects.h
++++ b/bridge/NativeMetalObjects.h
+@@ -240,6 +240,9 @@
+ 
+ bool nmb_render_set_pipeline(NmbEncoder *, NmbRenderPipeline *);
+ bool nmb_render_set_depth_stencil(NmbEncoder *, NmbDepthStencil *);
++/* Exactly one buffer/texture handle; unknown resources and enums are refused. */
++bool nmb_encoder_use_resource(NmbEncoder *, NmbBuffer *, NmbTexture *, uint64_t usage, uint64_t stages);
++bool nmb_encoder_memory_barrier_scope(NmbEncoder *, uint64_t scope, uint64_t after_stages, uint64_t before_stages);
+ bool nmb_render_set_viewport(NmbEncoder *, const double viewport[6]);
+ bool nmb_render_set_scissor(NmbEncoder *, const uint64_t rect[4]);
+ bool nmb_render_set_raster(NmbEncoder *, uint64_t cull_mode, uint64_t winding, uint64_t fill_mode);
+--- a/bridge/NativeMetalObjects.rs
++++ b/bridge/NativeMetalObjects.rs
+@@ -8,7 +8,7 @@
+ use metal2vulkan::metal::state::{DepthStencilDescriptor, StencilDescriptor};
+ use metal2vulkan::library::{FunctionConstantValue, FunctionConstantValues};
+ use metal2vulkan::metal::{
+-    BlendFactor, BlendOperation, ColorWriteMask, CompareFunction, CullMode, DataType, IndexType, PixelFormat, PrimitiveTopologyClass,
++    BarrierScope, BlendFactor, BlendOperation, ColorWriteMask, CompareFunction, CullMode, DataType, IndexType, PixelFormat, PrimitiveTopologyClass, ResourceUsage,
+     PrimitiveType, RenderStages, SamplerAddressMode, SamplerBorderColor, SamplerMinMagFilter, SamplerMipFilter, StencilOperation, TextureType,
+     TextureUsage, TriangleFillMode, VertexFormat, VertexStepFunction, Winding,
+ };
+@@ -19,7 +19,7 @@
+ use metal2vulkan_runtime::{
+     BinaryArchive, BinaryArchiveDescriptor, BlitCommandEncoder, FamilyRow, FeatureRow, GpuFamily, RowState, BlitOption, Buffer, ClearColor, CommandBuffer, CommandQueue, ComputeCommandEncoder,
+     ComputePipelineState, Deallocator, DebugMessage, DepthStencilState, Device, DeviceOptions, MessageSeverity, MessageSink, Event, EventRef, Fence, Function, Heap, HeapDescriptor, HeapType, HostMemory, IoSurfacePlane, IoSurfaceYCbCr, Library, LoadAction,
+-    Origin, PipelineOption, PipelineOptions, PurgeableState, PrivateCount, PrivateFlag, PrivateProperties, MAX_COLOR_ATTACHMENTS, Region, RenderCommandEncoder, RenderPassDescriptor, RenderPipelineState, ResourceOptions,
++    Origin, PipelineOption, PipelineOptions, PurgeableState, PrivateCount, PrivateFlag, PrivateProperties, MAX_COLOR_ATTACHMENTS, Region, RenderCommandEncoder, RenderPassDescriptor, RenderPipelineState, ResourceOptions, ResourceRef,
+     SamplerState, ScissorRect, SharedEvent, SharedEventListener, Size, StoreAction, Texture, TextureDescriptor, Viewport, VisibilityResultMode,
+ };
+ use std::cell::RefCell;
+@@ -1681,6 +1681,43 @@
+ 
+ // ---- encoders ----
+ 
++/// Forward the caller's resource residency declaration. Exactly one resource
++/// handle must be present; foreign/unknown resources must never become a no-op.
++#[unsafe(no_mangle)]
++pub extern "C" fn nmb_encoder_use_resource(encoder: *mut NmbEncoder, buffer: *mut NmbBuffer,
++    texture: *mut NmbTexture, usage: u64, stages: u64) -> bool {
++    guard(false, || {
++        let resource = match (buffer.is_null(), texture.is_null()) {
++            (false, true) => ResourceRef::Buffer(&get(buffer)?.0),
++            (true, false) => ResourceRef::Texture(&get(texture)?.0),
++            _ => return Err("exactly one buffer or texture is required".into()),
++        };
++        let usage = raw::<ResourceUsage>(usage, "resource usage")?;
++        match get_mut(encoder)? {
++            NmbEncoder::Compute(c) => c.use_resource(resource, usage),
++            NmbEncoder::Render(r) => r.use_resource(resource, usage, raw::<RenderStages>(stages, "render stages")?),
++            NmbEncoder::Blit(_) => return Err("resource residency is not a blit encoder call".into()),
++        }.map_err(e("use resource"))?;
++        Ok(true)
++    })
++}
++
++/// The runtime supplies the ordering for the Metal scope and render stages.
++#[unsafe(no_mangle)]
++pub extern "C" fn nmb_encoder_memory_barrier_scope(encoder: *mut NmbEncoder, scope: u64,
++    after: u64, before: u64) -> bool {
++    guard(false, || {
++        let scope = raw::<BarrierScope>(scope, "barrier scope")?;
++        match get_mut(encoder)? {
++            NmbEncoder::Compute(c) => c.memory_barrier_with_scope(scope),
++            NmbEncoder::Render(r) => r.memory_barrier_with_scope(scope,
++                raw::<RenderStages>(after, "after render stages")?, raw::<RenderStages>(before, "before render stages")?),
++            NmbEncoder::Blit(_) => return Err("memory scope barrier is not a blit encoder call".into()),
++        }
++        Ok(true)
++    })
++}
++
+ pub enum NmbEncoder {
+     Compute(ComputeCommandEncoder),
+     Render(RenderCommandEncoder),

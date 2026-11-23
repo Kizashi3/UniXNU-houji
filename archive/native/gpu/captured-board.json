@@ -1,0 +1,330 @@
+{
+  "device": "houji",
+  "live_fdt_sha256": "04dad3a2a40758525e93109ef17954183500a86c7bdf77973b89e39f97723807",
+  "nodes": {
+    "/soc/clock-controller@3d90000": {
+      "compatible": [
+        "qcom,pineapple-gpucc",
+        "syscon"
+      ],
+      "reg": [
+        64552960,
+        38912
+      ],
+      "reg-name": [
+        "cc_base"
+      ],
+      "vdd_cx-supply": [
+        48
+      ],
+      "vdd_mx-supply": [
+        51
+      ],
+      "vdd_mxc-supply": [
+        52
+      ],
+      "clocks": [
+        45,
+        0,
+        44,
+        35,
+        44,
+        36
+      ],
+      "clock-names": [
+        "bi_tcxo",
+        "gpll0_out_main",
+        "gpll0_out_main_div"
+      ],
+      "#clock-cells": [
+        1
+      ],
+      "#reset-cells": [
+        1
+      ],
+      "phandle": [
+        78
+      ]
+    },
+    "/soc/qcom,kgsl-3d0@3d00000": {
+      "nvmem-cell-names": [
+        "speed_bin"
+      ],
+      "nvmem-cells": [
+        1011
+      ],
+      "qcom,bus-table-ddr": [
+        0,
+        2136718,
+        3000000,
+        6074218,
+        6671875,
+        8171875,
+        10687500,
+        12449218,
+        14398437,
+        16500000
+      ],
+      "qcom,bus-table-cnoc": [
+        0,
+        100
+      ],
+      "interconnect-names": "6770755f6963635f7061746800",
+      "interconnects": [
+        83,
+        17,
+        65,
+        512
+      ],
+      "qcom,tzone-names": [
+        "gpuss-0",
+        "gpuss-1",
+        "gpuss-2",
+        "gpuss-3",
+        "gpuss-4",
+        "gpuss-5",
+        "gpuss-6",
+        "gpuss-7"
+      ],
+      "qcom,gpu-qdss-stm": [
+        370933760,
+        262144
+      ],
+      "qcom,ubwc-mode": [
+        4
+      ],
+      "qcom,min-access-length": [
+        32
+      ],
+      "qcom,chipid": [
+        1124406273
+      ],
+      "qcom,gpu-model": [
+        "Adreno750v2"
+      ],
+      "clock-names": [
+        "gcc_gpu_memnoc_gfx",
+        "gcc_gpu_snoc_dvm_gfx",
+        "gpu_cc_ahb",
+        "apb_pclk"
+      ],
+      "clocks": [
+        44,
+        37,
+        44,
+        38,
+        78,
+        0,
+        63,
+        0
+      ],
+      "interrupt-names": [
+        "kgsl_3d0_irq"
+      ],
+      "interrupts": [
+        0,
+        300,
+        4
+      ],
+      "reg-names": [
+        "kgsl_3d0_reg_memory",
+        "cx_dbgc",
+        "rscc",
+        "cx_misc",
+        "qdss_gfx",
+        "qdss_etr",
+        "qdss_tmc"
+      ],
+      "reg": [
+        63963136,
+        262144,
+        64360448,
+        12288,
+        64290816,
+        65536,
+        64610304,
+        8192,
+        277872640,
+        524288,
+        268730368,
+        32768,
+        279990272,
+        4096
+      ],
+      "status": [
+        "ok"
+      ],
+      "compatible": [
+        "qcom,adreno-gpu-gen7-9-1",
+        "qcom,kgsl-3d0"
+      ],
+      "#cooling-cells": [
+        2
+      ],
+      "phandle": [
+        146
+      ]
+    },
+    "/soc/qcom,kgsl-3d0@3d00000/zap-shader": {
+      "memory-region": [
+        771
+      ]
+    },
+    "/soc/kgsl-smmu@3da0000": {
+      "compatible": [
+        "qcom,qsmmu-v500",
+        "qcom,adreno-smmu"
+      ],
+      "reg": [
+        64618496,
+        262144,
+        64905216,
+        64
+      ],
+      "reg-names": [
+        "base",
+        "tcu-base"
+      ],
+      "#iommu-cells": [
+        2
+      ],
+      "qcom,use-3-lvl-tables": [],
+      "#global-interrupts": [
+        1
+      ],
+      "#size-cells": [
+        1
+      ],
+      "#address-cells": [
+        1
+      ],
+      "ranges": [],
+      "dma-coherent": [],
+      "qcom,regulator-names": [
+        "vdd"
+      ],
+      "vdd-supply": [
+        247
+      ],
+      "clocks": [
+        78,
+        18,
+        44,
+        37,
+        44,
+        38,
+        78,
+        0
+      ],
+      "clock-names": [
+        "gpu_cc_hlos1_vote_gpu_smmu",
+        "gcc_gpu_memnoc_gfx",
+        "gcc_gpu_snoc_dvm_gfx",
+        "gpu_cc_ahb"
+      ],
+      "qcom,actlr": [
+        0,
+        1023,
+        811
+      ],
+      "phandle": [
+        253
+      ]
+    },
+    "/soc/qcom,gmu@3d69000": {
+      "phandle": [
+        1324
+      ],
+      "mbox-names": [
+        "aop"
+      ],
+      "mboxes": [
+        975,
+        0
+      ],
+      "qcom,ipc-core": [
+        4194304,
+        1310720
+      ],
+      "qcom,iommu-dma": [
+        "disabled"
+      ],
+      "iommus": [
+        253,
+        5,
+        0
+      ],
+      "qcom,gmu-perf-ddr-bw": [
+        3000000
+      ],
+      "qcom,gmu-freq-table": [
+        260000000,
+        64,
+        625000000,
+        128
+      ],
+      "clock-names": [
+        "gmu_clk",
+        "cxo_clk",
+        "axi_clk",
+        "memnoc_clk",
+        "ahb_clk",
+        "hub_clk"
+      ],
+      "clocks": [
+        78,
+        4,
+        78,
+        6,
+        44,
+        14,
+        44,
+        37,
+        78,
+        0,
+        78,
+        21
+      ],
+      "vdd-supply": [
+        1036
+      ],
+      "vddcx-supply": [
+        247
+      ],
+      "regulator-names": [
+        "vddcx",
+        "vdd"
+      ],
+      "interrupt-names": [
+        "hfi",
+        "gmu"
+      ],
+      "interrupts": [
+        0,
+        304,
+        4,
+        0,
+        305,
+        4
+      ],
+      "reg-names": [
+        "gmu",
+        "gmu_pdc",
+        "gmu_ao_blk_dec0"
+      ],
+      "reg": [
+        64389120,
+        225280,
+        187170816,
+        65536,
+        64225280,
+        65536
+      ],
+      "compatible": [
+        "qcom,gen7-gmu"
+      ]
+    }
+  },
+  "gpu_execution_qualified": false,
+  "metal_acceleration_qualified": false
+}

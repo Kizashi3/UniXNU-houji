@@ -1,0 +1,81 @@
+--- a/DarwinBootPkg/Driver/DarwinBoot.c
++++ b/DarwinBootPkg/Driver/DarwinBoot.c
+@@ -5,6 +5,7 @@
+ #include <Library/BaseMemoryLib.h>
+ #include <Library/DebugLib.h>
+ #include <Library/MemoryAllocationLib.h>
++#include <Library/CacheMaintenanceLib.h>
+ #include <Library/UefiBootServicesTableLib.h>
+ #include <Library/PrintLib.h>
+ #include <Library/UefiLib.h>
+@@ -16,6 +17,7 @@
+ #include "BootVideo.h"
+ #include "PackedRamdisk.h"
+ #include "WindowSize.h"
++#include "OwnedMemoryTest.h"
+ 
+ #define WINDOW_SIZE  SIZE_256MB
+ #define BLOCK_SIZE   SIZE_32MB
+@@ -43,6 +45,33 @@
+ 
+ #define READ_SYSREG(Name)  ({ UINT64 Value_; __asm__ volatile ("mrs %0, " #Name : "=r" (Value_)); Value_; })
+ 
++#if defined (HOUJI_LOW_UEFI_ALLOCS)
++STATIC void FlushOwnedMemory (void *Base, unsigned long long Bytes) {
++  WriteBackInvalidateDataCacheRange (Base, (UINTN)Bytes);
++}
++
++STATIC EFI_STATUS VerifyHighWindow (EFI_PHYSICAL_ADDRESS Address, UINT64 Bytes) {
++  EFI_PHYSICAL_ADDRESS Ordinary = 0;
++  VOID *Pool = AllocatePool (SIZE_4KB);
++  EFI_STATUS Status = gBS->AllocatePages (AllocateAnyPages, EfiLoaderData, 4, &Ordinary);
++  BOOLEAN Low = Pool != NULL && !EFI_ERROR (Status) &&
++                (UINTN)Pool <= 0xFFFFFFFFULL - SIZE_4KB &&
++                Ordinary <= 0xFFFFFFFFULL - SIZE_16KB;
++  if (Pool != NULL) { FreePool (Pool); }
++  if (!EFI_ERROR (Status)) { gBS->FreePages (Ordinary, 4); }
++  if (!Low || Bytes != SIZE_2GB || Address < 0x8C0000000ULL ||
++      Address > 0xBEA400000ULL - Bytes) { return EFI_UNSUPPORTED; }
++  Print (L"HOUJI MEMORY: automatic page/pool allocations below 4 GiB PASS\n");
++  Print (L"HOUJI MEMORY: testing owned 2 GiB at %lx, two full patterns\n", Address);
++  if (!DarwinTestOwnedMemory ((volatile unsigned long long *)(UINTN)Address,
++                             Bytes / sizeof (UINT64), FlushOwnedMemory)) {
++    Print (L"HOUJI MEMORY: full-window verification FAILED\n");
++    return EFI_DEVICE_ERROR;
++  }
++  Print (L"HOUJI MEMORY: full 2 GiB write/flush/read PASS\n");
++  return EFI_SUCCESS;
++}
++#endif
+ 
+ STATIC UINT32 U32 (CONST VOID *P) { return ReadUnaligned32 ((CONST UINT32 *)P); }
+ STATIC UINT64 U64 (CONST VOID *P) { return ReadUnaligned64 ((CONST UINT64 *)P); }
+@@ -587,6 +616,10 @@
+   if (EFI_ERROR (Status)) { goto Fail; }
+   Status = AllocateWindow (&Kernel, WindowSize, &Address);
+   if (EFI_ERROR (Status)) { goto Fail; }
++#if defined (HOUJI_LOW_UEFI_ALLOCS)
++  Status = VerifyHighWindow (Address, WindowSize);
++  if (EFI_ERROR (Status)) { goto Fail; }
++#endif
+   ArgsAddress = ALIGN_VALUE (Address + Kernel.End - Kernel.Base, SIZE_16KB);
+   TreeAddress = ArgsAddress + SIZE_16KB;
+   RamdiskAddress = ALIGN_VALUE (TreeAddress + TreeSize, SIZE_16KB);
+--- a/DarwinBootPkg/Driver/DarwinBoot.inf
++++ b/DarwinBootPkg/Driver/DarwinBoot.inf
+@@ -12,6 +12,7 @@
+   PackedRamdisk.h
+   BootArgs.h
+   BootVideo.h
++  OwnedMemoryTest.h
+   DiagFont.h
+   Entry.S
+ 
+@@ -22,6 +23,7 @@
+ [LibraryClasses]
+   BaseLib
+   BaseMemoryLib
++  CacheMaintenanceLib
+   DebugLib
+   MemoryAllocationLib
+   PrintLib

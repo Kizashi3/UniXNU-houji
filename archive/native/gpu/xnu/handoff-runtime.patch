@@ -1,0 +1,22 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -560,6 +560,7 @@
+ #include "HoujiCpuPageProbe.inc"
+ #include "HoujiGpuMemoryProbe.inc"
+ #include "HoujiGpuTableProbe.inc"
++#include "HoujiGpuHandoffProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -589,6 +590,11 @@
+   houjiGpuCpuPageProbeOnce();
+   houjiGpuMemoryProbeOnce();
+   houjiGpuTableProbeOnce();
++  int handoffProbe=0;PE_parse_boot_argn("houji_gpu_handoff_probe",&handoffProbe,sizeof(handoffProbe));
++  if(handoffProbe==1) {
++    houji_ufs_checkpoint("before XNU GPU power-handoff read-only observation",0);
++    houjiGpuHandoffProbeOnce();
++  }
+   houjiGpuProbeOnce();
+   touchProbeOnce();
+   houjiTouchStart();

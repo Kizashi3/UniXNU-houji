@@ -1,0 +1,15 @@
+{
+  "files": {
+    "colour-history.patch": "bfe63ac9809c5896c90f5a4ba78174f856d917b449b80c9e0a16151012782303",
+    "before-SweetFramebuffer.cpp": "d6ec8e99b8cc86b15fe22d745206efa733fc2686816080d828d44541aeddaaa4",
+    "SweetFramebuffer.cpp": "8e43fbdb62c80921918136c8e20d5e201aadac3cfd67f0290cd5b523650da7cf"
+  },
+  "retained_peak_per_layer": 4,
+  "source_samples_per_layer": 64,
+  "raw_pixels_saved": false,
+  "colour_replacement": false,
+  "scanout_read": false,
+  "draw_fences_changed": false,
+  "includes_intentional_purple": true,
+  "hardware_qualified": false
+}

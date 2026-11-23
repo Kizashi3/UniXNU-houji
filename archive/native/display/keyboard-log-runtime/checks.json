@@ -1,0 +1,16 @@
+{
+  "status": "offline-build-passed",
+  "runtime_changes": [
+    "HoujiGpuNativeLive.inc",
+    "HoujiGpuProbeLog.inc"
+  ],
+  "kernel_sha256": "a238ba2b461f0bb0e029cb632c500339c629cc6bafd2a6bf14cfd4127415ea95",
+  "kernel_bytes": 17838720,
+  "kernel_path": "${HOUJI_PORT_ROOT}/out/keyboard-home-v17/kernel-with-keyboard-logs.macho",
+  "kernel_log_reader_present": true,
+  "boot_identity": "r212 unchanged; next authorized test requires a fresh allocation and trial identity before packaging",
+  "phone_accessed": false,
+  "hardware_tested": false,
+  "build_log_sha256": "a38aef4b3446402342070e188af49333e8afd568880e6939411bf248ee013bd7",
+  "source_manifest_sha256": "000cf8e0bb7df6b435fe9319a2a998ccdbee3e12d0459364229bd558585fc558"
+}

@@ -1,0 +1,236 @@
+{
+  "scope": "real owned Live4K arena, alternating dynamic mappings and actual NativeRing GPU writeback/fences in combined terminal trial",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GpuKnownImage2d.h": {
+      "before": "7947d1d6008d4ea6a5ca312b9f9c7585c11136df8c25d59273dc644abde80fc9",
+      "after": "7947d1d6008d4ea6a5ca312b9f9c7585c11136df8c25d59273dc644abde80fc9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/GpuKnownImage2d.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KTableMemory.c": {
+      "before": null,
+      "after": "b39d3d4fc292b921672c089e930986345637aa029b422821867c72e7203feb92",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KTableMemory.c"
+    },
+    "iokit/Kernel/houji-ufs-root/AdrenoPM4.c": {
+      "before": "c4b0227859a1e771c5f349524b718b08444f518ef960bfa4b50f6fd4ab30ad2f",
+      "after": "c4b0227859a1e771c5f349524b718b08444f518ef960bfa4b50f6fd4ab30ad2f",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/AdrenoPM4.c"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "4d52ff5c98258e4c2597225e2fadfb215babbdb66db1a6c367b67a8e006336f7",
+      "after": "dca773f3ec84e9992b0a1601b2cef8da80ceeddace10e3dac76bbb593be3e679",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.c": {
+      "before": "0f4e70807c0df0243549847141b01fc120d821bde2405fd95f13925fe65f1cb9",
+      "after": "23d4085711e7608e4ddbaf1e463d24bcb1f52be808a90e406063e72cd0ec0095",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/houji_full_host_runtime.c"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_native_full_host_graph.c": {
+      "before": "67e2686fbe66d52eedf8a45ab811e11f1ffc7b6db46882c14d465c8a688b36dd",
+      "after": "07dd576a291613cf0196e243f85440578cd48f62547768d3cf7220eda0714c88",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/houji_native_full_host_graph.c"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KStreams.c": {
+      "before": null,
+      "after": "359610de6974c1885b4b7bbf72e6b321a013e1cc44200e1a8f566d09722c009a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KStreams.c"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KMmio.c": {
+      "before": null,
+      "after": "439e6b50a3431c607611aa3b9af1f4f548e53b2fa1c452645a458c0606f7df38",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KMmio.c"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuFirstContext.h": {
+      "before": "62886b2883a13de6f68b007ed60227deda6b6e8897cd5f80c16e7fd6bd72ef6c",
+      "after": "62886b2883a13de6f68b007ed60227deda6b6e8897cd5f80c16e7fd6bd72ef6c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/GpuFirstContext.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuHostRing.h": {
+      "before": "2d630f2ec6a2476395617f4dc4b3ed519dba3419aa2ec2a665849a226126156c",
+      "after": "2d630f2ec6a2476395617f4dc4b3ed519dba3419aa2ec2a665849a226126156c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/GpuHostRing.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "0191a8fb28dc5589191c5fe36682f35d3d844d82fcbea280da5a81a6aa2b34bb",
+      "after": "f44552cb3f3d28db19c91f1dde728706875b8b236803dcc8f92d1bbdd86756bd",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiGpuFullHostProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeGfx.inc": {
+      "before": "38796c0a568ff90805bae98b8cb9eb816df785b2f7f749b09a0b33be1069591e",
+      "after": "38796c0a568ff90805bae98b8cb9eb816df785b2f7f749b09a0b33be1069591e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiGpuNativeGfx.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KProgram.h": {
+      "before": "171900c3ed400b805c3a1587959f66bc4a19db18aedc8111e862651a90bb8d8f",
+      "after": "97a325c5a581d30153ca498f3b538e1b0e1ddf14d5a944769d2f82349210382a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KProgram.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeCp.inc": {
+      "before": "99bd043c859859f66813212e5c1b8ff36e8a0f7eb08a4b0112ef8ea0743e29ae",
+      "after": "99bd043c859859f66813212e5c1b8ff36e8a0f7eb08a4b0112ef8ea0743e29ae",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiGpuNativeCp.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KLive.h": {
+      "before": null,
+      "after": "aa10b5214f5b4b65c40c1abca037e12e3770866ef92706a1c0856db161b9a7ae",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KLive.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KContext.c": {
+      "before": "b8e32e32d1f07e71de65f31b12963ab8b01c05755f8c60c2d6f40cb03fe4eca8",
+      "after": "b8e32e32d1f07e71de65f31b12963ab8b01c05755f8c60c2d6f40cb03fe4eca8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KContext.c"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4K.h": {
+      "before": "e25063b9134afc7eb79e7c030bc2858608cf0ade5da714d5dfd600fee5007e8e",
+      "after": "e25063b9134afc7eb79e7c030bc2858608cf0ade5da714d5dfd600fee5007e8e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4K.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuScratchContext.h": {
+      "before": "6892d1987e46def0c9559a71ae09395c992f4d48eec5b60a70f8e58ddc8861b3",
+      "after": "aba28253672fc7057dd8f75bae80c74e93f98a29c58034bb8c945e81180670f6",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/GpuScratchContext.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KAudit.c": {
+      "before": "594739cebc43926b1cb0a0e965867bcf1edfb90fab9c51465b65fa47be3755c1",
+      "after": "594739cebc43926b1cb0a0e965867bcf1edfb90fab9c51465b65fa47be3755c1",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KAudit.c"
+    },
+    "iokit/Kernel/houji-ufs-root/AdrenoPM4.h": {
+      "before": "86f4e84eece0f2e67f786d03cea8b82c696377fc5af9f890dd164bbfe24abd29",
+      "after": "86f4e84eece0f2e67f786d03cea8b82c696377fc5af9f890dd164bbfe24abd29",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/AdrenoPM4.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeVm.inc": {
+      "before": null,
+      "after": "a2e1244a5feccaa03df55dbec66132c1f9de22484cf6356792fa3b661e139ff2",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiGpuNativeVm.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KTableMemory.h": {
+      "before": null,
+      "after": "316b85ee835686744feb7777b4216917578833e3ff510aeecc4bbe8325568f86",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KTableMemory.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuZapAssets.h": {
+      "before": "bdbaa5abd8d95a899f05aeecc48c597f1e39f21c1ed01107a5c62a77462aeb05",
+      "after": "bdbaa5abd8d95a899f05aeecc48c597f1e39f21c1ed01107a5c62a77462aeb05",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/GpuZapAssets.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapHandoff.h": {
+      "before": "deef2cd43a1e46a72f363257674d8974bbc6db37026494f5d9d336125beae3b9",
+      "after": "deef2cd43a1e46a72f363257674d8974bbc6db37026494f5d9d336125beae3b9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiZapHandoff.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiFullHostNativeMemory.h": {
+      "before": "d0cc9727b87b2c52b5e7d18c585c3af383181ac0518c550552ed8227537e690d",
+      "after": "c9978c09ffaebd35f9745b04764ca273fe42d5d86cdc76044b34340973fe6a7e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiFullHostNativeMemory.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KMmio.h": {
+      "before": null,
+      "after": "face552cf67de969e8e741c0195496949f2c62b418d973e4d71a02f18ab83109",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KMmio.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KStreams.h": {
+      "before": null,
+      "after": "1cfca0b4e3acba420cc829098b52d61c4905ec64d2aa57883dedae9dfb212969",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KStreams.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.h": {
+      "before": "e45b4b4b2a5915cd10f390cc9f52da6aa362ba69a110ecf15a9e967b740e4b2b",
+      "after": "c257d181e50727cc954affdc22cc7763a6e368ee396f7384abebc912755c8b5e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/houji_full_host_runtime.h"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_native_full_host_graph.h": {
+      "before": "b937ce4f02fb4a0d7d6d491e33aae32ab3ad81323e48488523cd8946ac6c1dc8",
+      "after": "5dfd5b2cb636cb21ef3cae45f4ad6a1c31c2007ff376080ad2a97fa4c4504e14",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/houji_native_full_host_graph.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KContext.h": {
+      "before": "c842e78f37eab2e7cbba28cb89f4b993d9202503e75fee9e49a871101b936e53",
+      "after": "c842e78f37eab2e7cbba28cb89f4b993d9202503e75fee9e49a871101b936e53",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KContext.h"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuZapLoad.h": {
+      "before": "d47e300f34dc4640f853ac6e60eb8f51b76c9caecd0aa2052caed4682d39b359",
+      "after": "d47e300f34dc4640f853ac6e60eb8f51b76c9caecd0aa2052caed4682d39b359",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/GpuZapLoad.h"
+    },
+    "iokit/Kernel/houji-ufs-root/NativeAdrenoRing.h": {
+      "before": "ea816380a72ddcc6bae9a21aa4dd83d458184be91f2260154bdf2c043c38df8e",
+      "after": "ea816380a72ddcc6bae9a21aa4dd83d458184be91f2260154bdf2c043c38df8e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/NativeAdrenoRing.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KLive.c": {
+      "before": null,
+      "after": "069c6aa56cc8025aa49a7cb5505add85d568abe02f844968bed092b531bbbce9",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KLive.c"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KProgram.c": {
+      "before": "3b1d4911b0a48f90b09c721ffd2eb95dbfc02e96165009b23f8c98841f36e2b0",
+      "after": "7586c4da3d9cc2699559807d4ded41f88cba9a01c58ae36dab73117496e63712",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KProgram.c"
+    },
+    "iokit/Kernel/houji-ufs-root/NativeAdrenoRing.cpp": {
+      "before": "f6568b289ed07e8f7a0a886d857ac833e4b856b517c6bcc5b358f35f25a2f2db",
+      "after": "f6568b289ed07e8f7a0a886d857ac833e4b856b517c6bcc5b358f35f25a2f2db",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/NativeAdrenoRing.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KAudit.h": {
+      "before": "1f313acd46db3dfecc115b8c885c5c43f7d23f73690a6157f900dfc77b2c9f6a",
+      "after": "1f313acd46db3dfecc115b8c885c5c43f7d23f73690a6157f900dfc77b2c9f6a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4KAudit.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeSubmit.inc": {
+      "before": "b3cc22bb6271e58ecb101fc932b3665b655100a82614140ef21284550e3de87f",
+      "after": "60de1f4bb41720406cad40aaef4ae8a2fa812d9c79e53eb9b34a582f9ccff310",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/HoujiGpuNativeSubmit.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4K.c": {
+      "before": "0adb19b483e56e723014ed6cfe2c29f9d9735ae2770f62cf0057b22937dbd157",
+      "after": "0adb19b483e56e723014ed6cfe2c29f9d9735ae2770f62cf0057b22937dbd157",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/ArmSmmu4K.c"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuPasProbe.h": {
+      "before": "e136521dde64d756b8f73b66c9e452dc8e44d72756b367aed447fbe09a25ecca",
+      "after": "e136521dde64d756b8f73b66c9e452dc8e44d72756b367aed447fbe09a25ecca",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-runtime/GpuPasProbe.h"
+    },
+    "iokit/conf/files": {
+      "before": "49a97f0098620c7943e5ebac7d7faf7e242ab44f1efb52117a75745a4900daec",
+      "after": "b0968742b17843bd7f5787e87c2d5668a38e305290e1803233231a841df522b7"
+    }
+  },
+  "source_pin": "UniXNU/ArmSmmu4K 3ba92451bd44bb742d11758fbfcd3a446ecad685 plus inactive-only seed adapter",
+  "offline_evidence": {
+    "graph.log": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-vm-host/graph.log",
+      "sha256": "31db9373623f66dbf11a30f31edcbc0f42b187e17fa8cdef5ba1455eb9f440f3"
+    },
+    "seed.c": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-vm-host/seed.c",
+      "sha256": "58bec51fe8f38b9798b4b55badc708f8d58d7ce7b1c4f17089274351da650213"
+    },
+    "seed.log": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-vm-host/seed.log",
+      "sha256": "c70914919fa98367c9a85c6ed3a61c1d4c0a0a3314ef290f6f1a51dd5d736ca1"
+    },
+    "run_graph.py": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-vm-host/run_graph.py",
+      "sha256": "8eafd9aa902e7a131ddd92d3d287887dd80d2e7af7eca2e1ec82815426dcb0b3"
+    },
+    "graph.c": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-vm-host/graph.c",
+      "sha256": "fd02ceb5385a000e70fb08b3d247e2d368d3adf6c5bb0df821742e538f3bed05"
+    },
+    "linked_review": {
+      "path": "/tmp/r158-vm-linked/review.json",
+      "sha256": "e4a1a8fab14e92bf85cb8c9d9b033ab282a95a68666c60ea307713912a3d4a0b"
+    }
+  },
+  "runtime_user_abi_preserved": 1,
+  "desktop_acceleration_claim": false,
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r158-result.json",
+  "dynamic_mapping_qualified": false
+}

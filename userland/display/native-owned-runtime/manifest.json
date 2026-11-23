@@ -1,0 +1,16 @@
+{
+  "before_sha256": "4fc7b2579d5a49c5bafff1bbc5e1e55631b5b806455b4bb122b7cec3d2560506",
+  "after_sha256": "9a7d92372da1358492f0cff6023e60a46352120d64f5de0361ca6df592ed8afa",
+  "render_pixels": [
+    1200,
+    2670
+  ],
+  "physical_panel": [
+    1200,
+    2670
+  ],
+  "resampling": false,
+  "owned_render_surface_separate_from_scanout": true,
+  "GPU_fence_and_CPU_acquisition_retained": true,
+  "hardware_qualified": false
+}

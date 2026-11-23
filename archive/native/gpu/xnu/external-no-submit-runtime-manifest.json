@@ -1,0 +1,20 @@
+{
+  "scope": "r146 NoSubmission independent diagnostic checkpoint before any CM3 release intent; failed or unknown postrelease states remain noFS",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuExternalCanaryProbe.inc": {
+      "before": "8efb05e2a025ade6eda3d78073c221965f687286314db72aa864ad75587298a5",
+      "after": "8b936e692d27b0a14db76f373aaa20d459e9bc95b2bc772821a4bc1367681780",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuExternalCanaryProbe.inc",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-no-submit-runtime/before-HoujiGpuExternalCanaryProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "0686cf466155cd3cd8bdb1ccd88a29790796d76e14a7b84e06d3d8029837867a",
+      "after": "5f6cfb29f10110b95cd862b1bf56cb826461fceac18c6c6ff9bf80d7faef2169",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r146-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-no-submit-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": false,
+  "native_host_cases": 5274,
+  "core_unchanged": true
+}

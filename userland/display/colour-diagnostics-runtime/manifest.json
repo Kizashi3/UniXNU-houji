@@ -1,0 +1,20 @@
+{
+  "scope": "Read-only colour-count sampling of already fenced/acquired source surfaces; static GPU VA window reporting; cached notification/copy totals",
+  "files": {
+    "iokit/Kernel/arm/SweetFramebuffer.cpp": {
+      "before_sha256": "6f71ba5e35a1cb6286171aa129f23fecbbb9b8902d26c1b26774a6eed417677c",
+      "after_sha256": "d6ec8e99b8cc86b15fe22d745206efa733fc2686816080d828d44541aeddaaa4"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before_sha256": "f07e3463a93e0f8d9f0e354bbb614eb1201c16a473dd8955d4d7ca9917a66ea2",
+      "after_sha256": "fdc16d180eadbf72cdfce9f5fb4a95c7ac218511a60b22575fdfa89633e97cb0"
+    }
+  },
+  "raw_pixels_saved": false,
+  "scanout_read": false,
+  "GPU_shader_or_format_changed": false,
+  "allocation_limits_changed": false,
+  "same_unified_keyboard_library": 18,
+  "same_software_notification_hz": 120,
+  "hardware_tested": false
+}

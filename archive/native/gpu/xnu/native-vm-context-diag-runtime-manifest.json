@@ -1,0 +1,22 @@
+{
+  "scope": "Exact expected/observed context fields on the same combined Native mapping trial; no readback masks or GPU commands changed",
+  "hardware_tested": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "d9a90ad163a51eacb5e0a05550848a52a6875e52a77b1e9684dcc6d3ba0d0366",
+      "after": "25f253989982ddbfb3b24c7997c0a667ca3c01128d3c95cf61776c672e2d2bd0",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-context-diag-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeVm.inc": {
+      "before": "ca25d31364cdd94032c955fdb77165a988d31529a0bb38a9b4fca52f035c1b1f",
+      "after": "85117c76fd7e7173e9990e1425e6fdd68c8722cb2bca8b8b346e987e0ea28f1d",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-context-diag-runtime/HoujiGpuNativeVm.inc"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r161-vm-linked/review.json",
+      "sha256": "ae558c0fcc437a8479073128d118a5903d3c8e83403090b1fe0bcfc2a583a5c9"
+    }
+  }
+}

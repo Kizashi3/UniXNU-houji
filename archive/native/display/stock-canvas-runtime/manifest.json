@@ -1,0 +1,36 @@
+{
+  "files": {
+    "iokit/Kernel/arm/SweetSurface.cpp": {
+      "before_sha256": "41f13de35a1abcff5c141dc90386aac2bb6a21f09518d18e1b46aa7d17475263",
+      "after_sha256": "1a5c67a98a17b1f7bf1f060181a972fad7f14c6b5150ee5ad97645324b4c0df5"
+    },
+    "iokit/Kernel/arm/SweetFramebuffer.cpp": {
+      "before_sha256": "2916a99412f3a9818f726052a61710e1f217b00795eea8fb0d8ae2a3640c87a0",
+      "after_sha256": "7f057b0cdfd5d513b92b7debb99fa0debed1fd7c19b0f6f1706c38674686e861"
+    },
+    "iokit/Kernel/arm/SweetSurface.h": {
+      "before_sha256": "3a3efd984200566285009001ca114aff39c3e6ee597a7ace9511ebdc75137425",
+      "after_sha256": "eb29109aa9875bd76fe24cfbf59f47e430c5ec13ed3186fb5d884c1c24bbb88d"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before_sha256": "4dfa215ee5e485289bd9ab225714f331753c80a01b92dcb2b11c3de5b904e7f6",
+      "after_sha256": "4345e1aba47dc568ec27edfb7e20df2d58baf8d5630d1f029000bf48c8998935"
+    }
+  },
+  "render_canvas": [
+    1125,
+    2436
+  ],
+  "logical_points": [
+    375,
+    812
+  ],
+  "physical_panel": [
+    1200,
+    2670
+  ],
+  "copy": "cached nearest-neighbour row scaling; same GPU completion fence and ownership gate",
+  "physical_MMIO_changes": false,
+  "normalized_touch_unchanged": true,
+  "hardware_qualified": false
+}

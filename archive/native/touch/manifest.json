@@ -1,0 +1,25 @@
+{
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "39d004aa7a3ca03ceeeb280e8d6041f2d3931692a6643a77f96b139acc950eae",
+      "after": "a6e63a51a6d8ba398889bc6743fd438d374f6da3e99eef4d708b40e6a3460948"
+    },
+    "bsd/dev/sweet_sample.c": {
+      "before": "b34288bf65bc0f6fd7a2a1084d85c58e47a5d327c6aa12ac3c33e4a8e87ed27d",
+      "after": "b5cfff79b4344821946146ef0cb388fedc7f0a9250c25b6106dee6d77f76c150"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTouchProbe.h": {
+      "before": null,
+      "after": "004c2bcc61f6f71ce35507f31f0bd05b3e423913c2695291d990c0038cff7372"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiTouchProbe.inc": {
+      "before": null,
+      "after": "427a35a49e77c3700963210976562c45e81499cdb22835eca953c548c8f58e71"
+    }
+  },
+  "mode": "opt-in read-only handoff probe; no GPIO, clock, bus, PMIC or DMA writes",
+  "boot_argument": "houji_touch_probe=1",
+  "hardware_tested": true,
+  "callback_tests": "read whitelist; no SE accesses with halted clock; 23 callback failure positions",
+  "hardware_result": "r48: 16 read-only MMIO loads, clock halted, SE skipped; 36 userland samples, committed log and automatic Recovery return"
+}

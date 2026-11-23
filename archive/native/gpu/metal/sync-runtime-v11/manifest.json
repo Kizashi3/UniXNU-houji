@@ -1,0 +1,19 @@
+{
+  "files": {
+    "NativeBridgeMetalFrontend.mm": {
+      "before_sha256": "d79dd7a9986a9f444a328bc59f6353255705439cf2738ac877a5ee63ea764f1b",
+      "after_sha256": "f96c208f616e21152667d9881d172c427bc6cd9fff1eaad76b1dd53f614129c1"
+    },
+    "bridge/NativeMetalObjects.h": {
+      "before_sha256": "bddcc732b0b052148269e55446ede3ee02fc8c614481e6de0acc5a449b8109fe",
+      "after_sha256": "49836e3452e598b874e85ef1424b2c01d865e863f16459f6a754bc43317f4eeb"
+    },
+    "bridge/NativeMetalObjects.rs": {
+      "before_sha256": "f4588cd7291cf3735fb4e28b48c0bcc207374c0b30b0bb33082f63634b295ad1",
+      "after_sha256": "76ce05f5368275246894125600f8968456e652875434b5fddad14e5428b79b5c"
+    }
+  },
+  "upstream_metal2vulkan": "0dfdbcd59d235e37ba13b87a5ab30835b5bb9e35",
+  "scope": "Resource residency and explicit scope barrier forwarding; imported texture owners and CPU cache acquisition retained; per-API call/failure counters",
+  "hardware_qualified": false
+}

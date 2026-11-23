@@ -1,0 +1,8 @@
+{
+  "before_sha256": "94a5bd0e0ae79f0deb504fb84cc186dec00bd6dd483bfce6c7c5ce20284533e3",
+  "after_sha256": "f4841e629ed328d579e6a1981c43d64d777f5b0bd33f8505491a8fb50c8ea052",
+  "property": "houji,platform-uuid",
+  "encoding": "16 bytes, RFC 4122 UUIDv5",
+  "scope": "ARM64_BOARD_CONFIG_SWEET fallback only when normal Apple UUID creation did not succeed",
+  "apple_ecid_added": false
+}

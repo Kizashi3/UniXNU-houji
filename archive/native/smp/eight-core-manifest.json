@@ -1,0 +1,37 @@
+{
+  "files": {
+    "iokit/Kernel/arm/SweetCPU.cpp": {
+      "before": "9a2d82422721bb8a25c5f43692bd6fe1234896cf84685db35a269625b09f8b6a",
+      "after": "ce311db8cb8f32d571b6f259a6970b79b5163b424c4912b04842591e9f2dc0f9"
+    },
+    "osfmk/arm64/cpu.c": {
+      "before": "db2b2038f92bd62bbc929afb8d5a4d70780db4b204a15221346b569d0a519e0c",
+      "after": "7026d2d395fbe41d64c5b2a7c52ac21b8e8827ebcf492d5fd691bfc5e07f5967"
+    },
+    "iokit/Kernel/arm/HoujiCpuPolicy.h": {
+      "before": "6167d75107c2868c13d9da6fb430120ffcabcf7fcef2b3f21ae50c2594c73fbf",
+      "after": "98948cefb093836e5acad54851f8cb72b24a29656e5f641bd05962127247449a"
+    }
+  },
+  "cpu_affinities": [
+    0,
+    256,
+    512,
+    768,
+    1024,
+    1280,
+    1536,
+    1792
+  ],
+  "mode": "conservative SMP; original Clutch, no AMP/DVFS tuning",
+  "hardware_tested": true,
+  "preflight": "per-core MIDR, bound tasks, timer and SGI before HFS mount",
+  "scope": "up to all eight captured SM8650 cores",
+  "hardware_validation": {
+    "trial": "r55",
+    "all_eight_midr_and_affinities_match": true,
+    "all_eight_timers_and_ipis": true,
+    "every_secondary_bound_worker_beats": 10,
+    "ios_userland_qualified": false
+  }
+}

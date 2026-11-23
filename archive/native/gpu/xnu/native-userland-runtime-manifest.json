@@ -1,0 +1,59 @@
+{
+  "scope": "mode2 live owner returns to BSD; bounded root-owned probe-log watcher stops GPU before archival/recovery; disjoint userspace VA windows, unchanged core live PTE verification and generation-bound extra CRC. Pending local image ownership/install; no hardware result",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "f3c924966aef3542d1601407d6be8bf31e960400576cd6add70a0a4c58358d2d",
+      "after": "2d59f0e400ad1d6e5c8883ccf942ab4fd02f8986ef4d242d940336547a6ea2a4",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-userland-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc": {
+      "before": "0859128429e5893944798e9606957ddf50cf126f0ee9b1e3494de1cc1689f35c",
+      "after": "17ad89a780516dec549d04f866b22464fc3ad0fd3c2a6bc84980de19c982e7c8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-userland-runtime/HoujiGpuNativeLive.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "80ad9e5dc99de3c6c8c963e2262a3700d4035405525ffb5d2a042150aaef44d2",
+      "after": "26ece504eefe05a42e089f76376c1957e87d1dd12ac0ef8093c91234fa54decd",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-userland-runtime/HoujiGpuFullHostProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuProbeLog.inc": {
+      "before": null,
+      "after": "f017ece99423f31d299d1cc4d809bd0f9dd380246d18263119d2f3faaccf5acb",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-userland-runtime/HoujiGpuProbeLog.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeProvider.inc": {
+      "before": "7b41ee50bd42a6b223ff099c728c9c3fc1c51c5f87efb3af6585849fad63995f",
+      "after": "be782866db98958f25c8fae57aebd79122cdb6be3d2874a78725a352ef4d5103",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-userland-runtime/HoujiGpuNativeProvider.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "c7f641f8d44df484f92785f65f21b95e22ada6c64b3d7dbc36227bf4de02952f",
+      "after": "87c62d071b11671c7da836ca19efa792a6bf3bc31d415f47b79ad415d0f32f47",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-userland-runtime/Adreno740/NativeAdrenoPublish.cpp"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r168-vm-linked/review.json",
+      "sha256": "3a4910cd6ac08bae6323ecea519ff1dcba3c2fb5a37f7fd1b142f994a746f369"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r168-client-linked/review.json",
+      "sha256": "444f814f98268a4eaf23c439607b345546dc5fa30850b463e5b9fbebfae9978c"
+    },
+    "linked_provider": {
+      "path": "/tmp/r168-provider-linked/review.json",
+      "sha256": "5f2e7bc6d360e2ec0c41aad15d4aa79bdfef2fc4977bb94b5f56ed15dca16738"
+    }
+  },
+  "Mach_trap_qualified": true,
+  "Metal_qualified": false,
+  "desktop_acceleration": false,
+  "Turnip_shader_compute_render_import": true,
+  "IOSurface_verified": false,
+  "hardware_evidence": {
+    "path": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r168-result.json",
+    "sha256": "f881506ffda83ea8c1ffde7457a39e74391181b8f215d21da02a44a544afc696"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "scope": "Actual original gpp_crc32 versus new CPU implementation; not GPU emulation",
+  "ASAN_UBSAN": true,
+  "cases": 4153,
+  "all_existing_runtime_checks_kept": true,
+  "CRC_byte_range_and_result_unchanged": true,
+  "owned_RAM_only": true
+}

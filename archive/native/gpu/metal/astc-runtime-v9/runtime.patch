@@ -1,0 +1,120 @@
+--- a/crates/metal2vulkan-runtime/src/buffer_texture.rs
++++ b/crates/metal2vulkan-runtime/src/buffer_texture.rs
+@@ -75,6 +75,9 @@
+     shader: BufferLayout,
+     /// The bytes of one texel.
+     texel_bytes: u64,
++    // Native raw-memory ASTC uses block rows, distinct from public buffer textures.
++    block_extent: [u32; 2],
++    image_extent: Option<[u32; 2]>,
+     pub(super) allow_gpu_optimized_contents: bool,
+     /// The texture's resource options, its hazard tracking mode resolved, as `resourceOptions`
+     /// reports them: the buffer's, which Metal's texture over a buffer takes, but an IOSurface
+@@ -320,6 +323,44 @@
+             BufferTextureCall::Linear,
+             None,
+         )
++    }
++
++    /// Native port SPI: an ASTC 4x4 2D sampled image over the explicit block-row
++    /// layout returned by this port's MTLTextureLayout. This does not relax the
++    /// public Metal buffer-texture rules and never interprets Apple's tiled data.
++    /// Normal shadow tracking retains the source and observes later CPU writes.
++    pub fn new_native_raw_astc4x4_texture(
++        &self, descriptor: &TextureDescriptor, bytes_per_row: u64,
++    ) -> Result<Texture, Error> {
++        const CALL: &str = "new_native_raw_astc4x4_texture";
++        let fail = || Error::NotImplemented(RuntimeGap::Textures);
++        if !matches!(descriptor.pixel_format, PixelFormat::ASTC4x4LDR | PixelFormat::ASTC4x4SRGB)
++            || descriptor.texture_type != TextureType::Type2D || descriptor.depth != 1
++            || descriptor.array_length != 1 || descriptor.mipmap_level_count != 1
++            || descriptor.sample_count != 1 || descriptor.rotation != 0
++            || descriptor.framebuffer_only || self.detached()
++            || !(TextureUsage::SHADER_READ | TextureUsage::PIXEL_FORMAT_VIEW).contains(descriptor.usage)
++            || descriptor.width == 0 || descriptor.height == 0
++        { return Err(fail()); }
++        let device = self.device();
++        let descriptor = TextureDescriptor {
++            resource_options: self.resource_options(), ..device.take_texture_options(CALL, descriptor)
++        };
++        let layout = descriptor.check_made(Creator::Device, device.properties().texture_rules())
++            .map_err(|refused| refused.error(CALL))?;
++        let [width, height, _] = layout.extent;
++        let row_bytes = u64::from(width).div_ceil(4).checked_mul(16).ok_or_else(fail)?;
++        let rows = u64::from(height).div_ceil(4);
++        let slice = bytes_per_row.checked_mul(rows).ok_or_else(fail)?;
++        if bytes_per_row < row_bytes || bytes_per_row % 16 != 0 || slice > self.length() {
++            return Err(fail());
++        }
++        let placed = BufferLayout {offset: 0, row_pitch: bytes_per_row,
++            slice_pitch: slice, row_bytes, rows, slices: 1};
++        let mut texels = Texels::new(self.clone(), placed, 16, &descriptor);
++        texels.block_extent = [4, 4]; texels.image_extent = Some([width, height]);
++        device.new_texture_over_buffer(CALL, texels, &descriptor, &layout,
++            IdUse::Program(descriptor.placement))
+     }
+ 
+     /// The stand-in for `newTextureWithDescriptor:iosurface:plane:` over the caller's memory: a
+@@ -1065,6 +1106,8 @@
+             cpu: placed,
+             shader: placed,
+             texel_bytes,
++            block_extent: [1, 1],
++            image_extent: None,
+             allow_gpu_optimized_contents: descriptor.allow_gpu_optimized_contents,
+             options: buffer.resource_options(),
+             views,
+@@ -1222,7 +1265,7 @@
+                 // Metal's slices are multiples of 128 bytes apart.
+                 buffer_offset: start + layout.slice_pitch * u64::from(slice),
+                 // Metal's rows are multiples of 16 bytes, so of every texel size.
+-                buffer_row_length: (layout.row_pitch / self.texel_bytes) as u32,
++                buffer_row_length: ((layout.row_pitch / self.texel_bytes) * u64::from(self.block_extent[0])) as u32,
+                 buffer_image_height: 0,
+                 image_subresource: vk::ImageSubresourceLayers {
+                     aspect_mask: aspects,
+@@ -1232,8 +1275,8 @@
+                 },
+                 image_offset: vk::Offset3D::default(),
+                 image_extent: vk::Extent3D {
+-                    width: width as u32,
+-                    height: layout.rows as u32,
++                    width: self.image_extent.map_or(width as u32, |extent| extent[0]),
++                    height: self.image_extent.map_or(layout.rows as u32, |extent| extent[1]),
+                     depth: 1,
+                 },
+             })
+@@ -1302,7 +1345,7 @@
+     pub(super) fn unit(&self) -> CopyUnit {
+         CopyUnit {
+             bytes: self.texel_bytes as u32,
+-            extent: [1, 1],
++            extent: self.block_extent,
+             aspect: ImageAspectFlags::COLOR,
+         }
+     }
+@@ -1396,7 +1439,8 @@
+     /// the buffer.
+     fn region_layout(&self, region: &ImageRegion, host: &HostLayout) -> (u64, HostLayout) {
+         let layout = &self.cpu;
+-        let [x, y, _] = region.origin.map(u64::from);
++        let [mut x, mut y, _] = region.origin.map(u64::from);
++        x /= u64::from(self.block_extent[0]); y /= u64::from(self.block_extent[1]);
+         let start = layout.offset
+             + layout.slice_pitch * u64::from(region.layer)
+             + layout.row_pitch * y
+--- a/crates/metal2vulkan-runtime/src/texture.rs
++++ b/crates/metal2vulkan-runtime/src/texture.rs
+@@ -1968,7 +1968,11 @@
+         let detached = texels.buffer.detached();
+         let dma_buf = texels.buffer.over_dma_buf();
+         // Where no image aliases the bytes, the reason the plan's attempt gives is the notice's.
+-        let why = if detached {
++        let why = if texels.unit().extent != [1, 1] {
++            // The native raw ASTC layout consists of compressed block rows.
++            // Never bind them as an uncompressed linear Vulkan image.
++            "native compressed block rows require a tracked shadow image".to_owned()
++        } else if detached {
+             "the buffer's bytes were detached from their pages (detach_backing) as the texture \
+              was made"
+                 .to_owned()

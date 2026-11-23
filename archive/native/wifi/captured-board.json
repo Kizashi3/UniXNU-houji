@@ -1,0 +1,410 @@
+{
+  "device": "houji",
+  "source_fdt_sha256": "04dad3a2a40758525e93109ef17954183500a86c7bdf77973b89e39f97723807",
+  "chip_id_evidence": "FDT supported-ids 0x1107; Linux ath12k maps it to WCN7850; endpoint not yet enumerated by XNU",
+  "reference_module": {
+    "repo": "UniXNU/NativeWifi",
+    "commit": "16f280b41471bfeea5c546a30a0ab6ce8bec4846"
+  },
+  "hardware_wifi_qualified": false,
+  "wifi_mmio_writes": false,
+  "firmware_executed": false,
+  "notes": [
+    "CNSS reg named smmu_iova_ipa is an IOVA range, not the endpoint MMIO BAR",
+    "disabled legacy PCI MSI node does not authorize using its address; real MSI/GIC route must be established",
+    "Supply and clock resources must be resolved from this board, not copied from sheng"
+  ],
+  "nodes": {
+    "/soc/qcom,cnss-kiwi@b0000000": {
+      "clock-names": [
+        "rf_clk"
+      ],
+      "clocks": [
+        45,
+        6
+      ],
+      "qcom,wlan-rc-num": [
+        0
+      ],
+      "pinctrl-1": [
+        2047
+      ],
+      "pinctrl-0": [
+        2046
+      ],
+      "pinctrl-names": [
+        "wlan_en_active",
+        "wlan_en_sleep"
+      ],
+      "qcom,sw-ctrl-gpio": [
+        197,
+        18,
+        0
+      ],
+      "qcom,bt-en-gpio": [
+        197,
+        17,
+        0
+      ],
+      "wlan-en-gpio": [
+        197,
+        16,
+        0
+      ],
+      "supported-ids": [
+        4359
+      ],
+      "qcom,wlan-sw-ctrl-gpio": [
+        197,
+        19,
+        0
+      ],
+      "reg-names": [
+        "smmu_iova_ipa"
+      ],
+      "reg": [
+        2952790016,
+        65536
+      ],
+      "compatible": [
+        "qcom,cnss-kiwi"
+      ]
+    },
+    "/soc/qcom,pcie@1c00000": {
+      "compatible": [
+        "qcom,pci-msm"
+      ],
+      "reg": [
+        29360128,
+        12288,
+        29384704,
+        8192,
+        1610612736,
+        3869,
+        1610616608,
+        168,
+        1610616832,
+        4096,
+        1611661312,
+        1048576,
+        30437376,
+        28672
+      ],
+      "reg-names": [
+        "parf",
+        "phy",
+        "dm_core",
+        "elbi",
+        "iatu",
+        "conf",
+        "pcie_sm"
+      ],
+      "cell-index": [
+        0
+      ],
+      "interrupts": [
+        0,
+        140,
+        4,
+        0,
+        149,
+        4,
+        0,
+        150,
+        4,
+        0,
+        151,
+        4,
+        0,
+        152,
+        4
+      ],
+      "interrupt-names": [
+        "int_global_int",
+        "int_a",
+        "int_b",
+        "int_c",
+        "int_d"
+      ],
+      "msi-map": [
+        0,
+        91,
+        5120,
+        1,
+        256,
+        91,
+        5121,
+        1
+      ],
+      "pinctrl-names": [
+        "default",
+        "sleep"
+      ],
+      "pinctrl-0": [
+        737,
+        738,
+        739
+      ],
+      "pinctrl-1": [
+        737,
+        740,
+        739
+      ],
+      "clocks": [
+        44,
+        11
+      ],
+      "clock-names": [
+        "gcc_cnoc_pcie_sf_axi_clk"
+      ],
+      "resets": [
+        44,
+        3,
+        44,
+        6
+      ],
+      "iommu-map": [
+        0,
+        82,
+        5120,
+        1,
+        256,
+        82,
+        5121,
+        1
+      ]
+    },
+    "/soc/qcom,pcie@1c00000/pcie0_rp/cnss_pci0": {
+      "reg": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "/soc/qcom,pcie0_msi@0x17110040": {
+      "compatible": [
+        "qcom,pci-msi"
+      ],
+      "reg": [
+        386990144,
+        0
+      ],
+      "interrupt-parent": [
+        1
+      ],
+      "interrupts": [
+        0,
+        768,
+        1,
+        0,
+        769,
+        1,
+        0,
+        770,
+        1,
+        0,
+        771,
+        1,
+        0,
+        772,
+        1,
+        0,
+        773,
+        1,
+        0,
+        774,
+        1,
+        0,
+        775,
+        1,
+        0,
+        776,
+        1,
+        0,
+        777,
+        1,
+        0,
+        778,
+        1,
+        0,
+        779,
+        1,
+        0,
+        780,
+        1,
+        0,
+        781,
+        1,
+        0,
+        782,
+        1,
+        0,
+        783,
+        1,
+        0,
+        784,
+        1,
+        0,
+        785,
+        1,
+        0,
+        786,
+        1,
+        0,
+        787,
+        1,
+        0,
+        788,
+        1,
+        0,
+        789,
+        1,
+        0,
+        790,
+        1,
+        0,
+        791,
+        1,
+        0,
+        792,
+        1,
+        0,
+        793,
+        1,
+        0,
+        794,
+        1,
+        0,
+        795,
+        1,
+        0,
+        796,
+        1,
+        0,
+        797,
+        1,
+        0,
+        798,
+        1,
+        0,
+        799,
+        1
+      ],
+      "status": [
+        "disabled"
+      ]
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_perst_default": {},
+    "/soc/pinctrl@f000000/pcie0/pcie0_perst_default/mux": {
+      "pins": [
+        "gpio94"
+      ],
+      "function": [
+        "gpio"
+      ]
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_perst_default/config": {
+      "pins": [
+        "gpio94"
+      ],
+      "drive-strength": [
+        2
+      ],
+      "bias-pull-down": []
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_clkreq_default": {},
+    "/soc/pinctrl@f000000/pcie0/pcie0_clkreq_default/mux": {
+      "pins": [
+        "gpio95"
+      ],
+      "function": [
+        "pcie0_clk_req_n"
+      ]
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_clkreq_default/config": {
+      "pins": [
+        "gpio95"
+      ],
+      "drive-strength": [
+        2
+      ],
+      "bias-pull-up": []
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_wake_default": {},
+    "/soc/pinctrl@f000000/pcie0/pcie0_wake_default/mux": {
+      "pins": [
+        "gpio96"
+      ],
+      "function": [
+        "gpio"
+      ]
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_wake_default/config": {
+      "pins": [
+        "gpio96"
+      ],
+      "drive-strength": [
+        2
+      ],
+      "bias-pull-up": []
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_clkreq_sleep": {},
+    "/soc/pinctrl@f000000/pcie0/pcie0_clkreq_sleep/mux": {
+      "pins": [
+        "gpio95"
+      ],
+      "function": [
+        "gpio"
+      ]
+    },
+    "/soc/pinctrl@f000000/pcie0/pcie0_clkreq_sleep/config": {
+      "pins": [
+        "gpio95"
+      ],
+      "drive-strength": [
+        2
+      ],
+      "bias-pull-up": []
+    },
+    "/soc/pinctrl@f000000/cnss_pins/cnss_wlan_en_active": {},
+    "/soc/pinctrl@f000000/cnss_pins/cnss_wlan_en_active/mux": {
+      "function": [
+        "gpio"
+      ],
+      "pins": [
+        "gpio16"
+      ]
+    },
+    "/soc/pinctrl@f000000/cnss_pins/cnss_wlan_en_active/config": {
+      "bias-pull-up": [],
+      "output-high": [],
+      "drive-strength": [
+        16
+      ],
+      "pins": [
+        "gpio16"
+      ]
+    },
+    "/soc/pinctrl@f000000/cnss_pins/cnss_wlan_en_sleep": {},
+    "/soc/pinctrl@f000000/cnss_pins/cnss_wlan_en_sleep/mux": {
+      "function": [
+        "gpio"
+      ],
+      "pins": [
+        "gpio16"
+      ]
+    },
+    "/soc/pinctrl@f000000/cnss_pins/cnss_wlan_en_sleep/config": {
+      "bias-pull-down": [],
+      "output-low": [],
+      "drive-strength": [
+        2
+      ],
+      "pins": [
+        "gpio16"
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "before": "41edaf4f4221b7cd5243244603fe6c42ca1ffa8ade24da5082ef41c1dbb3bef3",
+  "after": "f3691c86b29a94024a8d94fb846d937854f0539d0d697d9c12bfbb818d6a8d5c",
+  "scope": "identical full-byte IEEE CRC32, runtime ISA gate, unchanged slicing fallback and corruption checks",
+  "hardware_cpu_qualification": "same Xiaomi14 recovery RAM-only executable; not GPU/FPS validation",
+  "benchmark": "PASS cases=16448 full_4MiB=24 hw-ns=5055573 soft-ns=55016928 ratio=10.882 checksum=1eeb5ac2 hwcap=efbfffff",
+  "phone_storage_writes_requested": false,
+  "report_before": "69494c5c9926188cb831d08964feeb388f2cffeceae0636bcf1e98e350a06b80",
+  "report_after": "6ac9947e3b1fcc99b41c8cdfbd92309eb9151b96e1aa5d6d10034d26b288687b"
+}

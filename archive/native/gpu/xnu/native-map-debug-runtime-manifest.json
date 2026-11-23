@@ -1,0 +1,14 @@
+{
+  "scope": "Development diagnostic backtrace sampling only; same descriptor validation, managed-page predicate, cache/mapping/ownership and return semantics",
+  "files": {
+    "iokit/Kernel/IOMemoryDescriptor.cpp": {
+      "before": "9963ef1a82cfe5e1bfca797c17c686c54eeea6e631ed349babfc80ac8c824379",
+      "after": "397314fa064a8318fa79fda837b8979f787d3a359855f6638a015dbfa1475f0b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-map-debug-runtime/IOMemoryDescriptor.cpp",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-map-debug-runtime/before-IOMemoryDescriptor.cpp"
+    }
+  },
+  "backtrace_limit_per_boot": 8,
+  "full_match_counter_retained": true,
+  "hardware_tested": false
+}

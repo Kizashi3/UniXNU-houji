@@ -1,0 +1,28 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -473,7 +473,25 @@
+   IOLockLock(gCheckpointLock);
+   ensureNative();nativeStage(stage);
+   int target=0;PE_parse_boot_argn("houji_checkpoint_stop",&target,sizeof(target));
++  bool panicProbeArmed=false;
++  if(stopId==3 && target==3 && gLogEnabled && gReturnRecovery) {
++    int probe=0;
++    if(PE_parse_boot_argn("houji_panic_probe",&probe,sizeof(probe)) && probe==1) {
++      // Normal initialization context: finish the existing no-wipe BCB RMW
++      // and full readback before the log commit or deliberate panic.
++      const char *why=setRecoveryBoot();
++      if(why)rootDiagnosticFailure(why);
++      nativeStage("panic recovery self-test armed; verified BCB, panic after successful log commit");
++      panicProbeArmed=true;
++    }
++  }
+   if(gLogEnabled){const char *why=saveNativeLog();if(why)rootDiagnosticFailure(why);}
++  if(panicProbeArmed) {
++    // The saved intent is not evidence that panic happened. Only reach this
++    // distinct panic after successful commit/flush/readback; panic does no I/O.
++    IOLockUnlock(gCheckpointLock);
++    panic("HOUJI PANIC RECOVERY SELF-TEST: checkpoint3 log commit/readback passed");
++  }
+   if(stopId && target==int(stopId))logTrialReset();
+   IOLockUnlock(gCheckpointLock);
+ }

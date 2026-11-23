@@ -1,0 +1,102 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -76,11 +76,50 @@
+ static uint64_t houji_fb_missed_timer_ticks;
+ static uint64_t houji_fb_callbacks,houji_fb_due_ticks;
+ static uint64_t houji_fb_copy_wakes,houji_fb_copy_worker_ticks,houji_fb_copy_worker_max_ticks;
++static uint64_t houji_fb_started_at,houji_fb_last_notify_at,houji_fb_max_notify_gap;
+ static uint32_t houji_fb_hz_arg_found,houji_fb_config_hz,houji_fb_flush_every;
+ static size_t houji_fb_command_line_bytes;
+ struct HoujiRectObservation { uint32_t sequence,values[15]; };
+ static HoujiRectObservation houji_fb_rects[8];
+ static uint32_t houji_fb_rect_count;
++struct HoujiColourObservation {uint32_t sequence,values[12];};
++static HoujiColourObservation houji_fb_colours[12];
++static uint32_t houji_fb_colour_count;
++/* Read 64 points from the already acquired render surface, with the existing
++ * GPU fence/issuer guard held. Store only colour counts, never pixels/text. */
++static void houjiObserveColours(uint32_t frame,uint32_t layer,SweetSurface*s,uintptr_t src,
++ int32_t sx,int32_t sy,int32_t w,int32_t h,int32_t dx,int32_t dy){
++ if(w<8 || h<8)return;
++ uint32_t opaqueBlack=0,transparentBlack=0,magenta=0,zeroAlpha=0;
++ for(unsigned y=0;y<8;y++)for(unsigned x=0;x<8;x++){
++  uint32_t ix=(uint64_t(2*x+1)*w)/16,iy=(uint64_t(2*y+1)*h)/16;
++  uintptr_t at=src+s->offset+uint64_t(sy+iy)*s->bytesPerRow+uint64_t(sx+ix)*4;
++  uint32_t value=*(const volatile uint32_t*)at,alpha=value>>24;
++  if(!(value&0xffffffu)){if(!alpha)++transparentBlack;else if(alpha==255)++opaqueBlack;}
++  if(!alpha)++zeroAlpha;
++  if((value&255)>192 && ((value>>8)&255)<48 && ((value>>16)&255)>192)++magenta;
++ }
++ if((frame&15) && !magenta)return;
++ uint32_t n=__atomic_add_fetch(&houji_fb_colour_count,1u,__ATOMIC_RELAXED);
++ auto &slot=houji_fb_colours[(n-1)%12];
++ uint32_t values[12]={frame,layer,s->pixelFormat,(uint32_t)w,(uint32_t)h,(uint32_t)dx,(uint32_t)dy,64,opaqueBlack,transparentBlack,magenta,zeroAlpha};
++ __atomic_store_n(&slot.sequence,0u,__ATOMIC_RELEASE);
++ for(unsigned i=0;i<12;i++)__atomic_store_n(&slot.values[i],values[i],__ATOMIC_RELAXED);
++ __atomic_store_n(&slot.sequence,n,__ATOMIC_RELEASE);
++}
++static void houjiReportColours(void){
++ for(auto &slot:houji_fb_colours){
++  uint32_t n=__atomic_load_n(&slot.sequence,__ATOMIC_ACQUIRE),v[12];if(!n)continue;
++  for(unsigned i=0;i<12;i++)v[i]=__atomic_load_n(&slot.values[i],__ATOMIC_RELAXED);
++  if(n!=__atomic_load_n(&slot.sequence,__ATOMIC_ACQUIRE))continue;
++  IOLog("HOUJI COLOUR SOURCE: n=%u frame=%u layer=%u fmt=%x rect=%ux%u dst=%u,%u samples=%u opaque-black=%u transparent-black=%u magenta=%u alpha-zero=%u; completed source samples, packed-word counts only\n",n,v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9],v[10],v[11]);
++ }
++ uint64_t now=mach_absolute_time(),elapsedNs=0,gapNs=0,workerNs=0;
++ absolutetime_to_nanoseconds(now-houji_fb_started_at,&elapsedNs);
++ absolutetime_to_nanoseconds(__atomic_load_n(&houji_fb_max_notify_gap,__ATOMIC_RELAXED),&gapNs);
++ absolutetime_to_nanoseconds(__atomic_load_n(&houji_fb_copy_worker_max_ticks,__ATOMIC_RELAXED),&workerNs);
++ IOLog("HOUJI DISPLAY FINAL: configured-hz=%u callbacks=%llu elapsed-ms=%llu max-notify-gap-us=%llu copy-wakes=%llu max-worker-us=%llu missed=%llu; notification delivery, not measured panel frames\n",houji_fb_config_hz,__atomic_load_n(&houji_fb_callbacks,__ATOMIC_RELAXED),elapsedNs/1000000,gapNs/1000,__atomic_load_n(&houji_fb_copy_wakes,__ATOMIC_RELAXED),workerNs/1000,__atomic_load_n(&houji_fb_missed_timer_ticks,__ATOMIC_RELAXED));
++}
+ static void houjiObserveRect(uint32_t frame,uint32_t layer,uint32_t id,uint32_t width,uint32_t height,uint32_t format,const uint8_t *a,const uint8_t *b) {
+  uint32_t v[15]={frame,layer,id,width,height,format};memcpy(&v[6],a,16);memcpy(&v[10],b,16);
+  bool scale=v[8]&&v[9]&&v[12]&&v[13]&&(v[8]!=v[12]||v[9]!=v[13]);
+@@ -265,6 +304,7 @@
+ 	const uint32_t notifyHz = hz == 120 ? 120 : 60;
+ 	nanoseconds_to_absolutetime(NSEC_PER_SEC / notifyHz, &fVsyncPeriod);
+ 	fNextVsync = mach_absolute_time() + fVsyncPeriod;
++	houji_fb_started_at=mach_absolute_time();
+ 	fVsyncCount = 0;
+ 	fVsync->wakeAtTime(fNextVsync);
+ 
+@@ -316,6 +356,10 @@
+ {
+ 	AppleCLCD *fb = (AppleCLCD *)owner;
+ 	uint64_t now = mach_absolute_time();
++	uint64_t last=__atomic_exchange_n(&houji_fb_last_notify_at,now,__ATOMIC_RELAXED);
++	if(last){uint64_t gap=now-last,maximum=__atomic_load_n(&houji_fb_max_notify_gap,__ATOMIC_RELAXED);
++	 while(gap>maximum && !__atomic_compare_exchange_n(&houji_fb_max_notify_gap,&maximum,gap,false,__ATOMIC_RELAXED,__ATOMIC_RELAXED)){}
++	}
+ 	uint64_t count = ++fb->fVsyncCount;
+ 	__atomic_add_fetch(&houji_fb_callbacks,1ull,__ATOMIC_RELAXED);
+ 	if(count%fb->fFlushTicks==0)__atomic_add_fetch(&houji_fb_due_ticks,1ull,__ATOMIC_RELAXED);
+@@ -407,6 +451,7 @@
+ static HoujiDisplayHistory houji_fb_history[40];
+ static uint32_t houji_fb_history_count;
+ extern "C" void houji_framebuffer_history_report(void) {
++ houjiReportColours();
+  const uint32_t end=__atomic_load_n(&houji_fb_history_count,__ATOMIC_ACQUIRE);
+  const uint32_t first=end>40?end-39:1;
+  for(uint32_t n=first;n<=end;n++){
+@@ -614,6 +659,7 @@
+ 		}
+ 		if (src != 0 && bpe == 4) {
+ 			if(fGpuCache && token>0 && !houjiFramebufferAcquire(s,src,sx,sy,w,h,fCacheLine)){s->release();return false;}
++			if(token>0)houjiObserveColours(frame.id,layer,s,src,sx,sy,w,h,dx,dy);
+ 			copied += (uint64_t)w * h * 4;
+ 			for(int32_t y=0;y<h;y++)
+ 			 memcpy((void *)(fPixels+(uint64_t)(dy+y)*fRowBytes+(uint64_t)dx*4),
+--- a/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
++++ b/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
+@@ -888,7 +888,10 @@
+  for(unsigned i=0;i<16;i++)if(d.marks[i])IOLog("HOUJI USERLAND MARK: slot=%u value=%x\n",i,d.marks[i]);
+  for(unsigned row=0;row<48;row++)if(native_adreno_metal_rows[row][0])IOLog("HOUJI METAL ROW %u: %.95s\n",row,native_adreno_metal_rows[row]);
+  for(const auto&text:native_adreno_client_text)if(text.name[0])IOLog("HOUJI USERLAND CLIENT TEXT: name=%.19s text=%.63s\n",text.name,text.text);
+- for(const auto&rec:native_adreno_client_log)if(rec.name[0])IOLog("HOUJI USERLAND CLIENT: name=%.19s opens=%u refused=%u closes=%u slot=%u peak-MiB=%u last=%x\n",rec.name,rec.opens,rec.refused,rec.closes,rec.slot,rec.peak_mib,rec.last_refusal);
++ for(const auto&rec:native_adreno_client_log)if(rec.name[0]){
++  IOLog("HOUJI USERLAND CLIENT: name=%.19s opens=%u refused=%u closes=%u slot=%u peak-MiB=%u last=%x\n",rec.name,rec.opens,rec.refused,rec.closes,rec.slot,rec.peak_mib,rec.last_refusal);
++  if(rec.slot<NativeAdrenoMaxClients){const auto&w=kClientWindows[rec.slot];IOLog("HOUJI GPU VA WINDOW: name=%.19s slot=%u base=%llx end=%llx bytes=%llu high-water-end-MiB=%u; GPU virtual addresses, not physical RAM usage\n",rec.name,rec.slot,w.start,w.start+w.bytes,w.bytes,rec.peak_mib);}
++ }
+ }
+ extern "C" int native_adreno_provider_stop(int(*stop)(void*),void*c){if(!g.lock || !stop)return 1;IOLockLock(g.lock);g.dying=true;g.published=false;(void)native_adreno_board_quiesce();nativeAdrenoStopDiagnostics();int s=stop(c);IOLockUnlock(g.lock);return s;}
+ extern "C" IOMemoryDescriptor *native_gop_handoff_memory(void){return nullptr;}

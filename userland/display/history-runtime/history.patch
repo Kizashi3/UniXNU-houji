@@ -1,0 +1,53 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -338,6 +338,20 @@
+ static uint32_t sweet_fb_swaps_logged;
+ static uint64_t sweet_fb_swap_count;
+ static uint64_t houji_fb_present_count;
++struct HoujiDisplayHistory {uint32_t sequence;uint64_t values[7];};
++static HoujiDisplayHistory houji_fb_history[40];
++static uint32_t houji_fb_history_count;
++extern "C" void houji_framebuffer_history_report(void) {
++ const uint32_t end=__atomic_load_n(&houji_fb_history_count,__ATOMIC_ACQUIRE);
++ const uint32_t first=end>40?end-39:1;
++ for(uint32_t n=first;n<=end;n++){
++  auto &s=houji_fb_history[(n-1)%40];uint64_t v[7];
++  if(__atomic_load_n(&s.sequence,__ATOMIC_ACQUIRE)!=n)continue;
++  for(unsigned i=0;i<7;i++)v[i]=__atomic_load_n(&s.values[i],__ATOMIC_RELAXED);
++  if(__atomic_load_n(&s.sequence,__ATOMIC_ACQUIRE)!=n)continue;
++  IOLog("HOUJI DISPLAY HISTORY: sample=%u up-ms=%llu window-ms=%llu swaps=%llu presents=%llu copy-us=%llu max-us=%llu missed=%llu; CPU copy windows, not panel FPS\n",n,v[0],v[1],v[2],v[3],v[4],v[5],v[6]);
++ }
++}
+ extern "C" void houji_framebuffer_counts(uint64_t *swaps, uint64_t *presents)
+ {
+ 	if (swaps) *swaps = __atomic_load_n(&sweet_fb_swap_count, __ATOMIC_RELAXED);
+@@ -357,6 +371,14 @@
+ 	absolutetime_to_nanoseconds(ticks - previousTicks, &presentNs);
+ 	absolutetime_to_nanoseconds(__atomic_load_n(&houji_fb_max_present_ticks, __ATOMIC_RELAXED), &maximumNs);
+ 	uint64_t delta = presents - previousPresents;
++	if(previousTime && windowNs){
++	 uint64_t upNs=0;absolutetime_to_nanoseconds(now,&upNs);
++	 const uint64_t v[7]={upNs/NSEC_PER_MSEC,windowNs/NSEC_PER_MSEC,swaps-previousSwaps,delta,delta?presentNs/NSEC_PER_USEC/delta:0,maximumNs/NSEC_PER_USEC,__atomic_load_n(&houji_fb_missed_timer_ticks,__ATOMIC_RELAXED)};
++	 const uint32_t n=__atomic_add_fetch(&houji_fb_history_count,1u,__ATOMIC_RELAXED);auto &slot=houji_fb_history[(n-1)%40];
++	 __atomic_store_n(&slot.sequence,0u,__ATOMIC_RELEASE);
++	 for(unsigned i=0;i<7;i++)__atomic_store_n(&slot.values[i],v[i],__ATOMIC_RELAXED);
++	 __atomic_store_n(&slot.sequence,n,__ATOMIC_RELEASE);
++	}
+ 	IOLog("HOUJI DISPLAY CONFIG: arg-found=%u hz=%u copy-every=%u cmdline-bytes=%llu callbacks=%llu due=%llu; configured timer, not panel vblank\n",houji_fb_hz_arg_found,houji_fb_config_hz,houji_fb_flush_every,(uint64_t)houji_fb_command_line_bytes,__atomic_load_n(&houji_fb_callbacks,__ATOMIC_RELAXED),__atomic_load_n(&houji_fb_due_ticks,__ATOMIC_RELAXED));
+ 	IOLog("HOUJI DISPLAY PERF: window-ms=%llu swaps=%llu presents=%llu present-fps-milli=%llu bytes=%llu avg-present-us=%llu max-present-us=%llu missed-timer-ticks=%llu; CPU-copy, not GPU or measured panel refresh\n",
+ 	    windowNs / NSEC_PER_MSEC, swaps - previousSwaps, delta,
+--- a/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
++++ b/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
+@@ -831,10 +831,12 @@
+ /* Same owner gate as each external method. No filesystem takes this lock. */
+ extern "C" IOReturn native_adreno_provider_poll(void){if(!g.published || !g.lock || g.dying)return kIOReturnNotReady;IOLockLock(g.lock);IOReturn s=native_adreno_board_quiesce();IOLockUnlock(g.lock);return s;}
+ extern "C" void houji_touch_driver_report(void);
++extern "C" void houji_framebuffer_history_report(void);
+ extern "C" volatile uint32_t native_adreno_client_stats[5][6];
+ extern "C" volatile uint32_t native_adreno_window_overflow[4][3];
+ static void nativeAdrenoStopDiagnostics(void){
+  houji_touch_driver_report();
++ houji_framebuffer_history_report();
+  for(unsigned slot=0;slot<4;slot++){
+   const auto&s=native_adreno_client_stats[slot];const auto&w=native_adreno_window_overflow[slot];
+   IOLog("HOUJI GPU ALLOC: slot=%u live=%u peak-objects=%u failed=%u status=%x last-bytes=%u window-denied=%u last-map-KiB=%u last-end-MiB=%u; cached counters, not RAM usage\n",slot,s[0],s[1],s[2],s[3],s[4],w[0],w[1],w[2]);

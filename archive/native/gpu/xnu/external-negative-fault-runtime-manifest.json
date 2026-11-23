@@ -1,0 +1,31 @@
+{
+  "scope": "r148 exact intentional negative fault completion and source-bound actual exception frame; unchanged176B; original noFS unknown/owner/isolated/CPUfinish retained",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GmuExternalCanary.h": {
+      "before": "c886d564ac1c924900fe9e6a0c05664da48daded51e689ff7fc80b52ad653fce",
+      "after": "75cd3c3d3f3d9b17b736ad4d723e32c89bff027048597095b28606bd44f8a55f",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/GmuExternalCanary.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-negative-fault-runtime/before-GmuExternalCanary.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuExternalCanaryProbe.inc": {
+      "before": "fa7744624d5498f7c8587e327bf5f89b655d6809ee7f115f512887f4d902067a",
+      "after": "8f5f961ad0d60e8b23a8d8af18dd1b3cc9c98f95bfe5fec6645e7eb0c8880b0c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuExternalCanaryProbe.inc",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-negative-fault-runtime/before-HoujiGpuExternalCanaryProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "e4b75b3f59dac2ffa85372f112de3529d3cef2f1c3577c0303ec07eff3a58d5e",
+      "after": "7b3d1d6f0022eb2a514f9a5a03153f3910a1f992ff91196b0a9bd49d7a421949",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r148-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-negative-fault-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": true,
+  "core_host_cases": 4325,
+  "native_host_cases": 6050,
+  "payload_frame_peer_cases": 32,
+  "payload_unchanged": true,
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r148-result.json",
+  "hardware_result_sha256": "daf843a53c53d2659f55c073e4fcff389711cfc74385268d4720b1aee356be1f",
+  "qualification": "finite GMU external4K positive/negative and CPU readback only; no HFI/CP/graphics"
+}

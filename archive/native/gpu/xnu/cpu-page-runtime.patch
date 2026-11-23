@@ -1,0 +1,54 @@
+--- a/iokit/Kernel/arm/SweetCPU.cpp
++++ b/iokit/Kernel/arm/SweetCPU.cpp
+@@ -34,6 +34,8 @@
+ static uint32_t startupLock;
+ static uint64_t cpuMIDR[8];
+ static uint64_t cpuMPIDR[8];
++// Saved on each actual CPU before it enters normal scheduling; read-only MRS.
++static uint64_t cpuTCR[8],cpuTTBR0[8],cpuTTBR1[8],cpuSCTLR[8];
+ static uint32_t cpuInitialIRQs[8];
+ static void reportCore(unsigned id) {
+   IOLog("HOUJI CORE%u: MIDR=%llx MPIDR=%llx init-irq=%u timer=%llu ipi=%llu\n", id,
+@@ -42,6 +44,13 @@
+       __atomic_load_n(&cpuInitialIRQs[id],__ATOMIC_ACQUIRE),
+       __atomic_load_n(&houji_smp_timer_irqs[id],__ATOMIC_RELAXED),
+       __atomic_load_n(&houji_smp_ipi_irqs[id],__ATOMIC_RELAXED));
++  IOLog("HOUJI GPU CPU PAGE CORE%u: TCR=%llx TTBR0=%llx TTBR1=%llx SCTLR=%llx TG0=%u TG1=%u; actual per-core init snapshot, no control writes\n",id,
++      __atomic_load_n(&cpuTCR[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuTTBR0[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuTTBR1[id],__ATOMIC_ACQUIRE),
++      __atomic_load_n(&cpuSCTLR[id],__ATOMIC_ACQUIRE),
++      unsigned((__atomic_load_n(&cpuTCR[id],__ATOMIC_ACQUIRE)>>14)&3),
++      unsigned((__atomic_load_n(&cpuTCR[id],__ATOMIC_ACQUIRE)>>30)&3));
+   if (!__atomic_load_n(&houji_gic_snapshot_ready[id],__ATOMIC_ACQUIRE)) return;
+   const HoujiGicSnapshot &s = houji_gic_snapshot[id];
+   IOLog("HOUJI GIC%u: grp1=%llx pmr=%llx sre=%llx daif=%llx vbar=%llx timer-ctl=%llx ctl=%llx hppir=%llx\n",
+@@ -213,6 +222,10 @@
+     panic("HOUJI SMP: CPU%u affinity mismatch %llx", id, mpidr);
+   __atomic_store_n(&cpuMIDR[id], midr, __ATOMIC_RELEASE);
+   __atomic_store_n(&cpuMPIDR[id], mpidr, __ATOMIC_RELEASE);
++  __atomic_store_n(&cpuTCR[id], __builtin_arm_rsr64("TCR_EL1"), __ATOMIC_RELEASE);
++  __atomic_store_n(&cpuTTBR0[id], __builtin_arm_rsr64("TTBR0_EL1"), __ATOMIC_RELEASE);
++  __atomic_store_n(&cpuTTBR1[id], __builtin_arm_rsr64("TTBR1_EL1"), __ATOMIC_RELEASE);
++  __atomic_store_n(&cpuSCTLR[id], __builtin_arm_rsr64("SCTLR_EL1"), __ATOMIC_RELEASE);
+   __atomic_store_n(&cpuInitialIRQs[id], ml_get_interrupts_enabled(), __ATOMIC_RELEASE);
+   if (((midr >> 24) & 0xff) != 0x41 ||
+       ((midr >> 4) & 0xfff) != houjiCpuPart(id))
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -539,6 +539,7 @@
+ #include "HoujiTouchProbe.inc"
+ #include "HoujiTouchDriver.inc"
+ #include "HoujiGpuProbe.inc"
++#include "HoujiCpuPageProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -565,6 +566,7 @@
+     houji_ufs_checkpoint("before read-only EPSS CPU0 frequency probe",0);
+     reportCpuFrequencyReadOnly();
+   }
++  houjiGpuCpuPageProbeOnce();
+   houjiGpuProbeOnce();
+   touchProbeOnce();
+   houjiTouchStart();

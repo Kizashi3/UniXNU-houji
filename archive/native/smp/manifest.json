@@ -1,0 +1,62 @@
+{
+  "files": {
+    "iokit/Kernel/arm/SweetCPU.cpp": {
+      "before": "ab802992a994761df9a8b124771ad7a806df720577496a21ac3a8d6648545f4e",
+      "after": "9a2d82422721bb8a25c5f43692bd6fe1234896cf84685db35a269625b09f8b6a"
+    },
+    "osfmk/arm64/start.s": {
+      "before": "178f0650a6573640d9a1513b8dad8c89e8e239f7513966d5c860ad0d64cb9685",
+      "after": "ee367fd17d6bcf0b83a10d1ad093d074948c279c3776bc8690644a0d5bf46723"
+    },
+    "pexpert/arm/pe_fiq.c": {
+      "before": "161c0133c386c303c883c06042506cbcd3c26f7dc80c3b346a94e90a145a14ba",
+      "after": "4c7fb30897e42720dbd54310f8d4504e568e4bc3d7fc3816c534b723f5e5ffaf"
+    },
+    "osfmk/arm64/sleh.c": {
+      "before": "ad1d58282a027eb7b4871c62b0c12c27b3f3f3eacb0135ea850db55b68110e60",
+      "after": "daf3865ebb8578a59e030336bc22507b0865664795f7a09a921ea35c707bdb67"
+    },
+    "osfmk/arm64/cpu.c": {
+      "before": "39e96d694f94262296d22f52d2e38614fd88a31b7ff77018da540d3cf3d70a1b",
+      "after": "db2b2038f92bd62bbc929afb8d5a4d70780db4b204a15221346b569d0a519e0c"
+    },
+    "iokit/Kernel/arm/HoujiCpuPolicy.h": {
+      "before": null,
+      "after": "6167d75107c2868c13d9da6fb430120ffcabcf7fcef2b3f21ae50c2594c73fbf"
+    },
+    "pexpert/arm/HoujiSmpGic.inc": {
+      "before": null,
+      "after": "8021e990b6b531994619d152a5feac4a7e9b3fbef56add046a210ea90a98d951"
+    },
+    "pexpert/arm/HoujiSmpGic.h": {
+      "before": null,
+      "after": "89f810111949b2218d3f0655e50d8b7cf84f865a62ad46735a87ade10778016c"
+    },
+    "iokit/Kernel/arm/HoujiSmpGic.h": {
+      "before": null,
+      "after": "89f810111949b2218d3f0655e50d8b7cf84f865a62ad46735a87ade10778016c"
+    }
+  },
+  "entry": "houji_secondary_entry: PSCI x0 cpu_data PA -> x20 const_boot_args PA, x21 cpu_data PA",
+  "affinities": [
+    0,
+    256
+  ],
+  "maximum_enabled_cpus": 2,
+  "scheduler": "existing Clutch; unchanged",
+  "hardware_tested": true,
+  "reference": "UniXNU/ArmCpu@1951cc8444b340d7d8879e9418220cf29eb711d7 pending secondary registration, PoC publication and PSCI; independent Darwin 22 adaptation",
+  "hardware_validation": {
+    "run": "r41",
+    "scope": "two-CPU pre-HFS bound-worker/timer/SGI; not yet multicore iOS userland",
+    "worker_heartbeats": 30,
+    "timer_irqs": [
+      609,
+      114
+    ],
+    "ipi_irqs": [
+      40,
+      72
+    ]
+  }
+}

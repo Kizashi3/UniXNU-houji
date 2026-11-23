@@ -1,0 +1,17 @@
+{
+  "status": "OFFLINE_VALIDATED_NOT_RUNTIME_INTEGRATED",
+  "bridge_abi": 1,
+  "upstream_hfm_scratch": 0,
+  "CPU_only": true,
+  "host_checks": 105724,
+  "candidate_verification": "/tmp/houji-hfi-inactive-candidate/build/verification.json",
+  "files": {
+    "houji_hfi_inactive.c": "d76a434598e6fd4d0f17529bf7cd4622245db8e2a1eaf0eaf837a4fa89e85ada",
+    "run_tests.py": "6916299e9a83e4d40af817d3a034a3f0c19e33e9c29a3388b54cd2777f144544",
+    "README.md": "59787374f75b0ab7d92417f6573584368dbc23e06dcac3250273b520559ed77a",
+    "houji_hfi_inactive.h": "0963b22919a8173ded121154a5ad33435e40f5659f1af2b98d974dd1c2b2fa39",
+    "test_houji_hfi_inactive.c": "ac29343464ea9a8d88381584734d050538a28cc98a3f386e4c952b20a75a41ac",
+    "test_cpp14.cpp": "ed0443f6ca42ee6c94462237c47b1f954f56c5e27936133d0227c75a6ef1dacc"
+  },
+  "content_verification_API": true
+}

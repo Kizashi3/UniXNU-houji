@@ -1,0 +1,31 @@
+{
+  "scope": "Permit explicit read of already-polled owned GFSR at SMMU+48 for original Streams observer; Native ABI v1 combined trial unchanged",
+  "hardware_tested": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "aee32d1897817a791ca245a719c34ab155f9116036f60e7c971e8e8e9e672e48",
+      "after": "521c7f06653fcb876cdf3a6a6994f30f0f43c1fd8eaf2a4af674197488a9df78",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-io-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeVm.inc": {
+      "before": "6fc540e0451c8b17e1b6341aa836345a9c7640d3a35699f0412d6f15dac6b7d4",
+      "after": "0f63f239c3904b2023e7c3a3b5459176b2bdc425b352b79a10c45843da17244a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-io-runtime/HoujiGpuNativeVm.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeClient.inc": {
+      "before": "c9572e1de7fb50501a8c5816dc3eb3dcd30f956328209093d4fbc7bebdfc60ce",
+      "after": "d7dfc337bf0623bbd79a37a0a91d7e286d8b77a6d31778765dd54275abc02e21",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-io-runtime/HoujiGpuNativeClient.inc"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r163-vm-linked/review.json",
+      "sha256": "a5f7d30652f94bf182311d92d811e63ec34308c8f76ffbaf4704fc4b3f8e2acc"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r163-client-linked/review.json",
+      "sha256": "306d1e2792ed3aebf37dde7a2fff257a77a65c8dcd19d9fde26e376428a411d5"
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "scope": "r191 opt-in CPU four-domain factory EPSS and qualified231/500MHz GPU runtime HFI DVFS; no raw voltage/PLL control",
+  "hardware_tested": false,
+  "files": {
+    "osfmk/kern/processor.c": {
+      "before": "45247c10581a8b895ac1311d2533ccff0c59fcd3af1b8917ff35d640c8de6e79",
+      "after": "f3739998a257bf74b477b4d0800caeb9c4d9b66f66853876b79e13c11824e93d",
+      "source": "${HOUJI_PORT_ROOT}/native/power/processor.c"
+    },
+    "iokit/Kernel/arm/SweetCPU.cpp": {
+      "before": "2df234ee92f4f05b2921a4fd80a64e5a9034091505c5fb0e42681af8c3733658",
+      "after": "bf2c8e221a8bf83964b7a793eaea5f15c9ee1bdda4385c26b73c2b6d6409a28d",
+      "source": "${HOUJI_PORT_ROOT}/native/power/SweetCPU.cpp"
+    },
+    "iokit/Kernel/arm/hid/SweetHID.cpp": {
+      "before": "a73984a686730bed4a9708b4b0be5bfe1086cf2f6d2c8168932e484feea52353",
+      "after": "dfa5238a288bd70429814ddc04f7862af3edf940779e9e3c1b3ca9ebded23eca",
+      "source": "${HOUJI_PORT_ROOT}/native/power/SweetHID.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "6e153196d383f9a03164382eca1f937eaf63efa249562d54346deb3da5a818dc",
+      "after": "4dfa215ee5e485289bd9ab225714f331753c80a01b92dcb2b11c3de5b904e7f6",
+      "source": "${HOUJI_PORT_ROOT}/native/power/NativeAdrenoPublish.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.c": {
+      "before": "a874efbc9ad4218f5d3d8c5440ff9c1e5d3fdec374f5acecf3f01b19e36efcbb",
+      "after": "a5e78f5644bcb7c915297876b0cfe0f8ebaf26f879bcbd002e246afaa1d6983e",
+      "source": "${HOUJI_PORT_ROOT}/native/power/houji_full_host_runtime.c"
+    },
+    "iokit/Kernel/houji-ufs-root/houji_full_host_runtime.h": {
+      "before": "57a09c6cf158831550d1833fc3220c3be29ac2b8c011433987d237400aafe4a7",
+      "after": "955527f2d4de7df465846798cd8b3ec4aa75d6cfadec2a4e29c5053e23f703c7",
+      "source": "${HOUJI_PORT_ROOT}/native/power/houji_full_host_runtime.h"
+    },
+    "iokit/Kernel/arm/HoujiCpuDvfs.inc": {
+      "before": null,
+      "after": "360949f426380a14665fda50ba1a47c2cd84f983627799d4ad2cac8facefb889",
+      "source": "${HOUJI_PORT_ROOT}/native/power/HoujiCpuDvfs.inc"
+    },
+    "iokit/Kernel/arm/HoujiDvfsPolicy.h": {
+      "before": null,
+      "after": "e187142e0865ae5fffd4df32017d51e170820f31dd1b390184db4b10046c3905",
+      "source": "${HOUJI_PORT_ROOT}/native/power/HoujiDvfsPolicy.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuDvfs.inc": {
+      "before": null,
+      "after": "daebfc59df6f2a91c5798a63a4d2d21bbe078554e4597c4e93a65125ec655609",
+      "source": "${HOUJI_PORT_ROOT}/native/power/HoujiGpuDvfs.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "8b5613b53342aa09622562fea1fc3991bc3e145290c6e7c1ce86488f986772a2",
+      "after": "0d31be644844f1402e6fce6056f0a04909448363286e37828740c0419b78b92a",
+      "source": "${HOUJI_PORT_ROOT}/native/power/HoujiUfsRead.cpp"
+    },
+    "pexpert/arm/pe_serial.c": {
+      "before": "305dc2dffaaa5732627d4c613996cb25b6bc1438d6243ad95a32536cd6166665",
+      "after": "d86c7830965fc8110b76bc968e40f0009dcf32e2a1b97027721583756faa440d",
+      "source": "${HOUJI_PORT_ROOT}/native/power/pe_serial.c"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuProbeLog.inc": {
+      "before": "f017ece99423f31d299d1cc4d809bd0f9dd380246d18263119d2f3faaccf5acb",
+      "after": "bd7cbd5f9ebe014a7cf787b8ad1012222c9e2e417914608ca415b7833a78e37b",
+      "source": "${HOUJI_PORT_ROOT}/native/power/HoujiGpuProbeLog.inc"
+    }
+  }
+}

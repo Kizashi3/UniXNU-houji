@@ -1,0 +1,561 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -537,6 +537,8 @@
+   return r==kIOReturnSuccess?0:EIO;
+ }
+ #include "HoujiTouchProbe.inc"
++#include "HoujiTouchDriver.inc"
++#include "HoujiGpuProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -563,7 +565,9 @@
+     houji_ufs_checkpoint("before read-only EPSS CPU0 frequency probe",0);
+     reportCpuFrequencyReadOnly();
+   }
++  houjiGpuProbeOnce();
+   touchProbeOnce();
++  houjiTouchStart();
+   houji_ufs_checkpoint("native HFSX block backend registered",3);
+ }
+ 
+--- a/bsd/dev/sweet_sample.c
++++ b/bsd/dev/sweet_sample.c
+@@ -70,10 +70,12 @@
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ extern void houji_ufs_checkpoint(const char *, unsigned);
+ extern void houji_framebuffer_counts(uint64_t *, uint64_t *);
++extern void houji_framebuffer_report(void);
+ extern void houji_location_ipc_report(void);
+ extern void houji_location_exit_report(void);
+ extern void houji_smp_report(void);
+ extern void houji_touch_report(void);
++extern void houji_touch_driver_report(void);
+ extern bool gIOPlatformUUIDAndSerialDone;
+ static int
+ houji_list_proc(proc_t p, void *arg)
+@@ -111,12 +113,13 @@
+ 			uint64_t swaps = 0, presents = 0;
+ 			houji_framebuffer_counts(&swaps, &presents);
+ 			printf("HOUJI DISPLAY: swaps=%llu presents=%llu\n", swaps, presents);
++			houji_framebuffer_report();
+ 			printf("HOUJI ID: platform UUID published=%u\n", gIOPlatformUUIDAndSerialDone);
+ 			if ((i % 4) == 0) {
+ 				houji_location_ipc_report();
+ 				houji_location_exit_report();
+ 				houji_smp_report();
+-				houji_touch_report();
++				houji_touch_report();houji_touch_driver_report();
+ 				houji_ufs_checkpoint("before userland stack sampling", 0);
+ 				proc_iterate(PROC_ALLPROCLIST, sweet_sample_proc, NULL, NULL, NULL);
+ 			}
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/HoujiTouchDriver.inc
+@@ -0,0 +1,216 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++// GPIO SPI/TouchCom adapters derived from the pinned UniXNU Ace 5 reference.
++// Houji only: six DT-confirmed pins, ldob9/12 supplied by UEFI, no GPIO108.
++// GENI/GPI/SMMU registers are read only. No firmware upload or persistent commands.
++#include <kern/sched_prim.h>
++#include "HoujiTouchReport.h"
++#include "HoujiTouchWire.h"
++#include "HoujiTouchGpio.h"
++#include "HoujiTouchDescriptor.h"
++extern "C" void sweet_hid_touch(int,int,int,int);
++static struct {
++  uintptr_t pin[6],gpi;
++  OSSharedPtr<IOMemoryMap> maps[6],gpiMap;
++  uint32_t cfg[6],io[6];
++  struct gt_state contacts;
++  bool changed,started;
++  unsigned stage,error,frames,events,irqPolls,deviceMaxWrite,effectiveMaxWrite,configBytes,lastHeader,discarded;
++  unsigned workerPhase,loops,irqLevel,hidEntered,hidCompleted;
++  uint8_t reportConfig[512];
++  unsigned descriptorBytes;
++  uint8_t largeReport[8199]; // Fixed BSS scratch, never on the 16 KiB thread stack.
++} ht;
++static int htWaitChannel;
++static uint32_t htRead(uintptr_t base,unsigned off) {
++  uint32_t v=*(volatile uint32_t *)(base+off);
++  __asm__ volatile("dmb oshld" ::: "memory");return v;
++}
++static void htPinWrite(unsigned index,unsigned offset,uint32_t value) {
++  if(index>=6 || (offset!=0 && offset!=4))panic("HOUJI touch write boundary");
++  *(volatile uint32_t *)(ht.pin[index]+offset)=value;
++  __asm__ volatile("dsb osh" ::: "memory");
++}
++static void htWait(unsigned ms) {
++  uint64_t deadline;clock_interval_to_deadline(ms,NSEC_PER_MSEC,&deadline);
++  (void)assert_wait_deadline(&htWaitChannel,THREAD_UNINT,deadline);
++  thread_block(THREAD_CONTINUE_NULL);
++}
++static void htSet(unsigned pin,unsigned high) {
++  // Only the four board-confirmed outputs are ever driven.
++  if(pin!=1 && pin!=2 && pin!=3 && pin!=4)panic("HOUJI touch output boundary");
++  htPinWrite(pin,4,(htRead(ht.pin[pin],4)&~2u)|(high?2u:0));
++}
++static unsigned htSample(void) {return htRead(ht.pin[0],4)&1;}
++static void htPause(void) {IODelay(1);}
++static const struct gg_bus htGpioBus={htSet,htSample,htPause};
++static int htBusRead(uint8_t *data,unsigned bytes) {
++  int result=gg_transfer(&htGpioBus,nullptr,data,bytes);
++  if(!result && bytes==4) {
++    uint32_t header=data[0]|uint32_t(data[1])<<8|uint32_t(data[2])<<16|uint32_t(data[3])<<24;
++    __atomic_store_n(&ht.lastHeader,header,__ATOMIC_RELAXED);
++  }
++  return result;
++}
++static int htBusWrite(const uint8_t *data,unsigned bytes) {
++  return gg_transfer(&htGpioBus,data,nullptr,bytes);
++}
++static int htDiscardReport(unsigned bytes) {
++  if(bytes>8192 || htBusRead(ht.largeReport,bytes+7))return 1;
++  if(ht.largeReport[0]!=0xa5 || ht.largeReport[1]!=3)return 2;
++  for(unsigned i=bytes+2;i<bytes+7;i++)if(ht.largeReport[i]!=0x5a)return 3;
++  __atomic_add_fetch(&ht.discarded,1,__ATOMIC_RELAXED);return 0;
++}
++static void htStage(unsigned stage) {
++  __atomic_store_n(&ht.stage,stage,__ATOMIC_RELEASE);
++  IOLog("HOUJI TOUCH: stage=%u\n",stage);
++}
++static void htRestore(void) {
++  if(!ht.changed)return;
++  htSet(3,1);htSet(2,0);
++  for(unsigned i=0;i<6;i++) {htPinWrite(i,4,ht.io[i]);htPinWrite(i,0,ht.cfg[i]);}
++  ht.changed=false;
++}
++static int htPrepare(void) {
++  if(!gTouchProbeEnabled || gTouchProbe.result!=0)return 20;
++  if(((gTouchProbe.firmware>>8)&255)!=1 || (gTouchProbe.status&0x1001) ||
++      (gTouchProbe.dma_interface&3) || (gTouchProbe.tx_fifo&0xfffffff) ||
++      (gTouchProbe.rx_fifo&0x1ffffff))return 21;
++  ht.gpi=mapPhys(0xa00000,0x60000,ht.gpiMap);if(!ht.gpi)return 22;
++  houji_ufs_checkpoint("before touch AP GPI ownership check",0);
++  // Live DT explicitly assigns dynamic GPI instances 2/3 to the AP.
++  for(unsigned n=2;n<=3;n++)for(unsigned channel=0;channel<2;channel++) {
++    unsigned off=0x10000+0x4000*n+0x80*channel;
++    uint32_t cfg=htRead(ht.gpi,off),scratch=htRead(ht.gpi,off+0x60);
++    unsigned state=(cfg>>20)&15;
++    IOLog("HOUJI TOUCH: GPI%u ch%u cfg=%x scratch=%x\n",n,channel,cfg,scratch);
++    if(cfg==0xffffffffu || scratch==0xffffffffu)return 23;
++    if((scratch&15)==4 && state!=0 && state!=1 && state!=3)return 24;
++  }
++  for(unsigned i=0;i<6;i++) {
++    ht.pin[i]=mapPhys(0xf100000+ht_gpio[i]*0x1000,0x1000,ht.maps[i]);
++    if(!ht.pin[i])return 25;
++    ht.cfg[i]=htRead(ht.pin[i],0);ht.io[i]=htRead(ht.pin[i],4);
++    if(ht.cfg[i]==0xffffffffu || !gg_pin_owned(ht.cfg[i]))return 26;
++  }
++  htStage(2);ht.changed=true;
++  htSet(1,1);htSet(2,0);htSet(3,1);htSet(4,1);
++  for(unsigned i=0;i<6;i++) {
++    bool output=i!=0 && i!=5;
++    uint32_t cfg=(ht.cfg[i]&~0x3ffu)|(i<4?2u<<6:0)|(output?1u<<9:0);
++    htPinWrite(i,0,cfg);
++    if(htRead(ht.pin[i],0)!=cfg)return 27;
++  }
++  htWait(50);htSet(4,0);htWait(10);htSet(4,1);htWait(200);
++  return 0;
++}
++static int htRun(void) {
++  htStage(1);int err=htPrepare();if(err)return err;
++  htStage(3);
++  struct gw_bus bus={htBusRead,htBusWrite,htWait,64,htDiscardReport};struct gw_message msg={0};
++  err=gw_read(&bus,&msg);
++  for(unsigned retry=0;err==2 && retry<100;retry++) {htWait(10);err=gw_read(&bus,&msg);}
++  IOLog("HOUJI TOUCH: first read result=%d code=%x bytes=%u\n",err,msg.code,msg.size);
++  if(err)return 100+err;
++  if(msg.code!=0x10) {err=gw_command(&bus,2,nullptr,0,&msg);if(err)return 120+err;}
++  if(msg.size<24 || msg.data[1]!=1 || memcmp(msg.data+2,"S3910",5))return 140;
++  uint32_t build=msg.data[18]|uint32_t(msg.data[19])<<8|uint32_t(msg.data[20])<<16|uint32_t(msg.data[21])<<24;
++  IOLog("HOUJI TOUCH: TouchCom v1 S3910 application firmware=%u\n",build);
++  if(build!=4323384)return 141;
++  unsigned advertised=gw_le16(msg.data+22);
++  bus.max_write=advertised && advertised<GW_MAX+3 ? advertised : GW_MAX+3;
++  __atomic_store_n(&ht.deviceMaxWrite,advertised,__ATOMIC_RELAXED);
++  __atomic_store_n(&ht.effectiveMaxWrite,bus.max_write,__ATOMIC_RELAXED);
++  IOLog("HOUJI TOUCH: advertised write=%u bounded host write=%u\n",advertised,bus.max_write);
++  if(bus.max_write<sizeof(gt_report_config)+3)return 142;
++  err=gw_command(&bus,0x20,nullptr,0,&msg);if(err)return 160+err;
++  if(msg.size<40 || gw_le16(msg.data+2) || gw_le16(msg.data+32)!=1199 ||
++      gw_le16(msg.data+34)!=2669 || gw_le16(msg.data+36)!=10)return 180;
++  unsigned size=gw_le16(msg.data+12);
++  __atomic_store_n(&ht.configBytes,size,__ATOMIC_RELAXED);
++  IOLog("HOUJI TOUCH: app coordinates verified; report config bytes=%u\n",size);
++  if(size<sizeof(gt_report_config) || size>GW_MAX || sizeof(gt_report_config)+3>bus.max_write)return 181;
++  htStage(4);
++  // Stop optional raw frame streams; an unsupported report ID is nonfatal.
++  uint8_t raw=0xc0;err=gw_command(&bus,6,&raw,1,&msg);
++  IOLog("HOUJI TOUCH: disable THP result=%d\n",err);
++  raw=0x23;err=gw_command(&bus,6,&raw,1,&msg);
++  IOLog("HOUJI TOUCH: disable raw result=%d\n",err);
++  // Read the controller's native descriptor; do not force a custom layout.
++  err=gw_command(&bus,0x25,nullptr,0,&msg);if(err)return 220+err;
++  if(!msg.size || msg.size>sizeof(ht.reportConfig))return 239;
++  memcpy(ht.reportConfig,msg.data,msg.size);
++  __atomic_store_n(&ht.descriptorBytes,msg.size,__ATOMIC_RELEASE);
++  struct hd_layout layout;
++  if(hd_layout_parse(ht.reportConfig,msg.size,&layout))return 240;
++  uint8_t touch=0x11;err=gw_command(&bus,5,&touch,1,&msg);if(err)return 260+err;
++  htStage(5);IOLog("HOUJI TOUCH: native contact descriptor validated; physical polling enabled\n");
++  unsigned errors=0;
++  for(;;) {
++    __atomic_store_n(&ht.workerPhase,1,__ATOMIC_RELEASE);
++    htWait(10);
++    __atomic_add_fetch(&ht.loops,1,__ATOMIC_RELAXED);
++    __atomic_store_n(&ht.workerPhase,2,__ATOMIC_RELEASE);
++    unsigned irqLevel=htRead(ht.pin[5],4)&1;
++    __atomic_store_n(&ht.irqLevel,irqLevel,__ATOMIC_RELAXED);
++    if(irqLevel)continue;
++    __atomic_add_fetch(&ht.irqPolls,1,__ATOMIC_RELAXED);
++    __atomic_store_n(&ht.workerPhase,3,__ATOMIC_RELEASE);
++    err=gw_read(&bus,&msg);
++    if(!err && msg.code==0x10)return 280;
++    if(!err && msg.code==0x11) {
++      __atomic_store_n(&ht.workerPhase,4,__ATOMIC_RELEASE);
++      struct gt_frame frame;
++      err=hd_decode(ht.reportConfig,ht.descriptorBytes,msg.data,msg.size,1199,2669,&ht.contacts,&frame);
++      if(!err) {
++        for(unsigned i=0;i<frame.count;i++) {
++          const struct gt_event &e=frame.events[i];
++          __atomic_add_fetch(&ht.hidEntered,1,__ATOMIC_RELAXED);
++          __atomic_store_n(&ht.workerPhase,5,__ATOMIC_RELEASE);
++          sweet_hid_touch(e.id,e.down,e.x,e.y);
++          __atomic_add_fetch(&ht.hidCompleted,1,__ATOMIC_RELAXED);
++          __atomic_store_n(&ht.workerPhase,6,__ATOMIC_RELEASE);
++          __atomic_add_fetch(&ht.events,1,__ATOMIC_RELAXED);
++        }
++        __atomic_add_fetch(&ht.frames,1,__ATOMIC_RELAXED);
++      }
++    }
++    if(err) {if(++errors>=3)return 300+err;} else errors=0;
++  }
++}
++static void htThread(void *,wait_result_t) {
++  htWait(1000);int err=htRun();
++  __atomic_store_n(&ht.workerPhase,7,__ATOMIC_RELEASE);
++  __atomic_store_n(&ht.error,unsigned(err),__ATOMIC_RELEASE);
++  for(unsigned i=0;i<GT_CONTACTS;i++)if(ht.contacts.active&(1u<<i))
++    sweet_hid_touch(i,0,ht.contacts.x[i],ht.contacts.y[i]);
++  htRestore();IOLog("HOUJI TOUCH: worker stopped result=%d; GUI continues\n",err);
++  thread_terminate(current_thread());
++}
++static void houjiTouchStart(void) {
++  int enabled=0;PE_parse_boot_argn("houji_touch",&enabled,sizeof(enabled));
++  if(enabled!=1 || ht.started)return;ht.started=true;
++  thread_t thread; kern_return_t kr=kernel_thread_start(htThread,nullptr,&thread);
++  if(kr==KERN_SUCCESS)thread_deallocate(thread);else ht.error=unsigned(kr);
++}
++extern "C" void houji_touch_driver_report(void) {
++  if(!ht.started)return;
++  IOLog("HOUJI TOUCH: stage=%u error=%u frames=%u events=%u irq-polls=%u device-write=%u host-write=%u config=%u last-header=%08x discarded=%u; GPIO SPI, no DMA or firmware writes\n",
++    __atomic_load_n(&ht.stage,__ATOMIC_ACQUIRE),__atomic_load_n(&ht.error,__ATOMIC_ACQUIRE),
++    __atomic_load_n(&ht.frames,__ATOMIC_RELAXED),__atomic_load_n(&ht.events,__ATOMIC_RELAXED),
++    __atomic_load_n(&ht.irqPolls,__ATOMIC_RELAXED),
++    __atomic_load_n(&ht.deviceMaxWrite,__ATOMIC_RELAXED),__atomic_load_n(&ht.effectiveMaxWrite,__ATOMIC_RELAXED),
++    __atomic_load_n(&ht.configBytes,__ATOMIC_RELAXED),__atomic_load_n(&ht.lastHeader,__ATOMIC_RELAXED),
++    __atomic_load_n(&ht.discarded,__ATOMIC_RELAXED));
++  // Cached worker state only: the sampler performs no additional GPIO or bus reads.
++  IOLog("HOUJI TOUCH WORKER: phase=%u loops=%u irq-level=%u HID-entered=%u HID-completed=%u; phases 1=sleep 2=IRQ 3=wire 4=decode 5=HID 6=done 7=stopped\n",
++    __atomic_load_n(&ht.workerPhase,__ATOMIC_ACQUIRE),__atomic_load_n(&ht.loops,__ATOMIC_RELAXED),
++    __atomic_load_n(&ht.irqLevel,__ATOMIC_RELAXED),__atomic_load_n(&ht.hidEntered,__ATOMIC_RELAXED),
++    __atomic_load_n(&ht.hidCompleted,__ATOMIC_RELAXED));
++  unsigned descriptorBytes=__atomic_load_n(&ht.descriptorBytes,__ATOMIC_ACQUIRE);
++  for(unsigned at=0;at<descriptorBytes;at+=32) {
++    char text[100];unsigned used=0;
++    for(unsigned j=at;j<descriptorBytes && j<at+32;j++)
++      used+=snprintf(text+used,sizeof(text)-used,"%02x ",ht.reportConfig[j]);
++    IOLog("HOUJI TOUCH CONFIG +%u/%u: %s\n",at,descriptorBytes,text);
++  }
++}
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/HoujiTouchReport.h
+@@ -0,0 +1,82 @@
++/* SPDX-License-Identifier: BSD-2-Clause-Patent
++ * Bounded decoder for an explicitly installed TouchCom contact report format.
++ * Protocol constants: OnePlusOSS Synaptics S3910 TouchCom source, pinned in
++ * hardware/sm8650-touch.json. This implementation performs no hardware I/O.
++ * A transport must validate/reassemble its wire message and confirm the exact
++ * report configuration before calling this decoder. HBP raw frames are refused.
++ */
++#ifndef GIULIA_TOUCH_REPORT_H
++#define GIULIA_TOUCH_REPORT_H
++#include <stddef.h>
++#include <stdint.h>
++
++#define GT_CONTACTS 10
++#define GT_WIDTH 1200
++#define GT_HEIGHT 2670
++#define GT_MASK ((1U << GT_CONTACTS)-1)
++
++/* Count8; for each active object: index8, classification8, X16, Y16. */
++static const uint8_t gt_report_config[] = {
++    0x18,8,0x01,0x06,8,0x07,8,0x08,16,0x09,16,0x03,0x00
++};
++struct gt_state {
++    uint16_t active;
++    uint16_t x[GT_CONTACTS], y[GT_CONTACTS];
++};
++struct gt_event { uint8_t id, down; uint16_t x, y; };
++struct gt_frame { uint16_t active; unsigned count; struct gt_event events[GT_CONTACTS]; };
++
++static inline int gt_config_matches(const uint8_t *config,size_t size)
++{
++    if (!config || size<sizeof(gt_report_config) || size>512) return 0;
++    for(size_t i=0;i<sizeof(gt_report_config);i++) if(config[i]!=gt_report_config[i]) return 0;
++    /* The application may return its complete fixed-size configuration buffer.
++     * Only zero END padding is accepted after our exact descriptor. */
++    for(size_t i=sizeof(gt_report_config);i<size;i++) if(config[i]) return 0;
++    return 1;
++}
++
++/* Returns 0 on a complete frame, nonzero without changing state/output.
++ * max_x/max_y must come from the device's application-info response, not a
++ * guessed coordinate scale. Coordinates passed to HID are physical pixels;
++ * SweetHID normalizes over the same full panel used by the display renderer.
++ */
++static inline int gt_decode(uint8_t report_code,const uint8_t *data,size_t size,
++    uint16_t max_x,uint16_t max_y,int config_confirmed,
++    struct gt_state *state,struct gt_frame *out)
++{
++    if(!state || !out || !data || !config_confirmed || report_code!=0x11 ||
++       !max_x || !max_y || size<1 || (state->active&~GT_MASK)) return 1;
++    unsigned count=data[0];
++    if(count>GT_CONTACTS || size!=1+6*count) return 2;
++    struct gt_state next={0};
++    struct gt_frame frame={0};
++    unsigned seen=0;
++    for(unsigned i=0;i<count;i++) {
++        const uint8_t *p=data+1+6*i;
++        unsigned id=p[0],kind=p[1];
++        unsigned x=(unsigned)p[2]|(unsigned)p[3]<<8;
++        unsigned y=(unsigned)p[4]|(unsigned)p[5]<<8;
++        if(id>=GT_CONTACTS || (seen&(1U<<id))) return 3;
++        seen|=1U<<id;
++        if(kind>9 || kind==7 || x>max_x || y>max_y) return 4;
++        /* Only fingers/gloves become touches. Lift, palm, hover and pen
++         * objects do not become synthetic finger presses. */
++        if(kind!=1 && kind!=2) continue;
++        next.active|=(uint16_t)(1U<<id);
++        next.x[id]=(uint16_t)((uint32_t)x*(GT_WIDTH-1)/max_x);
++        next.y[id]=(uint16_t)((uint32_t)y*(GT_HEIGHT-1)/max_y);
++    }
++    frame.active=next.active;
++    for(unsigned id=0;id<GT_CONTACTS;id++) {
++        unsigned bit=1U<<id;
++        if(!((state->active|next.active)&bit)) continue;
++        struct gt_event *e=&frame.events[frame.count++];
++        e->id=(uint8_t)id;e->down=!!(next.active&bit);
++        e->x=e->down?next.x[id]:state->x[id];
++        e->y=e->down?next.y[id]:state->y[id];
++    }
++    *state=next;*out=frame;
++    return 0;
++}
++#endif
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/HoujiTouchWire.h
+@@ -0,0 +1,65 @@
++/* SPDX-License-Identifier: BSD-2-Clause-Patent
++ * Bounded TouchCom v1 transport. Hardware adapters provide complete SPI
++ * transactions. v2, CRC extensions and fragmented large reports are refused
++ * until their wire format has been verified on this device.
++ */
++#ifndef GIULIA_TOUCH_WIRE_H
++#define GIULIA_TOUCH_WIRE_H
++#include <stddef.h>
++#include <stdint.h>
++#define GW_MAX 512
++struct gw_bus {
++    int (*read)(uint8_t *,unsigned);
++    int (*write)(const uint8_t *,unsigned);
++    void (*wait)(unsigned);
++    unsigned max_write;
++    int (*discard_report)(unsigned);
++};
++struct gw_message { uint8_t code; unsigned size; uint8_t data[GW_MAX]; };
++static inline unsigned gw_le16(const uint8_t *p) { return p[0]|(unsigned)p[1]<<8; }
++static inline int gw_read(struct gw_bus *bus,struct gw_message *out)
++{
++    uint8_t h[4],tail[GW_MAX+7];
++    if(bus->read(h,4))return 1;
++    if(h[0]!=0xa5)return 2;
++    unsigned n=gw_le16(h+2);
++    if(h[1]==0 || h[1]==2 || h[1]==0xff) {
++        out->code=h[1];out->size=0;return 0;
++    }
++    if(h[1]==3)return 3;
++    if(n>GW_MAX) {
++        // Large unsolicited diagnostic/raw frames are never contact data.
++        // Adapter validates their complete continuation and EOM in fixed memory.
++        if(h[1]<0x12 || !bus->discard_report || bus->discard_report(n))return 3;
++        out->code=h[1];out->size=0;return 0;
++    }
++    if(n) {
++        /* The vendor detects optional CRC/RC by reading four extra bytes.
++         * Legacy v1 fills them with EOM 0x5a. Never interpret extensions as
++         * contact data or send a legacy command after detecting them. */
++        if(bus->read(tail,n+7))return 4;
++        if(tail[0]!=0xa5 || tail[1]!=3)return 5;
++        for(unsigned i=n+2;i<n+7;i++)if(tail[i]!=0x5a)return 6;
++    }
++    out->code=h[1];out->size=n;
++    for(unsigned i=0;i<n;i++)out->data[i]=tail[i+2];
++    return 0;
++}
++static inline int gw_command(struct gw_bus *bus,uint8_t cmd,
++    const uint8_t *payload,unsigned n,struct gw_message *reply)
++{
++    uint8_t packet[GW_MAX+3];
++    if(n>GW_MAX || n+3>bus->max_write || (n && !payload))return 7;
++    packet[0]=cmd;packet[1]=(uint8_t)n;packet[2]=(uint8_t)(n>>8);
++    for(unsigned i=0;i<n;i++)packet[i+3]=payload[i];
++    if(bus->write(packet,n+3))return 8;
++    for(unsigned attempt=0;attempt<100;attempt++) {
++        bus->wait(10);
++        int e=gw_read(bus,reply);if(e)return e;
++        if(reply->code==1 || (cmd==2 && reply->code==0x10))return 0;
++        if(reply->code==0 || reply->code==2 || reply->code==0xff || reply->code>=0x10)continue;
++        return 9;
++    }
++    return 10;
++}
++#endif
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/HoujiTouchGpio.h
+@@ -0,0 +1,35 @@
++/* SPDX-License-Identifier: BSD-2-Clause-Patent
++ * SPI mode 0, MSB first, active-low CS. No DMA or controller reprogramming.
++ * Pin indices are MISO=0, MOSI=1, clock=2, CS=3. The caller owns the pins.
++ */
++#ifndef GIULIA_TOUCH_GPIO_H
++#define GIULIA_TOUCH_GPIO_H
++#include <stdint.h>
++struct gg_bus {
++    void (*set)(unsigned,unsigned);
++    unsigned (*sample)(void);
++    void (*pause)(void);
++};
++/* Vendor pinctrl-msm: on eGPIO-capable pins, bit 12 set means AP ownership;
++ * bit 12 clear hands the pin to the external controller. */
++static inline int gg_pin_owned(uint32_t cfg)
++{
++    return !(cfg&(1u<<11)) || !!(cfg&(1u<<12));
++}
++static inline int gg_transfer(const struct gg_bus *b,const uint8_t *tx,uint8_t *rx,unsigned n)
++{
++    if(!b || !b->set || !b->sample || !b->pause || !n || n>8199 || (!tx && !rx))return 1;
++    b->set(2,0);b->set(3,0);b->pause();
++    for(unsigned i=0;i<n;i++) {
++        uint8_t send=tx?tx[i]:0xff,receive=0;
++        for(unsigned bit=0;bit<8;bit++) {
++            b->set(1,(send>>(7-bit))&1);b->pause();
++            b->set(2,1);b->pause();
++            receive=(uint8_t)((receive<<1)|(b->sample()&1));
++            b->set(2,0);
++        }
++        if(rx)rx[i]=receive;
++    }
++    b->pause();b->set(3,1);b->pause();return 0;
++}
++#endif
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/HoujiTouchDescriptor.h
+@@ -0,0 +1,97 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++// Bounds-checked TouchCom descriptor interpreter. Protocol tokens cross-checked
++// against native iOS data-a-live@66b556ca (tc_touch_report), not its board data.
++// Real IC fields are repacked for the already-tested contact state decoder.
++#ifndef HOUJI_TOUCH_DESCRIPTOR_H
++#define HOUJI_TOUCH_DESCRIPTOR_H
++#include "HoujiTouchReport.h"
++struct hd_layout {unsigned begin,end,finish,active;};
++static inline int hd_layout_parse(const uint8_t *cfg,unsigned bytes,struct hd_layout *out) {
++  if(!cfg || !out || !bytes || bytes>512)return 1;
++  struct hd_layout layout={0};unsigned in=0,loops=0,fields=0,progress=0;
++  for(unsigned i=0;i<bytes;) {
++    unsigned token=cfg[i++];
++    if(!token) {
++      if(in || loops!=1 || (fields&14)!=14 || !progress)return 2;
++      layout.finish=i;*out=layout;return 0;
++    }
++    if(token==1 || token==2) {
++      if(in || loops++)return 3;
++      in=1;layout.active=token==1;layout.begin=i;continue;
++    }
++    if(token==3) {if(!in)return 4;in=0;layout.end=i-1;continue;}
++    if(token==4)continue;
++    if(i>=bytes)return 5;
++    unsigned bits=cfg[i++];if(!bits)return 6;
++    if(token>=6 && token<=9) {
++      if(!in || bits>(token>=8?16:8))return 7;
++      fields|=1u<<(token-6);
++    }
++    if(token==0x18 && (in || bits>8))return 8;
++    if(in)progress+=bits;
++  }
++  return 9;
++}
++static inline int hd_bits(const uint8_t *p,unsigned bytes,unsigned *offset,unsigned bits,unsigned *value) {
++  if(!p || !offset || !value || !bits || bits>32 || *offset>bytes*8 || bits>bytes*8-*offset)return 1;
++  unsigned v=0;
++  for(unsigned i=0;i<bits;i++)v|=((unsigned)(p[(*offset+i)/8]>>((*offset+i)%8))&1u)<<i;
++  *offset+=bits;*value=v;return 0;
++}
++static inline int hd_field(const uint8_t *cfg,unsigned limit,unsigned *index,
++  const uint8_t *data,unsigned bytes,unsigned *offset,unsigned *value) {
++  if(*index>=limit)return 1;
++  unsigned bits=cfg[(*index)++];
++  if(!bits || *offset>bytes*8 || bits>bytes*8-*offset)return 2;
++  if(bits<=32)return hd_bits(data,bytes,offset,bits,value);
++  *offset+=bits;*value=0;return 0;
++}
++static inline int hd_object(const uint8_t *cfg,const struct hd_layout *layout,
++  const uint8_t *data,unsigned bytes,unsigned *offset,unsigned ordinal,
++  unsigned *seen,uint8_t *packed,unsigned *contacts,unsigned mx,unsigned my) {
++  unsigned id=ordinal,kind=0,x=0,y=0,flags=0;
++  for(unsigned i=layout->begin;i<layout->end;) {
++    unsigned token=cfg[i++],value=0;
++    if(token==4) {*offset=(*offset+7)&~7u;if(*offset>bytes*8)return 1;continue;}
++    if(token<5 || hd_field(cfg,layout->end,&i,data,bytes,offset,&value))return 2;
++    if(token==6)id=value;
++    if(token==7) {kind=value;flags|=1;}
++    if(token==8) {x=value;flags|=2;}
++    if(token==9) {y=value;flags|=4;}
++  }
++  if(id>=GT_CONTACTS || (*seen&(1u<<id)) || kind>9 || kind==7 || !(flags&1))return 3;
++  *seen|=1u<<id;
++  if(kind!=1 && kind!=2)return 0;
++  if(flags!=7 || x>mx || y>my || *contacts>=GT_CONTACTS)return 4;
++  uint8_t *v=packed+1+6*(*contacts);v[0]=id;v[1]=kind;v[2]=x;v[3]=x>>8;v[4]=y;v[5]=y>>8;
++  (*contacts)++;return 0;
++}
++static inline int hd_decode(const uint8_t *cfg,unsigned config_bytes,const uint8_t *data,
++  unsigned bytes,unsigned mx,unsigned my,struct gt_state *state,struct gt_frame *out) {
++  if(!data || !state || !out || !mx || !my || bytes>512)return 1;
++  struct hd_layout layout;if(hd_layout_parse(cfg,config_bytes,&layout))return 2;
++  unsigned offset=0,active=0,have_count=0,seen=0,contacts=0;
++  uint8_t packed[1+6*GT_CONTACTS]={0};
++  for(unsigned i=0;i<layout.finish;) {
++    unsigned token=cfg[i++],value=0;
++    if(!token)break;
++    if(token==1 || token==2) {
++      unsigned count=layout.active?(have_count?active:GT_CONTACTS):GT_CONTACTS;
++      if(count>GT_CONTACTS)return 3;
++      for(unsigned object=0;object<count;object++) {
++        if(layout.active && !have_count && offset==bytes*8)break;
++        unsigned before=offset;
++        if(hd_object(cfg,&layout,data,bytes,&offset,object,&seen,packed,&contacts,mx,my))return 4;
++        if(offset<=before)return 5;
++      }
++      i=layout.end+1;continue;
++    }
++    if(token==3)return 6;
++    if(token==4) {offset=(offset+7)&~7u;if(offset>bytes*8)return 7;continue;}
++    if(hd_field(cfg,layout.finish,&i,data,bytes,&offset,&value))return 8;
++    if(token==0x18) {if(value>GT_CONTACTS)return 9;active=value;have_count=1;}
++  }
++  packed[0]=contacts;
++  return gt_decode(0x11,packed,1+6*contacts,mx,my,1,state,out);
++}
++#endif

@@ -1,0 +1,10 @@
+{
+  "scope": "native-only ASTC4x4 block-row shadow creator, public buffer texture rules unchanged; hardware copy and sampling pending",
+  "files": {
+    "after-buffer_texture.rs": "aa604bc329ad578dbdd6f9e8009c4a03aef6a195fbb8121d1957022abf5f82b1",
+    "before-buffer_texture.rs": "7173eb04eec3ee8fb7f169d7fa2f32aa5ac8d92319bc6b2bec7a59be5bf69495",
+    "runtime.patch": "9ca9ece325c0b2362022cfa20c4429835615c98f807a7086c758e56feb52272f",
+    "before-texture.rs": "2bc9e41c11f5af1cbbc29dc480767dfc39498b37da2660b7fc2edcbe728df66c",
+    "after-texture.rs": "0c7473c0041d76aff60e2fd9bd2aa0cc7d68aa0064f4a40b667a682f9eb8854d"
+  }
+}

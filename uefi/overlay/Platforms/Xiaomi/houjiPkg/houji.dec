@@ -1,0 +1,19 @@
+## SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  DEC_SPECIFICATION = 0x0001001B
+  PACKAGE_NAME = houjiPkg
+  PACKAGE_GUID = 7DA76193-95A8-4FC1-B390-6CE0A16BB99D
+  PACKAGE_VERSION = 0.1
+[Includes]
+  Include
+[Guids]
+  gHoujiPkgTokenSpaceGuid = {0x121d9eac,0x7793,0x48ca,{0xb7,0x9f,0x27,0x5a,0xa6,0x88,0x3f,0x4a}}
+[Protocols]
+  gHoujiRootRamProtocolGuid = {0xa5213b76,0x1f69,0x4c20,{0x8e,0x36,0xa6,0xbb,0x87,0x4c,0x60,0x21}}
+[PcdsFeatureFlag]
+  gHoujiPkgTokenSpaceGuid.PcdHoujiHighRAMEnable|FALSE|BOOLEAN|0x00000001
+  gHoujiPkgTokenSpaceGuid.PcdHoujiRootRAMEnable|FALSE|BOOLEAN|0x00000002
+
+  gHoujiPkgTokenSpaceGuid.PcdHoujiHighRAMProbeEnable|FALSE|BOOLEAN|0x00000003
+  gHoujiPkgTokenSpaceGuid.PcdHoujiClockMmioEnable|FALSE|BOOLEAN|0x00000004
+  gHoujiPkgTokenSpaceGuid.PcdHoujiUfsMmioEnable|FALSE|BOOLEAN|0x00000005

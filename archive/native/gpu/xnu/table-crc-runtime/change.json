@@ -1,0 +1,5 @@
+{
+  "scope": "Same exact CRC32 input/range/result; all existing wait/idle/owner/table checks kept; cached timing added",
+  "hardware_pending": true,
+  "header_sha256": "41edaf4f4221b7cd5243244603fe6c42ca1ffa8ade24da5082ef41c1dbb3bef3"
+}

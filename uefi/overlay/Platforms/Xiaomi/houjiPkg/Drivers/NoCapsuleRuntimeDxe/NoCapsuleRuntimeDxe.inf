@@ -1,0 +1,25 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = NoCapsuleRuntimeDxe
+  FILE_GUID = 4464F9EF-0300-5EC2-81CA-741140213FD8
+  MODULE_TYPE = DXE_RUNTIME_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = NoCapsuleEntry
+
+[Sources]
+  NoCapsuleRuntimeDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  DebugLib
+
+[Protocols]
+  gEfiCapsuleArchProtocolGuid ## PRODUCES
+
+[Depex]
+  gEfiRuntimeArchProtocolGuid

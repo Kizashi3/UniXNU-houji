@@ -1,0 +1,6 @@
+{
+  "scope": "Retain pending surfaces through ordered actual copy; per-frame NativeAdreno submitted sequence; selector6 waits for retirement",
+  "reference": "GopFramebuffer 33e941a8 retain request and finishTransfer ownership discipline, adapted to 20H392 ABI",
+  "no_DPU_MMIO": true,
+  "hardware_tested": false
+}

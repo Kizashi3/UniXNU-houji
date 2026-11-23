@@ -1,0 +1,52 @@
+--- v7/NativeBridgeMetalFrontend.mm
++++ v8/NativeBridgeMetalFrontend.mm
+@@ -1267,6 +1267,8 @@
+  return true;
+ }
+ 
++#include "NativeLinearTextureLayout.h"
++
+ @interface NBDeviceMethods : NSObject
+ @end
+ @implementation NBDeviceMethods
+@@ -1332,17 +1334,32 @@
+  for(NSUInteger i=0;i<count;i++)if(resources[i])[held addObject:resources[i]];
+  group.resources=held;return group;
+ }
+-// Not made here: a texture over raw memory in Apple's layout, and Apple's texture layout object. Both are refused, with the reason, rather than
+-// answered with a guessed shape.
++// The layout describes this device's own CPU-linear rows, not Apple's AGX
++// tiling. The measured row plan is shared by CPU copies and the real buffer
++// texture implementation. Unsupported dimensions/types still return nil.
+ - (id<MTLTexture>)newTextureWithBytesNoCopy:(void *)bytes length:(NSUInteger)length descriptor:(MTLTextureDescriptor *)d deallocator:(void (^)(void *,NSUInteger))deallocator {
+- (void)bytes;(void)length;(void)d;(void)deallocator;
+- NBLOG(@"native-metal: newTextureWithBytesNoCopy:length:descriptor:deallocator: is not implemented (Apple's texture layout of raw memory is not known)");
+- return nil;
++ NBLinearTextureLayout *layout=linearTextureLayout(d,NO);
++ if(!bytes || !layout || (uintptr_t(bytes)&(layout->linear.alignment-1)) || length<layout->linear.bytes){
++  NBLOG(@"native-metal: linear raw texture refused: bytes=%p length=%lu fmt=%lu %lux%lu (unsupported shape/alignment/length)",bytes,(unsigned long)length,(unsigned long)d.pixelFormat,(unsigned long)d.width,(unsigned long)d.height);return nil;
++ }
++ MTLTextureDescriptor *shared=[d copy];shared.storageMode=MTLStorageModeShared;shared.cpuCacheMode=MTLCPUCacheModeDefaultCache;
++ NmbTextureDescriptor descriptor;if(!textureDescriptor(shared,&descriptor))return nil;
++ __block BOOL installed=NO;
++ void (^release)(void *,NSUInteger)=nil;
++ if(deallocator)release=^(void *p,NSUInteger ignored){(void)ignored;if(installed)deallocator(p,length);};
++ NBBuffer *buffer=(NBBuffer *)[self newBufferWithBytesNoCopy:bytes length:NSUInteger(layout->linear.bytes) options:MTLResourceStorageModeShared deallocator:release];
++ if(!buffer)return nil;
++ NmbTexture *handle=nmb_texture_new_linear(buffer.handle,&descriptor,0,layout->linear.row,layout->linear.row*layout->linear.height);
++ if(!handle){NBLOG(@"native-metal: raw linear texture bridge refused: %@",lastError());return nil;}
++ NBTexture *texture=[NBTexture new];texture.handle=handle;nmb_texture_describe(handle,&descriptor);texture.descriptor=descriptor;
++ texture.buffer=buffer;texture.offset=0;texture.rowBytes=layout->linear.row;installed=YES;
++ static unsigned logged;if(logged++<4)NSLog(@"native-metal: raw linear texture ready fmt=%llu %llux%llu row=%llu bytes=%llu",layout->format,layout->linear.width,layout->linear.height,layout->linear.row,layout->linear.bytes);
++ return (id<MTLTexture>)texture;
+ }
+ - (id)newTextureLayoutWithDescriptor:(MTLTextureDescriptor *)d isHeapOrBufferBacked:(BOOL)backed {
+- (void)d;(void)backed;
+- NBLOG(@"native-metal: newTextureLayoutWithDescriptor:isHeapOrBufferBacked: is not implemented (Apple's layout object is not known)");
+- return nil;
++ NBLinearTextureLayout *layout=linearTextureLayout(d,backed);
++ static unsigned logged;if(logged++<8){NSString *message=[NSString stringWithFormat:@"native-metal: linear layout %@ backed=%d fmt=%lu %lux%lu levels=%lu slices=%lu samples=%lu",layout?@"ready":@"refused",backed,(unsigned long)d.pixelFormat,(unsigned long)d.width,(unsigned long)d.height,(unsigned long)d.mipmapLevelCount,(unsigned long)d.arrayLength,(unsigned long)d.sampleCount];if(layout)NSLog(@"%@",message);else NBLOG(@"%@",message);}
++ return layout;
+ }
+ - (id<MTLCommandQueue>)newCommandQueueWithMaxCommandBufferCount:(NSUInteger)count {(void)count;return [(id<MTLDevice>)self newCommandQueue];}
+ - (id<MTLBuffer>)newBufferWithLength:(NSUInteger)length options:(MTLResourceOptions)options {

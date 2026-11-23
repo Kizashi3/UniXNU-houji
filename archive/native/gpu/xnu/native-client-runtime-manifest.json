@@ -1,0 +1,164 @@
+{
+  "scope": "Same-owner EPD1 restoration and actual Native VM/Submit/UserClient v1 kernel API integration; no provider/Metal/desktop claim",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "25f253989982ddbfb3b24c7997c0a667ca3c01128d3c95cf61776c672e2d2bd0",
+      "after": "aee32d1897817a791ca245a719c34ab155f9116036f60e7c971e8e8e9e672e48",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KStreams.c": {
+      "before": "359610de6974c1885b4b7bbf72e6b321a013e1cc44200e1a8f566d09722c009a",
+      "after": "266ac48078daf1e64b15c5c89e259c96312c8bd04ac7e68dfb7c3ba8c95c99c2",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/ArmSmmu4KStreams.c"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeCp.inc": {
+      "before": "99bd043c859859f66813212e5c1b8ff36e8a0f7eb08a4b0112ef8ea0743e29ae",
+      "after": "99bd043c859859f66813212e5c1b8ff36e8a0f7eb08a4b0112ef8ea0743e29ae",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/HoujiGpuNativeCp.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeVm.inc": {
+      "before": "85117c76fd7e7173e9990e1425e6fdd68c8722cb2bca8b8b346e987e0ea28f1d",
+      "after": "6fc540e0451c8b17e1b6341aa836345a9c7640d3a35699f0412d6f15dac6b7d4",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/HoujiGpuNativeVm.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeClient.inc": {
+      "before": null,
+      "after": "c9572e1de7fb50501a8c5816dc3eb3dcd30f956328209093d4fbc7bebdfc60ce",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/HoujiGpuNativeClient.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/ArmSmmu4KStreams.h": {
+      "before": "1cfca0b4e3acba420cc829098b52d61c4905ec64d2aa57883dedae9dfb212969",
+      "after": "a274f42b696e0096b5c7b6fd823df687c1a107b7fa91e8bcdf73e1b7044c40ad",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/ArmSmmu4KStreams.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeSubmit.inc": {
+      "before": "60de1f4bb41720406cad40aaef4ae8a2fa812d9c79e53eb9b34a582f9ccff310",
+      "after": "e77a0725102536df1321e64f5577768905dd10d5642805c8495af5f1c11ac794",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/HoujiGpuNativeSubmit.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoMemory.h": {
+      "before": "1c6202ffdee6a9f50145667422830d267f3974214201b7ff8247953d5a1912b8",
+      "after": "1c6202ffdee6a9f50145667422830d267f3974214201b7ff8247953d5a1912b8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoMemory.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoSmmuMemory.cpp": {
+      "before": null,
+      "after": "422a1c2b14408bc2a4855822b7110a4c8b09c31cb5b9820b85dbde648a31d657",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoSmmuMemory.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoMemory.cpp": {
+      "before": "d78c51e6e465289c8e5957a2d9a8266445502a7801be9b2a42cd892a4ff82fc1",
+      "after": "e1534c8f299d673ed878ef9bb8c5279f36f818fd7971ac542eaf042a080c2c6c",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoMemory.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoVm.cpp": {
+      "before": null,
+      "after": "69233d4a59d069751d29d24438b2dd5536cda6c15786f1c19d33296286f1ffd7",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoVm.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoVm.h": {
+      "before": null,
+      "after": "23e3bfae23a9c216e5d8e5bffc7133afed8e617e280b5f8e8e62ac8ef65f7eb8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoVm.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoSubmit.cpp": {
+      "before": null,
+      "after": "a4e59734bc4a06ec1eac2d3758843e4ea0c4f980e6c38c40c69d4b6342f20be6",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoSubmit.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoTimer.h": {
+      "before": null,
+      "after": "41fd744b29cb12a107d86b6e74a0abe33fa877326e2471e2d534241b016341eb",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoTimer.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/AdrenoPM4.h": {
+      "before": null,
+      "after": "86f4e84eece0f2e67f786d03cea8b82c696377fc5af9f890dd164bbfe24abd29",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/AdrenoPM4.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoSubmit.h": {
+      "before": null,
+      "after": "03e41ee4afb6bc6ff1970ac298f93cb0add8b49ac300a14fcffef17fd91bd841",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoSubmit.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoStatus.h": {
+      "before": null,
+      "after": "7305cce3eefbf63176fd08f3d6eb92aa4b874fffb37bda94666fea53d62a2a34",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoStatus.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoVmAlias.h": {
+      "before": null,
+      "after": "35fe908bd80389a18e395eb3bfdd5a40cb2c133fe6634dbead8d68cf2822eeea",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoVmAlias.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoTimer.cpp": {
+      "before": null,
+      "after": "281221b6fc5c1175b71d7c54fda8275bab1b08d7b9819f7c60e4e4b10026f22a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoTimer.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoSmmuMemory.h": {
+      "before": null,
+      "after": "4342bddbcb5575bd1f3167ea52b4e565022a1a3b8f9fdfb7417c3cd7b1afc461",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoSmmuMemory.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoUserClient.h": {
+      "before": null,
+      "after": "58f1495a9275c7222e215df90dc4991a51dab656c5899d0a8325cf9b6649b4ad",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoUserClient.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoRing.h": {
+      "before": null,
+      "after": "ea816380a72ddcc6bae9a21aa4dd83d458184be91f2260154bdf2c043c38df8e",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoRing.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoABI.h": {
+      "before": null,
+      "after": "b5574e34ee3a368616f722f9fa40ea2c87bbc5c03989a299d9d4f954c9f8be70",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoABI.h"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoUserClient.cpp": {
+      "before": null,
+      "after": "36e44f7ab3b6a643018d6f2215879df7be873b7cc22a5aa4edeeb46153b06852",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoUserClient.cpp"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoCpuPagePolicy.h": {
+      "before": "a78402db00833d494960776551cea10caa019852140ff2816b3e9057a6c8fe27",
+      "after": "a78402db00833d494960776551cea10caa019852140ff2816b3e9057a6c8fe27",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-client-runtime/Adreno740/NativeAdrenoCpuPagePolicy.h"
+    },
+    "iokit/conf/files": {
+      "before": "b0968742b17843bd7f5787e87c2d5668a38e305290e1803233231a841df522b7",
+      "after": "7604a85be5f57aac2a61032d0acc484e8277f5d2f63f7abdbc25dd586231f6eb"
+    }
+  },
+  "offline_evidence": {
+    "memory.cpp": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-client-host/memory.cpp",
+      "sha256": "a48bb33f3b775d9d5c4d5e16a701e452deec5c49d915c64b546a94f557843979"
+    },
+    "memory.log": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-client-host/memory.log",
+      "sha256": "8aa15771410adfcf40272cab9381d954b45fbffc8fe910f72cf11fc3d39bd34b"
+    },
+    "run_memory.py": {
+      "path": "${HOUJI_PORT_ROOT}/tests/native-client-host/run_memory.py",
+      "sha256": "f05b63f1d32f11fbebaf57cfcc47cac6a0871d371827cc8880effffa85eda337"
+    },
+    "linked_review": {
+      "path": "/tmp/r162-vm-linked/review.json",
+      "sha256": "4ec47bcd9a05dfad582b69f416ba795ed08f1ea86e2780d0653047fcd5848fb2"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r162-client-linked/review.json",
+      "sha256": "76804182530c91d486c571e49306452e33345fb2af9cbedebe8f0bfa59b8b842"
+    }
+  },
+  "user_ABI_version": 1,
+  "retained_allocations": 3,
+  "GPU_frames_planned": 80,
+  "tested_native_memory_cpp_sha256": "e1534c8f299d673ed878ef9bb8c5279f36f818fd7971ac542eaf042a080c2c6c",
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r162-result.json",
+  "dynamic_mapping_qualified": true,
+  "native_client_qualified": false
+}

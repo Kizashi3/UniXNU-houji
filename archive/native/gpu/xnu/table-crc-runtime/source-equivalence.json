@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "scope": "Exact original source reconstructed after removing only cached timing and restoring original CRC function name",
+  "ownership_checks_unchanged": true,
+  "wait_and_idle_checks_unchanged": true,
+  "MMIO_FS_and_mapping_operation_order_unchanged": true,
+  "all_CRC_bytes_still_checked": true
+}

@@ -1,0 +1,775 @@
+--- a/crates/metal2vulkan/src/cache/codec.rs
++++ b/crates/metal2vulkan/src/cache/codec.rs
+@@ -1445,6 +1445,7 @@
+         UnmeasuredFetchBlend,
+         DeviceVertexConversion,
+         DeviceAlphaCoverage,
++        SrgbExtendedRangeBlendRounding,
+     }
+     BindingSource {
+         Buffer(f0), Texture(f0), Sampler(f0), CombinedTextureSampler { texture, sampler },
+--- a/crates/metal2vulkan/src/cache/mod.rs
++++ b/crates/metal2vulkan/src/cache/mod.rs
+@@ -60,7 +60,7 @@
+ /// unchanged version, and its bless records the version. Independent of the crate's version and of
+ /// [`ARTIFACT_FORMAT_VERSION`]. The commit that bumps it says what changed; this comment keeps no
+ /// history.
+-pub const SEMANTICS_VERSION: u32 = 1911;
++pub const SEMANTICS_VERSION: u32 = 1912;
+ 
+ /// The byte-layout version of encoded artifacts (`CompiledFunction::to_bytes` and the
+ /// [`PipelineArtifact`] encodings). Every encoded artifact carries it, and a decode under another
+@@ -70,7 +70,7 @@
+ /// re-typed in an encoded type, its `codec` body or its `envelope`. A variant removed while its tag
+ /// stays unused needs no bump: an entry holding it fails to decode, which is a miss. The commit that
+ /// bumps it says what changed; this comment keeps no history.
+-pub const ARTIFACT_FORMAT_VERSION: u32 = 477;
++pub const ARTIFACT_FORMAT_VERSION: u32 = 478;
+ 
+ /// The version of what this crate's runtime does with a compiled pipeline: instantiating a binding
+ /// plan (`BindingPlan::instantiate_*`: descriptor ranges, push bytes, root, argument, and handle
+@@ -93,7 +93,7 @@
+ /// changes no behaviour, and then updates that hash alone with the commit saying why, or changes
+ /// behaviour and also bumps this version. The commit that bumps it says what changed; this comment
+ /// keeps no history.
+-pub const RUNTIME_VERSION: u32 = 1691;
++pub const RUNTIME_VERSION: u32 = 1692;
+ 
+ /// The digest of the sources this build of the crate was compiled from: SHA-256, as lowercase hex,
+ /// of the manifest, the build script, and exactly the files the crate roots' module tree compiles
+--- a/crates/metal2vulkan/src/lower/arith/extended_range/blend.rs
++++ b/crates/metal2vulkan/src/lower/arith/extended_range/blend.rs
+@@ -990,10 +990,16 @@
+     // The rounded model holds for any blend into an `_sRGB` form, a mask of one color channel,
+     // and the color channels' blend color difference; the fast models for `BGRA10_XR_sRGB`'s
+     // narrow blends alone.
++    // An `_sRGB` form's blend the fast model does not hold (any but a narrow, unmasked one) takes
++    // the rounded model, Metal's own without fast math, measured for every `_sRGB` form and apart
++    // from its fast-math result only in roundings, rather than no pipeline: NanoUniverse's
++    // starfield (the Astronomy wallpaper, `BGRA10_XR_sRGB`) had none.
++    let math = if math == BlendMath::Fast && narrow_only && (!narrow || masked) {
++        BlendMath::Rounded
++    } else {
++        math
++    };
+     let fast = math == BlendMath::Fast;
+-    if fast && narrow_only && (!narrow || masked) {
+-        return Err(refused(ExtendedRangeBlend::SrgbForm));
+-    }
+     let opaque_ = !has_alpha;
+     let color = match colors {
+         0 => None,
+@@ -1518,6 +1524,13 @@
+     /// Metal's model's: a `half4` one; a `float4` one under a blend whose color lanes take one term
+     /// alone, unmasked, rounded to `half` first; another is the gap it is.
+     pub fn takes(&self, output: Option<FloatFmt>) -> Result<(), Error> {
++        // The rounded model rounds a `float4` output to `half` first, as a `half4` one.
++        if self.math == BlendMath::Rounded {
++            return match output {
++                Some(FloatFmt::Half | FloatFmt::F32) => Ok(()),
++                _ => Err(refused(ExtendedRangeBlend::Output)),
++            };
++        }
+         match output {
+             Some(FloatFmt::Half) => Ok(()),
+             Some(FloatFmt::F32) if self.narrow && self.takes_float && !self.masked => Ok(()),
+--- a/crates/metal2vulkan/src/lower/arith/extended_range/tests.rs
++++ b/crates/metal2vulkan/src/lower/arith/extended_range/tests.rs
+@@ -1385,17 +1385,17 @@
+     };
+     let bgra = ExtendedRange::Bgra10 { srgb: true };
+     let bgr = ExtendedRange::Bgr10 { srgb: true };
+-    assert_eq!(gap(&over, bgra, ALL), Some(ExtendedRangeBlend::SrgbForm));
++    assert_eq!(gap(&over, bgra, ALL), None);
+     assert_eq!(gap(&over, srgb, ALL), None);
+     assert_eq!(gap(&over, bgr, ALL), None);
+     let rgb = ColorWriteMask::ALL.difference(ColorWriteMask::ALPHA);
+-    assert_eq!(gap(&premul, bgra, rgb), Some(ExtendedRangeBlend::SrgbForm));
++    assert_eq!(gap(&premul, bgra, rgb), None);
+     assert_eq!(gap(&premul, srgb, rgb), None);
+     // A `float4` output into them takes its own model, as a linear form's.
+     let float = |form| Blend::for_output(&over, form, ALL, (Some(FloatFmt::F32), BlendMath::Fast));
+     assert!(float(srgb).is_ok_and(|b| b.float));
+     assert!(float(bgr).is_ok_and(|b| b.float));
+-    assert!(float(bgra).is_err());
++    assert!(float(bgra).is_ok_and(|b| b.math == BlendMath::Rounded && !b.float));
+     // A `float4` output: the blends whose color lanes take one term alone, unmasked.
+     let takes = |eq: &BlendEquation, mask: ColorWriteMask, fmt: Option<FloatFmt>| match Blend::of(
+         eq,
+@@ -2239,6 +2239,7 @@
+ ) {
+     let mut wrong = Vec::new();
+     let mut checked = 0;
++    let safe = xr_blends::safe_table();
+     for row in t.rows.iter().skip(shard).step_by(shards) {
+         let c = t.configs.get(row.config).expect("a configuration");
+         let factor = |k: usize| BlendFactor::try_from(c.equation[k] as u32).expect("a factor");
+@@ -2250,6 +2251,29 @@
+             FloatFmt::Half
+         } else {
+             FloatFmt::F32
++        };
++        let form = ExtendedRange::of(pf).expect("an extended-range format");
++        let rounded_fallback = mask != ColorWriteMask::NONE
++            && Blend::for_output(&eq, form, mask, (Some(output), math))
++                .is_ok_and(|b| b.math != math);
++        // Do not re-bless Metal's fast table. The newly enabled fallback is
++        // checked against the independent measured safe table instead, and
++        // production lowering announces its difference from fast math.
++        let reference = if rounded_fallback {
++            assert_eq!(row.ours, "SrgbForm");
++            safe.rows
++                .iter()
++                .find(|r| {
++                    r.format == row.format
++                        && r.half == row.half
++                        && safe.configs[r.config].equation == c.equation
++                        && safe.configs[r.config].mask == c.mask
++                        && safe.configs[r.config].color.map(f32::to_bits)
++                            == c.color.map(f32::to_bits)
++                })
++                .expect("measured safe blend")
++        } else {
++            row
+         };
+         let (ours, written) = table_outcome(pf, &eq, mask, (output, math));
+         // A computed `float4`'s blend Metal rounds otherwise than a loaded one's is announced.
+@@ -2266,8 +2290,16 @@
+             if row.half { "h" } else { "f" },
+             row.config
+         );
+-        if ours != row.ours {
+-            wrong.push(format!("{what}: ours {ours}, the table {}", row.ours));
++        let expected =
++            if rounded_fallback && computed && !super::computed::holds_as_loaded(&eq, form) {
++                "announced"
++            } else {
++                reference.ours.as_str()
++            };
++        if ours != expected {
++            wrong.push(format!(
++                "{what}: ours {ours}, the selected measured table {expected}"
++            ));
+         }
+         let Some(written) = written else { continue };
+         let layout = xr_blends::Layout::of(row.format).expect("a layout");
+@@ -2328,7 +2360,7 @@
+             false => xr_blends::fnv(&got_alpha),
+         };
+         checked += 1;
+-        if (xr_blends::fnv(&got_plane), got_alpha) != (row.plane, row.alpha) {
++        if (xr_blends::fnv(&got_plane), got_alpha) != (reference.plane, reference.alpha) {
+             wrong.push(format!(
+                 "{what}: {eq:?} {mask:?} differs from Metal's bytes"
+             ));
+--- a/crates/metal2vulkan/src/lower/fragment/fetch.rs
++++ b/crates/metal2vulkan/src/lower/fragment/fetch.rs
+@@ -1814,6 +1814,10 @@
+         };
+         match form {
+             Ok((view, b)) => {
++                if b.as_ref().is_some_and(|b| b.math != blend_math(cx)) {
++                    cx.precision
++                        .insert(PrecisionNote::SrgbExtendedRangeBlendRounding);
++                }
+                 // The blend color, as push data, where the blend reads it.
+                 if b.as_ref()
+                     .is_some_and(extended_range::Blend::reads_constant)
+--- a/crates/metal2vulkan/src/lower/fragment/input_blend.rs
++++ b/crates/metal2vulkan/src/lower/fragment/input_blend.rs
+@@ -143,6 +143,10 @@
+         let blend =
+             extended_range::Blend::for_output(&eq, form, fetch::written(kept), (output, math))
+                 .map_err(tied)?;
++        if blend.math != math {
++            cx.precision
++                .insert(crate::pipeline::artifact::PrecisionNote::SrgbExtendedRangeBlendRounding);
++        }
+         // A blend of the second source reads the function's index-1 output, four `half` or
+         // `float` lanes as the first's. Without one, Metal refuses the pipeline ("Fragment shader
+         // does not write to render target color(0), index(1) that is required for blending").
+--- a/crates/metal2vulkan/src/pipeline/artifact.rs
++++ b/crates/metal2vulkan/src/pipeline/artifact.rs
+@@ -1932,6 +1932,11 @@
+     /// fast math at four lanes; under fast math Metal regroups the blend, unmeasured.
+     /// Validation derives no tolerance from it.
+     UnmeasuredFetchBlend,
++    /// An sRGB extended-range blend outside the measured fast model uses the
++    /// measured safe-math model instead. It can round differently from Metal's
++    /// fast-math blend. No tolerance is inferred; native byte differences remain
++    /// differences, and device validation is still required.
++    SrgbExtendedRangeBlendRounding,
+ }
+ 
+ /// The math mode of an entry's module, which decides, on a device whose `float` functions are
+--- a/crates/metal2vulkan/src/tests/engine_fragment.rs
++++ b/crates/metal2vulkan/src/tests/engine_fragment.rs
+@@ -2105,8 +2105,7 @@
+ /// `RGB10A8_2P_XR10_sRGB`, beside an `R8Unorm` color 1 under the same blend (a consumer's
+ /// pipeline): on every committed profile that orders fetch through the interlock, the shader
+ /// blends color 0, a `half4` output's and a `float4` one's, and the module passes L3. Into
+-/// `BGRA10_XR_sRGB`, whose fast blends beyond the narrow ones Metal computes otherwise, the same
+-/// blend stays refused by name (`ExtendedRangeBlend::SrgbForm`).
++/// `BGRA10_XR_sRGB` uses the measured rounded blend when its fast model does not cover the blend.
+ #[test]
+ fn a_fast_source_alpha_over_blend_into_an_srgb_extended_range_attachment_is_made() {
+     use crate::metal::BlendFactor;
+@@ -2143,7 +2142,11 @@
+         if !crate::lower::fragment::interlock_orders(&p) {
+             continue;
+         }
+-        for pf in [PixelFormat::BGR10XRSRGB, PixelFormat::RGB10A82PXR10SRGB] {
++        for pf in [
++            PixelFormat::BGR10XRSRGB,
++            PixelFormat::RGB10A82PXR10SRGB,
++            PixelFormat::BGRA10XRSRGB,
++        ] {
+             let inputs = state(&colors(pf), &p);
+             for entry in ["rt6_fill_rgba16float", "rt6_fill_rgba32float"] {
+                 let a = match compile_with(&fills, entry, &p, &inputs) {
+@@ -2153,20 +2156,17 @@
+                     Err(Error::Unsupported(u)) if u.needs != Needs::NotImplemented => continue,
+                     Err(e) => panic!("{stem}: {pf:?} {entry}: {e}"),
+                 };
++                assert_eq!(
++                    a.precision.contains(
++                        &crate::pipeline::artifact::PrecisionNote::SrgbExtendedRangeBlendRounding
++                    ),
++                    pf == PixelFormat::BGRA10XRSRGB,
++                    "{stem}: {pf:?} {entry}: rounded fallback must be announced"
++                );
+                 link_and_validate(&a, &p)
+                     .unwrap_or_else(|e| panic!("{stem}: {pf:?} {entry}: L3: {e}"));
+                 checked += 1;
+             }
+-        }
+-        let inputs = state(&colors(PixelFormat::BGRA10XRSRGB), &p);
+-        match compile_with(&fills, "rt6_fill_rgba16float", &p, &inputs) {
+-            Err(Error::Unsupported(u)) if u.needs != Needs::NotImplemented => {}
+-            Err(Error::Unsupported(u)) => assert_eq!(
+-                u.feature,
+-                Feature::ExtendedRangeBlend(crate::error::ExtendedRangeBlend::SrgbForm),
+-                "{stem}"
+-            ),
+-            other => panic!("{stem}: BGRA10_XR_sRGB: {:?}", other.map(|_| ())),
+         }
+     }
+     assert!(
+--- a/crates/metal2vulkan/src/tests/fast_paths.rs
++++ b/crates/metal2vulkan/src/tests/fast_paths.rs
+@@ -113,6 +113,7 @@
+         NotBuilt: [
+             ExtendedRangeBlendSource,
+             ExtendedRangeFloatBlendSource,
++            SrgbExtendedRangeBlendRounding,
+             BicubicFilterArithmetic,
+         ],
+         DeviceGap: [
+--- a/crates/metal2vulkan-air/src/canon/const_loads.rs
++++ b/crates/metal2vulkan-air/src/canon/const_loads.rs
+@@ -102,21 +102,21 @@
+                     continue;
+                 };
+                 match body.insts.get(l).map(|l| (&l.kind, l.ty)) {
+-                Some((
+-                    &InstKind::Load {
+-                        ptr,
+-                        volatile: false,
+-                        atomic: None,
+-                        ..
+-                    },
+-                    ty,
+-                )) if parts.types.int_bits(ty).map(u32::from)
+-                    == Some(parts.data_layout.pointer(space.raw()).size_bits)
+-                    && !matches!(parts.types.get(ty), Some(Type::Vector { .. })) =>
+-                {
+-                    ptr
+-                }
+-                _ => continue,
++                    Some((
++                        &InstKind::Load {
++                            ptr,
++                            volatile: false,
++                            atomic: None,
++                            ..
++                        },
++                        ty,
++                    )) if parts.types.int_bits(ty).map(u32::from)
++                        == Some(parts.data_layout.pointer(space.raw()).size_bits)
++                        && !matches!(parts.types.get(ty), Some(Type::Vector { .. })) =>
++                    {
++                        ptr
++                    }
++                    _ => continue,
+                 }
+             }
+             _ => continue,
+--- a/crates/metal2vulkan-air/src/canon/tests.rs
++++ b/crates/metal2vulkan-air/src/canon/tests.rs
+@@ -2393,7 +2393,10 @@
+     // A field of any other first-class type reads the same way: the picked struct's own `i64`.
+     for (flag, kept, gone) in [(1, "333", "444"), (0, "444", "333")] {
+         let text = body_text(&picked_field(Some(flag), 1).unwrap());
+-        assert!(!text.contains("getelementptr") && !text.contains("load"), "{text}");
++        assert!(
++            !text.contains("getelementptr") && !text.contains("load"),
++            "{text}"
++        );
+         assert!(text.contains(kept) && !text.contains(gone), "{text}");
+     }
+     // Unsupplied, the select stays undecided, as before.
+--- a/crates/metal2vulkan-runtime/src/buffer_texture.rs
++++ b/crates/metal2vulkan-runtime/src/buffer_texture.rs
+@@ -340,37 +340,66 @@
+     /// public Metal buffer-texture rules and never interprets Apple's tiled data.
+     /// Normal shadow tracking retains the source and observes later CPU writes.
+     pub fn new_native_raw_astc4x4_texture(
+-        &self, descriptor: &TextureDescriptor, bytes_per_row: u64,
++        &self,
++        descriptor: &TextureDescriptor,
++        bytes_per_row: u64,
+     ) -> Result<Texture, Error> {
+         const CALL: &str = "new_native_raw_astc4x4_texture";
+         let fail = || Error::NotImplemented(RuntimeGap::Textures);
+-        if !matches!(descriptor.pixel_format, PixelFormat::ASTC4x4LDR | PixelFormat::ASTC4x4SRGB)
+-            || descriptor.texture_type != TextureType::Type2D || descriptor.depth != 1
+-            || descriptor.array_length != 1 || descriptor.mipmap_level_count != 1
+-            || descriptor.sample_count != 1 || descriptor.rotation != 0
+-            || descriptor.framebuffer_only || self.detached()
+-            || !(TextureUsage::SHADER_READ | TextureUsage::PIXEL_FORMAT_VIEW).contains(descriptor.usage)
+-            || descriptor.width == 0 || descriptor.height == 0
+-        { return Err(fail()); }
++        if !matches!(
++            descriptor.pixel_format,
++            PixelFormat::ASTC4x4LDR | PixelFormat::ASTC4x4SRGB
++        ) || descriptor.texture_type != TextureType::Type2D
++            || descriptor.depth != 1
++            || descriptor.array_length != 1
++            || descriptor.mipmap_level_count != 1
++            || descriptor.sample_count != 1
++            || descriptor.rotation != 0
++            || descriptor.framebuffer_only
++            || self.detached()
++            || !(TextureUsage::SHADER_READ | TextureUsage::PIXEL_FORMAT_VIEW)
++                .contains(descriptor.usage)
++            || descriptor.width == 0
++            || descriptor.height == 0
++        {
++            return Err(fail());
++        }
+         let device = self.device();
+         let descriptor = TextureDescriptor {
+-            resource_options: self.resource_options(), ..device.texture_options(CALL, descriptor)?
+-        };
+-        let layout = descriptor.check_made(Creator::Device, device.properties().texture_rules())
++            resource_options: self.resource_options(),
++            ..device.texture_options(CALL, descriptor)?
++        };
++        let layout = descriptor
++            .check_made(Creator::Device, device.properties().texture_rules())
+             .map_err(|refused| refused.error(CALL))?;
+         let [width, height, _] = layout.extent;
+-        let row_bytes = u64::from(width).div_ceil(4).checked_mul(16).ok_or_else(fail)?;
++        let row_bytes = u64::from(width)
++            .div_ceil(4)
++            .checked_mul(16)
++            .ok_or_else(fail)?;
+         let rows = u64::from(height).div_ceil(4);
+         let slice = bytes_per_row.checked_mul(rows).ok_or_else(fail)?;
+         if bytes_per_row < row_bytes || bytes_per_row % 16 != 0 || slice > self.length() {
+             return Err(fail());
+         }
+-        let placed = BufferLayout {offset: 0, row_pitch: bytes_per_row,
+-            slice_pitch: slice, row_bytes, rows, slices: 1};
++        let placed = BufferLayout {
++            offset: 0,
++            row_pitch: bytes_per_row,
++            slice_pitch: slice,
++            row_bytes,
++            rows,
++            slices: 1,
++        };
+         let mut texels = Texels::new(self.clone(), placed, 16, &descriptor);
+-        texels.block_extent = [4, 4]; texels.image_extent = Some([width, height]);
+-        device.new_texture_over_buffer(CALL, texels, &descriptor, &layout,
+-            IdUse::Program(descriptor.placement))
++        texels.block_extent = [4, 4];
++        texels.image_extent = Some([width, height]);
++        device.new_texture_over_buffer(
++            CALL,
++            texels,
++            &descriptor,
++            &layout,
++            IdUse::Program(descriptor.placement),
++        )
+     }
+ 
+     /// The stand-in for `newTextureWithDescriptor:iosurface:plane:` over the caller's memory: a
+@@ -1449,19 +1478,33 @@
+             .map_or(at, |staging| staging.into.dst_offset);
+         // The descriptor's checks bound a texture's extent and slices to `u32`s.
+         let slices = layout.slices as u32;
+-        let (regions, back) = if let Some([width,height]) = self.image_extent {
++        let (regions, back) = if let Some([width, height]) = self.image_extent {
+             // Native ASTC rows hold blocks; Vulkan extents and row lengths are pixels.
+-            let region=vk::BufferImageCopy {
+-                buffer_offset:start,
+-                buffer_row_length:((layout.row_pitch/self.texel_bytes)*u64::from(self.block_extent[0])) as u32,
+-                buffer_image_height:0,
+-                image_subresource:vk::ImageSubresourceLayers {aspect_mask:aspects,mip_level:0,base_array_layer:0,layer_count:1},
+-                image_offset:vk::Offset3D::default(),image_extent:vk::Extent3D {width,height,depth:1},
++            let region = vk::BufferImageCopy {
++                buffer_offset: start,
++                buffer_row_length: ((layout.row_pitch / self.texel_bytes)
++                    * u64::from(self.block_extent[0])) as u32,
++                buffer_image_height: 0,
++                image_subresource: vk::ImageSubresourceLayers {
++                    aspect_mask: aspects,
++                    mip_level: 0,
++                    base_array_layer: 0,
++                    layer_count: 1,
++                },
++                image_offset: vk::Offset3D::default(),
++                image_extent: vk::Extent3D {
++                    width,
++                    height,
++                    depth: 1,
++                },
+             };
+-            (vec![region],vec![region])
+-        } else { plane_copy_regions(layout, self.texel_bytes, start, aspects) };
++            (vec![region], vec![region])
++        } else {
++            plane_copy_regions(layout, self.texel_bytes, start, aspects)
++        };
+         // A copy back dispatches, and a merge fetches, over one region copied in place alone.
+-        let one_region = regions.len() == 1 && slices == 1 && staging.is_none() && self.block_extent==[1,1];
++        let one_region =
++            regions.len() == 1 && slices == 1 && staging.is_none() && self.block_extent == [1, 1];
+         let (bytes, tracked) = self.buffer.tracked(layout.offset..layout.end());
+         Ok(ShadowCopies {
+             source: ShadowSource::Bytes {
+@@ -1629,7 +1672,8 @@
+     fn region_layout(&self, region: &ImageRegion, host: &HostLayout) -> (u64, HostLayout) {
+         let layout = &self.cpu;
+         let [mut x, mut y, _] = region.origin.map(u64::from);
+-        x /= u64::from(self.block_extent[0]); y /= u64::from(self.block_extent[1]);
++        x /= u64::from(self.block_extent[0]);
++        y /= u64::from(self.block_extent[1]);
+         let start = layout.offset
+             + layout.slice_pitch * u64::from(region.layer)
+             + layout.row_pitch * y
+--- a/crates/metal2vulkan-runtime/src/degradation.rs
++++ b/crates/metal2vulkan-runtime/src/degradation.rs
+@@ -2339,6 +2339,10 @@
+         /// module compiled with fast math, or written by fewer than four lanes, in the 8-bit unorm
+         /// blend's rounded forms over the decoded texel. Metal's blend for these is not measured.
+         UnmeasuredFetchBlend = "unmeasured-fetch-blend";
++        /// An sRGB extended-range blend whose fast model is not measured uses
++        /// the measured safe-math model; its roundings can differ from the
++        /// Metal fast-math result. This note supplies no validation tolerance.
++        SrgbExtendedRangeBlendRounding = "srgb-extended-range-blend-rounding";
+     }
+ }
+ 
+--- a/crates/metal2vulkan-runtime/src/texture/surface_two_planes.rs
++++ b/crates/metal2vulkan-runtime/src/texture/surface_two_planes.rs
+@@ -58,6 +58,7 @@
+ use crate::error::{Error, RuntimeGap};
+ use crate::image_plan::plan_image;
+ use crate::linear_plan::{BufferLayout, LINEAR_ALIGNMENT};
++use crate::resource::Identity;
+ use crate::shadow::{ShadowBuffer, ShadowCopies, ShadowSource, ShadowTarget};
+ use crate::shadow_merge::ScratchSpares;
+ use crate::texture_descriptor::{texture_usage, TextureDescriptor, TextureLayout};
+@@ -208,7 +209,14 @@
+             return Err(Error::NotImplemented(RuntimeGap::Textures));
+         }
+         let hazard = texels.options().hazard_tracking_mode()?;
+-        let image = self.new_image(plan, layout, descriptor, hazard)?;
++        // Its copy in writes every texel of its one aspect before any command reads it, or a pass
++        // that clears it whole does (`shadow.rs`, `render/shadows.rs`), so it starts as its memory
++        // lies, as the other shadows of a buffer's bytes do (`storage_over_buffer`): zeros there
++        // would never be read, and the host's zeros copied into a full-screen surface's image
++        // were most of its making on a phone's render server.
++        let identity = Identity::new(hazard, false);
++        let image =
++            self.new_image_as_it_lies(plan, layout, descriptor, identity, Device::runtime_owner)?;
+         let (raw, start) = texels.buffer.at(color.offset);
+         let staging = HeapPlaneCopies::staging(self, &planes, start, hazard)?;
+         let moves = Box::new(HeapPlaneCopies::new(self, &staging, &planes, hazard)?);
+--- a/crates/metal2vulkan-runtime/src/texture.rs
++++ b/crates/metal2vulkan-runtime/src/texture.rs
+@@ -2193,117 +2193,124 @@
+         };
+         let why = if texels.unit().extent != [1, 1] {
+             "native compressed block rows require a tracked shadow image".to_owned()
+-        } else { match class {
+-            Some(_) if device_copy => String::new(),
+-            Some(class) => {
+-                let checking = in_place::checking();
+-                let cause = if texels.buffer.detached() {
+-                    // Over bytes detached from their pages (`detach.rs`) no image is bound to
+-                    // them: the texture is their shadow, which presents a stand-in until they lie
+-                    // in pages again.
+-                    ShadowCause::Refused(
++        } else {
++            match class {
++                Some(_) if device_copy => String::new(),
++                Some(class) => {
++                    let checking = in_place::checking();
++                    let cause = if texels.buffer.detached() {
++                        // Over bytes detached from their pages (`detach.rs`) no image is bound to
++                        // them: the texture is their shadow, which presents a stand-in until they lie
++                        // in pages again.
++                        ShadowCause::Refused(
+                         Refusal::Detached,
+                         "the buffer's bytes were detached from their pages (detach_backing) as the \
+                          texture was made"
+                             .to_owned(),
+                     )
+-                } else if texels.buffer.copied() {
+-                    // A copied host buffer's bytes the GPU uses lie in memory of the device's
+-                    // own, no import of the pages (`copied.rs`): the shadow copies them, its
+-                    // copies the buffer's uses, which commits copy in and completions merge back.
+-                    ShadowCause::Refused(
+-                        Refusal::Placement,
+-                        "the buffer's bytes are a copy of the caller's pages in memory of the \
++                    } else if texels.buffer.copied() {
++                        // A copied host buffer's bytes the GPU uses lie in memory of the device's
++                        // own, no import of the pages (`copied.rs`): the shadow copies them, its
++                        // copies the buffer's uses, which commits copy in and completions merge back.
++                        ShadowCause::Refused(
++                            Refusal::Placement,
++                            "the buffer's bytes are a copy of the caller's pages in memory of the \
+                          device's own, which no image over the pages lies in"
+-                            .to_owned(),
++                                .to_owned(),
++                        )
++                    } else {
++                        // The check's own textures measure the device whatever its policy.
++                        let policy = match checking {
++                            true => HostPageTexturePolicy::InPlace,
++                            false => self.compile_device().policy().host_page_textures,
++                        };
++                        let verdict = |class| match checking {
++                            true => Verdict::Passed,
++                            false => self.in_place_verdict(class),
++                        };
++                        match in_place::in_place(policy, usage, class, verdict) {
++                            Ok(()) => {
++                                match self
++                                    .in_place_image(&plan, descriptor, &texels, class, &facts)?
++                                {
++                                    Ok((image, pitched)) => {
++                                        if !checking {
++                                            self.shared()
++                                                .counts
++                                                .host_texture_in_place(class, pitched);
++                                        }
++                                        return Ok(Storage::Alias { image, texels });
++                                    }
++                                    Err((refusal, why)) => ShadowCause::Refused(refusal, why),
++                                }
++                            }
++                            Err(cause) => cause,
++                        }
++                    };
++                    if checking {
++                        return Err(internal(
++                            "the in-place check's texture takes no image in place",
++                        ));
++                    }
++                    self.shared().counts.host_texture_shadowed(&cause);
++                    if class == PagesClass::Fresh {
++                        self.shared().counts.shadow_over_fresh_pages();
++                    }
++                    format!(
++                        "the buffer's bytes are {}, and {}",
++                        class.words(),
++                        cause.words()
+                     )
+-                } else {
+-                    // The check's own textures measure the device whatever its policy.
+-                    let policy = match checking {
+-                        true => HostPageTexturePolicy::InPlace,
+-                        false => self.compile_device().policy().host_page_textures,
++                }
++                None => {
++                    // Whether an image may hold the texels: none where their rows (or slices) lie
++                    // with the buffer's bytes between them (`linear_plan::holding`), and else why.
++                    let holds = holding(&texels.layout, usage);
++                    // The usage the texture lacks, as for a texture of its own: plain Metal writes a
++                    // texture over a buffer made without `ShaderWrite` and reads one made without
++                    // `ShaderRead`. A linear image aliasing the buffer's memory takes it where one
++                    // with it still lies on Metal's layout there: a linear image is never
++                    // compressed, and its memory is the buffer's, so the usage costs it nothing.
++                    // Else the image without it, and else the shadow, with it where that costs the
++                    // shadow nothing.
++                    let wider =
++                        undeclared_usage(plan.clone(), layout, usage, &facts, |_, w| Ok(w))?;
++                    // The plans a linear image aliasing the bytes is tried with, the first the device
++                    // makes: with the feedback loop usage a draw takes that reads the texture its own
++                    // pass renders through a snapshot (`feedback_candidate`,
++                    // `texture/attached_reads.rs`), which costs a linear image nothing as the usage
++                    // the texture lacks does; then the usage the texture lacks; then the texture's
++                    // own.
++                    let feedback = feedback_candidate(&wider, self);
++                    let mut plans: Vec<&ImagePlan> = feedback.iter().collect();
++                    if wider != plan {
++                        plans.push(&wider);
++                    }
++                    plans.push(&plan);
++                    // An aliasing image, counted where it took the feedback loop usage.
++                    let alias = |image: Arc<Image>, texels: Arc<Texels>| {
++                        let usage = image.plan().usage;
++                        if usage.contains(ImageUsageFlags::ATTACHMENT_FEEDBACK_LOOP_EXT) {
++                            self.shared().counts.feedback_loop_alias_image();
++                        }
++                        Ok(Storage::Alias { image, texels })
+                     };
+-                    let verdict = |class| match checking {
+-                        true => Verdict::Passed,
+-                        false => self.in_place_verdict(class),
+-                    };
+-                    match in_place::in_place(policy, usage, class, verdict) {
+-                        Ok(()) => {
+-                            match self.in_place_image(&plan, descriptor, &texels, class, &facts)? {
+-                                Ok((image, pitched)) => {
+-                                    if !checking {
+-                                        self.shared().counts.host_texture_in_place(class, pitched);
+-                                    }
+-                                    return Ok(Storage::Alias { image, texels });
+-                                }
+-                                Err((refusal, why)) => ShadowCause::Refused(refusal, why),
+-                            }
++                    // Where no image aliases the bytes, the reason the plan's attempt gives is the
++                    // notice's.
++                    let over = (&*texels, &holds);
++                    for &wider in &plans[..plans.len() - 1] {
++                        let made = self.alias_image(wider.clone(), descriptor, over, &facts)?;
++                        if let Ok(image) = made {
++                            return alias(image, texels);
+                         }
+-                        Err(cause) => cause,
+                     }
+-                };
+-                if checking {
+-                    return Err(internal(
+-                        "the in-place check's texture takes no image in place",
+-                    ));
+-                }
+-                self.shared().counts.host_texture_shadowed(&cause);
+-                if class == PagesClass::Fresh {
+-                    self.shared().counts.shadow_over_fresh_pages();
+-                }
+-                format!(
+-                    "the buffer's bytes are {}, and {}",
+-                    class.words(),
+-                    cause.words()
+-                )
+-            }
+-            None => {
+-                // Whether an image may hold the texels: none where their rows (or slices) lie
+-                // with the buffer's bytes between them (`linear_plan::holding`), and else why.
+-                let holds = holding(&texels.layout, usage);
+-                // The usage the texture lacks, as for a texture of its own: plain Metal writes a
+-                // texture over a buffer made without `ShaderWrite` and reads one made without
+-                // `ShaderRead`. A linear image aliasing the buffer's memory takes it where one
+-                // with it still lies on Metal's layout there: a linear image is never
+-                // compressed, and its memory is the buffer's, so the usage costs it nothing.
+-                // Else the image without it, and else the shadow, with it where that costs the
+-                // shadow nothing.
+-                let wider = undeclared_usage(plan.clone(), layout, usage, &facts, |_, w| Ok(w))?;
+-                // The plans a linear image aliasing the bytes is tried with, the first the device
+-                // makes: with the feedback loop usage a draw takes that reads the texture its own
+-                // pass renders through a snapshot (`feedback_candidate`,
+-                // `texture/attached_reads.rs`), which costs a linear image nothing as the usage
+-                // the texture lacks does; then the usage the texture lacks; then the texture's
+-                // own.
+-                let feedback = feedback_candidate(&wider, self);
+-                let mut plans: Vec<&ImagePlan> = feedback.iter().collect();
+-                if wider != plan {
+-                    plans.push(&wider);
+-                }
+-                plans.push(&plan);
+-                // An aliasing image, counted where it took the feedback loop usage.
+-                let alias = |image: Arc<Image>, texels: Arc<Texels>| {
+-                    let usage = image.plan().usage;
+-                    if usage.contains(ImageUsageFlags::ATTACHMENT_FEEDBACK_LOOP_EXT) {
+-                        self.shared().counts.feedback_loop_alias_image();
+-                    }
+-                    Ok(Storage::Alias { image, texels })
+-                };
+-                // Where no image aliases the bytes, the reason the plan's attempt gives is the
+-                // notice's.
+-                let over = (&*texels, &holds);
+-                for &wider in &plans[..plans.len() - 1] {
+-                    let made = self.alias_image(wider.clone(), descriptor, over, &facts)?;
+-                    if let Ok(image) = made {
+-                        return alias(image, texels);
++                    match self.alias_image(plan.clone(), descriptor, over, &facts)? {
++                        Ok(image) => return alias(image, texels),
++                        Err(why) => why,
+                     }
+                 }
+-                match self.alias_image(plan.clone(), descriptor, over, &facts)? {
+-                    Ok(image) => return alias(image, texels),
+-                    Err(why) => why,
+-                }
+-            }
+-        } };
++            }
++        };
+         let plan = self.with_undeclared_usage(plan, layout, usage, &facts)?;
+         if !plan
+             .usage
+--- a/crates/metal2vulkan-runtime/src/used_resources.rs
++++ b/crates/metal2vulkan-runtime/src/used_resources.rs
+@@ -75,7 +75,8 @@
+     };
+     let a_start = a_start.as_ptr() as usize;
+     let b_start = b_start.as_ptr() as usize;
+-    let (Some(a_end), Some(b_end)) = (a_start.checked_add(a_len), b_start.checked_add(b_len)) else {
++    let (Some(a_end), Some(b_end)) = (a_start.checked_add(a_len), b_start.checked_add(b_len))
++    else {
+         return true;
+     };
+     a_start < b_end && b_start < a_end
+@@ -86,8 +87,13 @@
+         if buffer.heap().is_some_and(|heap| self.heaps.contains(heap)) {
+             return true;
+         }
+-        self.buffers.iter().any(|other| buffers_overlap(buffer, other))
+-            || self.heaps.iter().any(|heap| heap.bytes().is_some_and(|bytes| buffers_overlap(buffer, bytes)))
++        self.buffers
++            .iter()
++            .any(|other| buffers_overlap(buffer, other))
++            || self.heaps.iter().any(|heap| {
++                heap.bytes()
++                    .is_some_and(|bytes| buffers_overlap(buffer, bytes))
++            })
+     }
+ 
+     /// Whether this list names a resource's storage, including a view's root, a buffer
+@@ -111,7 +117,9 @@
+     /// members. Imports over its host range are dependencies too.
+     pub fn references_heap(&self, heap: &Heap) -> bool {
+         self.heaps.contains(heap)
+-            || heap.bytes().is_some_and(|bytes| self.references_buffer(bytes))
++            || heap
++                .bytes()
++                .is_some_and(|bytes| self.references_buffer(bytes))
+     }
+ }
+ 
+--- a/docs/FAST-PATHS.md
++++ b/docs/FAST-PATHS.md
+@@ -34,6 +34,7 @@
+ |---|---|---|---|---|
+ | A computed `half` or `float` color blended into an extended-range attachment (`BGR10_XR`, `BGRA10_XR`, `RGB10A8_2P_XR10`) rounds the blend's source as a loaded one; Metal's compiler rounds it by how it computed it. Every device. | The in-shader blend's loaded rounding (no switch) | **Not built yet:** Metal's rounding per shape is probed, not modelled | One code. `ExtendedRangeBlendSource` (`extended-range-blend-source`), `ExtendedRangeFloatBlendSource` (`extended-range-float-blend-source`) | Not measured |
+ | A blend into a packed 16-bit attachment the device renders through its word view (`A1BGR5Unorm`, `ABGR4Unorm` on the RTX 5080; `WordAttachment`), which the function computes in the interlocked storage form, reads the attachment's codes, where Metal's tile holds the pass's clear and each earlier blend's result as a `half`, finer; under fast math it also sums a few states otherwise than Metal. Every device rendering such an attachment. | The in-shader blend over the codes (no switch) | **Not built yet:** the extended-range attachments' `half` shadow (`render/extended_shadow.rs`, `VariantKey::extended_shadows`) taken by word attachments: the runtime's shadow start and end, its load of the codes and the clear's halves, and the word's shadowed variant in `lower::fragment::fetch`, for a single-sampled pass (a multisampled one keeps the codes, as an extended-range one does). Fast math's regrouped sums have no model | One code: without fast math exact over a loaded attachment (the 2,891 states of the M3 sweep, every channel), under fast math 3,527 of 94,732,288 channels a code apart; after a clear or an earlier blend in the pass, a code apart where the two readings store different codes. `DeviceColorConversion` (`device-color-conversion`) | Not measured. Expected from the shadow's form: an `R16G16B16A16_SFLOAT` image of the pass's extent per such color (8 bytes a pixel, 16.6 MB at 1920x1080), set at the draw it starts by a fill or a load dispatch, and an 8-byte storage read and write per blended fragment inside the interlock beside the word's |
++| An extended-range sRGB blend outside the measured fast model uses the measured safe model. | The rounded blend instead of a refused pipeline | **Not built yet:** the corresponding Metal fast-math blend | `SrgbExtendedRangeBlendRounding` (`srgb-extended-range-blend-rounding`); no validation tolerance or bound inferred | Not measured |
+ | A bicubic sample of an 8- or 16-bit normalized texture sums its taps exactly and rounds half up; Metal truncates its row terms, row sums and column terms first. Every device. | The exact sum (no switch) | **Not built yet:** Metal's datapath is pinned (17.75M lanes measured, no miss); its emitter is not written | One grid step (1/4080 at 8 bits) within about 2^-21 of a tie. `BicubicFilterArithmetic` (`bicubic-filter-arithmetic`) | Not measured (Metal's form is expected no larger) |
+ | A bicubic sample of an extended-range texture (`BGR10_XR`, `BGRA10_XR`, `RGB10A8_2P_XR10` and their sRGB twins) sums its taps' steps exactly, rounds half up and clamps into the format's decoded endpoints; within 0.014 of a grid step of a rounding tie Metal may round the other way. Every device. | The exact sum (no switch) | **None known:** no model of Metal's datapath tried fits; 3,317,760 lanes measured on the M3 Max (macOS 26.7) | One grid step (1/8160 a color lane, 1/8192 an sRGB color lane, 1/4080 alpha), 4,050 of the lanes measured, each within 0.014 of a step of a tie. `BicubicFilterArithmetic` (`bicubic-filter-arithmetic`) | No accurate form |
+ | A heap's colour texture that Metal keeps losslessly compressed (`allowGPUOptimizedContents`, no `ShaderWrite`, `PixelFormatView` or `ShaderAtomic` usage, 16 texels or more a side), on a driver whose compressed images may keep their texels apart from the memory they are bound to (`DriverFact::CompressedImagesHideAliasedWrites`: ANV), is the driver's compressed optimal image, its compression and fast clears kept. A texture Metal keeps uncompressed takes the uncompressed image under either value. The runtime's choice: no pipeline differs. | `heap_compression = HeapCompressionPolicy::Compressed` | `heap_compression = HeapCompressionPolicy::Uncompressed`: an image the driver keeps uncompressed in the heap's bytes, as for a texture Metal keeps uncompressed: host-transfer usage where the device enabled `hostImageCopy` (`heap-texture-host-transfer`), else a linear image (`heap-texture-linear`), else the optimal one (`heap-texture-hides-aliased-writes`) | A write through a buffer or another texture over the texture's bytes may leave its texels as they were or change them otherwise than as written, where Metal's texture reads opaque magenta (`0xffff00ff`) in every texel of drawn content the write covers and the written bytes where it held only a clear; the texture's own writes may show in those bytes compressed. Within Metal's contract: Metal documents such a texture's layout as its own (`allowGPUOptimizedContents` lets it "adjust the private layout"), so no write through another view over its bytes has a defined result there either. `HeapTextureCompressed` (`heap-texture-compressed`), announced once per device where such a texture is made; `runtime_lane::heap_textures` | ANV (Iris Xe of RPL-P; `heap_textures::heap_compression_costs`), a 2048x2048 `RGBA8Unorm` render target in a `Private` placement heap: a pass that clears it 26.9 us against 676.2-676.5 us; a copy into another such texture 647.7-649.1 us against 673.9-693.2 us |

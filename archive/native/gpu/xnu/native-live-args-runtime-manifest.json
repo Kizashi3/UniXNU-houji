@@ -1,0 +1,30 @@
+{
+  "scope": "Compiled UEFI BaseBootArgs explicitly enables retained owner; bounded worker stays before userland, all r165 live/UFS code unchanged",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "43b716bb2e2205132478f69b9d99e8f3457f752eda27a4c9e3efcc991fb14311",
+      "after": "8c02e52ce09864c517aee7734a4b22aaff32952160943c571d138dfe21e7f64b",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-args-runtime/HoujiZapTrial.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuFullHostProbe.inc": {
+      "before": "4146e13524ed7291818367e92c0d3decd6d56472653f39e4799a1b4890157a53",
+      "after": "9e5cb29e7ee2f02ed18e22d3e32a19358354a1fe43e0d93f6c9515fe9648f3e3",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-live-args-runtime/HoujiGpuFullHostProbe.inc"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r166-vm-linked/review.json",
+      "sha256": "e2e1e3581b7b8effba15fc3e95877abab5358490795dac65ae53bba698626ced"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r166-client-linked/review.json",
+      "sha256": "450944b7f90b0430bd0ac0c9f39054e6ee201da8f7ac6da40cd074e068e1f23d"
+    }
+  },
+  "hardware_result": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r166-result.json",
+  "live_owner_qualified": true,
+  "UFS_coexistence_qualified": true,
+  "desktop_acceleration": false
+}

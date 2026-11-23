@@ -1,0 +1,12 @@
+{
+  "scope": "r159 polled-context GPU implementation unchanged; fresh nonce/log allocation after no committed evidence; not a GPU result",
+  "hardware_tested": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "fb0cdec6db05404453b4d3650b9b629a2ef276f8841579a3ad31ec661af86017",
+      "after": "d9a90ad163a51eacb5e0a05550848a52a6875e52a77b1e9684dcc6d3ba0d0366",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-vm-retry-runtime/HoujiZapTrial.h"
+    }
+  },
+  "pristine_previous_receipt": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-runtime-prepare-r160/receipt.json"
+}

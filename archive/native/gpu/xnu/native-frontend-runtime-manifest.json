@@ -1,0 +1,52 @@
+{
+  "scope": "same existing GPU core; real frontend/IOSurface then individually traced discovery helpers; out-of-gate RAM markers, try-poll/10s blocked-call recovery, qualified same-owner progress commits,150s no-FS guard, terminal save before vnode dump",
+  "hardware_tested": true,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc": {
+      "before": "17ad89a780516dec549d04f866b22464fc3ad0fd3c2a6bc84980de19c982e7c8",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-frontend-runtime/HoujiGpuNativeLive.inc",
+      "after": "bc7c24b6faa82bd03976c9985d9254ce44b1b0bb13ab1bf46e7a20f2cbf3d625"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuNativeProvider.inc": {
+      "before": "be782866db98958f25c8fae57aebd79122cdb6be3d2874a78725a352ef4d5103",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-frontend-runtime/HoujiGpuNativeProvider.inc",
+      "after": "334e937170f075bfb4ef28c5043f007276cb9ff9859f71002985b0bdccf4f931"
+    },
+    "iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp": {
+      "before": "87c62d071b11671c7da836ca19efa792a6bf3bc31d415f47b79ad415d0f32f47",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-frontend-runtime/Adreno740/NativeAdrenoPublish.cpp",
+      "after": "df6da87e9c9d13e735b2eecdd8b8aa27512c174be054c25d4944e72d8c089860"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiZapTrial.h": {
+      "before": "2d59f0e400ad1d6e5c8883ccf942ab4fd02f8986ef4d242d940336547a6ea2a4",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/native-frontend-runtime/HoujiZapTrial.h",
+      "after": "e3f81a8b92c70e6167578bfd63e670eef6762b242344442fa37ccfb68ef4bce7"
+    }
+  },
+  "offline_evidence": {
+    "linked_review": {
+      "path": "/tmp/r169-vm-linked/review.json",
+      "sha256": "03dbe3570fa10be393ea919d1b8197f5a2c8be10f5c32c1dcdd944d5126b196b"
+    },
+    "native_api_linked": {
+      "path": "/tmp/r169-client-linked/review.json",
+      "sha256": "ebd933d9fd727f0806a59855be20c03a8ab3c65783f074a01ad7326352a4faae"
+    },
+    "linked_provider": {
+      "path": "/tmp/r169-provider-linked/review.json",
+      "sha256": "e5516ceba3fd87ede7f0a6a727f995d4bab619ee6c1d322df4a95c1b7c2adab6"
+    },
+    "frontend_progress_linked": {
+      "path": "/tmp/r169-frontend-progress-linked/review.json",
+      "sha256": "5962d25ce0d44d6532e435b56d783300b3b5d45899b7cc17596104b5e104cc3f"
+    }
+  },
+  "desktop_acceleration": false,
+  "progress_checkpoint_and_terminal_capture": true,
+  "actual_userland_GPU_calls": false,
+  "IOSurface_verified": false,
+  "hardware_evidence": {
+    "path": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r169-result.json",
+    "sha256": "fa2f62f6b996732275c257061db4f32dc6560b05a93c73a4f283d56d49764276"
+  }
+}

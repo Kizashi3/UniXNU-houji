@@ -1,0 +1,20 @@
+{
+  "scope": "r147 cached RAM-only compact terminal STOP summary and8s ordinary-thread pause on unsafe core failure, no new MMIO/FS, normal success unchanged",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuExternalCanaryProbe.inc": {
+      "before": "8b936e692d27b0a14db76f373aaa20d459e9bc95b2bc772821a4bc1367681780",
+      "after": "fa7744624d5498f7c8587e327bf5f89b655d6809ee7f115f512887f4d902067a",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuExternalCanaryProbe.inc",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-stop-screen-runtime/before-HoujiGpuExternalCanaryProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "5f6cfb29f10110b95cd862b1bf56cb826461fceac18c6c6ff9bf80d7faef2169",
+      "after": "e4b75b3f59dac2ffa85372f112de3529d3cef2f1c3577c0303ec07eff3a58d5e",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r147-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-stop-screen-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": false,
+  "native_host_cases": 5276,
+  "core_unchanged": true
+}

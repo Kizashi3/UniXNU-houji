@@ -1,0 +1,290 @@
+diff --git a/ArmPkg/Drivers/CpuDxe/AArch64/Mmu.c b/ArmPkg/Drivers/CpuDxe/AArch64/Mmu.c
+index 44de38a..6e995cf 100644
+--- a/ArmPkg/Drivers/CpuDxe/AArch64/Mmu.c
++++ b/ArmPkg/Drivers/CpuDxe/AArch64/Mmu.c
+@@ -70,6 +70,7 @@ PageAttributeToGcdAttribute (
+ 
+   switch (PageAttributes & TT_ATTR_INDX_MASK) {
+     case TT_ATTR_INDX_DEVICE_MEMORY:
++    case TT_ATTR_INDX_DEVICE_MEMORY_NGNRE:
+       GcdAttributes = EFI_MEMORY_UC;
+       break;
+     case TT_ATTR_INDX_MEMORY_NON_CACHEABLE:
+diff --git a/MdeModulePkg/Core/Dxe/Mem/Page.c b/MdeModulePkg/Core/Dxe/Mem/Page.c
+index 6a4f7a1..2ddc232 100644
+--- a/MdeModulePkg/Core/Dxe/Mem/Page.c
++++ b/MdeModulePkg/Core/Dxe/Mem/Page.c
+@@ -1092,6 +1092,15 @@ FindFreePages (
+ {
+   UINT64  Start;
+ 
++#if defined (HOUJI_LOW_UEFI_ALLOCS)
++  // OEM DXE drivers may retain 32-bit physical addresses. Keep automatic
++  // allocations below 4 GiB; DarwinBoot explicitly reserves high DRAM with
++  // AllocateAddress, which does not call this search function.
++  if (MaxAddress > 0xFFFFFFFFULL) {
++    MaxAddress = 0xFFFFFFFFULL;
++  }
++#endif
++
+   //
+   // Attempt to find free pages in the preferred bin based on the requested memory type
+   //
+diff --git a/MdePkg/Include/AArch64/AArch64Mmu.h b/MdePkg/Include/AArch64/AArch64Mmu.h
+index dd49228..9fe0aa4 100644
+--- a/MdePkg/Include/AArch64/AArch64Mmu.h
++++ b/MdePkg/Include/AArch64/AArch64Mmu.h
+@@ -12,6 +12,7 @@
+ // Memory Attribute Indirection register Definitions
+ //
+ #define MAIR_ATTR_DEVICE_MEMORY                0x0ULL
++#define MAIR_ATTR_DEVICE_MEMORY_NGNRE          0x04ULL
+ #define MAIR_ATTR_NORMAL_MEMORY_NON_CACHEABLE  0x44ULL
+ #define MAIR_ATTR_NORMAL_MEMORY_WRITE_THROUGH  0xBBULL
+ #define MAIR_ATTR_NORMAL_MEMORY_WRITE_BACK     0xFFULL
+@@ -57,6 +58,7 @@
+ 
+ #define TT_ATTR_INDX_MASK                  (0x7 << 2)
+ #define TT_ATTR_INDX_DEVICE_MEMORY         (0x0 << 2)
++#define TT_ATTR_INDX_DEVICE_MEMORY_NGNRE   (0x4 << 2)
+ #define TT_ATTR_INDX_MEMORY_NON_CACHEABLE  (0x1 << 2)
+ #define TT_ATTR_INDX_MEMORY_WRITE_THROUGH  (0x2 << 2)
+ #define TT_ATTR_INDX_MEMORY_WRITE_BACK     (0x3 << 2)
+diff --git a/UefiCpuPkg/Include/Library/ArmMmuLib.h b/UefiCpuPkg/Include/Library/ArmMmuLib.h
+index 48a2c84..27fb750 100644
+--- a/UefiCpuPkg/Include/Library/ArmMmuLib.h
++++ b/UefiCpuPkg/Include/Library/ArmMmuLib.h
+@@ -70,6 +70,26 @@ ArmSetMemoryAttributes (
+   IN UINT64                AttributeMask
+   );
+ 
++// Fixed experimental houji CP-page contrast only; single CPU, application
++// context before SQE. Table ownership means firmware-controlled active TTBR0
++// and validated firmware RAM, not creation by this particular library instance.
++// Stage: 1 regime,2 audit,3 reserve,4 reaudit,5 MAIR,6 mapping,7 readback,8 PASS.
++// A Failed result means mutation may have occurred: no GPU work, reset first.
++typedef struct {
++  UINT32 Version, Stage, Failed, Tables, Leaves, SplitsNeeded, SpareUsed;
++  UINT32 BeforeLevel, AfterLevel, AuditCode;
++  UINT64 Root, Tcr, MairBefore, MairAfter, BeforeDescriptor, AfterDescriptor;
++  UINT64 ParBeforeRead, ParBeforeWrite, ParAfterRead, ParAfterWrite;
++  UINT64 NeighborBefore[2], NeighborAfter[2];
++  EFI_STATUS Status;
++} ARM_HOUJI_CP_DEVICE_REPORT;
++
++EFI_STATUS
++EFIAPI
++ArmSetHoujiCpDeviceNgNre (
++  OUT ARM_HOUJI_CP_DEVICE_REPORT *Report OPTIONAL
++  );
++
+ /**
+   Check whether a 52-bit output address can be described
+   by the translation tables (FEAT_LPA2).
+diff --git a/UefiCpuPkg/Library/ArmMmuLib/AArch64/ArmMmuLibCore.c b/UefiCpuPkg/Library/ArmMmuLib/AArch64/ArmMmuLibCore.c
+index 7d81c58..afc6bbe 100644
+--- a/UefiCpuPkg/Library/ArmMmuLib/AArch64/ArmMmuLibCore.c
++++ b/UefiCpuPkg/Library/ArmMmuLib/AArch64/ArmMmuLibCore.c
+@@ -30,9 +30,27 @@
+ #include <Library/DebugLib.h>
+ #include <Library/HobLib.h>
+ #include "ArmMmuLibInternal.h"
++#include "../HoujiCpDeviceNgNrePolicy.h"
+ 
+ STATIC  ARM_REPLACE_LIVE_TRANSLATION_ENTRY  mReplaceLiveEntryFunc = ArmReplaceLiveTranslationEntry;
+ 
++// Only the fixed houji API enables this preallocated split pool. Ordinary
++// library calls retain the existing allocator path. No runtime allocation is
++// attempted during its live MAIR/PTE mutation section.
++STATIC BOOLEAN mHoujiCpSplitActive;
++STATIC VOID *mHoujiCpSplitPages[2];
++STATIC UINTN mHoujiCpSplitCount;
++
++STATIC VOID *
++ArmMmuAllocateSplitTable (VOID)
++{
++  if (mHoujiCpSplitActive) {
++    return mHoujiCpSplitCount != 0 ? mHoujiCpSplitPages[--mHoujiCpSplitCount] : NULL;
++  }
++  return AllocatePages (1);
++}
++
++
+ /**
+   Whether the current translation regime is either EL1&0 or EL2&0, and
+   therefore supports non-global, ASID-scoped memory mappings.
+@@ -359,7 +377,7 @@ UpdateRegionMappingRecursive (
+         // No table entry exists yet, so we need to allocate a page table
+         // for the next level.
+         //
+-        TranslationTable = AllocatePages (1);
++        TranslationTable = ArmMmuAllocateSplitTable ();
+         if (TranslationTable == NULL) {
+           return EFI_OUT_OF_RESOURCES;
+         }
+@@ -709,6 +727,165 @@ ArmSetMemoryAttributes (
+            );
+ }
+ 
++/* One experimental, single-CPU houji call only. No device registers or GCD
++ * attributes are written here. Each table page must be firmware-controlled
++ * RAM with a current identity/WB/read-write CPU mapping. This does not claim
++ * that every page was allocated by this particular library instance. */
++STATIC ARM_HOUJI_CP_DEVICE_REPORT mHoujiCpReport;
++STATIC BOOLEAN mHoujiCpAttempted;
++STATIC struct hcn_audit mHoujiCpAudit;
++
++STATIC BOOLEAN
++HoujiCpCheckPar (UINT64 Address, UINT64 Type, BOOLEAN Write, UINT64 *Result)
++{
++  UINT64 Par;
++  if (Write) {
++    __asm__ volatile ("at s1e1w,%1; isb; mrs %0,par_el1" : "=r" (Par) : "r" (Address) : "memory");
++  } else {
++    __asm__ volatile ("at s1e1r,%1; isb; mrs %0,par_el1" : "=r" (Par) : "r" (Address) : "memory");
++  }
++  if (Result != NULL) { *Result = Par; }
++  return (Par & 1) == 0 && (Par & HCN_ADDRESS) == (Address & HCN_ADDRESS) &&
++         (Par >> 56) == Type;
++}
++
++STATIC CONST UINT64 *
++HoujiCpTableView (VOID *Cookie, UINT64 Address)
++{
++  (VOID)Cookie;
++  if (!hcn_owned_table (Address) || !HoujiCpCheckPar (Address, 0xFF, FALSE, NULL) ||
++      !HoujiCpCheckPar (Address, 0xFF, TRUE, NULL)) { return NULL; }
++  return (CONST UINT64 *)(UINTN)Address;
++}
++
++STATIC UINT64
++HoujiCpRawTtbr0 (VOID)
++{
++  UINT64 Value;
++  __asm__ volatile ("mrs %0,ttbr0_el1" : "=r" (Value));
++  return Value;
++}
++
++EFI_STATUS
++EFIAPI
++ArmSetHoujiCpDeviceNgNre (ARM_HOUJI_CP_DEVICE_REPORT *Report OPTIONAL)
++{
++  EFI_STATUS Status = EFI_UNSUPPORTED;
++  UINT64 SavedPar = 0, SavedDaif = 0, OldNeighbor[2], Root = 0, Tcr = 0;
++  BOOLEAN HavePar = FALSE, Masked = FALSE;
++  UINTN Needed = 0;
++  if (mHoujiCpAttempted) {
++    if (Report != NULL) { CopyMem (Report, &mHoujiCpReport, sizeof (*Report)); }
++    return EFI_ALREADY_STARTED;
++  }
++  mHoujiCpAttempted = TRUE;
++  ZeroMem (&mHoujiCpReport, sizeof (mHoujiCpReport));
++  mHoujiCpReport.Version = 1;
++  mHoujiCpReport.Stage = 1;
++#if !defined (HOUJI_LOW_UEFI_ALLOCS) || HOUJI_LOW_UEFI_ALLOCS != 1
++  goto Done;
++#endif
++  if (ArmReadCurrentEL () != AARCH64_EL1 || !ArmMmuEnabled ()) { goto Done; }
++  Root = HoujiCpRawTtbr0 ();
++  Tcr = ArmGetTCR ();
++  mHoujiCpReport.Root = Root;
++  mHoujiCpReport.Tcr = Tcr;
++  mHoujiCpReport.MairBefore = ArmGetMAIR ();
++  mHoujiCpReport.MairAfter = mHoujiCpReport.MairBefore;
++  if (!hcn_known_regime (AARCH64_EL1, Tcr, Root, mHoujiCpReport.MairBefore, 0)) { goto Done; }
++  __asm__ volatile ("mrs %0,par_el1" : "=r" (SavedPar));
++  HavePar = TRUE;
++  mHoujiCpReport.Stage = 2;
++  mHoujiCpAudit.cookie = NULL;
++  mHoujiCpAudit.table = HoujiCpTableView;
++  mHoujiCpReport.AuditCode = hcn_audit_root (&mHoujiCpAudit, Root, Tcr, 0);
++  mHoujiCpReport.Tables = mHoujiCpAudit.tables;
++  mHoujiCpReport.Leaves = mHoujiCpAudit.leaves;
++  mHoujiCpReport.BeforeDescriptor = mHoujiCpAudit.target_descriptor;
++  mHoujiCpReport.BeforeLevel = mHoujiCpAudit.target_level;
++  Status = EFI_SECURITY_VIOLATION;
++  if (mHoujiCpReport.AuditCode != HCN_OK ||
++      !HoujiCpCheckPar (HCN_CP, 0, FALSE, &mHoujiCpReport.ParBeforeRead) ||
++      !HoujiCpCheckPar (HCN_CP, 0, TRUE, &mHoujiCpReport.ParBeforeWrite)) { goto Done; }
++  mHoujiCpReport.Stage = 3;
++  Needed = 3 - mHoujiCpAudit.target_level;
++  if (Needed > 2) { goto Done; }
++  mHoujiCpReport.SplitsNeeded = (UINT32)Needed;
++  for (UINTN Index = 0; Index < Needed; Index++) {
++    VOID *Page = AllocatePages (1);
++    if (Page == NULL) { Status = EFI_OUT_OF_RESOURCES; goto Done; }
++    mHoujiCpSplitPages[mHoujiCpSplitCount++] = Page;
++    if (HoujiCpTableView (NULL, (UINTN)Page) == NULL) { goto Done; }
++  }
++  // No Boot Services allocation is allowed after this point. IRQ/FIQ are
++  // masked only around the re-audit, MAIR/PTE mutation and post-readback.
++  __asm__ volatile ("mrs %0,daif; msr daifset,#3; isb" : "=r" (SavedDaif) :: "memory");
++  Masked = TRUE;
++  mHoujiCpReport.Stage = 4;
++  if (HoujiCpRawTtbr0 () != Root || ArmGetTCR () != Tcr ||
++      ArmGetMAIR () != mHoujiCpReport.MairBefore) { goto Done; }
++  mHoujiCpReport.AuditCode = hcn_audit_root (&mHoujiCpAudit, Root, Tcr, 0);
++  mHoujiCpReport.Tables = mHoujiCpAudit.tables;
++  mHoujiCpReport.Leaves = mHoujiCpAudit.leaves;
++  mHoujiCpReport.BeforeDescriptor = mHoujiCpAudit.target_descriptor;
++  mHoujiCpReport.BeforeLevel = mHoujiCpAudit.target_level;
++  if (mHoujiCpReport.AuditCode != HCN_OK || 3 - mHoujiCpAudit.target_level != Needed) { goto Done; }
++  mHoujiCpReport.Tables = mHoujiCpAudit.tables;
++  mHoujiCpReport.Leaves = mHoujiCpAudit.leaves;
++  mHoujiCpReport.BeforeDescriptor = mHoujiCpAudit.target_descriptor;
++  mHoujiCpReport.BeforeLevel = mHoujiCpAudit.target_level;
++  for (UINTN Index = 0; Index < 2; Index++) {
++    UINT64 Address = Index ? HCN_CP + 4096 : HCN_CP - 4096;
++    OldNeighbor[Index] = hcn_normalized_leaf (mHoujiCpAudit.neighbor_descriptor[Index], Address);
++    if (!HoujiCpCheckPar (Address, 0, TRUE, &mHoujiCpReport.NeighborBefore[Index])) { goto Done; }
++  }
++  // Slot 4 was absent from every valid leaf/block in both whole-tree audits.
++  // Keep all other MAIR bytes, including global Device index 0, unchanged.
++  mHoujiCpReport.Stage = 5;
++  mHoujiCpReport.Failed = 1;
++  ArmSetMAIR (mHoujiCpReport.MairBefore | MAIR_ATTR (TT_ATTR_INDX_DEVICE_MEMORY_NGNRE, MAIR_ATTR_DEVICE_MEMORY_NGNRE));
++  mHoujiCpReport.MairAfter = ArmGetMAIR ();
++  if (mHoujiCpReport.MairAfter != HCN_MAIR_AFTER) { Status = EFI_DEVICE_ERROR; goto Done; }
++  mHoujiCpReport.Stage = 6;
++  mHoujiCpSplitActive = TRUE;
++  Status = UpdateRegionMapping (HCN_CP, HCN_BYTES, TT_ATTR_INDX_DEVICE_MEMORY_NGNRE,
++    ~((UINT64)TT_ATTR_INDX_MASK), (UINT64 *)(UINTN)Root, TRUE, FALSE, 0);
++  mHoujiCpSplitActive = FALSE;
++  mHoujiCpReport.SpareUsed = (UINT32)(Needed - mHoujiCpSplitCount);
++  if (EFI_ERROR (Status)) { goto Done; }
++  mHoujiCpReport.Stage = 7;
++  Status = EFI_SECURITY_VIOLATION;
++  if (HoujiCpRawTtbr0 () != Root || ArmGetTCR () != Tcr || ArmGetMAIR () != HCN_MAIR_AFTER) { goto Done; }
++  mHoujiCpReport.AuditCode = hcn_audit_root (&mHoujiCpAudit, Root, Tcr, 1);
++  mHoujiCpReport.Tables = mHoujiCpAudit.tables;
++  mHoujiCpReport.Leaves = mHoujiCpAudit.leaves;
++  mHoujiCpReport.AfterDescriptor = mHoujiCpAudit.target_descriptor;
++  mHoujiCpReport.AfterLevel = mHoujiCpAudit.target_level;
++  if (mHoujiCpReport.AuditCode != HCN_OK) { goto Done; }
++  mHoujiCpReport.AfterDescriptor = mHoujiCpAudit.target_descriptor;
++  mHoujiCpReport.AfterLevel = mHoujiCpAudit.target_level;
++  if (mHoujiCpReport.AfterLevel != 3 || mHoujiCpReport.AfterDescriptor != hcn_cp_leaf (mHoujiCpReport.BeforeDescriptor) ||
++      !HoujiCpCheckPar (HCN_CP, 4, FALSE, &mHoujiCpReport.ParAfterRead) ||
++      !HoujiCpCheckPar (HCN_CP, 4, TRUE, &mHoujiCpReport.ParAfterWrite)) { goto Done; }
++  for (UINTN Index = 0; Index < 2; Index++) {
++    UINT64 Address = Index ? HCN_CP + 4096 : HCN_CP - 4096;
++    if (hcn_normalized_leaf (mHoujiCpAudit.neighbor_descriptor[Index], Address) != OldNeighbor[Index] ||
++        !HoujiCpCheckPar (Address, 0, TRUE, &mHoujiCpReport.NeighborAfter[Index]) ||
++        mHoujiCpReport.NeighborAfter[Index] != mHoujiCpReport.NeighborBefore[Index]) { goto Done; }
++  }
++  mHoujiCpReport.Stage = 8;
++  mHoujiCpReport.Failed = 0;
++  Status = EFI_SUCCESS;
++Done:
++  mHoujiCpSplitActive = FALSE;
++  if (HavePar) { __asm__ volatile ("msr par_el1,%0; isb" :: "r" (SavedPar) : "memory"); }
++  if (Masked) { __asm__ volatile ("msr daif,%0; isb" :: "r" (SavedDaif) : "memory"); }
++  while (mHoujiCpSplitCount != 0) { FreePages (mHoujiCpSplitPages[--mHoujiCpSplitCount], 1); }
++  mHoujiCpReport.Status = Status;
++  if (Report != NULL) { CopyMem (Report, &mHoujiCpReport, sizeof (*Report)); }
++  return Status;
++}
++
+ EFI_STATUS
+ EFIAPI
+ ArmConfigureMmu (

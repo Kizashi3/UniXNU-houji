@@ -1,0 +1,27 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -540,6 +540,7 @@
+ #include "HoujiTouchDriver.inc"
+ #include "HoujiGpuProbe.inc"
+ #include "HoujiCpuPageProbe.inc"
++#include "HoujiGpuMemoryProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -567,6 +568,7 @@
+     reportCpuFrequencyReadOnly();
+   }
+   houjiGpuCpuPageProbeOnce();
++  houjiGpuMemoryProbeOnce();
+   houjiGpuProbeOnce();
+   touchProbeOnce();
+   houjiTouchStart();
+--- a/iokit/conf/files
++++ b/iokit/conf/files
+@@ -150,3 +150,6 @@
+ iokit/bsddev/skywalk/IOSkywalkSupport.cpp		optional iokitcpp skywalk
+ 
+ iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp optional iokitcpp
++
++iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoCpu.cpp optional iokitcpp
++iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoMemory.cpp optional iokitcpp

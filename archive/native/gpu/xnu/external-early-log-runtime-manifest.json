@@ -1,0 +1,19 @@
+{
+  "scope": "r144 early-failure-only diagnostic, no GPU stores/refs/publish and independent real cold proof before/after FS; normal canary execution gates unchanged",
+  "files": {
+    "iokit/Kernel/houji-ufs-root/HoujiGpuExternalCanaryProbe.inc": {
+      "before": "d6203c8087e4363ba15034aa29b1e133ba186d30a9a43ca82c7ae7556606bbdf",
+      "after": "fd000fc2be36803e89aa228d588745321894a379b3f006e6252674102672d4d3",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuExternalCanaryProbe.inc",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-early-log-runtime/before-HoujiGpuExternalCanaryProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "6845299cf2f282a240b6c135d0609db65e0f0a0d04aee17816b7e98cd707d1c9",
+      "after": "d8eb85021cfad39d4c50b1de5d44ca3c895db38bb9644f5e6e69035783616269",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r144-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-early-log-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "hardware_tested": false,
+  "native_host_cases": 5019
+}

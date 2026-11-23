@@ -1,0 +1,149 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -248,6 +248,25 @@
+ 		return NULL;
+ 	}
+ 	return s;
++}
++
++SweetSurface *
++sweet_surface_create_buffer(uint32_t width,uint32_t height,uint32_t row,uint32_t format)
++{
++ if(!width || !height || width>SWEET_SURFACE_MAX_DIM || height>SWEET_SURFACE_MAX_DIM ||
++    row<(uint64_t)width*4 || (uint64_t)row*height>SWEET_SURFACE_MAX_ALLOC)return nullptr;
++ SweetSurface *s=sweet_surface_alloc();if(!s)return nullptr;
++ s->width=width;s->height=height;s->bytesPerRow=row;s->bytesPerElement=4;
++ s->elementWidth=s->elementHeight=1;s->pixelFormat=format;
++ s->allocSize=(uint32_t)round_page((uint64_t)row*height);
++ const uint64_t old=(uint64_t)OSAddAtomic64(s->allocSize,(volatile SInt64 *)&sweet_surface_wired);
++ if(old+s->allocSize>SWEET_SURFACE_WIRED_MAX){OSAddAtomic64(-(SInt64)s->allocSize,(volatile SInt64 *)&sweet_surface_wired);s->release();return nullptr;}
++ auto *mem=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,kIODirectionInOut|kIOMemoryKernelUserShared,s->allocSize,page_size);
++ if(!mem){OSAddAtomic64(-(SInt64)s->allocSize,(volatile SInt64 *)&sweet_surface_wired);s->release();return nullptr;}
++ s->memory=mem;s->mapCache=kIOMapDefaultCache;
++ bzero(mem->getBytesNoCopy(),s->allocSize);houji_surface_clean_new_zeros(mem->getBytesNoCopy(),s->allocSize);
++ if(!sweet_surface_publish(s)){s->release();return nullptr;}
++ return s;
+ }
+ 
+ mach_port_name_t
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -69,8 +69,8 @@
+ #define SWEET_FB_NOTIFY_VSYNC           5
+ #define SWEET_FB_VSYNC_US               16667
+ #define SWEET_FB_DOT_PITCH              458     /* iPhone X logical canvas */
+-#define HOUJI_LOGICAL_W 1200
+-#define HOUJI_LOGICAL_H 2670
++#define HOUJI_LOGICAL_W 1125
++#define HOUJI_LOGICAL_H 2436
+ static uint64_t houji_fb_copy_bytes, houji_fb_present_ticks, houji_fb_max_present_ticks;
+ static uint64_t houji_fb_missed_timer_ticks;
+ static uint64_t houji_fb_callbacks,houji_fb_due_ticks;
+@@ -159,6 +159,8 @@
+ 	int           fGpuSync=0,fGpuCache=0;
+ 	uint32_t      fCacheLine=64;
+ 	uint32_t      fFlushTicks;    /* vsync ticks between panel copies */
++	SweetSurface *fScanout;
++	uint32_t *fScaleInput,*fScaleOutput,*fScaleX;
+ 
+ 	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+ 	void addClient(IOMobileFramebufferUserClient *client);
+@@ -216,15 +218,18 @@
+ 		IOLog("SWEET FB: no boot framebuffer\n");
+ 		return false;
+ 	}
+-	/* Native panel canvas; no resampling or letterbox margins. */
+-	fOffX = (HOUJI_LOGICAL_W - (int32_t)fWidth) / 2;
+-	fOffY = (HOUJI_LOGICAL_H - (int32_t)fHeight) / 2;
++	/* Stock iPhone X canvas; physical scanout remains the verified panel. */
++	fOffX = fOffY = 0;
+ 	fLock = IOLockAlloc();
+ 	fClients = OSArray::withCapacity(4);
+-	fSurface = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes, SWEET_FB_FORMAT_BGRA);
+-	fPixels = fSurface != NULL ? fSurface->kernelAddress() : 0;
++	fScanout = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes, SWEET_FB_FORMAT_BGRA);
++	fSurface = sweet_surface_create_buffer(HOUJI_LOGICAL_W,HOUJI_LOGICAL_H,(HOUJI_LOGICAL_W*4+63)&~63u,SWEET_FB_FORMAT_BGRA);
++	fPixels = fScanout != NULL ? fScanout->kernelAddress() : 0;
++	fScaleInput=(uint32_t *)IOMallocData(HOUJI_LOGICAL_W*4);
++	fScaleOutput=(uint32_t *)IOMallocData(fWidth*4);
++	fScaleX=(uint32_t *)IOMallocData(fWidth*4);
+ 	fWorkLoop = IOWorkLoop::workLoop();
+-	if (fLock == NULL || fClients == NULL || fPixels == 0 || fWorkLoop == NULL) {
++	if (fLock == NULL || fClients == NULL || fPixels == 0 || fWorkLoop == NULL || !fSurface || !fScaleInput || !fScaleOutput || !fScaleX) {
+ 		IOLog("SWEET FB: setup failed\n");
+ 		OSSafeReleaseNULL(fSurface);    /* stays published: also held by the table */
+ 		OSSafeReleaseNULL(fWorkLoop);
+@@ -257,7 +262,7 @@
+ 	registerService();
+ 	IOLog("SWEET FB: AppleCLCD %ux%u stride %u at 0x%llx, default surface %u\n",
+ 	    fWidth, fHeight, fRowBytes, fPhys, fSurface->id);
+-	IOLog("HOUJI FB: native canvas 1200x2670, full-panel touch coordinates\n");
++	IOLog("HOUJI FB: stock canvas 1125x2436 (375x812 points at 3x), scaled to full 1200x2670 panel; touch stays normalized\n");
+ 	return true;
+ }
+ 
+@@ -470,7 +475,7 @@
+ 			    s ? s->pixelFormat : 0, s ? s->bytesPerRow : 0, sx, sy, get32(a, 8),
+ 			    get32(a, 12), dx, dy, w, h);
+ 		}
+-		if (s == NULL || s == fSurface) {
++		if (s == NULL || s == fScanout) {
+ 			OSSafeReleaseNULL(s);
+ 			continue;
+ 		}
+@@ -523,10 +528,22 @@
+ 		if (src != 0 && bpe == 4) {
+ 			if(fGpuCache && token>0 && !houjiFramebufferAcquire(s,src,sx,sy,w,h,fCacheLine)){s->release();return false;}
+ 			copied += (uint64_t)w * h * 4;
+-			for (int32_t y = 0; y < h; y++) {
+-				memcpy((void *)(fPixels + (uint64_t)(dy + y) * fRowBytes + (uint64_t)dx * 4),
+-				    (const void *)(src + s->offset + (uint64_t)(sy + y) * s->bytesPerRow + (uint64_t)sx * 4),
+-				    (size_t)w * 4);
++			const uint32_t px0=(uint64_t)dx*fWidth/HOUJI_LOGICAL_W;
++			const uint32_t py0=(uint64_t)dy*fHeight/HOUJI_LOGICAL_H;
++			const uint32_t px1=((uint64_t)(dx+w)*fWidth+HOUJI_LOGICAL_W-1)/HOUJI_LOGICAL_W;
++			const uint32_t py1=((uint64_t)(dy+h)*fHeight+HOUJI_LOGICAL_H-1)/HOUJI_LOGICAL_H;
++			if(px1>fWidth || py1>fHeight || px0>=px1 || py0>=py1){s->release();return false;}
++			const uint32_t outWidth=px1-px0,outHeight=py1-py0;
++			for(uint32_t x=0;x<outWidth;x++)fScaleX[x]=(uint64_t)x*w/outWidth;
++			uint32_t previous=UINT32_MAX;
++			for(uint32_t y=0;y<outHeight;y++){
++			 const uint32_t inputY=(uint64_t)y*h/outHeight;
++			 if(inputY!=previous){
++			  memcpy(fScaleInput,(const void *)(src+s->offset+(uint64_t)(sy+inputY)*s->bytesPerRow+(uint64_t)sx*4),(size_t)w*4);
++			  for(uint32_t x=0;x<outWidth;x++)fScaleOutput[x]=fScaleInput[fScaleX[x]];
++			  previous=inputY;
++			 }
++			 memcpy((void *)(fPixels+(uint64_t)(py0+y)*fRowBytes+(uint64_t)px0*4),fScaleOutput,(size_t)outWidth*4);
+ 			}
+ 		}
+ 		s->release();
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -57,6 +57,9 @@
+  */
+ SweetSurface *sweet_surface_create_physical(uint64_t phys, uint32_t width,
+     uint32_t height, uint32_t bytesPerRow, uint32_t pixelFormat);
++/* Retained, budget-accounted kernel-owned render canvas. */
++SweetSurface *sweet_surface_create_buffer(uint32_t width, uint32_t height,
++    uint32_t bytesPerRow, uint32_t pixelFormat);
+ 
+ /* Send right for the surface in task (IOSurfaceLookupFromMachPort). */
+ mach_port_name_t sweet_surface_port_in_task(SweetSurface *surface, task_t task);
+--- a/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
++++ b/iokit/Kernel/houji-ufs-root/Adreno740/NativeAdrenoPublish.cpp
+@@ -831,8 +831,14 @@
+ /* Same owner gate as each external method. No filesystem takes this lock. */
+ extern "C" IOReturn native_adreno_provider_poll(void){if(!g.published || !g.lock || g.dying)return kIOReturnNotReady;IOLockLock(g.lock);IOReturn s=native_adreno_board_quiesce();IOLockUnlock(g.lock);return s;}
+ extern "C" void houji_touch_driver_report(void);
++extern "C" volatile uint32_t native_adreno_client_stats[5][6];
++extern "C" volatile uint32_t native_adreno_window_overflow[4][3];
+ static void nativeAdrenoStopDiagnostics(void){
+  houji_touch_driver_report();
++ for(unsigned slot=0;slot<4;slot++){
++  const auto&s=native_adreno_client_stats[slot];const auto&w=native_adreno_window_overflow[slot];
++  IOLog("HOUJI GPU ALLOC: slot=%u live=%u peak-objects=%u failed=%u status=%x last-bytes=%u window-denied=%u last-map-KiB=%u last-end-MiB=%u; cached counters, not RAM usage\n",slot,s[0],s[1],s[2],s[3],s[4],w[0],w[1],w[2]);
++ }
+  const auto&d=native_adreno_metal_diag;
+  IOLog("HOUJI USERLAND ABI: opens=%u busy=%u bad=%u closes=%u calls=%u selector=%u status=%x inflight=%u ext=%u/%u/%x bytes=%u/%u marks=%u mount=%u/%x/%u; RAM diagnostic before real reset\n",d.opens,d.busy,d.bad,d.closes,d.calls,d.last_selector,d.last_status,d.inflight,d.ext_entries,d.ext_selector,d.ext_status,d.ext_in,d.ext_out,d.marks_total,native_adreno_mount_fail[0],native_adreno_mount_fail[1],native_adreno_mount_fail[2]);
+  IOLog("HOUJI USERLAND METAL: report=%.63s report2=%.63s views=%u/%u/%u refused=%u last=%x openers=%.16s/%.16s/%.16s\n",d.report,d.report2,native_adreno_view_diag[0],native_adreno_view_diag[1],native_adreno_view_diag[2],native_adreno_view_diag[3],native_adreno_view_diag[4],d.opener[0],d.opener[1],d.opener[2]);

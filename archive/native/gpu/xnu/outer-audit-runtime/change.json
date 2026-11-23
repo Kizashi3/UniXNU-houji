@@ -1,0 +1,9 @@
+{
+  "status": "Offline source review PASS; hardware pending",
+  "change": "Only outer redundant full-table audit: first/mode1 retained, later generations use existing NativeAdreno core transaction and64-operation full audit",
+  "all_per_generation_CRC_checks_retained": true,
+  "idle_fences_MMIO_mapping_and_ownership_checks_unchanged": true,
+  "actual_core_sha256": "69233d4a59d069751d29d24438b2dd5536cda6c15786f1c19d33296286f1ffd7",
+  "before_provider_sha256": "20d8ca9536ac3f9d006a7eb05cd6383ca6621cdda186b006e17124c60fb46ce7",
+  "after_provider_sha256": "3783913f9748edda4e0ee52af2f005499422b64b9cbc74427dd34ecb0cc1856d"
+}

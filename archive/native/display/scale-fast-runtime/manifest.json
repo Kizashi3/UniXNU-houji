@@ -1,0 +1,29 @@
+{
+  "files": {
+    "iokit/Kernel/arm/SweetFramebuffer.cpp": {
+      "before_sha256": "7f057b0cdfd5d513b92b7debb99fa0debed1fd7c19b0f6f1706c38674686e861",
+      "after_sha256": "4fc7b2579d5a49c5bafff1bbc5e1e55631b5b806455b4bb122b7cec3d2560506"
+    },
+    "iokit/Kernel/arm/HoujiScaleRows.h": {
+      "before_sha256": null,
+      "after_sha256": "7a3e696ae7a0f14aa8d932e73b1e5b2f27cec1a58e5a8fafe17e48b1a711ec32"
+    }
+  },
+  "render_canvas": [
+    1125,
+    2502
+  ],
+  "logical_points": [
+    375,
+    834
+  ],
+  "physical_panel": [
+    1200,
+    2670
+  ],
+  "horizontal_scale": 1.0666666666666667,
+  "vertical_scale": 1.0671462829736211,
+  "aspect_scale_ratio": 1.0004496402877698,
+  "scope": "bit-exact 15:16 row expansion by integer-register words; source and destination rows non-overlapping; no new GPU calls",
+  "hardware_qualified": false
+}

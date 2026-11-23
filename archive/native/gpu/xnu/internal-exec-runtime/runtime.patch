@@ -1,0 +1,23 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -562,6 +562,7 @@
+ #include "HoujiGpuTableProbe.inc"
+ #include "HoujiGpuHandoffProbe.inc"
+ #include "HoujiGpuHeldTcmProbe.inc"
++#include "HoujiGpuInternalExecProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -605,6 +606,12 @@
+   houjiGpuProbeOnce();
+   touchProbeOnce();
+   houjiTouchStart();
++  int internalExecProbe=0;PE_parse_boot_argn("houji_gpu_internal_exec_probe",&internalExecProbe,sizeof(internalExecProbe));
++  if(internalExecProbe==1) {
++    houji_ufs_checkpoint("before XNU internal CM3 fixed-code execution trial",0);
++    if(!houjiGpuInternalExecProbeOnce())
++      panic("HOUJI GMU EXEC: qualification uncertain; resources and originals retained; PSCI-only recovery without later filesystem save");
++  }
+   houji_ufs_checkpoint("native HFSX block backend registered",3);
+ }
+ 

@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "actual_extracted_gate_test": true,
+  "ASAN_UBSAN": true,
+  "results": [
+    "PASS 94720 bounded cache-line range cases plus5 invalid/overflow cases; CPU-only, no cache instructions executed",
+    "PASS actual extracted gate: unpublished/busy/pending/poison/dying refuse as expected; real completion holds issuer through copy; balanced release; no wait/ref retirement (synthetic peer, not GPU emulation)"
+  ],
+  "not_GPU_emulation": true
+}

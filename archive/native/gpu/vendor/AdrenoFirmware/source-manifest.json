@@ -1,0 +1,19 @@
+{
+  "repository": "UniXNU/AdrenoFirmware",
+  "commit": "20ad3d7aca14bd46aecab6335c780f5413fa054b",
+  "unmodified": true,
+  "files": {
+    "AdrenoFirmware.c": {
+      "source": "AdrenoFirmware.c",
+      "sha256": "c3cc714a65ce90216a0fc5c6f0e102ae1769c45e559c08f94a0b5f6fa3e97070"
+    },
+    "AdrenoFirmware.h": {
+      "source": "AdrenoFirmware.h",
+      "sha256": "6b2e308f2feae92642f21da2667c3665a2e234ef79e7c5400e7aac7dd3c5b7ed"
+    },
+    "LICENSE": {
+      "source": "LICENSE",
+      "sha256": "03a8ab50f4b3b4c65f070d07302a3522e7badbf54dde090cca59bb3e746bba3f"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "scope": "CPU-only native XNU page geometry and exclusive16K descriptor; GPU/mapping/cache-attribute writes false; actual per-core MRS only",
+  "boot_argument": "houji_gpu_cpu_probe=1",
+  "pre_HFS_stop": 3,
+  "files": {
+    "iokit/Kernel/arm/SweetCPU.cpp": {
+      "before": "ce311db8cb8f32d571b6f259a6970b79b5163b424c4912b04842591e9f2dc0f9",
+      "after": "b123330d863056f346ea1d153fcb52836eb3facea5dece9a508337219bbd36c9"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp": {
+      "before": "5b82c10431e5ba95bf3df6fc812053ae2eb18ae8ab315daaf45e88006f2f554b",
+      "after": "1a679fc5002529e6756d9896747f74b23bfaca4ac0d157dcb72eb8b26a31802a"
+    },
+    "iokit/Kernel/houji-ufs-root/GpuCpuPageGeometry.h": {
+      "before": null,
+      "after": "9ec6de3d2b1818f1407c1bb452291b6fc365285b44c5dc061cc4061cf7229fde"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiCpuPageProbe.inc": {
+      "before": null,
+      "after": "50a63601d78884d054e42d48e46b78265ebffd45d348bc6036239bac7934b558"
+    }
+  },
+  "host_cases": 103,
+  "hardware_tested": false
+}

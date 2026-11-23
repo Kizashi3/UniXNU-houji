@@ -1,0 +1,14 @@
+{
+  "reference": "dipa-studio/ios-sweet@45263bee51df4a0f55cdf9c649af886399488ddb xnu/patches/0070-sweet-pid-hibernate.patch",
+  "scope": "SWEET-only native pid_hibernate entry; no freezer implementation added",
+  "files": {
+    "bsd/kern/syscalls.master": {
+      "before": "163824910a25029dfc559fabd518ed3d2ec3539d7ff9f157dcd56067e6a6952b",
+      "after": "45d374b46ffcc5c2990dd476c5f0db9afb6fc7f964b6d1ffd1609450c69c9bd4"
+    },
+    "bsd/vm/vm_unix.c": {
+      "before": "3d1044475c04791efd5fc1209a72cba704fef667b338485482b669b9f3f46ef8",
+      "after": "a421ccbbc177c1fc6edde73f7e75bf36cb96ccd5029e27eebbce26299838ff5e"
+    }
+  }
+}

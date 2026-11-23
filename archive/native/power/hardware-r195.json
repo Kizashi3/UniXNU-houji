@@ -1,0 +1,9 @@
+{
+  "evidence": "${HOUJI_ARTIFACTS}/native-port/evidence/dvfs-r195-result.json",
+  "source_manifest_sha256": "d1e03b44b5e1aa2257335ca3d7557796fbb1039f8a97695a51545465412d600f",
+  "all_four_CPU_domains_returned_to_factory_floor": true,
+  "GPU_ACKed_changes": 31,
+  "GPU_failed_votes": 0,
+  "actual_GPU_clock_measured": false,
+  "thermal_or_power_qualified": false
+}

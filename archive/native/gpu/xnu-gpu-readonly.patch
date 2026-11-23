@@ -1,0 +1,185 @@
+--- a/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -538,6 +538,7 @@
+ }
+ #include "HoujiTouchProbe.inc"
+ #include "HoujiTouchDriver.inc"
++#include "HoujiGpuProbe.inc"
+ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+@@ -564,6 +565,7 @@
+     houji_ufs_checkpoint("before read-only EPSS CPU0 frequency probe",0);
+     reportCpuFrequencyReadOnly();
+   }
++  houjiGpuProbeOnce();
+   touchProbeOnce();
+   houjiTouchStart();
+   houji_ufs_checkpoint("native HFSX block backend registered",3);
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/GpuReadPolicy.h
+@@ -0,0 +1,15 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++#ifndef HOUJI_GPU_READ_POLICY_H
++#define HOUJI_GPU_READ_POLICY_H
++#include <stdint.h>
++// Captured houji FDT + MiCode shennong-u-oss gcc/gpucc-pineapple.
++static const uint64_t hgr_base[3]={0x171000,0x3d90000,0x3da0000};
++static const uint32_t hgr_size[3]={0x1000,0x9800,0x1000};
++static inline int hgr_allowed(unsigned window,uint32_t offset) {
++  if(window>=3 || (offset&3) || offset>hgr_size[window]-4)return 0;
++  if(window==0)return offset==4 || offset==0x10 || offset==0x18;
++  if(window==1)return offset==0x9108 || offset==0x9168 || offset==0x911c ||
++    offset==0x7000 || offset==0x913c;
++  return offset==0 || offset==0x20 || offset==0x24 || offset==0x28 || offset==0x48;
++}
++#endif
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/GpuPowerObserve.h
+@@ -0,0 +1,78 @@
++/* SPDX-License-Identifier: BSD-2-Clause-Patent */
++#ifndef GIULIA_GPU_POWER_H
++#define GIULIA_GPU_POWER_H
++#include <stdint.h>
++/* SM8650 offsets, from captured DTS and pinned gcc/gpucc-pineapple sources.
++ * In particular CX hw-control is 0x9168, NOT sheng's 0x953c.
++ * This stage only observes inherited state. It never enables a resource.
++ */
++enum { GGP_GCC, GGP_GPUCC, GGP_SMMU, GGP_WINDOWS };
++enum { GGP_START, GGP_CFG_OFF, GGP_CX_OFF, GGP_CLOCK_OFF, GGP_OBSERVED, GGP_IO_ERROR };
++struct ggp_io { void *cookie; int (*read)(void *, unsigned, uint32_t, uint32_t *); };
++struct ggp_report {
++    uint32_t stage, window, offset;
++    uint32_t cfg, memnoc, dvm, cx, cx_hw, ahb, smmu_clock, gmu_clock;
++    uint32_t scr0, id0, id1, id2, fault;
++    uint32_t expected, observed, mask, compared, valid_fields;
++    int io_error;
++};
++static inline int ggp_read(const struct ggp_io *io, struct ggp_report *r,
++    unsigned window, uint32_t offset, uint32_t *value)
++{
++    r->window=window; r->offset=offset;
++    r->io_error=io->read(io->cookie,window,offset,value);
++    if(!r->io_error) {
++        unsigned bit=32;
++        if(window==GGP_GCC)bit=offset==4?0:offset==0x10?1:offset==0x18?2:32;
++        else if(window==GGP_GPUCC)bit=offset==0x9108?3:offset==0x9168?4:offset==0x911c?5:offset==0x7000?6:offset==0x913c?7:32;
++        else if(window==GGP_SMMU)bit=offset==0?8:offset==0x20?9:offset==0x24?10:offset==0x28?11:offset==0x48?12:32;
++        if(bit<32)r->valid_fields|=1u<<bit;
++    }
++    if (r->io_error || *value==UINT32_MAX) {
++        r->observed=*value;
++        r->stage=GGP_IO_ERROR; return 0;
++    }
++    return 1;
++}
++static inline int ggp_running(uint32_t value) { return (value & 1) && !(value & (1u<<31)); }
++static inline int ggp_expect(struct ggp_report *r,unsigned stage,unsigned window,unsigned offset,
++    uint32_t observed,uint32_t mask,uint32_t expected)
++{
++    if ((observed&mask)==expected) return 1;
++    r->stage=stage;r->window=window;r->offset=offset;
++    r->observed=observed;r->mask=mask;r->expected=expected;r->compared=1;
++    return 0;
++}
++static inline void ggp_observe(const struct ggp_io *io, struct ggp_report *r)
++{
++    unsigned i;
++    if (!r) return;
++    for (i=0;i<sizeof(*r);++i) ((unsigned char *)r)[i]=0;
++    if (!io || !io->read) { r->stage=GGP_IO_ERROR; return; }
++    if (!ggp_read(io,r,GGP_GCC,0x4,&r->cfg) ||
++        !ggp_read(io,r,GGP_GCC,0x10,&r->memnoc) ||
++        !ggp_read(io,r,GGP_GCC,0x18,&r->dvm)) return;
++    /* GCC CFG branch may be hardware gated while idle: require enable. */
++    if (!ggp_expect(r,GGP_CFG_OFF,GGP_GCC,4,r->cfg,1,1)) return;
++    if (!ggp_read(io,r,GGP_GPUCC,0x9108,&r->cx) ||
++        !ggp_read(io,r,GGP_GPUCC,0x9168,&r->cx_hw)) return;
++    if (!ggp_expect(r,GGP_CX_OFF,GGP_GPUCC,0x9168,r->cx_hw,1u<<31,1u<<31) ||
++        !ggp_expect(r,GGP_CX_OFF,GGP_GPUCC,0x9108,r->cx,1,0)) return;
++    if (!ggp_read(io,r,GGP_GPUCC,0x911c,&r->ahb) ||
++        !ggp_read(io,r,GGP_GPUCC,0x7000,&r->smmu_clock) ||
++        !ggp_read(io,r,GGP_GPUCC,0x913c,&r->gmu_clock)) return;
++    /* Pineapple AHB is BRANCH_HALT_DELAY. Ace 5 reads CBCR=0 even after
++     * an enable write while SMMU/TCM accesses work; bit 0 is not an access
++     * prerequisite. Keep halt, CX and the independently voted gates checked. */
++    if (!ggp_expect(r,GGP_CLOCK_OFF,GGP_GPUCC,0x911c,r->ahb,0x80000000,0) ||
++        !ggp_expect(r,GGP_CLOCK_OFF,GGP_GPUCC,0x7000,r->smmu_clock,0x80000001,1) ||
++        !ggp_expect(r,GGP_CLOCK_OFF,GGP_GCC,0x10,r->memnoc,0x80000001,1) ||
++        !ggp_expect(r,GGP_CLOCK_OFF,GGP_GCC,0x18,r->dvm,0x80000001,1)) return;
++    if (!ggp_read(io,r,GGP_SMMU,0,&r->scr0) ||
++        !ggp_read(io,r,GGP_SMMU,0x20,&r->id0) ||
++        !ggp_read(io,r,GGP_SMMU,0x24,&r->id1) ||
++        !ggp_read(io,r,GGP_SMMU,0x28,&r->id2) ||
++        !ggp_read(io,r,GGP_SMMU,0x48,&r->fault)) return;
++    r->stage=GGP_OBSERVED;
++}
++#endif
+--- /dev/null
++++ b/iokit/Kernel/houji-ufs-root/HoujiGpuProbe.inc
+@@ -0,0 +1,65 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++// Only inherited state. No GPU, GMU, SMMU, clock, power or firmware writes.
++#include "GpuReadPolicy.h"
++#include "GpuPowerObserve.h"
++struct HoujiGpuReadState { OSSharedPtr<IOMemoryMap> maps[3];unsigned reads; };
++static int houjiGpuRead(void *cookie,unsigned window,uint32_t offset,uint32_t *value) {
++  if(!cookie || !value || !hgr_allowed(window,offset))return 1;
++  auto *state=static_cast<HoujiGpuReadState *>(cookie);
++  char stage[96];snprintf(stage,sizeof(stage),"GPU RO before read %u PA=%llx",
++    state->reads+1,hgr_base[window]+offset);
++  houji_ufs_checkpoint(stage,0);
++  // Lazy, read-only mappings: failed clock/power prerequisites never map SMMU.
++  if(!state->maps[window]) {
++    IODeviceMemory *memory=IODeviceMemory::withRange(hgr_base[window],hgr_size[window]);
++    if(!memory)return 2;
++    state->maps[window]=OSSharedPtr<IOMemoryMap>(memory->map(kIOMapAnywhere|kIOMapReadOnly|kIOMapInhibitCache),OSNoRetain);
++    memory->release();if(!state->maps[window])return 3;
++  }
++  *value=*reinterpret_cast<volatile uint32_t *>(state->maps[window]->getVirtualAddress()+offset);
++  __asm__ volatile("dmb oshld" ::: "memory");++state->reads;
++  IOLog("HOUJI GPU RO: read=%u PA=%llx value=%08x\n",state->reads,hgr_base[window]+offset,*value);
++  return 0;
++}
++static void houjiGpuQmpObserve(void) {
++  // FDT /soc/power-controller@c300000 is qcom,aoss-qmp, reg size 0x400.
++  // Inspect only the transport descriptor; do not open a channel or ring IPCC.
++  houji_ufs_checkpoint("GPU QMP RO before descriptor",0);
++  IODeviceMemory *memory=IODeviceMemory::withRange(0xc300000,0x400);
++  if(!memory){IOLog("HOUJI GPU QMP RO: descriptor allocation failed\n");return;}
++  OSSharedPtr<IOMemoryMap> map(memory->map(kIOMapAnywhere|kIOMapReadOnly|kIOMapInhibitCache),OSNoRetain);
++  memory->release();if(!map){IOLog("HOUJI GPU QMP RO: mapping failed\n");return;}
++  auto p=reinterpret_cast<volatile uint32_t *>(map->getVirtualAddress());
++  uint32_t words[15];
++  for(unsigned i=0;i<15;i++)words[i]=p[i];
++  __asm__ volatile("dmb oshld" ::: "memory");
++  uint32_t remoteBytes=words[7],remoteOffset=words[8],hostBytes=words[13],hostOffset=words[14];
++  bool geometry=words[0]==0x4d41494c && words[1]==1 && remoteBytes>=8 && hostBytes>=8 &&
++    !((remoteBytes|remoteOffset|hostBytes|hostOffset)&3) &&
++    remoteOffset>=0x3c && hostOffset>=0x3c && remoteOffset<=0x400 && hostOffset<=0x400 &&
++    remoteBytes<=0x400-remoteOffset && hostBytes<=0x400-hostOffset &&
++    (hostOffset>=remoteOffset+remoteBytes || remoteOffset>=hostOffset+hostBytes);
++  IOLog("HOUJI GPU QMP RO: magic=%08x version=%u geometry=%u remote=%x/%x host=%x/%x\n",
++    words[0],words[1],geometry,remoteOffset,remoteBytes,hostOffset,hostBytes);
++  IOLog("HOUJI GPU QMP RO: remote-link=%08x/%08x remote-channel=%08x/%08x host-link=%08x/%08x host-channel=%08x/%08x\n",
++    words[3],words[4],words[5],words[6],words[9],words[10],words[11],words[12]);
++  if(geometry)IOLog("HOUJI GPU QMP RO: remote-pending=%u host-pending=%u; no channel or doorbell writes\n",
++    p[remoteOffset/4],p[hostOffset/4]);
++}
++static void houjiGpuProbeOnce(void) {
++  int enabled=0;PE_parse_boot_argn("houji_gpu_ro",&enabled,sizeof(enabled));
++  if(enabled!=1)return;
++  HoujiGpuReadState state={};struct ggp_report report={};
++  struct ggp_io io={&state,houjiGpuRead};
++  IOLog("HOUJI GPU RO: houji SM8650 Adreno750v2; inherited state only; no GPU/DMA/firmware writes\n");
++  ggp_observe(&io,&report);
++  IOLog("HOUJI GPU RO: result stage=%u valid=%x reads=%u window=%u offset=%x expected=%x observed=%x mask=%x io-error=%d\n",
++    report.stage,report.valid_fields,state.reads,report.window,report.offset,
++    report.expected,report.observed,report.mask,report.io_error);
++  IOLog("HOUJI GPU RO: cfg=%08x memnoc=%08x dvm=%08x CX=%08x CX-hw=%08x AHB=%08x SMMU-clock=%08x GMU-clock=%08x\n",
++    report.cfg,report.memnoc,report.dvm,report.cx,report.cx_hw,report.ahb,report.smmu_clock,report.gmu_clock);
++  IOLog("HOUJI GPU RO: SMMU SCR0=%08x ID0=%08x ID1=%08x ID2=%08x fault=%08x; values meaningful only when valid bits set; acceleration=0\n",
++    report.scr0,report.id0,report.id1,report.id2,report.fault);
++  houjiGpuQmpObserve();
++  houji_ufs_checkpoint("GPU RO inherited-state observation finished",0);
++}

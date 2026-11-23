@@ -1,0 +1,71 @@
+{
+  "scope": "exclusive full-owned CPU16K NormalNC data/zero fixed GMU finite positive/negative canary; table WB; no stock FW/HFI/CP",
+  "hardware_tested": false,
+  "desktop_acceleration_claim": false,
+  "DMA_eligible": false,
+  "files": {
+    "iokit/Kernel/houji-ufs-root/GmuExternalCanary.h": {
+      "before": "75cd3c3d3f3d9b17b736ad4d723e32c89bff027048597095b28606bd44f8a55f",
+      "after": "5631f6ef6c2860035dcac6b36191c3b830a7b2b8122884dd539f62ccb2a5bf79",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/GmuExternalCanary.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-normal-nc-runtime/before-GmuExternalCanary.h"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiGpuExternalCanaryProbe.inc": {
+      "before": "8f5f961ad0d60e8b23a8d8af18dd1b3cc9c98f95bfe5fec6645e7eb0c8880b0c",
+      "after": "26584ee33d5242e223d2cb25fc652fccef08b06a70658b60f2b9b5ba3448abf4",
+      "source": "${HOUJI_PORT_ROOT}/native/gpu/xnu/HoujiGpuExternalCanaryProbe.inc",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-normal-nc-runtime/before-HoujiGpuExternalCanaryProbe.inc"
+    },
+    "iokit/Kernel/houji-ufs-root/HoujiLogAllocation.h": {
+      "before": "ad7944e2617361635f9f9e0cb6ae92a67b4feaf364bbc266485edec190a2e653",
+      "after": "ed8c8e1c0487e30af125f2c1d14760d0c69c2473a8d47ead3df8eed46ada44a1",
+      "source": "${HOUJI_ARTIFACTS}/native-port/native-ios-candidate/r150-allocation/HoujiLogAllocation.h",
+      "rollback": "${HOUJI_PORT_ROOT}/native/gpu/xnu/external-normal-nc-runtime/before-HoujiLogAllocation.h"
+    }
+  },
+  "offline_test_artifacts": {
+    "core-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-external-normal-nc-r150/core-verification.json",
+      "sha256": "d20464647be0ac2c5647576c8cd39f9a44bb851a6ac012ce9f7801d44c752bac"
+    },
+    "core-nc-result.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-external-normal-nc-r150/core-nc-result.json",
+      "sha256": "668b2aab0ed71f884d7861b57ba4bccf84f106158baada15b441556a0f2f0d2c"
+    },
+    "native-independent-review.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-external-normal-nc-r150/native-independent-review.json",
+      "sha256": "3e91fa82d25479ed3577b3ac3c281fdf6216c26f732942ba43c0e5a8eb5157f1"
+    },
+    "native-host-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-external-normal-nc-r150/native-host-verification.json",
+      "sha256": "7f0283d05bf39c8bfaf8707808eb2acd102901393f87bff249fa2636111e140b"
+    },
+    "native-host-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-external-normal-nc-r150/native-host-output.txt",
+      "sha256": "7aa36bf7a4e5a604790dc7c30c6bd4e05450b408b53fdde25f2fbadaa798ea22"
+    },
+    "native-wb-verification.json": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-external-normal-nc-r150/native-wb-verification.json",
+      "sha256": "aec9fd2f9038f735c9e374bf645bf6d90aa92ed72ae41b15670150b53f9e8483"
+    },
+    "main-host-output.txt": {
+      "path": "${HOUJI_ARTIFACTS}/native-port/evidence/xnu-external-normal-nc-r150/main-host-output.txt",
+      "sha256": "b6b1199d3760bf237822b071b26be68a3684b7f5047b8311ec974dfd6ed35e4d"
+    },
+    "native_adapter_tested_source_sha256": "26584ee33d5242e223d2cb25fc652fccef08b06a70658b60f2b9b5ba3448abf4"
+  },
+  "core_source_sha256": "ae6cd69e525a259c9561034cb9fcc99a25ca8a4cc63d0adf41cc3c230b00e7d5",
+  "core_WB_cases": 4325,
+  "core_NC_cases": 4444,
+  "Native_WB_cases": 6050,
+  "Native_NC_cases": 6479,
+  "CPU_completion": "WB unchanged; NC cpu.invalidated0, separate actualacquired6/restore1/tableinvalidated1; no NC data DC",
+  "known_aperture": "bounded AT-only, fullPAR locked; no data access; private wired descriptor-only lease retained until reset; no all-system-alias or liveHFI claim",
+  "finite_NormalNC_GMU_writeback_qualified": true,
+  "result_path": "${HOUJI_ARTIFACTS}/native-port/evidence/native-ios-r150-result.json",
+  "result_sha256": "005ecb972d0172e1de70b2ec4e36c8c14b09e0358b75c7a4e6815300e7b672ec",
+  "r179_cold_far_fix": {
+    "reference": "https://documentation-service.arm.com/static/5f900cc0f86e16515cdc08d4",
+    "scope": "Retain FAR/FSYNR all-ones only untouched cold CM3reset1, M/CFRE0, FSR0, ACTLR3, PRR0, all22banks M0 and all24streams FAULT; actual owner/read failures and active/fault checks unchanged"
+  }
+}
