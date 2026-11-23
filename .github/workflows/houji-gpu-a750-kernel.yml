@@ -1,7 +1,7 @@
 name: houji A750 GPU kernel
 
 # Build the GPU-capable Darwin 22 tree from lonzzi/UniXNU-houji on an
-# Intel-macOS runner. blacktop/darwin-xnu-build supplies the matching KDK and
+# macOS runner. blacktop/darwin-xnu-build supplies the matching KDK and
 # the Apple-userland fakeroot; this workflow only adds Houji's pinned overlay.
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ env:
 
 jobs:
   kernel:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 300
     steps:
       - name: Check out device repository
@@ -60,7 +60,13 @@ jobs:
           brew install jq gum bash cmake ninja zstd
           printf '#!/bin/sh\nexit 0\n' | sudo tee /usr/local/bin/xcodes >/dev/null
           sudo chmod +x /usr/local/bin/xcodes
-          XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          if compgen -G '/Applications/Xcode_15*.app' >/dev/null; then
+            XC=$(ls -d /Applications/Xcode_15*.app | sort -V | tail -1)
+            echo "using Xcode 15.x for the xnu-8796 IORPC ABI"
+          else
+            XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+            echo "warning: Xcode 15.x is absent; trying the newest runner Xcode"
+          fi
           echo "DEVELOPER_DIR=$XC/Contents/Developer" >> "$GITHUB_ENV"
           sudo xcode-select -s "$XC"
           xcodebuild -version
