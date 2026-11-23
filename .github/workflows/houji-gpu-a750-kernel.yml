@@ -281,9 +281,10 @@ jobs:
             echo "port_sha=$PORT_SHA"
             echo "kernel_present=$(test -f dxb/build/houji-kernel/xnu.obj/kernel.development.sweet && echo yes || echo no)"
           } > out/build-status.txt
-          cp -a dxb/build/houji-kernel/xnu.obj/kernel.development.sweet out/ 2>/dev/null || true
-          cp -a dxb/build/houji-kernel/fakeroot/System/Library/Kernels/kernel.development.sweet out/ 2>/dev/null || true
-          cp -a a750-kernel-build.log a750-kernel-deps.log out/ 2>/dev/null || true
+          cp -L dxb/build/houji-kernel/xnu.obj/kernel.development.sweet out/kernel.development.sweet
+          test -s out/kernel.development.sweet
+          gzip -c a750-kernel-build.log > out/a750-kernel-build.log.gz
+          cp -a a750-kernel-deps.log out/ 2>/dev/null || true
           cp -a a750-firmware.log out/ 2>/dev/null || true
           cp -a kdk-install.log out/ 2>/dev/null || true
           if test -f out/kernel.development.sweet; then
@@ -316,6 +317,7 @@ jobs:
             gh release delete "$tag" --yes
           fi
           gh release create "$tag" --title "$tag" --notes "A750 gen70900 GPU Darwin 22 kernel build for $GITHUB_SHA on ${MATRIX_RUNNER}"
-          for f in out/*; do
+          for f in out/kernel.development.sweet out/kernel.development.sweet.sha256 out/a750-markers.txt out/gpu-markers.txt out/build-status.txt out/*.log out/*.gz; do
+            test -f "$f" || continue
             gh release upload "$tag" "$f" --clobber || true
           done
