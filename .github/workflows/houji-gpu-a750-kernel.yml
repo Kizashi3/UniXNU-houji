@@ -199,8 +199,8 @@ jobs:
             file out/kernel.development.sweet
             lipo -info out/kernel.development.sweet || true
             shasum -a 256 out/kernel.development.sweet | tee out/kernel.development.sweet.sha256
-            strings out/kernel.development.sweet | grep -E 'HoujiAdreno750|Adreno750|HoujiAdreno|NativeAdreno|gen70900|HOUJI' | sort -u | tail -80 > out/gpu-markers.txt || true
-            grep -E 'HoujiAdreno750|Adreno750|NativeAdreno' out/gpu-markers.txt > out/a750-markers.txt
+            strings out/kernel.development.sweet | grep -E -i 'HoujiAdreno|Adreno ?750|NativeAdreno|gen70900|HOUJI GPU' | sort -u | tail -80 > out/gpu-markers.txt || true
+            grep -E -i 'HoujiAdreno|Adreno ?750|NativeAdreno|gen70900|HOUJI GPU' out/gpu-markers.txt > out/a750-markers.txt
             test -s out/a750-markers.txt
           fi
           ls -lah out
