@@ -2,7 +2,30 @@ diff --git a/security/mac_base.c b/security/mac_base.c
 index 9f90247..e24936a 100644
 --- a/security/mac_base.c
 +++ b/security/mac_base.c
-@@ -1560,6 +1560,38 @@ mac_proc_check_mac_syscall(proc_t p, const char *target, int callnum)
+@@ -603,6 +603,8 @@
+ 	new->base_addr = new;
+ }
+ 
++static const struct mac_policy_ops houji_sandbox_disabled_ops = { 0 };
++
+ int
+ mac_policy_register(struct mac_policy_conf *mpc, mac_policy_handle_t *handlep,
+     void *xd)
+@@ -634,6 +636,13 @@
+ 		panic("policy's OPs field is NULL");
+ 	}
+ 
++	if (strcmp(mpc->mpc_name, "Sandbox") == 0 ||
++	    strcmp(mpc->mpc_fullname, "Seatbelt sandbox policy") == 0) {
++		printf("HOUJI-SANDBOX: neutralizing MAC hooks for %s\n",
++		    mpc->mpc_fullname);
++		mpc->mpc_ops = &houji_sandbox_disabled_ops;
++	}
++
+ 	error = 0;
+ 
+ 	if (mac_late) {
+@@ -1560,6 +1569,38 @@ mac_proc_check_mac_syscall(proc_t p, const char *target, int callnum)
   *                !0                      Not success
   *
   */
@@ -41,7 +64,7 @@ index 9f90247..e24936a 100644
  int
  __mac_syscall(proc_t p, struct __mac_syscall_args *uap, int *retv __unused)
  {
-@@ -1581,6 +1613,10 @@ __mac_syscall(proc_t p, struct __mac_syscall_args *uap, int *retv __unused)
+@@ -1581,6 +1622,10 @@ __mac_syscall(proc_t p, struct __mac_syscall_args *uap, int *retv __unused)
  		return error;
  	}
  
