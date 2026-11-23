@@ -841,7 +841,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           old = "#if HAS_CLUSTER || defined(BCM2837)"
-          new = "#if HAS_CLUSTER || defined(BCM2837) || defined(ARM64_BOARD_CONFIG_BCM2837)"
+          new = "#if 1"
           for name in ("patches/xnu/native-smp-secondary.patch",
                        "out/houji/tree/patches/xnu/native-smp-secondary.patch"):
               path = Path(name)
