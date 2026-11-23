@@ -1,3 +1,7 @@
+#include "battery/HoujiFirmwareReadPolicy.h"
+
+static HoujiFirmwareReadGrant gFirmwareReadGrant;
+
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 // Shared production command path. Included inside the root transport namespace.
 // The host harness replaces only MMIO, DMA synchronization, clock and lock primitives.
@@ -33,6 +37,11 @@ static uint32_t loadBe32 (const uint8_t *at)
 static IOReturn hostSubmit (uint32_t direction, uint32_t dataBytes, uint32_t timeoutUs, uint32_t *ocs)
 {
   *ocs = 15;
+  const uint8_t *command = gHost.virt + kUcdOffset;
+  if ((gFirmwareReadGrant.active || (command[0] == 1 && command[2] == 4)) &&
+      !houjiUfsFirmwareCommandAllowed(command, 32, direction, dataBytes, gFirmwareReadGrant)) {
+    return kIOReturnNotPermitted;
+  }
   if (!timeoutUs || dataBytes > kDataMax || (dataBytes & 3) ||
       (dataBytes ? (direction != 1 && direction != 2) : direction != 0)) return kIOReturnBadArgument;
   if (gHost.poisoned) return kIOReturnNotReady;

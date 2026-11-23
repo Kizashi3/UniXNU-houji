@@ -5,6 +5,7 @@ on:
     branches:
       - kernel-cs-bypass
       - merged-root-kernel
+      - codex/battery-r721
   workflow_dispatch:
     inputs:
       xcode:
@@ -1022,7 +1023,7 @@ jobs:
       # paths that anonymous HTTP can read: the ci-kernel-mrk branch for text
       # and a release for the binaries.
       - name: Publish CI diagnostics
-        if: always()
+        if: always() && github.ref_name != 'codex/battery-r721'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -1104,3 +1105,27 @@ jobs:
           else
             echo "no kernel.macho produced"
           fi
+
+      - name: Publish battery build diagnostics
+        if: always() && github.ref_name == 'codex/battery-r721'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p "$DIAG_DIR"
+          build=unixnu/out/houji
+          stage=$(mktemp -d)
+          git init -q "$stage"
+          git -C "$stage" checkout -qb "ci-battery-r721-${GITHUB_RUN_NUMBER}"
+          git -C "$stage" config user.name houji-ci
+          git -C "$stage" config user.email houji-ci@users.noreply.github.com
+          {
+            echo "run $GITHUB_RUN_NUMBER commit $GITHUB_SHA"
+            tail -n 300 "$DIAG_DIR/early-steps.log" 2>/dev/null || true
+            tail -n 750 "$DIAG_DIR/github-diagnostics.log" 2>/dev/null || true
+            cat "$build/kernel/kernel.macho.sha256" 2>/dev/null || true
+          } > "$stage/build.log"
+          find "$build/tree/build/native-ufs" -maxdepth 1 -name '*.battery.log' -exec cp {} "$stage/" \; 2>/dev/null || true
+          git -C "$stage" add .
+          git -C "$stage" commit -qm "ci: record battery build ${GITHUB_RUN_NUMBER}"
+          git -C "$stage" push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD

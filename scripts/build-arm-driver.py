@@ -137,5 +137,45 @@ if component == 'ArmDTPlatform' and (ROOT/'scripts/ufs-read/GiuliaUfsRead.cpp').
     (out/'ufs-compile.log').write_text(result.stdout+result.stderr)
     if result.returncode:raise SystemExit((result.stdout+result.stderr)[-5000:])
     objects.append(transport_object)
+if component == 'NativeUfs' and (source.parent / 'battery/HoujiBatteryEntry.cpp').is_file():
+    battery = source.parent / 'battery'
+    for unit in sorted([*battery.glob('*.c'), *battery.glob('*.cpp')]):
+        obj = out / (unit.stem + '.battery.o')
+        argv = [str(unit) if value == str(source) else
+                str(obj) if value == str(destination) else value for value in command]
+        if unit.suffix == '.c':
+            argv = [value for value in argv if value not in (
+                '--driver-mode=g++', '-fsized-deallocation', '-fc++-static-destructors=none', '-fapple-kext'
+            ) and not value.startswith('-std=')]
+            for flag in ('-xc++', '-xobjective-c++'):
+                if flag in argv:
+                    argv.remove(flag)
+            index = argv.index(str(unit))
+            argv[index:index] = ['-x', 'c', '-std=gnu11']
+        result = subprocess.run(argv, cwd=record['directory'], capture_output=True, text=True)
+        (out / (unit.stem + '.battery.log')).write_text(result.stdout + result.stderr)
+        if result.returncode:
+            raise SystemExit((result.stdout + result.stderr)[-5000:])
+        objects.append(obj)
+if component == 'NativeUfs' and (source.parent / 'battery/HoujiBatteryEntry.cpp').is_file():
+    battery = source.parent / 'battery'
+    for unit in sorted([*battery.glob('*.c'), *battery.glob('*.cpp')]):
+        obj = out / (unit.stem + '.battery.o')
+        argv = [str(unit) if value == str(source) else
+                str(obj) if value == str(destination) else value for value in command]
+        if unit.suffix == '.c':
+            argv = [value for value in argv if value not in (
+                '--driver-mode=g++', '-fsized-deallocation', '-fc++-static-destructors=none', '-fapple-kext'
+            ) and not value.startswith('-std=')]
+            for flag in ('-xc++', '-xobjective-c++'):
+                if flag in argv:
+                    argv.remove(flag)
+            index = argv.index(str(unit))
+            argv[index:index] = ['-x', 'c', '-std=gnu11']
+        result = subprocess.run(argv, cwd=record['directory'], capture_output=True, text=True)
+        (out / (unit.stem + '.battery.log')).write_text(result.stdout + result.stderr)
+        if result.returncode:
+            raise SystemExit((result.stdout + result.stderr)[-5000:])
+        objects.append(obj)
 subprocess.run(['xcrun', 'ar', 'rcs', archive, *objects], check=True)
 print(f'{component}: -Werror build and actual ARM64/iOS 17 object audit passed')

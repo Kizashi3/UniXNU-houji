@@ -22,6 +22,8 @@
 extern "C" int sweet_hid_start(IOService *provider);
 extern "C" void sweet_hid_touch(int finger, int down, int x, int y);
 extern "C" int houji_native_touch_start(IOService *provider);
+extern "C" void houji_battery_board_start(void);
+extern "C" void houji_battery_board_start(void);
 extern "C" void houji_native_touch_report(const uint8_t *frame, unsigned size);
 extern "C" void houji_native_touch_release();
 static unsigned useNativeTouch;
@@ -1877,6 +1879,12 @@ houjiTouchProbe(void)
 	IOSleep(6000);
 	int bbPower = houjiTouchPowerOn();
 	HOUJI_FB_LOG("touch v30: power=%d", bbPower);
+	if (bbPower == 0 && useNativeTouch) {
+		houji_battery_board_start();
+	}
+	if (bbPower == 0 && useNativeTouch) {
+		houji_battery_board_start();
+	}
 	HOUJI_FB_LOG("touch v30: reset about to run");
 	IOSleep(6000);
 	houjiTouchReset();

@@ -1086,6 +1086,14 @@ static unsigned storeMode (void)
 }
 }
 
+static bool houjiFirmwareReadsEnabled ()
+{
+  unsigned enabled = 0;
+  return gStoreGeometry.valid && PE_parse_boot_argn ("houji-battery-mode", &enabled, sizeof (enabled)) && (enabled == 1 || enabled == 2);
+}
+
+#include "HoujiFirmwareUfs.inc"
+
 extern "C" unsigned native_ufs_store_mode (void) { return storeMode (); }
 
 // Returns 1 and the first absolute 4096-byte LBA of the window, 0 on refusal (reason in *why, may be null).
