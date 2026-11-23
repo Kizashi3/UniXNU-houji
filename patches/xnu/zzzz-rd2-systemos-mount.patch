@@ -1,5 +1,5 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 8bba078..0ee4a60 100644
+index 8bba078..ffcbe53 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
 @@ -94,6 +94,7 @@
@@ -10,7 +10,7 @@ index 8bba078..0ee4a60 100644
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,778 @@ static const char * init_programs[] = {
+@@ -7138,6 +7139,772 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -345,15 +345,9 @@ index 8bba078..0ee4a60 100644
 +	const char *prefs = "/private/var/mobile/Library/Preferences/";
 +	char path[256];
 +
-+	{
-+		char disabled_buf[4096];
-+		memset(disabled_buf, 0x20, sizeof(disabled_buf));
-+		memcpy(disabled_buf, disabled_plist, sizeof(disabled_plist) - 1);
-+		disabled_buf[sizeof(disabled_buf) - 1] = 0x0a;
-+		houji_write_data_file(
-+		    "/private/var/db/com.apple.xpc.launchd/disabled.plist",
-+		    disabled_buf, sizeof(disabled_buf), 0, 0, 0644);
-+	}
++	houji_write_data_file(
++	    "/private/var/db/com.apple.xpc.launchd/disabled.plist",
++	    disabled_plist, sizeof(disabled_plist) - 1, 0, 0, 0644);
 +	snprintf(path, sizeof(path), "%scom.apple.purplebuddy.plist", prefs);
 +	houji_write_data_file(path, purplebuddy, sizeof(purplebuddy) - 1,
 +	    501, 501, 0600);
@@ -789,7 +783,7 @@ index 8bba078..0ee4a60 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7183,6 +7956,17 @@ load_init_program(proc_t p)
+@@ -7183,6 +7781,17 @@ load_init_program(proc_t p)
  	}
  #endif
  
