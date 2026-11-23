@@ -1,5 +1,5 @@
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index ff5296d..05cd458 100644
+index ff5296d..f088939 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
 @@ -60,6 +60,7 @@
@@ -10,7 +10,34 @@ index ff5296d..05cd458 100644
  
  #include <sys/errno.h>
  #include <sys/kdebug.h>
-@@ -1678,6 +1679,140 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
+@@ -1045,6 +1046,26 @@ handle_uncategorized(arm_saved_state_t *state)
+ 		}
+ 	}
+ 
++
++	if (PSR64_IS_USER64(get_saved_state_cpsr(state))) {
++		arm_saved_state64_t *ill_ss = saved_state64(state);
++		static unsigned houji_ill_count;
++		extern struct proc *current_proc(void);
++		extern int proc_getpid(struct proc *);
++		if (houji_ill_count < 60) {
++			uint32_t win[4] = { 0, 0, 0, 0 };
++			houji_ill_count++;
++			(void)copyin((user_addr_t)(get_saved_state_pc(state) + 4), win, sizeof(win));
++			printf("HOUJI-ILL: pid %d pc %#llx insn %08x lr %#llx sp %#llx x0 %#llx x1 %#llx x2 %#llx x3 %#llx x8 %#llx next %08x %08x %08x %08x\n",
++			    proc_getpid(current_proc()),
++			    (unsigned long long)get_saved_state_pc(state), instr,
++			    (unsigned long long)ill_ss->lr, (unsigned long long)ill_ss->sp,
++			    (unsigned long long)ill_ss->x[0], (unsigned long long)ill_ss->x[1],
++			    (unsigned long long)ill_ss->x[2], (unsigned long long)ill_ss->x[3],
++			    (unsigned long long)ill_ss->x[8],
++			    win[0], win[1], win[2], win[3]);
++		}
++	}
+ 	/*
+ 	 * Check for GDB breakpoint via illegal opcode.
+ 	 */
+@@ -1678,6 +1699,140 @@ handle_user_abort(arm_saved_state_t *state, uint32_t esr, vm_offset_t fault_addr
  		exit_with_jit_exception(current_proc());
  	}
  
