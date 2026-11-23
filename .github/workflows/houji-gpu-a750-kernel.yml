@@ -78,7 +78,9 @@ jobs:
           git -C dxb/xnu fetch -q --depth 1 origin "$XNU_SHA"
           git -C dxb/xnu checkout -q FETCH_HEAD
           test "$(git -C dxb/xnu rev-parse HEAD)" = "$XNU_SHA"
-          git -C dxb/xnu describe --tags --exact-match
+          # A bare-SHA fetch has no tag objects, so git describe would fail even
+          # though the pinned commit is exact. The SHA check above is the gate.
+          git -C dxb/xnu show -s --format='%H %s' HEAD
 
       - uses: actions/setup-python@v5
         with:
