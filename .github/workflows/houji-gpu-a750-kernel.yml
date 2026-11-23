@@ -217,6 +217,13 @@ jobs:
 
           path = Path("dxb/build.sh")
           text = path.read_text()
+          needle = 'ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"'
+          assert text.count(needle) == 1
+          text = text.replace(
+              needle,
+              'ARCHS="arm64 x86_64" VALID_ARCHS="arm64 x86_64"',
+              1,
+          )
           needle = "        build_xnu\n"
           assert text.count(needle) == 1
           text = text.replace(
