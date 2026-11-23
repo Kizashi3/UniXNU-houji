@@ -1990,6 +1990,22 @@ static void houjiBootGuardThread (void *arg, wait_result_t wr)
 {
   uint32_t seconds = 150;
   (void) arg; (void) wr;
+  {
+    extern unsigned int ml_get_cpu_count (void);
+    extern uint32_t processor_avail_count;
+    extern volatile uint32_t armcpu_smp_step[8], armcpu_core_timer[8], armcpu_smp_fail[8];
+    uint32_t st[8], tm[8], fl[8];
+    for (int c = 0; c < 8; c++) {
+      st[c] = armcpu_smp_step[c];
+      tm[c] = armcpu_core_timer[c];
+      fl[c] = armcpu_smp_fail[c];
+    }
+    IOLog ("HOUJI-CPU: topology=%u avail=%u step=%u/%u/%u/%u/%u/%u/%u/%u timer=%u/%u/%u/%u/%u/%u/%u/%u fail=%u/%u/%u/%u/%u/%u/%u/%u\n",
+        ml_get_cpu_count (), processor_avail_count,
+        st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7],
+        tm[0], tm[1], tm[2], tm[3], tm[4], tm[5], tm[6], tm[7],
+        fl[0], fl[1], fl[2], fl[3], fl[4], fl[5], fl[6], fl[7]);
+  }
   if (!PE_parse_boot_argn ("houji-bootguard", &seconds, sizeof (seconds)) || seconds < 30 ||
       seconds > 3600) {
     seconds = 150;
