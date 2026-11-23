@@ -134,16 +134,22 @@ jobs:
           if [ -z "$kdk_root" ]; then
             kdk_root=$(find /Library/Developer/KDKs -maxdepth 1 -type d -name "${KDK_BUILD}*.kdk" -print -quit)
           fi
-          if [ -n "$kdk_root" ] && [ "$kdk_root" != "${kdk_root#$mount}" ]; then
-            cp -a "$kdk_root" "$RUNNER_TEMP/${KDK_BUILD}.kdk"
-            kdk_root="$RUNNER_TEMP/${KDK_BUILD}.kdk"
-          fi
           hdiutil detach "$mount" -force
           trap - EXIT
           test -n "$kdk_root"
-          test -d "$kdk_root/Payload/System/Library/KernelSupport"
-          echo "HOUJI_KDK=$kdk_root/Payload" >> "$GITHUB_ENV"
-          echo "KDK ready: $kdk_root"
+          # Installed KDK bundles place KernelSupport directly under System;
+          # expanded .pkg payloads keep one extra Payload directory.
+          if [ -d "$kdk_root/System/Library/KernelSupport" ]; then
+            kdk_payload="$kdk_root"
+          elif [ -d "$kdk_root/Payload/System/Library/KernelSupport" ]; then
+            kdk_payload="$kdk_root/Payload"
+          else
+            echo "KernelSupport missing under $kdk_root" >&2
+            find "$kdk_root" -maxdepth 5 -type d -name KernelSupport -print >&2
+            exit 1
+          fi
+          echo "HOUJI_KDK=$kdk_payload" >> "$GITHUB_ENV"
+          echo "KDK ready: $kdk_payload"
 
       - name: Apply the original Houji patch and A750 overlay
         run: |
