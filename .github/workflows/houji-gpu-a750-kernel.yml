@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: houji-a750-kernel-r5-${{ github.ref }}
+  group: houji-a750-kernel-${{ github.run_id }}
   cancel-in-progress: false
 
 env:
@@ -232,22 +232,9 @@ jobs:
           mv dxb/patches dxb/blacktop-patches-unused
           mkdir dxb/patches
           grep -n -A2 -B2 'Kernel compile delegated' dxb/build.sh
-          bash dxb/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-deps.log"
-          # blacktop's dtrace invocation ends on ctfmerge; complete any host
-          # tools that xcodebuild did not install for the repeated-target call.
-          for target in ctfconvert ctfdump; do
-            if [ ! -x "$GITHUB_WORKSPACE/dxb/fakeroot/usr/local/bin/$target" ]; then
-              echo "Building missing CTF tool: $target"
-              (
-                cd dxb/dtrace
-                env LD="$(xcrun -find clang)" LDPLUSPLUS="$(xcrun -find clang++)" \
-                  xcodebuild install -sdk macosx -target "$target" ARCHS="arm64 x86_64" CODE_SIGN_IDENTITY="-" \
-                  OBJROOT="$GITHUB_WORKSPACE/dxb/build/dtrace-extra.obj" \
-                  SYMROOT="$GITHUB_WORKSPACE/dxb/build/dtrace-extra.sym" \
-                  DSTROOT="$GITHUB_WORKSPACE/dxb/fakeroot"
-              )
-            fi
-          done
+          # build.sh uses PWD as WORK_DIR; run it from dxb so its fakeroot is
+          # the same tree the compile step consumes.
+          (cd dxb && bash build.sh) 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-deps.log"
           ls -lh dxb/fakeroot/usr/local/bin/ctfconvert dxb/fakeroot/usr/local/bin/ctfdump dxb/fakeroot/usr/local/bin/ctfmerge
           test -x dxb/fakeroot/usr/local/bin/ctfconvert
           test -x dxb/fakeroot/usr/local/bin/ctfdump
