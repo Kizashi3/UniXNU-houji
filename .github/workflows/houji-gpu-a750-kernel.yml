@@ -165,6 +165,7 @@ jobs:
       - name: Prepare pinned A750 firmware headers
         run: |
           set -euo pipefail
+          exec > >(tee "$GITHUB_WORKSPACE/a750-firmware.log") 2>&1
           python3 - <<'PY'
           import hashlib
           import json
@@ -189,7 +190,10 @@ jobs:
             --sqe firmware/gen70900/gen70900_sqe.fw \
             --aqe firmware/gen70900/gen70900_aqe.fw \
             --output dxb/xnu/iokit/Kernel/houji-ufs-root
-          grep -q 'gen70900' dxb/xnu/iokit/Kernel/houji-ufs-root/HoujiGmuFirmwareImage.h
+          # Generated headers contain the pinned arrays, not their source filenames.
+          grep -q 'gHoujiGmuFirmwareImage\[78588\]' dxb/xnu/iokit/Kernel/houji-ufs-root/HoujiGmuFirmwareImage.h
+          grep -q 'gHoujiSqeFirmwareImage\[85300\]' dxb/xnu/iokit/Kernel/houji-ufs-root/HoujiCpFirmwareImages.h
+          grep -q 'gHoujiAqeFirmwareImage\[33176\]' dxb/xnu/iokit/Kernel/houji-ufs-root/HoujiCpFirmwareImages.h
 
       - name: Verify the Darwin 22 build inputs
         run: |
@@ -258,6 +262,7 @@ jobs:
           cp -a dxb/build/houji-kernel/xnu.obj/kernel.development.sweet out/ 2>/dev/null || true
           cp -a dxb/build/houji-kernel/fakeroot/System/Library/Kernels/kernel.development.sweet out/ 2>/dev/null || true
           cp -a a750-kernel-build.log a750-kernel-deps.log out/ 2>/dev/null || true
+          cp -a a750-firmware.log out/ 2>/dev/null || true
           cp -a kdk-install.log out/ 2>/dev/null || true
           if test -f out/kernel.development.sweet; then
             file out/kernel.development.sweet
