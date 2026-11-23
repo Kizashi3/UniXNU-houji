@@ -1,0 +1,185 @@
+diff --git a/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc b/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc
+index 5c4d42d..cc2e19f 100644
+--- a/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc
++++ b/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiGpuNativeLive.inc
+@@ -16,6 +16,11 @@ static bool houjiNativeGpuFsAllowed(void){
+  if(gHoujiCp.isolated)return true;
+  return __atomic_load_n(&gHoujiLive.coexist,__ATOMIC_ACQUIRE) || (gHoujiLive.fs_trial && gHoujiLive.ufs_proven);
+ }
++static bool houjiProbeRootWindowReadable(uint8_t *page) {
++ if(hostRead4k(0,kHoujiRootFirst,1,page)!=kIOReturnSuccess)return false;
++ if(gProbeOnly)return !memcmp(page+32,"NXSB",4);
++ return houjiHfsRootHeader(page,4096);
++}
+ static int houjiLiveCoexistPublish(const volatile uint32_t*words,size_t bytes){
+  auto&s=gHoujiSubmit;if(!gHoujiLive.fs_trial || !houjiApiInOperation() || houjiSubmitGuard() || s.published || s.pending ||
+   words!=houjiCpCpu() || bytes!=HHR_BYTES || s.iteration<81 || s.iteration>84)return 1;
+@@ -56,7 +61,7 @@ static int houjiLiveQualifyUfs(void){
+  l.ufs_proven=l.fs_trial=1;a.active=a.in_op=1;
+  IOLog("HOUJI LIVE DMA: UFS=%llx owned=%llu descriptor=%u; disjoint from all27 retained GPU/GMU BOs,3 new BOs and both actual roots; new bounded coexistence trial\n",l.dma_pa,l.dma_owned,kDmaBytes);
+  static uint8_t header[4096];
+- if(hostRead4k(0,kHoujiRootFirst,1,header)!=kIOReturnSuccess || !houjiHfsRootHeader(header,sizeof(header)))return l.code=2;
++ if(!houjiProbeRootWindowReadable(header))return l.code=2;
+  houji_ufs_checkpoint("live GPU idle plus independent UFS read and preallocated-log commit qualification",0);
+  l.phase=2;
+  for(unsigned i=0;i<3;i++){
+@@ -74,7 +79,7 @@ static int houjiLiveQualifyUfs(void){
+   if(a.client.dispatch(NativeAdrenoMethodSubmit,&request,sizeof(request),&reply,sizeof(reply),&a.clock) || reply.fence!=s.iteration)return l.code=5;s.seq=reply.fence;
+   houjiStockFullBarrier();l.before_fence=houjiCpCpu()[(HHR_SCRATCH+0x104-HHR_RING)/4];
+   if(frame&1){if(l.before_fence!=s.seq)++l.pending_write;houji_ufs_checkpoint("new bounded live-GPU/UFS concurrent fixed-log-write trial; all DMA buffers disjoint and retained",0);}
+-  else {if(l.before_fence!=s.seq)++l.pending_read;if(hostRead4k(0,kHoujiRootFirst,1,header)!=kIOReturnSuccess || !houjiHfsRootHeader(header,sizeof(header)))return l.code=6;}
++  else {if(l.before_fence!=s.seq)++l.pending_read;if(!houjiProbeRootWindowReadable(header))return l.code=6;}
+   houjiStockFullBarrier();l.after_fence=houjiCpCpu()[(HHR_SCRATCH+0x104-HHR_RING)/4];
+   NativeAdrenoAbiWaitFence wait={reply.fence,500000000};if(a.client.dispatch(NativeAdrenoMethodWaitFence,&wait,sizeof(wait),nullptr,0,&a.clock))return l.code=7;
+   s.observed=s.ring.completedFence();if(s.observed!=s.seq || houjiSubmitDrainPointers() || a.submit.outstanding() || houjiApiAuditTables())return l.code=8;
+diff --git a/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiRootPolicy.h b/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiRootPolicy.h
+index 7931385..8b2f4d5 100644
+--- a/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiRootPolicy.h
++++ b/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiRootPolicy.h
+@@ -1,14 +1,9 @@
+-#define HOUJI_ROOT_GIB 32
+ // SPDX-License-Identifier: BSD-2-Clause-Patent
+-static const uint32_t kHoujiRootFirst=2260480U;
+-// Existing qualified images keep 12 GiB. A newly built, separately verified
+-// volume may opt into 32 GiB; this never broadens the physical partition.
+-#ifndef HOUJI_ROOT_GIB
+-#define HOUJI_ROOT_GIB 12
+-#endif
+-static_assert(HOUJI_ROOT_GIB==12 || HOUJI_ROOT_GIB==32,"Unqualified root geometry");
+-static const uint32_t kHoujiRootBlocks=HOUJI_ROOT_GIB*262144U;
+-static const uint64_t kHoujiRootBytes=uint64_t(HOUJI_ROOT_GIB)*1073741824ULL;
++// The connected houji unit keeps its iOS root in the SHNGROOT OS window.
++// This probe-only build reads that window without registering or mounting it.
++static const uint32_t kHoujiRootFirst=2260736U;
++static const uint32_t kHoujiRootBlocks=2570230U;
++static const uint64_t kHoujiRootBytes=10527662080ULL;
+ static bool houjiUfsRootCommandAllowed(const uint8_t *u,unsigned n,unsigned dir,uint32_t bytes,bool enabled,bool armed) {
+   if(!enabled || !u || n!=32 || u[0]!=1 || u[2] || u[3])return false;
+   for(unsigned i=4;i<12;i++)if(u[i])return false;
+diff --git a/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp b/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+index 39989f2..9ea6337 100644
+--- a/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
++++ b/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
+@@ -145,7 +145,7 @@ struct UfsHost {
+   uintptr_t smmu = 0, cb = 0;
+ };
+ UfsHost gHost = { OSSharedPtr<IOMemoryMap> (), OSSharedPtr<IOMemoryMap> (), 0, nullptr, nullptr, 0, nullptr, false };
+-static bool gLogEnabled, gLogArmed, gRootEnabled, gRootArmed, gReturnRecovery, gRecoveryArmed;
++static bool gLogEnabled, gLogArmed, gRootEnabled, gRootArmed, gReturnRecovery, gRecoveryArmed, gProbeOnly;
+ static bool gGptVerified, gFlagsInitialized;
+ static uint32_t gLogExpectedCrc;
+ 
+@@ -343,12 +343,18 @@ static unsigned copyKernelMessages(char *dst,unsigned capacity) {
+   return done;
+ }
+ 
++// The connected unit's existing diagnostics reserve the last 32 MiB of
++// userdata. Keep the probe off the iOS root and write a portable HOUJILOG
++// snapshot there instead of touching the HFSX logfs allocation.
++// Absolute 4 KiB LBA: SHNGROOT userdataFirst 2260480 plus the 61,780,475
++// relative blocks reported by the existing watch harness.
++static const uint32_t kHoujiSafeLogLba=64040955U;
+ static IOReturn writeLogBlock(unsigned index,const uint8_t *data) {
+   if(!gLogArmed || !gHost.ready || gHost.poisoned || index>=16 || !data) return kIOReturnNotPermitted;
+   IOLockLock(gHost.lock);
+   if(!hostClearUcd()) {IOLockUnlock(gHost.lock);return kIOReturnNotReady;}
+   memcpy(gHost.virt+kDataOffset,data,4096);
+-  uint32_t lba=kHoujiLogLbas[index],scsi=0;
++  uint32_t lba=kHoujiSafeLogLba+index,scsi=0;
+   uint8_t cdb[10]={0x2a,0,uint8_t(lba>>24),uint8_t(lba>>16),uint8_t(lba>>8),uint8_t(lba),0,0,1,0};
+   IOReturn r=hostScsiDir(0,cdb,10,1,4096,1000000,&scsi);
+   IOLockUnlock(gHost.lock);
+@@ -370,6 +376,33 @@ extern "C" unsigned houji_network_stack_snapshot(char *,unsigned);
+ extern "C" unsigned houji_cpu_dvfs_snapshot(char *,unsigned);
+ extern "C" unsigned houji_adsp_snapshot(char *,unsigned);
+ static const char *saveNativeLog(void) {
++  static uint8_t image[65536];
++  static uint32_t sequence;
++  bzero(image,sizeof(image));
++  memcpy(image,"HOUJILOG",8);
++  houjiStore32(image+8,1);
++  houjiStore32(image+12,sizeof(image)-32);
++  unsigned used=0;
++  unsigned n=gNativeTextBytes;
++  if(n>sizeof(image)-32)n=sizeof(image)-32;
++  memcpy(image+32,gNativeText,n);
++  used+=n;
++  used+=copyKernelMessages(reinterpret_cast<char *>(image+32+used),sizeof(image)-32-used);
++  houjiStore32(image+16,used);
++  houjiStore32(image+20,++sequence);
++  for(unsigned i=0;i<8;i++)image[24+i]=uint8_t(uint64_t(used)>>(i*8));
++  gLogArmed=true;
++  for(unsigned i=0;i<16;i++) {
++    IOReturn r=writeLogBlock(i,image+i*4096);
++    if(r!=kIOReturnSuccess) {gLogArmed=false;return "portable log write";}
++  }
++  IOReturn flushed=flushLog();
++  gLogArmed=false;
++  if(flushed!=kIOReturnSuccess)return "portable log flush";
++  IOLog("HOUJI PORTABLE LOG: lba=%u blocks=16 bytes=%u seq=%u; safe userdata log window, root untouched\n",
++        kHoujiSafeLogLba,used,sequence);
++  return nullptr;
++#if 0
+   static uint8_t metadata[7*4096],image[65536];
+   constexpr unsigned gpuCapacity=20480,displayCapacity=4096,sampleCapacity=12800;
+   constexpr unsigned networkCapacity=512,cpuCapacity=1024,batteryCapacity=2048,panelCapacity=4096;
+@@ -415,6 +448,8 @@ static const char *saveNativeLog(void) {
+   gLogExpectedCrc=houjiCrc32(image,sizeof(image));
+   IOLog("HOUJI XNU LOG: COMMIT/FLUSH/READBACK PASS bytes=%u crc=%08x\n",used,houjiLe32(image+36));
+   return nullptr;
++#endif
++  return "portable log unreachable";
+ }
+ static const char *setRecoveryBoot(void);
+ static void logTrialReset(void) {
+@@ -444,6 +479,7 @@ static void initializeNativeFlags(void) {
+   int v=0;PE_parse_boot_argn("houji_ufs_log",&v,sizeof(v));gLogEnabled=v==1;
+   v=0;PE_parse_boot_argn("houji_native_root",&v,sizeof(v));gRootEnabled=v==1;
+   v=0;PE_parse_boot_argn("houji_return_recovery",&v,sizeof(v));gReturnRecovery=v==1;
++  v=0;PE_parse_boot_argn("houji_gpu_probe_only",&v,sizeof(v));gProbeOnly=v==1;
+ }
+ static void ensureNative(void) {
+   initializeNativeFlags();
+@@ -600,17 +636,22 @@ extern "C" void houji_ufs_root_attach(void) {
+   initializeNativeFlags();if(!gRootEnabled)return;
+   static bool attached;if(attached)return;
+   ensureNative();nativeStage("native root HFSX identity read");
+-  static uint8_t page[4096];
+-  if(hostRead4k(0,kHoujiRootFirst,1,page)!=kIOReturnSuccess || !houjiHfsRootHeader(page,sizeof(page)))
+-    rootDiagnosticFailure("root HFSX geometry/volume ID does not match installed image");
+-  gRootWindowLock=IOLockAlloc();gRootBounce=static_cast<uint8_t *>(IOMalloc(131072));
+-  if(!gRootWindowLock || !gRootBounce)rootDiagnosticFailure("root buffer allocation");
+-  static const struct mdev_ops ops={nativeRootTransfer,nativeRootSynchronize};
+-  dev_t device=mdevadd_ops(0,kHoujiRootBytes,&ops,nullptr);
+-  if(device==(dev_t)-1)rootDiagnosticFailure("native block registration");
+-  gRootArmed=true;attached=true;
+-  IOLog("HOUJI ROOT: md0 is native UFS LUN0 [%u,%u), bytes=%llu; no RAM root backing\n",
+-        kHoujiRootFirst,kHoujiRootFirst+kHoujiRootBlocks,kHoujiRootBytes);
++  if(!gProbeOnly) {
++    static uint8_t page[4096];
++    if(hostRead4k(0,kHoujiRootFirst,1,page)!=kIOReturnSuccess || !houjiHfsRootHeader(page,sizeof(page)))
++      rootDiagnosticFailure("root HFSX geometry/volume ID does not match installed image");
++    gRootWindowLock=IOLockAlloc();gRootBounce=static_cast<uint8_t *>(IOMalloc(131072));
++    if(!gRootWindowLock || !gRootBounce)rootDiagnosticFailure("root buffer allocation");
++    static const struct mdev_ops ops={nativeRootTransfer,nativeRootSynchronize};
++    dev_t device=mdevadd_ops(0,kHoujiRootBytes,&ops,nullptr);
++    if(device==(dev_t)-1)rootDiagnosticFailure("native block registration");
++    gRootArmed=true;
++    IOLog("HOUJI ROOT: md0 is native UFS LUN0 [%u,%u), bytes=%llu; no RAM root backing\n",
++          kHoujiRootFirst,kHoujiRootFirst+kHoujiRootBlocks,kHoujiRootBytes);
++  } else {
++    IOLog("HOUJI PROBE ONLY: GPU diagnostics against existing OS/Data windows; no md registration or root mount\n");
++  }
++  attached=true;
+   if (!houji_smp_preflight()) {
+     houji_ufs_checkpoint("SMP preflight failed; HFS not mounted",0);
+     rootDiagnosticFailure("SMP worker/timer/SGI verification");
+@@ -681,7 +722,7 @@ extern "C" void houji_ufs_root_attach(void) {
+   }
+   houjiGpuStockFirmwareProbeOnce(); // enabled attempt always terminates via retained no-FS PSCI
+   houjiTouchStart();
+-  houji_ufs_checkpoint("native HFSX block backend registered",3);
++  if(!gProbeOnly)houji_ufs_checkpoint("native HFSX block backend registered",3);
+ }
+ 
+ #endif

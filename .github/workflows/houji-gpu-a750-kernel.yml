@@ -9,6 +9,7 @@ on:
     branches: [codex/gpu-a750-r5]
     paths:
       - .github/workflows/houji-gpu-a750-kernel.yml
+      - patches/a750-probe-apfs.patch
 
 permissions:
   contents: write
@@ -20,10 +21,8 @@ concurrency:
 env:
   DXB_REPO: https://github.com/blacktop/darwin-xnu-build
   DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
-  PORT_REPO: https://github.com/Kizashi3/UniXNU-houji
-  # Probe-only A750 source: APFS OS-window read, portable log window, no
-  # block-device registration or HFSX root dependency in this trial.
-  PORT_SHA: 54c51d0a0513f51bf5687254202fa933f5ee6776
+  PORT_REPO: https://github.com/lonzzi/UniXNU-houji
+  PORT_SHA: 99beb109d66d24d3a1780901cb8958ec3fb24b06
   XNU_REPO: https://github.com/apple-oss-distributions/xnu
   # This is the peeled xnu-8796.141.3 commit, the exact revision pinned by
   # lonzzi/UniXNU-houji. Adreno740 is the historical source directory name;
@@ -52,6 +51,13 @@ jobs:
           ref: ${{ env.PORT_SHA }}
           path: port
           persist-credentials: false
+
+      - name: Apply the APFS-safe A750 probe patch
+        run: |
+          set -euo pipefail
+          git -C port apply --check "$GITHUB_WORKSPACE/patches/a750-probe-apfs.patch"
+          git -C port apply "$GITHUB_WORKSPACE/patches/a750-probe-apfs.patch"
+          grep -q houji_gpu_probe_only port/kernel/overlay/iokit/Kernel/houji-ufs-root/HoujiUfsRead.cpp
 
       - name: Check out XNU build helper
         run: |
