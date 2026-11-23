@@ -35,10 +35,10 @@ env:
 
 jobs:
   kernel:
-    # macos-15 and macos-26 jobs sat unclaimed for GitHub's 15-minute
-    # acquisition limit; r1 did acquire a macos-14 runner. That image also
-    # carries Xcode 15, which matches the xnu-8796/KDK 13.5 input set.
-    runs-on: macos-14
+    # macos-14 is no longer acquired for this public repository; macos-15
+    # timed out in acquisition. macos-26 has repeatedly completed the other
+    # Houji kernel workflow, so use it with the explicitly installed KDK.
+    runs-on: macos-26
     timeout-minutes: 300
     steps:
       - name: Check out device repository
