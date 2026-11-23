@@ -217,13 +217,6 @@ jobs:
 
           path = Path("dxb/build.sh")
           text = path.read_text()
-          needle = "    patches\n    venv\n"
-          assert text.count(needle) == 1
-          text = text.replace(
-              needle,
-              "    info \"Skipping blacktop generic XNU patches; Houji patch is already applied\"\n    venv\n",
-              1,
-          )
           needle = "        build_xnu\n"
           assert text.count(needle) == 1
           text = text.replace(
@@ -233,7 +226,12 @@ jobs:
           )
           path.write_text(text)
           PY
-          grep -n -A5 -B3 'Skipping blacktop generic' dxb/build.sh
+          # Keep blacktop's sed path fixes, but make its generic XNU patch
+          # directory empty so the pinned Houji tree is not contaminated.
+          test -d dxb/patches
+          mv dxb/patches dxb/blacktop-patches-unused
+          mkdir dxb/patches
+          grep -n -A2 -B2 'Kernel compile delegated' dxb/build.sh
           bash dxb/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-deps.log"
 
       - name: Compile the pinned A750 kernel
