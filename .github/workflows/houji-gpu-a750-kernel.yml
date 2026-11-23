@@ -6,7 +6,7 @@ name: houji A750 GPU kernel
 on:
   workflow_dispatch:
   push:
-    branches: [codex/gpu-a750-r4]
+    branches: [codex/gpu-a750-r4b]
     paths:
       - .github/workflows/houji-gpu-a750-kernel.yml
 
@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: houji-a750-kernel-r4-${{ github.ref }}
+  group: houji-a750-kernel-r4b-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -34,11 +34,10 @@ env:
 
 jobs:
   kernel:
-    # macos-15 jobs sat unclaimed for GitHub's 15-minute acquisition limit.
-    # The other Houji kernel workflow has repeatedly run on macos-26; the KDK
-    # and all kernel tools are installed explicitly below, so the host image's
-    # bundled Xcode is not relied on for SDK 13.5.
-    runs-on: macos-26
+    # macos-15 and macos-26 jobs sat unclaimed for GitHub's 15-minute
+    # acquisition limit; r1 did acquire a macos-14 runner. That image also
+    # carries Xcode 15, which matches the xnu-8796/KDK 13.5 input set.
+    runs-on: macos-14
     timeout-minutes: 300
     steps:
       - name: Check out device repository
