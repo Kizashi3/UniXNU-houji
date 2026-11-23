@@ -38,10 +38,14 @@ env:
 
 jobs:
   kernel:
-    # macos-14 is no longer acquired for this public repository; macos-15
-    # timed out in acquisition. macos-26 has repeatedly completed the other
-    # Houji kernel workflow, so use it with the explicitly installed KDK.
-    runs-on: macos-26
+    # Queue both current macOS images: GitHub occasionally holds one label
+    # for 15 minutes without assigning a runner. Per-runner artifact and
+    # release names keep the two lanes from overwriting each other.
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-26, macos-15]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 300
     steps:
       - name: Check out device repository
@@ -255,6 +259,7 @@ jobs:
             echo "run_number=$GITHUB_RUN_NUMBER"
             echo "branch=$GITHUB_REF_NAME"
             echo "sha=$GITHUB_SHA"
+            echo "runner=${{ matrix.runner }}"
             echo "port_repo=$PORT_REPO"
             echo "port_sha=$PORT_SHA"
             echo "kernel_present=$(test -f dxb/build/houji-kernel/xnu.obj/kernel.development.sweet && echo yes || echo no)"
@@ -277,7 +282,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: houji-a750-kernel-r${{ github.run_number }}
+          name: houji-a750-kernel-r${{ github.run_number }}-${{ matrix.runner }}
           path: out/
           if-no-files-found: warn
           retention-days: 14
@@ -286,13 +291,14 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          MATRIX_RUNNER: ${{ matrix.runner }}
         run: |
           set -euo pipefail
-          tag="a750-kernel-r${GITHUB_RUN_NUMBER}"
+          tag="a750-kernel-r${GITHUB_RUN_NUMBER}-${MATRIX_RUNNER}"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release delete "$tag" --yes
           fi
-          gh release create "$tag" --title "$tag" --notes "A750 gen70900 GPU Darwin 22 kernel build for $GITHUB_SHA"
+          gh release create "$tag" --title "$tag" --notes "A750 gen70900 GPU Darwin 22 kernel build for $GITHUB_SHA on ${MATRIX_RUNNER}"
           for f in out/*; do
             gh release upload "$tag" "$f" --clobber || true
           done
