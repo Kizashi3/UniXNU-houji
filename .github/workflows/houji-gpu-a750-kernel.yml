@@ -233,6 +233,25 @@ jobs:
           mkdir dxb/patches
           grep -n -A2 -B2 'Kernel compile delegated' dxb/build.sh
           bash dxb/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-deps.log"
+          # blacktop's dtrace invocation ends on ctfmerge; complete any host
+          # tools that xcodebuild did not install for the repeated-target call.
+          for target in ctfconvert ctfdump; do
+            if [ ! -x "$GITHUB_WORKSPACE/dxb/fakeroot/usr/local/bin/$target" ]; then
+              echo "Building missing CTF tool: $target"
+              (
+                cd dxb/dtrace
+                env LD="$(xcrun -find clang)" LDPLUSPLUS="$(xcrun -find clang++)" \
+                  xcodebuild install -sdk macosx -target "$target" ARCHS="arm64 x86_64" CODE_SIGN_IDENTITY="-" \
+                  OBJROOT="$GITHUB_WORKSPACE/dxb/build/dtrace-extra.obj" \
+                  SYMROOT="$GITHUB_WORKSPACE/dxb/build/dtrace-extra.sym" \
+                  DSTROOT="$GITHUB_WORKSPACE/dxb/fakeroot"
+              )
+            fi
+          done
+          ls -lh dxb/fakeroot/usr/local/bin/ctfconvert dxb/fakeroot/usr/local/bin/ctfdump dxb/fakeroot/usr/local/bin/ctfmerge
+          test -x dxb/fakeroot/usr/local/bin/ctfconvert
+          test -x dxb/fakeroot/usr/local/bin/ctfdump
+          test -x dxb/fakeroot/usr/local/bin/ctfmerge
 
       - name: Compile the pinned A750 kernel
         env:
@@ -242,10 +261,16 @@ jobs:
           HOUJI_JOBS: "8"
         run: |
           set -euo pipefail
+          exec > >(tee "$GITHUB_WORKSPACE/a750-kernel-build.log") 2>&1
+          echo "HOUJI_KDK=$HOUJI_KDK"
+          echo "HOUJI_FAKEROOT=$HOUJI_FAKEROOT"
           test -d "$HOUJI_KDK/System/Library/KernelSupport"
+          ls -lh "$HOUJI_FAKEROOT/usr/local/bin/ctfconvert" "$HOUJI_FAKEROOT/usr/local/bin/ctfdump" "$HOUJI_FAKEROOT/usr/local/bin/ctfmerge"
           test -x "$HOUJI_FAKEROOT/usr/local/bin/ctfconvert"
+          test -x "$HOUJI_FAKEROOT/usr/local/bin/ctfdump"
+          test -x "$HOUJI_FAKEROOT/usr/local/bin/ctfmerge"
           test -x port/tools/iig-darwin22.py
-          bash port/tools/build-kernel.sh 2>&1 | tee "$GITHUB_WORKSPACE/a750-kernel-build.log"
+          bash port/tools/build-kernel.sh
 
       - name: Collect kernel and reports
         if: always()
