@@ -1,0 +1,54 @@
+Selected kernel events from houji-wake-touch-fast-v2
+XNU uptime in seconds; key masks 1=power, 2=volume up, 4=volume down
+
+[   39.536937]: HOUJI-FB: touch v46: thread enter
+[   40.742899]: HOUJI-FB: touch v46: hid start rc=0
+[   40.844981]: HOUJI-FB: touch v46: probe starting
+[   95.558499]: HOUJI-FB: touch v46: TOUCH1 len=36 active=2
+[  302.173414]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  302.258505]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  302.811213]: HOUJI-PMICBTN: old=0 new=2 HID-return=0
+[  302.960182]: HOUJI-PMICBTN: old=2 new=0 HID-return=0
+[  303.225493]: HOUJI-PMICBTN: old=0 new=2 HID-return=0
+[  303.289389]: HOUJI-PMICBTN: old=2 new=0 HID-return=0
+[  303.417121]: HOUJI-PMICBTN: old=0 new=2 HID-return=0
+[  303.523510]: HOUJI-PMICBTN: old=2 new=0 HID-return=0
+[  303.799201]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  304.571585]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  304.826261]: HOUJI-PMICBTN: old=0 new=2 HID-return=0
+[  305.494013]: HOUJI-PMICBTN: old=2 new=0 HID-return=0
+[  305.684132]: HOUJI-PMICBTN: old=0 new=1 HID-return=0
+[  305.811798]: HOUJI-PMICBTN: old=1 new=0 HID-return=0
+[  306.062698]: HOUJI-PANEL: applied on=0 DCS=28 result=1
+[  306.460871]: HOUJI-PMICBTN: old=0 new=1 HID-return=0
+[  306.588206]: HOUJI-PMICBTN: old=1 new=0 HID-return=0
+[  306.721797]: HOUJI-PANEL: applied on=1 DCS=29 result=1
+[  313.488262]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  313.573592]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  313.999841]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  314.074580]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  314.308265]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  314.372386]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  314.500496]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  314.564479]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  315.299657]: HOUJI-PMICBTN: old=0 new=2 HID-return=0
+[  316.095099]: HOUJI-PMICBTN: old=2 new=0 HID-return=0
+[  316.327945]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  317.273559]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  317.486430]: HOUJI-PMICBTN: old=0 new=2 HID-return=0
+[  318.390755]: HOUJI-PMICBTN: old=2 new=0 HID-return=0
+[  318.707526]: HOUJI-PMICBTN: old=0 new=4 HID-return=0
+[  319.165324]: HOUJI-PMICBTN: old=4 new=0 HID-return=0
+[  319.357285]: HOUJI-PMICBTN: old=0 new=1 HID-return=0
+[  319.442583]: HOUJI-PMICBTN: old=1 new=0 HID-return=0
+[  319.737820]: HOUJI-PANEL: applied on=0 DCS=28 result=1
+[  320.277723]: HOUJI-PMICBTN: old=0 new=1 HID-return=0
+[  320.405632]: HOUJI-PMICBTN: old=1 new=0 HID-return=0
+[  320.504183]: HOUJI-PANEL: applied on=1 DCS=29 result=1
+[  322.994910]: HOUJI-PMICBTN: old=0 new=1 HID-return=0
+[  323.088625]: HOUJI-PMICBTN: old=1 new=0 HID-return=0
+[  323.351687]: HOUJI-PANEL: applied on=0 DCS=28 result=1
+[  323.660559]: HOUJI-PMICBTN: old=0 new=1 HID-return=0
+[  323.767199]: HOUJI-PMICBTN: old=1 new=0 HID-return=0
+[  324.099919]: HOUJI-PANEL: applied on=1 DCS=29 result=1
+[  341.371034]: HOUJI-BOOTEXIT: timeout
