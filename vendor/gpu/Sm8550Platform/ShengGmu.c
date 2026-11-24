@@ -110,6 +110,25 @@ ShengGmuStatus ShengGmuLoadAndStartHfi(ShengGmuDevice *d,const ShengGmuConfig *c
     status=check_faults(d,r);if(status!=ShengGmuSuccess)return status;
     r->phase=2;
     d->boot_attempted=1;
+    /*
+     * a6xx_rpmh_start: the RSC sequence memory writes below only take effect
+     * once the GPU RSC is awake. Linux raises CONTROL_REQ bit 1, waits for
+     * the matching ACK and for RSCC_SEQ_BUSY to clear, then drops the request.
+     */
+    if(core_write(d,REG_GMU_RSCC_CONTROL_REQ,2,r) || d->io.barrier(d->io.cookie)) {
+        status=ShengGmuIoError;goto failed;
+    }
+    status=poll(d,REG_GMU_RSCC_CONTROL_ACK,2,2,c->poll_budget,&value,r);
+    if(status!=ShengGmuSuccess)goto failed;
+    for(unsigned i=0;i<c->poll_budget;++i) {
+        if(read32(d,ShengGmuRscc,REG_RSCC_SEQ_BUSY_DRV0*4,&value,r)) {status=ShengGmuIoError;goto failed;}
+        if(!value)break;
+        if(i+1==c->poll_budget) {status=ShengGmuTimeout;goto failed;}
+        if(d->services.wait_us(d->services.cookie,100)) {status=ShengGmuClockError;goto failed;}
+    }
+    if(core_write(d,REG_GMU_RSCC_CONTROL_REQ,0,r) || d->io.barrier(d->io.cookie)) {
+        status=ShengGmuIoError;goto failed;
+    }
     for(unsigned i=0;i<SHENG_GMU_RSC_SETUP_COUNT;++i) {
         const ShengGmuSetupWrite *w=sheng_gmu_rsc_setup+i;
         if(write32(d,w->window,w->byte_offset,w->value,r)) {status=ShengGmuIoError;goto failed;}
