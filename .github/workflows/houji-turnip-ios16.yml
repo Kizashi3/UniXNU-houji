@@ -1,0 +1,26 @@
+name: Houji iOS 16 Turnip
+on:
+  push:
+    branches: [codex/gpu-turnip-ios16]
+    paths:
+      - .github/workflows/houji-turnip-ios16.yml
+      - scripts/experiments/turnip-ios16/**
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  userland:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build Turnip and the Vulkan test
+        run: bash scripts/experiments/turnip-ios16/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: houji-turnip-ios16-abi2
+          path: out/houji-turnip-ios16/
+          if-no-files-found: error
