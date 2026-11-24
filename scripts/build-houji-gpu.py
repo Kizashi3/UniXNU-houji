@@ -18,7 +18,7 @@ Compiled with the kernel's own compile records: Sm8550Platform (ShengGmu.c, Shen
 bring-up uses. Adreno740 is copied to build/nx769j-gpu/adreno740 first and patches/drivers/Adreno740/*.patch applied there,
 so the catalog checkout stays unchanged.
 
-Output: build/nx769j-gpu/libNX769JGpu.a, linked by CONFIG_XNU_EXTRA_LD_ARCHIVES.
+Output: build/houji-gpu/libHoujiGpu.a, linked by CONFIG_XNU_EXTRA_LD_ARCHIVES.
 """
 import ast
 import hashlib
@@ -325,7 +325,7 @@ def main():
         objects.append(destination)
     if failures:
         raise SystemExit('\n'.join(failures))
-    archive = OUT / 'libNX769JGpu.a'
+    archive = OUT / 'libHoujiGpu.a'
     archive.unlink(missing_ok=True)
     subprocess.run(['xcrun', 'ar', 'rcs', archive, *objects], check=True)
     (OUT / 'gpu-build.json').write_text(json.dumps({

@@ -53,15 +53,11 @@ if "build-houji-hid.py" not in text:
         board.write_text(text)
         print("board.toml: HoujiHID archive added")
 
-conf = DEVICE / "configs" / "houji_defconfig"
-text = conf.read_text()
-if "CONFIG_XNU_EXTRA_LD_ARCHIVES" in text:
-    text = re.sub(r"CONFIG_XNU_EXTRA_LD_ARCHIVES=.*", 'CONFIG_XNU_EXTRA_LD_ARCHIVES=""', text)
-    conf.write_text(text)
-    print("defconfig: extra archives cleared")
-
 anchor = '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES ${XNU_EXTRA_LD_ARCHIVES:-}"\n'
 insert = anchor + (
+    '  if [ -n "${XNU_EXTRA_LD_ARCHIVES:-}" ]; then\n'
+    '    KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-gpu/libHoujiGpu.a"\n'
+    '  fi\n'
     '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n'
     '  KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $ROOT/build/houji-framebuffer/libHoujiFramebuffer.a"\n'
     '  KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$ROOT/build/houji-hid/libHoujiHID.a"\n'
@@ -71,8 +67,8 @@ for script in (DEVICE.parent / "unixnu" / "scripts" / "build-xnu-4k-baseline.sh"
     if not script.is_file():
         continue
     t = script.read_text()
-    if "libHoujiFramebuffer.a" in t and "libHoujiHID.a" in t:
-        print(script, ": framebuffer archive already linked")
+    if "libHoujiFramebuffer.a" in t and "libHoujiHID.a" in t and "libHoujiGpu.a" in t:
+        print(script, ": framebuffer and GPU archives already linked")
         continue
     if anchor not in t:
         raise SystemExit("archive anchor missing in %s" % script)

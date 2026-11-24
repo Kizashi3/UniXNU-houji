@@ -783,7 +783,7 @@ index 8bba078..ffcbe53 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7183,6 +7781,21 @@ load_init_program(proc_t p)
+@@ -7183,6 +7781,23 @@ load_init_program(proc_t p)
  	}
  #endif
  
@@ -798,8 +798,10 @@ index 8bba078..ffcbe53 100644
 +		}
 +	}
 +	{
-+		extern void nx769j_gpu_start(void);
-+		nx769j_gpu_start();
++		extern void nx769j_gpu_start(void) __attribute__((weak));
++		if (nx769j_gpu_start != 0) {
++			nx769j_gpu_start();
++		}
 +	}
 +
  	error = ENOENT;
