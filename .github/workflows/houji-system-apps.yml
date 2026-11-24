@@ -1,0 +1,32 @@
+name: Build houji system apps registrar
+on:
+  push:
+    branches: [codex/system-apps-restore]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and verify the registrar
+        run: python3 tools/build-system-apps.py --output out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: houji-system-apps
+          path: out
+      - name: Save the open-source registrar build for the device test
+        run: |
+          set -e
+          stage=$(mktemp -d)
+          git init -q "$stage"
+          git -C "$stage" checkout -qb "ci-system-apps-$GITHUB_RUN_NUMBER"
+          git -C "$stage" config user.name houji-ci
+          git -C "$stage" config user.email houji-ci@users.noreply.github.com
+          cp out/houji-system-apps out/build-result.json "$stage/"
+          git -C "$stage" add .
+          git -C "$stage" commit -qm "build: system-app registrar for $GITHUB_SHA"
+          git -C "$stage" push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
