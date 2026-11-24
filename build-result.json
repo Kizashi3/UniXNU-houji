@@ -1,0 +1,13 @@
+{
+  "status": "BUILT_NOT_RUNTIME_VERIFIED",
+  "source_inputs": {
+    "userland/apps/HoujiSystemApps.m": "cebb37763ac6d89e2e4daacd5a916e89ba2497aa2a61c436623b01854893b2de",
+    "userland/apps/entitlements.plist": "83ec757b3665e72fa02995f03482641eb7cd821800868ab68999dd574603b4c0",
+    "userland/apps/moe.houji.system-apps.plist": "4866da6b4264351fb1bc4e48bac740f947eea57848b159264f73caf3e5a0563e",
+    "userland/apps/system-apps.json": "4d7a3a696f0ecc7f5ccd1a0e2f6199a2c3b63ae862119261bf789e96332c6376"
+  },
+  "manifest": "4c1429df51fe67921be33be26f8c9a4b7068021416cf0fcb17e2c34db15b9692",
+  "binary_sha256": "be759e94a032d05d1efac902e93d92e3aa2fc4d2e9c4617b353eed8a7e76a396",
+  "expected_system_apps": 32,
+  "phone_accessed": false
+}
