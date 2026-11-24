@@ -3,7 +3,7 @@ name: houji 2 GiB Data seed
 on:
   workflow_dispatch:
   push:
-    branches: [kernel-cs-bypass, gpu-vktest-launchd]
+    branches: [kernel-cs-bypass, gpu-vktest-launchd-v108]
     paths:
       - ".github/workflows/data-seed-2g.yml"
       - "scripts/make-data-seed.py"
