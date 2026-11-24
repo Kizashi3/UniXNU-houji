@@ -8,6 +8,10 @@ on:
       - codex/battery-r721
       - codex/gpu-a750-v108
       - gpu-vktest-launchd-v108
+    paths-ignore:
+      - ".github/workflows/data-seed-2g.yml"
+      - "scripts/make-data-seed.py"
+      - "scripts/seed-skip-setup.py"
   workflow_dispatch:
     inputs:
       xcode:

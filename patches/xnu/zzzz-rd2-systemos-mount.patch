@@ -10,7 +10,7 @@ index 8bba078..ffcbe53 100644
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,772 @@ static const char * init_programs[] = {
+@@ -7138,6 +7139,788 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -799,7 +799,7 @@ index 8bba078..ffcbe53 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7183,6 +7781,23 @@ load_init_program(proc_t p)
+@@ -7183,6 +7966,23 @@ load_init_program(proc_t p)
  	}
  #endif
  
