@@ -47,12 +47,11 @@ jobs:
           gzip -dc "$SEED_DIR/owner-data-2048-skip.cdr.gz" > "$SEED_DIR/base.cdr"
           gh run download 45382653468 --repo "$GITHUB_REPOSITORY" \
             --name houji-turnip-ios16-abi2 --dir "$TURNIP_DIR"
-          unzip -q "$TURNIP_DIR/houji-turnip-ios16-abi2.zip" -d "$TURNIP_DIR/artifact"
-          (cd "$TURNIP_DIR/artifact" && shasum -a 256 -c SHA256SUMS)
+          (cd "$TURNIP_DIR" && shasum -a 256 -c SHA256SUMS)
 
           sudo python3 scripts/seed-skip-setup.py "$SEED_DIR/base.cdr" \
             "$SEED_DIR/owner-data-2048-gpu-probe.cdr" --preserve-services \
-            --gpu-probe-dir "$TURNIP_DIR/artifact" \
+            --gpu-probe-dir "$TURNIP_DIR" \
             --launchdaemons-dir "$MNT/System/Library/LaunchDaemons"
           hdiutil detach "$MNT" || true
           sudo gzip -f -1 "$SEED_DIR/owner-data-2048-gpu-probe.cdr"
@@ -67,7 +66,7 @@ jobs:
           TAG="data-seed-2g-gpu-probe-${{ github.run_number }}"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" \
             --notes "2 GiB desktop Data seed with verified Turnip vktest and launchd bind overlay" || true
-          for f in "$RUNNER_TEMP/gpu-seed/"*.gz; do
+          for f in "$RUNNER_TEMP/gpu-seed/owner-data-2048-gpu-probe.cdr.gz"; do
             gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber || true
           done
           gh release upload "$TAG" /tmp/seed.log --repo "$GITHUB_REPOSITORY" --clobber || true
