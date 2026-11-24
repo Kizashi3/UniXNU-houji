@@ -1,0 +1,63 @@
+{
+  "linux": {
+    "tag": "v6.16",
+    "repository": "https://github.com/torvalds/linux",
+    "files": {
+      "arch/arm64/boot/dts/qcom/sm8650.dtsi": "0b9b0e774da8adcebd2eff2e9123cdcda54af5814b625861cc8a3ecaf0bb1129",
+      "drivers/clk/qcom/gpucc-sm8650.c": "b08569196d777cb46aff53b1f06626235e472c86f613482604cd0f74295e18d7",
+      "drivers/gpu/drm/msm/adreno/a6xx_catalog.c": "65a9f819bad1a0d03f4f5b9578a540b450c4a6c9f4ff4fa3444551614173470f",
+      "drivers/gpu/drm/msm/adreno/a6xx_gmu.c": "8aba196dc058c18c5bb09c539a1bd38e273bcb0fc1bd1cc8f943a5032b00fe94",
+      "drivers/gpu/drm/msm/adreno/a6xx_gmu.h": "2b1b7a7ad3ba232fd745e004eb4aba50983a68de5f19075a531b7829c5e0d219",
+      "drivers/gpu/drm/msm/adreno/a6xx_gpu.c": "4cafad8bb641d3c5219fe608c9cbae3b713dcd2cd23af8d9566ef2256362645a",
+      "drivers/gpu/drm/msm/adreno/a6xx_gpu.h": "816bc77671471c31b6c31ca5aa565d9dfb9c3cd04613ce3ec0f225f942a258a1",
+      "drivers/gpu/drm/msm/adreno/a6xx_hfi.c": "b5d587932e5efe1107f6cf67ebd5bb02d3b664ad7d61aaeed2dfaf5c5f8ca084",
+      "drivers/gpu/drm/msm/registers/adreno/a6xx.xml": "a66c1d2f7caff2020c8bd4315a36f16f62919b0370d9fe4815cef831b20449af",
+      "drivers/gpu/drm/msm/registers/adreno/a6xx_gmu.xml": "d35bf130e73e5dde576a272105a2024b96c89303191584d3b2b8b5550b96b305",
+      "include/dt-bindings/power/qcom-rpmpd.h": "3a4fccc53220096b1eb9a294f289be76c03179a0b9e5fe34da0f356ea9e1cec1"
+    }
+  },
+  "firmware": {
+    "package": "红魔9Pro_9008线刷救砖包_11.0.3 (NX769J stock 11.0.3), images/super.img",
+    "files": {
+      "gmu_gen70900.bin": {
+        "bytes": 78588,
+        "sha256": "9685f62c42543befcaee68d25355e16bf55cdb0d573bddcc9f6633f59eec3f72",
+        "source": "super.img vendor_a /vendor/firmware/gmu_gen70900.bin"
+      },
+      "gen70900_sqe.fw": {
+        "bytes": 85364,
+        "sha256": "f756bafe5f69a87161c7c53385386374a791861a574c244e845baba677993842",
+        "source": "super.img vendor_a /vendor/firmware/gen70900_sqe.fw"
+      },
+      "gen70900_aqe.fw": {
+        "bytes": 33176,
+        "sha256": "25237c161d727b8ea92b4beb837a31651b44ea78bfc34d95672af8f346a45825",
+        "source": "super.img vendor_a /vendor/firmware/gen70900_aqe.fw"
+      },
+      "gen70900_zap.mbn": {
+        "bytes": 12088,
+        "sha256": "ab6035deaf3df20b52f1fc0b27b10f2ad392398e2eb802b68746d5511981931e",
+        "source": "Houji vendor ODM firmware /odm/firmware/gen70900_zap.mbn"
+      }
+    },
+    "note": "gmu_gen70900.bin and gen70900_aqe.fw equal the UniXNU-houji pins; gen70900_sqe.fw is the 85364-byte linux-firmware build; gen70900_zap.mbn is Houji's signed ODM blob. Inputs are vendored under vendor/gpu for this work branch."
+  },
+  "adreno740_sources": [
+    "NativeAdrenoGmuContext.cpp",
+    "NativeAdrenoGmuMemory.cpp",
+    "NativeAdrenoVm.cpp",
+    "NativeAdrenoMemory.cpp",
+    "NativeAdrenoSmmuMemory.cpp",
+    "NativeAdrenoSmmuContext.cpp",
+    "NativeAdrenoCpu.cpp",
+    "NativeAdrenoGpuContext.cpp",
+    "NativeAdrenoRing.cpp",
+    "NativeAdrenoCpInit.cpp",
+    "NativeAdrenoPwrup.cpp",
+    "NativeAdrenoPreempt.cpp",
+    "NativeAdrenoPublish.cpp",
+    "NativeAdrenoUserClient.cpp",
+    "NativeAdrenoSubmit.cpp",
+    "NativeAdrenoTimer.cpp"
+  ]
+}

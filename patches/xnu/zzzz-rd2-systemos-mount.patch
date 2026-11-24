@@ -767,6 +767,10 @@ index 8bba078..ffcbe53 100644
 +		extern void houji_fb_bootstrap(void);
 +		houji_fb_bootstrap();
 +	}
++	{
++		extern void nx769j_gpu_start(void);
++		nx769j_gpu_start();
++	}
 +	if ((error = copyout(environment, scratch + 0x400, strlen(environment) + 1)) != 0 ||
 +	    (error = copyout(fallback, scratch + 0x480, strlen(fallback) + 1)) != 0 ||
 +	    (error = copyout(environment_vector, scratch + 0x500, sizeof(environment_vector))) != 0) {
@@ -783,7 +787,7 @@ index 8bba078..ffcbe53 100644
  void
  load_init_program(proc_t p)
  {
-@@ -7183,6 +7781,17 @@ load_init_program(proc_t p)
+@@ -7183,6 +7781,21 @@ load_init_program(proc_t p)
  	}
  #endif
  

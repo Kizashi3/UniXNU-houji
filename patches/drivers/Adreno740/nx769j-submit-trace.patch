@@ -1,0 +1,50 @@
+Trace NX769J client submissions: print the failure point and IOReturn so a Turnip DEVICE_LOST can be read on the console.
+
+--- a/NativeAdrenoUserClient.cpp	2026-11-06 22:43:04
++++ b/NativeAdrenoUserClient.cpp	2026-11-06 22:43:27
+@@ -408,6 +408,13 @@
+         if(priority_told_<0xffffffffu)++priority_told_;
+     }
+     return kIOReturnSuccess;
++}
++/* NX769J: trace the first client submissions and every failure point, so a DEVICE_LOST in Turnip can be read on the console. */
++static volatile SInt32 nx769j_submit_log;
++static void nx769j_submit_trace(const char *where,IOReturn kr,uint32_t a,uint32_t b)
++{
++    if(OSIncrementAtomic(&nx769j_submit_log)<32)
++        printf("NX769J SUBMIT: %s kr=0x%x a=%u b=%u pid=%d\n",where,kr,a,b,proc_selfpid());
+ }
+ IOReturn NativeAdrenoUserClient::submit(const NativeAdrenoAbiSubmit *request,
+     NativeAdrenoAbiSubmitReply *reply,const NativeAdrenoRingClock *clock)
+@@ -416,8 +423,10 @@
+     if(!open_)return kIOReturnNotReady;
+     if(!request->buffer_count || request->buffer_count>NativeAdrenoAbiMaxBuffers ||
+         request->reserved)return kIOReturnBadArgument;
+-    if(request->queue>=queue_capacity_ || !queues_[request->queue].active)
++    if(request->queue>=queue_capacity_ || !queues_[request->queue].active) {
++        nx769j_submit_trace("queue inactive",kIOReturnBadArgument,request->queue,queue_capacity_);
+         return kIOReturnBadArgument;
++    }
+     if(request->wait_fence) {
+         if(!clock)return kIOReturnBadArgument;
+         const uint32_t wait_us=request->wait_timeout_ns==0?0:
+@@ -431,7 +440,10 @@
+         const NativeAdrenoAbiSubmitBuffer &wire=request->buffers[i];
+         if(!wire.bytes || (wire.bytes&3))return kIOReturnBadArgument;
+         Entry *entry=find(wire.handle);
+-        if(!entry || !entry->mapped_state)return kIOReturnBadArgument;
++        if(!entry || !entry->mapped_state) {
++            nx769j_submit_trace("bad buffer handle",kIOReturnBadArgument,i,entry?1:0);
++            return kIOReturnBadArgument;
++        }
+         buffers[i]={entry->mapped,wire.iova,(size_t)wire.bytes};
+     }
+     uint32_t fence=0;
+@@ -442,6 +454,7 @@
+     submit_->nextRole(task_get_gpu_role(current_task()));
+     const IOReturn status=submit_->submit(vm_,buffers,request->buffer_count,
+         queue_base_+request->queue,&fence,clock);
++    nx769j_submit_trace(status?"ring submit failed":"ring submit ok",status,request->buffer_count,fence);
+     if(status)return status;
+     reply->fence=fence;
+     return kIOReturnSuccess;

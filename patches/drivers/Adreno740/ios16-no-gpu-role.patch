@@ -1,0 +1,15 @@
+--- a/NativeAdrenoUserClient.cpp	2026-11-05 22:10:21
++++ b/NativeAdrenoUserClient.cpp	2026-11-05 22:10:21
+@@ -1,7 +1,11 @@
+ /* SPDX-License-Identifier: MIT */
+ #include "NativeAdrenoUserClient.h"
+ #include <kern/task.h>
+-#include <sys/resource_private.h>   /* PRIO_DARWIN_GPU_*: the process's GPU role, set by the system */
++/* NX769J, iOS 16 (xnu-8796): there is no GPU role yet (task_get_gpu_role and PRIO_DARWIN_GPU_* arrived with xnu-10002), so every
++ * process counts as foreground: its foreground priority is used and the submission carries role 0. */
++#define PRIO_DARWIN_GPU_BACKGROUND (-2)
++#define PRIO_DARWIN_GPU_UTILITY (-3)
++static inline int32_t task_get_gpu_role(task_t) {return 0;}
+ extern "C" volatile uint32_t native_adreno_trace_stage;
+ /* 0 keeps user BOs cacheable and maintained before every submission (int-070..097); the board sets it from the sheng-gpu-wc boot argument. */
+ /* sheng-gpu-owned-coherent=1: the GPU's own BOs use the IO-coherent path (CPU write-back view, GPU write-back inner-shareable mapping) instead of

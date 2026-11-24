@@ -1,0 +1,12 @@
+--- a/NativeAdrenoGpuContext.h	2026-11-05 21:10:41
++++ b/NativeAdrenoGpuContext.h	2026-11-05 21:10:41
+@@ -27,7 +27,8 @@
+     GpuClientVaStart=0x100000000
+ };
+ enum : size_t {
+-    GpuSqeBytes=0x13000, GpuRingBytes=0x8000, GpuPageBytes=0x1000,
++    /* NX769J: gen70900_sqe.fw (A750) is 85364 bytes, 85360 without its first dword; A740's 0x13000 holds 77824. */
++    GpuSqeBytes=0x16000, GpuRingBytes=0x8000, GpuPageBytes=0x1000,
+     /* PREEMPT_RECORD_SIZE(adreno_gpu) = info->preempt_record_size, 4192 KiB where the catalog has none (a6xx_gpu.h); the CP stores
+      * its save area in it, so the size is the firmware's, not ours. */
+     GpuPreemptRecordBytes=4192*1024,

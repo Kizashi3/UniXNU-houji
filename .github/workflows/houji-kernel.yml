@@ -6,6 +6,7 @@ on:
       - kernel-cs-bypass
       - merged-root-kernel
       - codex/battery-r721
+      - codex/gpu-a750-v108
   workflow_dispatch:
     inputs:
       xcode:

@@ -1379,6 +1379,16 @@ houjiTouchRead32(uint64_t phys)
 
 static void houjiTouchProbe(void);
 
+/* Keep the original hardware-settle values but remove the bring-up-only
+ * minute-scale logging pauses. The 30 s service wait becomes one second and
+ * each repeated 6 s step becomes 100 ms; reset/poll delays stay unchanged. */
+static void
+houjiTouchFastDelay(unsigned ms)
+{
+	IOSleep(ms >= 30000 ? 1000 : ms >= 6000 ? 100 : ms);
+}
+#define IOSleep(ms) houjiTouchFastDelay(ms)
+
 static void
 houjiTouchThreadMain(void *arg, wait_result_t wr)
 {
@@ -2022,6 +2032,8 @@ houjiTouchProbe(void)
 }
 
 static void
+#undef IOSleep
+
 houjiKeyEventsBootstrap(IOService *platform)
 {
     uint32_t enabled = 0;
