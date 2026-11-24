@@ -6,10 +6,12 @@ hdiutil, merges the Setup/SpringBoard preferences into mobile/Library/
 Preferences, creates the container directories and the launchd disabled
 override, then detaches. The volume UUID is unchanged.
 
-usage: seed-skip-setup.py BASE.cdr OUTPUT.cdr [--keep-services]
+usage: seed-skip-setup.py BASE.cdr OUTPUT.cdr [--keep-services] [--preserve-services] [--gpu-probe-dir DIR] [--launchdaemons-dir DIR]
 
---keep-services keeps every launchd service enabled (no disabled.plist), so the
-Data seed ships the same service set as the OS image it was built from.
+--keep-services removes the launchd disabled override.
+--preserve-services leaves the base seed's disabled override unchanged.
+--gpu-probe-dir stages vktest and libvulkan_freedreno.dylib plus a launchd job.
+--launchdaemons-dir supplies the complete system LaunchDaemons directory for the bind mount.
 """
 import os
 import plistlib
@@ -59,9 +61,69 @@ def merge_pref(root, name, values):
     print('pref', name, sorted(values))
 
 
+def stage_gpu_probe(root, probe_dir, launchd_dir):
+    ngpu = root / 'ngpu'
+    bin_dir = ngpu / 'bin'
+    launchd_out = ngpu / 'launchd'
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    launchd_out.mkdir(parents=True, exist_ok=True)
+    for name in ('vktest', 'libvulkan_freedreno.dylib'):
+        source = probe_dir / name
+        target = bin_dir / name if name == 'vktest' else ngpu / name
+        shutil.copy2(source, target)
+        os.chmod(target, 0o755)
+        os.chown(target, 0, 0)
+    shutil.copytree(launchd_dir, launchd_out, symlinks=True, dirs_exist_ok=True)
+    plist = {
+        'Label': 'com.houji.vktest',
+        'ProgramArguments': [
+            '/private/var/ngpu/bin/vktest',
+            '/private/var/ngpu/libvulkan_freedreno.dylib',
+        ],
+        'EnvironmentVariables': {
+            'TU_DARWIN_SERVICE': 'IOAcceleratorES',
+            'TU_DARWIN_OPEN_TYPE': '0x4147',
+            'TU_DEBUG': 'sysmem,nocb',
+        },
+        'RunAtLoad': True,
+        'KeepAlive': False,
+        'ThrottleInterval': 30,
+        'StandardOutPath': '/private/var/ngpu/vktest.log',
+        'StandardErrorPath': '/private/var/ngpu/vktest.err',
+    }
+    job = launchd_out / 'com.houji.vktest.plist'
+    job.write_bytes(plistlib.dumps(plist, fmt=plistlib.FMT_BINARY))
+    for directory, dirnames, filenames in os.walk(launchd_out):
+        os.chmod(directory, 0o755)
+        os.chown(directory, 0, 0)
+        for name in filenames:
+            path = Path(directory) / name
+            if not path.is_symlink():
+                os.chmod(path, 0o644)
+                os.chown(path, 0, 0)
+    os.chmod(job, 0o644)
+    os.chown(job, 0, 0)
+    print('gpu probe staged', len(list(launchd_out.iterdir())), 'launchd entries')
+
+
 def main():
-    args = [x for x in sys.argv[1:] if x != '--keep-services']
+    args = [x for x in sys.argv[1:] if x not in ('--keep-services', '--preserve-services')]
     keep_services = '--keep-services' in sys.argv[1:]
+    preserve_services = '--preserve-services' in sys.argv[1:]
+    if keep_services and preserve_services:
+        sys.exit('--keep-services and --preserve-services are mutually exclusive')
+    probe_dir = None
+    launchd_dir = None
+    if '--gpu-probe-dir' in args:
+        index = args.index('--gpu-probe-dir')
+        probe_dir = Path(args[index + 1]).resolve()
+        del args[index:index + 2]
+    if '--launchdaemons-dir' in args:
+        index = args.index('--launchdaemons-dir')
+        launchd_dir = Path(args[index + 1]).resolve()
+        del args[index:index + 2]
+    if bool(probe_dir) != bool(launchd_dir):
+        sys.exit('--gpu-probe-dir and --launchdaemons-dir must be used together')
     if len(args) != 2:
         sys.exit(__doc__)
     src, dst = Path(args[0]).resolve(), Path(args[1]).resolve()
@@ -150,6 +212,9 @@ def main():
         os.chown(internal / 'data_ark.plist', MOBILE, MOBILE)
         print('activation ark', ark_uuid)
 
+        if probe_dir:
+            stage_gpu_probe(mount, probe_dir, launchd_dir)
+
         db = mount / 'db/com.apple.xpc.launchd'
         db.mkdir(parents=True, exist_ok=True)
         if keep_services:
@@ -157,6 +222,8 @@ def main():
             if stale.exists():
                 stale.unlink()
             print('services kept complete')
+        elif preserve_services:
+            print('services preserved from base seed')
         else:
             (db / 'disabled.plist').write_bytes(plistlib.dumps(
                 {label: True for label in DISABLED}, fmt=plistlib.FMT_BINARY))

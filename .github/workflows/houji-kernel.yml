@@ -5,6 +5,7 @@ on:
     branches:
       - kernel-cs-bypass
       - merged-root-kernel
+      - gpu-vktest-launchd
   workflow_dispatch:
     inputs:
       xcode:
