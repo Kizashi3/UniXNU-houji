@@ -88,8 +88,8 @@ def stage_gpu_probe(root, probe_dir, launchd_dir):
         'RunAtLoad': True,
         'KeepAlive': False,
         'ThrottleInterval': 30,
-        'StandardOutPath': '/private/var/ngpu/vktest.log',
-        'StandardErrorPath': '/private/var/ngpu/vktest.err',
+        'StandardOutPath': '/dev/console',
+        'StandardErrorPath': '/dev/console',
     }
     job = launchd_out / 'com.houji.vktest.plist'
     job.write_bytes(plistlib.dumps(plist, fmt=plistlib.FMT_BINARY))
