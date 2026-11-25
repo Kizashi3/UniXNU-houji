@@ -8,10 +8,13 @@ on:
       - codex/battery-r721
       - codex/gpu-a750-v108
       - gpu-vktest-launchd-r738
+      - codex/gpu-metal-ios16
     paths-ignore:
       - ".github/workflows/data-seed-2g.yml"
       - "scripts/make-data-seed.py"
       - "scripts/seed-skip-setup.py"
+      - ".github/workflows/houji-metal-ios16.yml"
+      - "scripts/build-houji-metal-ios16.sh"
   workflow_dispatch:
     inputs:
       xcode:

@@ -10,7 +10,7 @@ index 8bba078..ffcbe53 100644
  #include <sys/file_internal.h>
  #include <sys/stat.h>
  #include <sys/uio_internal.h>
-@@ -7138,6 +7139,788 @@ static const char * init_programs[] = {
+@@ -7138,6 +7139,798 @@ static const char * init_programs[] = {
   * 3		2		NA		/usr/appleinternal/sbin/launchd.development
   * 4		3		1		/sbin/launchd
   */
@@ -694,6 +694,16 @@ index 8bba078..ffcbe53 100644
 +			printf("HOUJI-GPU: launchd bind skipped, probe plist missing\n");
 +		} else {
 +			printf("HOUJI-GPU: launchd bind disabled\n");
++		}
++	}
++	{
++		vnode_t probe_ext = NULLVP;
++
++		if (vnode_lookup("/private/var/ngpu/addons/NativeAdrenoMetal.bundle/Info.plist", 0,
++		    &probe_ext, vfs_context_current()) == 0) {
++			vnode_put(probe_ext);
++			printf("HOUJI-GPU: extensions bind -> %d\n",
++			    houji_rd2_bind(p, scratch, "/private/var/ngpu/addons", "/System/Library/Extensions"));
 +		}
 +	}
 +	/*

@@ -1,0 +1,56 @@
+name: Houji iOS 16 Metal Userland
+
+on:
+  push:
+    branches:
+      - codex/gpu-metal-ios16
+    paths:
+      - ".github/workflows/houji-metal-ios16.yml"
+      - "scripts/build-houji-metal-ios16.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  metal-userland:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build NativeAdrenoMetal.bundle, Turnip, vktest, and mtltest
+        run: |
+          mkdir -p out/houji-metal-ios16
+          bash scripts/build-houji-metal-ios16.sh 2>&1 | tee out/houji-metal-ios16/build.log
+          test "${PIPESTATUS[0]}" -eq 0
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: houji-metal-ios16-${{ github.run_number }}
+          path: out/houji-metal-ios16/
+          if-no-files-found: warn
+      - name: Publish release and build log
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          stage=$(mktemp -d)
+          git init -q "$stage"
+          git -C "$stage" checkout -qb ci-metal-ios16
+          git -C "$stage" config user.name houji-ci
+          git -C "$stage" config user.email houji-ci@users.noreply.github.com
+          cp out/houji-metal-ios16/build.log "$stage/build.log" 2>/dev/null || true
+          cp out/houji-metal-ios16/SHA256SUMS "$stage/SHA256SUMS" 2>/dev/null || true
+          cp out/houji-metal-ios16/CDHashes.txt "$stage/CDHashes.txt" 2>/dev/null || true
+          git -C "$stage" add -A
+          git -C "$stage" commit -qm "ci: metal-ios16 run ${GITHUB_RUN_NUMBER} (${GITHUB_SHA:0:7})" || true
+          GIT_TERMINAL_PROMPT=0 git -C "$stage" push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-metal-ios16 || true
+
+          if [ -s out/houji-metal-ios16/houji-metal-ios16.tar.gz ]; then
+            tag="metal-ios16-${GITHUB_RUN_NUMBER}"
+            gh release create "$tag"               --repo "$GITHUB_REPOSITORY"               --target "$GITHUB_SHA"               --title "houji iOS 16 Metal userland run ${GITHUB_RUN_NUMBER}"               --notes "Built NativeAdrenoMetal.bundle, Turnip, vktest, and mtltest from ${GITHUB_SHA}."               out/houji-metal-ios16/houji-metal-ios16.tar.gz               out/houji-metal-ios16/SHA256SUMS               out/houji-metal-ios16/CDHashes.txt
+          fi

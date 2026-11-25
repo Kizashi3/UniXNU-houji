@@ -1,0 +1,36 @@
+--- a/NativeAdrenoMemory.cpp
++++ b/NativeAdrenoMemory.cpp
+@@ -158,16 +158,17 @@
+     if(!made)made=wired=mach_absolute_time();   /* a contiguous run: made and wired in one step */
+     if(descriptor->getLength()!=bytes) {descriptor->complete();descriptor->release();return kIOReturnUnsupported;}
+     bool cleaned=false;
+-    /* Default-attribute pages may still hold the zero fill in a CPU's cache: written back here, by physical runs, as allocateSystem would. */
+-    if(!write_combined) {
++    /* XNU pmap_zero_page leaves dirty zero cache lines in CPU cache; both cacheable and WC system pages
++     * must be cleaned and invalidated (dc civac) before userspace WC writes or GPU reads. */
++    {
+         cleaned=true;
+         for(size_t offset=0;offset<bytes && cleaned;) {
+             IOByteCount length=0;
+             const addr64_t physical=descriptor->getPhysicalSegment(offset,&length,kIOMemoryMapperNone);
+             if(!physical || (physical&4095) || length<4096) {cleaned=false;break;}
+             if(length>bytes-offset)length=bytes-offset;
+             length&=~IOByteCount(4095);
+-            if(NativeAdrenoMaintainPhysicalPages(physical,length,NativeAdrenoClean)!=kIOReturnSuccess)cleaned=false;
++            if(NativeAdrenoMaintainPhysicalPages(physical,length,NativeAdrenoCleanInvalidate)!=kIOReturnSuccess)cleaned=false;
+             offset+=length;
+         }
+         if(cleaned)NativeAdrenoNotePhase(NativeAdrenoPhaseAllocate,bytes);
+@@ -197,9 +198,9 @@
+     if(status==kIOReturnSuccess) {
+         system_=true;prepared_=true;bytes_=bytes;write_combined_=write_combined;noteSystem((int64_t)bytes);
+         status=descriptor_->getLength()==bytes?takeSegments(descriptor_,bytes,UINT64_C(1)<<bits,false):kIOReturnUnsupported;
+-        /* Default-attribute pages may still hold the zero fill in this CPU's cache: written back before the GPU reads them. */
+-        if(status==kIOReturnSuccess && !write_combined && !cleaned) {
+-            status=maintainImported(0,bytes,NativeAdrenoClean);
++        /* Clean and invalidate any uncleaned system pages (including WC) to evict pmap_zero_page dirty lines. */
++        if(status==kIOReturnSuccess && !cleaned) {
++            status=maintainImported(0,bytes,NativeAdrenoCleanInvalidate);
+             NativeAdrenoNotePhase(NativeAdrenoPhaseAllocate,bytes);
+         }
+         if(status!=kIOReturnSuccess) {write_combined_=false;(void)release();}
