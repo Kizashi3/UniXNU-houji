@@ -263,6 +263,18 @@ def main():
         merge_pref(mount, 'com.apple.managedconfiguration.notbackedup', {
             'LockdownActivationIndicatesCloudConfigurationAvailable': False,
         })
+        # Force 8-bit BGRA8 framebuffer in backboardd so SweetDisplay copies match the 8-bit panel format
+        merge_pref(mount, 'com.apple.backboardd', {
+            'CAEnableDeepFramebuffer': False,
+        })
+        merge_pref(mount, '.GlobalPreferences', {
+            'CAEnableDeepFramebuffer': False,
+        })
+        root_pref = mount / 'root/Library/Preferences/com.apple.backboardd.plist'
+        root_pref.parent.mkdir(parents=True, exist_ok=True)
+        root_pref.write_bytes(plistlib.dumps({'CAEnableDeepFramebuffer': False}, fmt=plistlib.FMT_BINARY))
+        os.chmod(root_pref, 0o644)
+        os.chown(root_pref, 0, 0)
         merge_pref(mount, 'com.apple.springboard', {
             'BKNoWatchdogs': True,
             'FBLaunchWatchdogExceptions': {'com.apple.purplebuddy': 100.0},
