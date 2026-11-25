@@ -152,7 +152,7 @@ def stage_gpu_probe(root, probe_dir, launchd_dir, extensions_dir=None, cdhash_ou
             os.chmod(info_p, 0o644)
             os.chown(info_p, 0, 0)
         clients = addons / 'NativeAdrenoMetal.clients'
-        clients.write_text('vktest\nmtltest\n', encoding='utf-8')
+        clients.write_text('backboardd\nSpringBoard\nvktest\nmtltest\n', encoding='utf-8')
         os.chmod(clients, 0o644)
         os.chown(clients, 0, 0)
         for d in (addons, bundle_dst):
@@ -183,7 +183,7 @@ def stage_gpu_probe(root, probe_dir, launchd_dir, extensions_dir=None, cdhash_ou
             'TU_DARWIN_OPEN_TYPE': '0x4147',
             'TU_DEBUG': 'sysmem,nocb',
         },
-        'RunAtLoad': True,
+        'RunAtLoad': False,
         'KeepAlive': False,
         'ThrottleInterval': 30,
         'StandardOutPath': '/dev/console',
