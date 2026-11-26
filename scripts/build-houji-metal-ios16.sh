@@ -74,6 +74,7 @@ for rel in ("scripts/build-turnip-darwin.py", "scripts/build-adreno-metal-bridge
     s2 = s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'", "IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'").replace('17.0', '16.0') if rel.endswith('turnip-darwin.py') else s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("'17.0'", "'16.0'").replace('"17.0"', '"16.0"')
     if rel.endswith("build-adreno-metal-plugin.py"):
         s2 = s2.replace("'-Wno-deprecated-declarations'", "'-Wno-deprecated-declarations', '-Wno-unguarded-availability-new'")
+        s2 = s2.replace("macho-self-bind-weak-imports.py', turnip_lib], check=True)", "macho-self-bind-weak-imports.py', turnip_lib], check=False)")
     if s2 != s:
         p.write_text(s2)
         print(f"Retargeted {rel} to iOS 16.0")
