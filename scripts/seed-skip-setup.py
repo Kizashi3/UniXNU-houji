@@ -114,7 +114,7 @@ def stage_gpu_probe(root, probe_dir, launchd_dir, extensions_dir=None, cdhash_ou
     has_metal = bundle_src.is_dir()
 
     for name in ('vktest', 'libvulkan_freedreno.dylib'):
-        source = probe_dir / name
+        source = (bundle_src / name) if (has_metal and name == 'libvulkan_freedreno.dylib' and (bundle_src / name).is_file()) else (probe_dir / name)
         if not source.is_file():
             continue
         target = bin_dir / name if name == 'vktest' else ngpu / name
