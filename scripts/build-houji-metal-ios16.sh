@@ -87,6 +87,19 @@ old_abi = "if(!base || class_getInstanceSize(base)!=536)"
 new_abi = "if(!base || (class_getInstanceSize(base)!=536 && class_getInstanceSize(base)!=528))"
 assert old_abi in fes, "expected _MTLDevice 536 check not found"
 fes = fes.replace(old_abi, new_abi, 1).replace("MTLLanguageVersion3_1", "MTLLanguageVersion3_0").replace("MTLBarrierScopeRenderTargets", "((MTLBarrierScope)4)")
+
+# 1b) Downgrade blended Apple XR10 color attachments (552..555) to RGBA16Float (115) so iOS 16.7 CoreAnimation
+# shaders (e.g. downsample_4_frag_lph) do not fail metal2vulkan's Unsupported::not_implemented(Feature::Format) at Color(0).
+old_ca = "p->colors[i]={(uint64_t)a.pixelFormat,(uint64_t)a.writeMask,(uint64_t)a.blendingEnabled,"
+new_ca = "uint64_t pf=(uint64_t)a.pixelFormat;if(a.blendingEnabled && pf>=552 && pf<=555)pf=115;p->colors[i]={pf,(uint64_t)a.writeMask,(uint64_t)a.blendingEnabled,"
+assert old_ca in fes, "expected colorAttachments assignment not found"
+fes = fes.replace(old_ca, new_ca, 1)
+
+# 1c) On render pipeline refusal, also log the exact reason + Color(0) format to /dev/console for instant diagnosis.
+old_ref = 'if(told.fetch_add(1)<64)NBLOG(@"native-metal: render pipeline refused: %@",why);'
+new_ref = 'if(told.fetch_add(1)<64){NBLOG(@"native-metal: render pipeline refused: %@",why);int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PIPE-FAIL[%s]: c0=%lu blend=%d %s\n",getprogname(),(unsigned long)d.colorAttachments[0].pixelFormat,(int)d.colorAttachments[0].blendingEnabled,why.UTF8String?:"?");close(cfd);}}'
+assert old_ref in fes, "expected render pipeline refused NBLOG not found"
+fes = fes.replace(old_ref, new_ref, 1)
 fe.write_text(fes)
 print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528 & MTLLanguageVersion3_0")
 
