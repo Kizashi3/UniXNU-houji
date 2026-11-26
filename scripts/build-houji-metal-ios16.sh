@@ -25,7 +25,7 @@ checkout "$core" https://github.com/UniXNU/UniXNU.git e7bddb9a7eecdcf81f36da9fa3
 checkout "$core/drivers/Adreno740" https://github.com/UniXNU/Adreno740.git 2962e289c9690aeb668072c170679e6fb28bf8de
 checkout "$core/drivers/AdrenoMetal" https://github.com/UniXNU/AdrenoMetal.git 0b7094bfdd221c210fb68b8927c3625d610df671
 checkout "$core/kits/AdrenoPM4" https://github.com/UniXNU/AdrenoPM4.git 445f8fe6d115738352b9d78dc70af6d61aa7f62f
-checkout "$core/drivers/GopFramebuffer" https://github.com/UniXNU/GopFramebuffer.git b0d812d578
+checkout "$core/drivers/GopFramebuffer" https://github.com/UniXNU/GopFramebuffer.git b0d812d578efa2acb005b66f73168891719af09a
 checkout "$m2v" https://github.com/UniXNU/metal2vulkan.git 87a869f7fc4b73265d4812c40d8cccb6a83c7b17
 checkout "$mesa" https://chromium.googlesource.com/external/gitlab.freedesktop.org/mesa/mesa \
     85fda3b36405bcaea8bffc64aa4f2651dc90770d
