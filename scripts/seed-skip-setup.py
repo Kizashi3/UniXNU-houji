@@ -115,6 +115,8 @@ def stage_gpu_probe(root, probe_dir, launchd_dir, extensions_dir=None, cdhash_ou
 
     for name in ('vktest', 'libvulkan_freedreno.dylib'):
         source = probe_dir / name
+        if not source.is_file():
+            continue
         target = bin_dir / name if name == 'vktest' else ngpu / name
         shutil.copy2(source, target)
         cdh = mark_platform_binary(target)
