@@ -413,7 +413,7 @@ bool gpuOn()
 	io.barrier(io.cookie);
 	const uint32_t gxBefore = rd32(ShengGmuCore, kGxStatus);
 	unsigned bw = 1;
-	const unsigned perf = ShengGmuPerfVote(1, &bw);
+	const unsigned perf = ShengGmuPerfVote(5, &bw);
 	const uint32_t vote[3] = {1, perf, bw};
 	uint32_t out[16], error = 0;
 	size_t count = 0;

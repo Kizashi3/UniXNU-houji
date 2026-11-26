@@ -58,6 +58,8 @@
     "NativeAdrenoPublish.cpp",
     "NativeAdrenoUserClient.cpp",
     "NativeAdrenoSubmit.cpp",
-    "NativeAdrenoTimer.cpp"
+    "NativeAdrenoTimer.cpp",
+    "NativeAdrenoPool.cpp",
+    "NativeAdrenoKernelTime.cpp"
   ]
 }

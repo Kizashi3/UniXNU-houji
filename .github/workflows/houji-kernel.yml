@@ -63,6 +63,8 @@ jobs:
             test -n "$armcpu_main"
             echo "unixnu: retargeting drivers/ArmCpu from the dangling pin to $armcpu_main"
             git update-index --cacheinfo 160000,"$armcpu_main",drivers/ArmCpu
+            git update-index --cacheinfo 160000,"2962e289c9690aeb668072c170679e6fb28bf8de",drivers/Adreno740
+            git update-index --cacheinfo 160000,"83969cd874503e65997ff7639f7dcf3d0a92cd17",kits/ArmSmmu4K
             git submodule update --init --recursive
             test -f drivers/ArmCpu/ArmCpu.cpp
             git -C drivers/ArmCpu rev-parse --short HEAD
