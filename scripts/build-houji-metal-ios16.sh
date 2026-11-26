@@ -72,6 +72,8 @@ for rel in ("scripts/build-turnip-darwin.py", "scripts/build-adreno-metal-bridge
     p = core / rel
     s = p.read_text()
     s2 = s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'", "IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'").replace('17.0', '16.0') if rel.endswith('turnip-darwin.py') else s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("'17.0'", "'16.0'").replace('"17.0"', '"16.0"')
+    if rel.endswith("build-adreno-metal-plugin.py"):
+        s2 = s2.replace("'-Wno-deprecated-declarations'", "'-Wno-deprecated-declarations', '-Wno-unguarded-availability-new'")
     if s2 != s:
         p.write_text(s2)
         print(f"Retargeted {rel} to iOS 16.0")
@@ -83,14 +85,15 @@ fes = fe.read_text()
 old_abi = "if(!base || class_getInstanceSize(base)!=536)"
 new_abi = "if(!base || (class_getInstanceSize(base)!=536 && class_getInstanceSize(base)!=528))"
 assert old_abi in fes, "expected _MTLDevice 536 check not found"
-fe.write_text(fes.replace(old_abi, new_abi, 1))
-print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528")
+fes = fes.replace(old_abi, new_abi, 1).replace("MTLLanguageVersion3_1", "MTLLanguageVersion3_0")
+fe.write_text(fes)
+print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528 & MTLLanguageVersion3_0")
 
 # 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_pub = "    if (publish::requested()) return publish::deviceForPort(port);"
-new_pub = "    return publish::deviceForPort(port);"
+new_pub = "    (void)publish::requested(); return publish::deviceForPort(port);"
 assert old_pub in pls, "expected publish::requested() line not found"
 pl.write_text(pls.replace(old_pub, new_pub, 1))
 print("Adapted NativeAdrenoMetalPlugin.mm to always use publish::deviceForPort")
