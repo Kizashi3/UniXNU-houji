@@ -76,3 +76,4 @@ jobs:
             fi
           done
           gh release upload "$TAG" /tmp/seed.log --repo "$GITHUB_REPOSITORY" --clobber || true
+# retrigger macos-15 runner
