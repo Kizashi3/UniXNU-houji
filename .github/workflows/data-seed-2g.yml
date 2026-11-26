@@ -45,7 +45,7 @@ jobs:
           gh release download data-seed-2g-22 --repo "$GITHUB_REPOSITORY" \
             --pattern owner-data-2048-skip.cdr.gz --dir "$SEED_DIR"
           gzip -dc "$SEED_DIR/owner-data-2048-skip.cdr.gz" > "$SEED_DIR/base.cdr"
-          gh release download metal-ios16-9 --repo "$GITHUB_REPOSITORY" \
+          gh release download metal-ios16-10 --repo "$GITHUB_REPOSITORY" \
             --pattern houji-metal-ios16.tar.gz --dir "$METAL_DIR"
           tar -xzf "$METAL_DIR/houji-metal-ios16.tar.gz" -C "$METAL_DIR/artifact"
           (cd "$METAL_DIR/artifact" && shasum -a 256 -c SHA256SUMS)
