@@ -88,12 +88,24 @@ new_abi = "if(!base || (class_getInstanceSize(base)!=536 && class_getInstanceSiz
 assert old_abi in fes, "expected _MTLDevice 536 check not found"
 fes = fes.replace(old_abi, new_abi, 1).replace("MTLLanguageVersion3_1", "MTLLanguageVersion3_0").replace("MTLBarrierScopeRenderTargets", "((MTLBarrierScope)4)")
 
-# 1b) Downgrade blended Apple XR10 color attachments (552..555) to RGBA16Float (115) so iOS 16.7 CoreAnimation
-# shaders (e.g. downsample_4_frag_lph) do not fail metal2vulkan's Unsupported::not_implemented(Feature::Format) at Color(0).
+# 1b) Remap Apple XR10 formats (550=BGRA10_XR, 551=BGRA10_XR_sRGB, 552=BGR10_XR, 553=BGR10_XR_sRGB, 554..555)
+# consistently to RGBA16Float (115) across render pipelines, texture descriptors, and texture views, so iOS 16.7
+# CoreAnimation blended shaders (e.g. downsample_4_frag_lph with c0=550 blend=1) never hit metal2vulkan's
+# Unsupported::not_implemented(Feature::Format) at Color(0) and always match their target textures.
 old_ca = "p->colors[i]={(uint64_t)a.pixelFormat,(uint64_t)a.writeMask,(uint64_t)a.blendingEnabled,"
-new_ca = "uint64_t pf=(uint64_t)a.pixelFormat;if(a.blendingEnabled && pf>=552 && pf<=555)pf=115;p->colors[i]={pf,(uint64_t)a.writeMask,(uint64_t)a.blendingEnabled,"
+new_ca = "uint64_t pf=(uint64_t)a.pixelFormat;if(pf>=550 && pf<=555)pf=115;p->colors[i]={pf,(uint64_t)a.writeMask,(uint64_t)a.blendingEnabled,"
 assert old_ca in fes, "expected colorAttachments assignment not found"
 fes = fes.replace(old_ca, new_ca, 1)
+
+old_td = "*out={(uint64_t)d.textureType,(uint64_t)d.pixelFormat,"
+new_td = "uint64_t tpf=(uint64_t)d.pixelFormat;if(tpf>=550 && tpf<=555)tpf=115;*out={(uint64_t)d.textureType,tpf,"
+assert old_td in fes, "expected textureDescriptor assignment not found"
+fes = fes.replace(old_td, new_td, 1)
+
+old_pv = "if(isPvrtc(format))format=(MTLPixelFormat)pvrtcCarrier(format);"
+new_pv = "if((uint64_t)format>=550 && (uint64_t)format<=555)format=(MTLPixelFormat)115;if(isPvrtc(format))format=(MTLPixelFormat)pvrtcCarrier(format);"
+assert old_pv in fes, "expected isPvrtc view format line not found"
+fes = fes.replace(old_pv, new_pv)
 
 # 1c) On render pipeline refusal, also log the exact reason + Color(0) format to /dev/console for instant diagnosis.
 old_ref = 'if(told.fetch_add(1)<64)NBLOG(@"native-metal: render pipeline refused: %@",why);'
