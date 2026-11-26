@@ -39,9 +39,10 @@ if ! command -v rustup >/dev/null 2>&1; then
     export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
-RUST_TC="stable"
+RUST_TC="1.98.0"
 rustup toolchain install "$RUST_TC" --profile minimal
 rustup target add aarch64-apple-ios --toolchain "$RUST_TC"
+rustup default "$RUST_TC"
 echo "Selected Rust toolchain: $(rustc +$RUST_TC --version)"
 
 echo "== [3/6] Patching Mesa (26 upstream Turnip patches) & adapting scripts for iOS 16.0"
