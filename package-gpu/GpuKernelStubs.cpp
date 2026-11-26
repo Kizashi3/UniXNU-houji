@@ -36,4 +36,11 @@ boot_log_export_put(uint32_t, uint32_t, uint32_t, const void *, uint32_t)
 
 // NativeAdrenoSubmit: sheng's GPU DCVS state ([1] is the current level). No GPU governor yet: level 0.
 volatile uint32_t native_gpu_dcvs[15];
+
+// NativeAdrenoPublish: optional pager close hook for pool views.
+__attribute__((weak)) kern_return_t
+iokit_physical_descriptor_close_notify(IOMemoryDescriptor *, void (*)(void *), void *)
+{
+	return KERN_FAILURE;
+}
 }

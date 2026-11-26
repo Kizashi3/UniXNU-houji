@@ -85,7 +85,7 @@ fes = fe.read_text()
 old_abi = "if(!base || class_getInstanceSize(base)!=536)"
 new_abi = "if(!base || (class_getInstanceSize(base)!=536 && class_getInstanceSize(base)!=528))"
 assert old_abi in fes, "expected _MTLDevice 536 check not found"
-fes = fes.replace(old_abi, new_abi, 1).replace("MTLLanguageVersion3_1", "MTLLanguageVersion3_0")
+fes = fes.replace(old_abi, new_abi, 1).replace("MTLLanguageVersion3_1", "MTLLanguageVersion3_0").replace("MTLBarrierScopeRenderTargets", "((MTLBarrierScope)4)")
 fe.write_text(fes)
 print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528 & MTLLanguageVersion3_0")
 
