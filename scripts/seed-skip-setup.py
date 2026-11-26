@@ -302,35 +302,33 @@ def main():
         # mobileactivationd keeps its state in a data ark inside its system data
         # container. Without one it traps on every request and SpringBoard's
         # synchronous MobileActivation call never returns.
-        ark_uuid = '3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1'
-        ark = mount / 'containers' / 'Data' / 'System' / ark_uuid
-        internal = ark / 'Library' / 'internal'
-        internal.mkdir(parents=True, exist_ok=True)
-        meta = ark / '.com.apple.mobile_container_manager.metadata.plist'
-        meta.write_bytes(plistlib.dumps({
-            'MCMMetadataIdentifier': 'com.apple.mobileactivationd',
-            'MCMMetadataUUID': ark_uuid,
-            'MCMMetadataContentClass': 1,
-            'MCMMetadataSchemaVersion': 1,
-        }, fmt=plistlib.FMT_BINARY))
-        (internal / 'data_ark.plist').write_bytes(plistlib.dumps({
-            '-ActivationState': 'Activated',
-            '-BrickState': False,
-            '-BuildVersion': BUILD,
-            '-ProductVersion': '16.7.16',
-            '-DataMigrationCompleted': True,
-            '-PreSydroDataMigrationCompleted': True,
-        }, fmt=plistlib.FMT_BINARY))
-        for d in (ark, ark / 'Library'):
-            os.chmod(d, 0o755)
-            os.chown(d, 0, 0)
-        os.chmod(internal, 0o755)
-        os.chown(internal, MOBILE, MOBILE)
-        os.chmod(meta, 0o644)
-        os.chown(meta, 0, 0)
-        os.chmod(internal / 'data_ark.plist', 0o600)
-        os.chown(internal / 'data_ark.plist', MOBILE, MOBILE)
-        print('activation ark', ark_uuid)
+        for ark_uuid in ('3F2A9C1E-5B7D-4A62-9E10-8C4D6B2F77A1', '62339402-23CD-44D6-A850-53E6216F1EBC1'):
+            ark = mount / 'containers' / 'Data' / 'System' / ark_uuid
+            internal = ark / 'Library' / 'internal'
+            internal.mkdir(parents=True, exist_ok=True)
+            meta = ark / '.com.apple.mobile_container_manager.metadata.plist'
+            meta.write_bytes(plistlib.dumps({
+                'MCMMetadataIdentifier': 'com.apple.mobileactivationd',
+                'MCMMetadataUUID': ark_uuid,
+                'MCMMetadataContentClass': 1,
+                'MCMMetadataSchemaVersion': 1,
+            }, fmt=plistlib.FMT_BINARY))
+            (internal / 'data_ark.plist').write_bytes(plistlib.dumps({
+                '-ActivationState': 'Activated',
+                '-BrickState': False,
+                '-BuildVersion': BUILD,
+                '-ProductVersion': '16.7.16',
+                '-DataMigrationCompleted': True,
+                '-PreSydroDataMigrationCompleted': True,
+            }, fmt=plistlib.FMT_BINARY))
+            for d in (ark, ark / 'Library', internal):
+                os.chmod(d, 0o755)
+                os.chown(d, MOBILE, MOBILE)
+            os.chmod(meta, 0o644)
+            os.chown(meta, 0, 0)
+            os.chmod(internal / 'data_ark.plist', 0o600)
+            os.chown(internal / 'data_ark.plist', MOBILE, MOBILE)
+            print('activation ark', ark_uuid)
 
         if probe_dir:
             stage_gpu_probe(mount, probe_dir, launchd_dir, extensions_dir, cdhash_out)
