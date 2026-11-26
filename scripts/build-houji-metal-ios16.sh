@@ -97,7 +97,7 @@ fes = fes.replace(old_ca, new_ca, 1)
 
 # 1c) On render pipeline refusal, also log the exact reason + Color(0) format to /dev/console for instant diagnosis.
 old_ref = 'if(told.fetch_add(1)<64)NBLOG(@"native-metal: render pipeline refused: %@",why);'
-new_ref = 'if(told.fetch_add(1)<64){NBLOG(@"native-metal: render pipeline refused: %@",why);int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PIPE-FAIL[%s]: c0=%lu blend=%d %s\n",getprogname(),(unsigned long)d.colorAttachments[0].pixelFormat,(int)d.colorAttachments[0].blendingEnabled,why.UTF8String?:"?");close(cfd);}}'
+new_ref = r'if(told.fetch_add(1)<64){NBLOG(@"native-metal: render pipeline refused: %@",why);int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PIPE-FAIL[%s]: c0=%lu blend=%d %s\n",getprogname(),(unsigned long)d.colorAttachments[0].pixelFormat,(int)d.colorAttachments[0].blendingEnabled,why.UTF8String?:"?");close(cfd);}}'
 assert old_ref in fes, "expected render pipeline refused NBLOG not found"
 fes = fes.replace(old_ref, new_ref, 1)
 fe.write_text(fes)
