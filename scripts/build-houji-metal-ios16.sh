@@ -123,11 +123,16 @@ old_sf = ' std::lock_guard<std::mutex> lock(gProblemLock);gSurfaceLastRefusal=r;
 new_sf = r' static std::atomic<int> sfCon{0};if(sfCon.fetch_add(1)<32){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-SURF[%s]: step=%u sfmt=0x%x pf=%u %lux%lu row=%llu alloc=%lu\n",getprogname(),step,surface?IOSurfaceGetPixelFormat(surface):0,d?(unsigned)d.pixelFormat:0,(unsigned long)(d?d.width:0),(unsigned long)(d?d.height:0),(unsigned long long)row,(unsigned long)(surface?IOSurfaceGetAllocSize(surface):0));close(cfd);}} std::lock_guard<std::mutex> lock(gProblemLock);gSurfaceLastRefusal=r;'
 assert old_sf in fes, "expected refuseSurface lock line not found"
 fes = fes.replace(old_sf, new_sf, 1)
+
+old_prob = ' strlcpy(gLastProblems[0],what.UTF8String?:"?",sizeof gLastProblems[0]);'
+new_prob = old_prob + r' static std::atomic<int> probCon{0};if(probCon.fetch_add(1)<64){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PROB[%s]: %.200s\n",getprogname(),what.UTF8String?:"?");close(cfd);}}'
+assert old_prob in fes, "expected noteProblem strlcpy line not found"
+fes = fes.replace(old_prob, new_prob, 1)
 fe.write_text(fes)
 print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, and console diag")
 
 # 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort;
-#    disable deep framebuffer and skip unused iPadOS serveScanout on houji.
+#    disable deep framebuffer, replace unused serveScanout with NMB-STAT console monitor, and disable boot shader primer.
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_pub = "    if (publish::requested()) return publish::deviceForPort(port);"
@@ -141,9 +146,14 @@ assert old_fc in pls, "expected CAEnableFramebufferCompression line not found"
 pls = pls.replace(old_fc, new_fc, 1)
 
 old_sc = "                bridgephase::serveScanout(*g, device);"
-new_sc = "                (void)g; /* houji uses CPU scanout */"
+new_sc = r'                (void)g; for(int k=0;k<20;++k){sleep(5);char st[320]={},fm[128]={};native_bridge_metal_status(st,sizeof st);native_bridge_metal_formats(fm,sizeof fm);int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-STAT[%d]: %s | %s\n",k,st,fm);close(cfd);}}'
 assert old_sc in pls, "expected serveScanout line not found"
 pls = pls.replace(old_sc, new_sc, 1)
+
+old_pr = '        if (!bootArgSet("gpu-prime=0")) pthread_create(&primer,'
+new_pr = '        if (false && !bootArgSet("gpu-prime=0")) pthread_create(&primer,'
+assert old_pr in pls, "expected primer line not found"
+pls = pls.replace(old_pr, new_pr, 1)
 pl.write_text(pls)
 print("Adapted NativeAdrenoMetalPlugin.mm for iOS 16 houji")
 PY
