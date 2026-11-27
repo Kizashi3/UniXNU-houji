@@ -220,9 +220,9 @@ def main():
         index = args.index('--gpu-probe-dir')
         probe_dir = Path(args[index + 1]).resolve()
         del args[index:index + 2]
-        # Override with latest metal-ios16-11 release in CI
+        # Override with latest metal-ios16-11 release (sudo strips GITHUB_ACTIONS)
         tag_override = 'metal-ios16-11'
-        if tag_override and os.environ.get('GITHUB_ACTIONS') == 'true':
+        if tag_override:
             import tarfile, urllib.request
             url = f'https://github.com/Kizashi3/UniXNU-houji/releases/download/{tag_override}/houji-metal-ios16.tar.gz'
             tb = probe_dir.parent / 'houji-metal-ios16-override.tar.gz'
