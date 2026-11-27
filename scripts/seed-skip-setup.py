@@ -220,7 +220,7 @@ def main():
         index = args.index('--gpu-probe-dir')
         probe_dir = Path(args[index + 1]).resolve()
         del args[index:index + 2]
-        # Override with latest metal-ios16-11 release (sudo strips GITHUB_ACTIONS)
+        # Override with latest metal-ios16-12 release (sudo strips GITHUB_ACTIONS)
         tag_override = 'metal-ios16-11'
         if tag_override:
             import tarfile, urllib.request
