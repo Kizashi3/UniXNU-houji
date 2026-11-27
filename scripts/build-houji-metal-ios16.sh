@@ -93,14 +93,98 @@ assert "MTLBarrierScopeRenderTargets" in fes
 fes = fes.replace("MTLBarrierScopeRenderTargets", "((MTLBarrierScope)(1 << 2))")
 fe.write_text(fes)
 
-# Patch upstream NativeAdrenoMetalPlugin.mm: always publish (no separate .publish marker file needed)
+# Patch upstream NativeAdrenoMetalPlugin.mm:
+#   1) always publish (no separate .publish marker file needed)
+#   2) in SpringBoard only: reposition Volume HUD to right edge, 2/3 up from bottom (1/3 from top = 297pt)
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_req = 'static bool requested() {\n    char path[1024];\n    return requestedPath("NativeAdrenoMetal.publish", path, sizeof path);\n}'
 new_req = 'static bool requested() {\n    return true;\n}'
 assert old_req in pls, "expected requested() not found"
-pl.write_text(pls.replace(old_req, new_req, 1))
-print("Patched upstream AdrenoMetal@0b7094bf (waitUntilScheduled->waitUntilCompleted + always publish)")
+pls = pls.replace(old_req, new_req, 1)
+
+vhud_hook = r'''
+#if !TARGET_OS_OSX
+#include <objc/runtime.h>
+namespace {
+struct HoujiCGPoint { double x, y; };
+struct HoujiCGSize  { double w, h; };
+struct HoujiCGRect  { HoujiCGPoint o; HoujiCGSize s; };
+
+static double houji_volumeButtonsCenterY(id self, SEL _cmd) {
+    (void)self; (void)_cmd;
+    // Xiaomi 14 (1200x2670 @3x = 400x890 pt): 2/3 up from bottom = 1/3 down from top = 296.7 pt
+    return 297.0;
+}
+
+static void (*gOrigVhudLayout1)(id, SEL) = nullptr;
+static void (*gOrigVhudLayout2)(id, SEL) = nullptr;
+
+static void houji_mirror_vhud_view(id vc) {
+    @try {
+        id view = ((id (*)(id, SEL))objc_msgSend)(vc, sel_registerName("view"));
+        if (!view) return;
+        HoujiCGRect b = ((HoujiCGRect (*)(id, SEL))objc_msgSend)(view, sel_registerName("bounds"));
+        if (b.s.w <= 100.0 || b.s.h <= 100.0 || b.s.w >= b.s.h) return; // portrait only
+        NSArray *subs = ((NSArray *(*)(id, SEL))objc_msgSend)(view, sel_registerName("subviews"));
+        for (id sub in subs) {
+            HoujiCGRect f = ((HoujiCGRect (*)(id, SEL))objc_msgSend)(sub, sel_registerName("frame"));
+            if (f.s.w > 1.0 && f.s.w < b.s.w * 0.5) {
+                HoujiCGPoint c = ((HoujiCGPoint (*)(id, SEL))objc_msgSend)(sub, sel_registerName("center"));
+                if (c.x < b.s.w * 0.5) {
+                    c.x = b.s.w - c.x;
+                    ((void (*)(id, SEL, HoujiCGPoint))objc_msgSend)(sub, sel_registerName("setCenter:"), c);
+                }
+            }
+        }
+    } @catch (NSException *e) {}
+}
+
+static void houji_vhud_layout1(id self, SEL _cmd) {
+    if (gOrigVhudLayout1) gOrigVhudLayout1(self, _cmd);
+    houji_mirror_vhud_view(self);
+}
+static void houji_vhud_layout2(id self, SEL _cmd) {
+    if (gOrigVhudLayout2) gOrigVhudLayout2(self, _cmd);
+    houji_mirror_vhud_view(self);
+}
+
+__attribute__((constructor))
+static void houji_install_vhud_hook() {
+    if (!getprogname() || strcmp(getprogname(), "SpringBoard") != 0) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @try {
+            if (Class c = objc_getClass("SBVolumeHUDSettings")) {
+                if (Method m = class_getInstanceMethod(c, sel_registerName("volumeButtonsCenterY"))) {
+                    method_setImplementation(m, (IMP)houji_volumeButtonsCenterY);
+                    fprintf(stderr, "HOUJI-VHUD: hooked SBVolumeHUDSettings.volumeButtonsCenterY -> 297.0\n");
+                }
+            }
+            const char *vcs[2] = {"SBElasticVolumeViewController", "SBVolumeHUDViewController"};
+            for (int i = 0; i < 2; ++i) {
+                if (Class c = objc_getClass(vcs[i])) {
+                    SEL s = sel_registerName("viewDidLayoutSubviews");
+                    if (Method m = class_getInstanceMethod(c, s)) {
+                        IMP orig = method_getImplementation(m);
+                        IMP rep = (i == 0) ? (IMP)houji_vhud_layout1 : (IMP)houji_vhud_layout2;
+                        if (i == 0) gOrigVhudLayout1 = (void (*)(id, SEL))orig;
+                        else        gOrigVhudLayout2 = (void (*)(id, SEL))orig;
+                        if (!class_addMethod(c, s, rep, method_getTypeEncoding(m))) {
+                            method_setImplementation(m, rep);
+                        }
+                        fprintf(stderr, "HOUJI-VHUD: hooked %s.viewDidLayoutSubviews (right edge)\n", vcs[i]);
+                    }
+                }
+            }
+        } @catch (NSException *e) {}
+    });
+}
+} // namespace
+#endif
+'''
+pls = pls + vhud_hook
+pl.write_text(pls)
+print("Patched upstream AdrenoMetal@0b7094bf (waitUntilScheduled->waitUntilCompleted + always publish + SpringBoard right-2/3 VHUD)")
 PY
 
 echo "== [4/5] Building iOS 16 Turnip (ABI v2, 128-IB) + Matched Upstream Zero-Copy Plugin Bundle"
