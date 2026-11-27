@@ -181,15 +181,38 @@ new_is = old_is + '\n' + r' if(isRenderServer()){static std::atomic<int> isN{0};
 assert old_is in fes, "expected iosurface texture entry not found"
 fes = fes.replace(old_is, new_is, 1)
 
+# 1g) Log each MTLDevice capability query once in backboardd to /dev/console for exact diffing
+old_ans = 'static NSUInteger countAnswer(id,SEL cmd) {return (NSUInteger)gAnswers.at(cmd);}\nstatic BOOL flagAnswer(id,SEL cmd) {return gAnswers.at(cmd)!=0;}'
+new_ans = r'''static void logBbAns(SEL cmd,uint64_t val){
+ if(!isRenderServer())return;
+ static std::mutex m;static std::unordered_set<SEL> seen;
+ {std::lock_guard<std::mutex> g(m);if(!seen.insert(cmd).second)return;}
+ int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-ANS[bb]: %s -> %llu\n",sel_getName(cmd),(unsigned long long)val);close(cfd);}
+}
+static NSUInteger countAnswer(id,SEL cmd) {uint64_t v=gAnswers.at(cmd);logBbAns(cmd,v);return (NSUInteger)v;}
+static BOOL flagAnswer(id,SEL cmd) {uint64_t v=gAnswers.at(cmd);logBbAns(cmd,v);return v!=0;}'''
+assert old_ans in fes, "expected countAnswer/flagAnswer not found"
+fes = fes.replace(old_ans, new_ans, 1)
+
 fe.write_text(fes)
 print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, Houji-ref device profile, and console diag")
+
+# 1h) Enable supportsMemorylessRenderTargets => 1 in NativeMetalCapabilities.rs (matches working iOS 16 Houji-ref)
+cap = core / "drivers/AdrenoMetal/bridge/NativeMetalCapabilities.rs"
+caps = cap.read_text()
+old_mem = '        "isRGB10A2GammaSupported"\n        | "supportsMemorylessRenderTargets"'
+new_mem = '        "supportsMemorylessRenderTargets" => 1,\n        "isRGB10A2GammaSupported"'
+assert old_mem in caps, "expected supportsMemorylessRenderTargets in NativeMetalCapabilities.rs not found"
+caps = caps.replace(old_mem, new_mem, 1)
+cap.write_text(caps)
+print("Enabled supportsMemorylessRenderTargets => 1 in NativeMetalCapabilities.rs")
 
 # 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort;
 #    disable deep framebuffer, replace unused serveScanout with NMB-STAT console monitor, and disable boot shader primer.
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_pub = "    if (publish::requested()) return publish::deviceForPort(port);"
-new_pub = "    (void)publish::requested(); return publish::deviceForPort(port);"
+new_pub = '    setenv("TU_DEBUG", "nocb", 0); (void)publish::requested(); return publish::deviceForPort(port);'
 assert old_pub in pls, "expected publish::requested() line not found"
 pls = pls.replace(old_pub, new_pub, 1)
 
