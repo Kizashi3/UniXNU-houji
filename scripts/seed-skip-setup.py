@@ -62,6 +62,7 @@ def merge_pref(root, name, values):
 
 
 def mark_platform_binary(path):
+    subprocess.run(['codesign', '--force', '--sign', '-', '--timestamp=none', str(path)], check=True)
     from hashlib import sha256
     from struct import pack_into, unpack_from
 
@@ -231,7 +232,7 @@ def main():
         probe_dir = Path(args[index + 1]).resolve()
         del args[index:index + 2]
         # Override with latest metal-ios16-15 release (sudo strips GITHUB_ACTIONS)
-        tag_override = 'metal-ios16-houji-ref'
+        tag_override = 'metal-ios16-houji-ref-sync'
         if tag_override:
             import tarfile, urllib.request
             url = f'https://github.com/Kizashi3/UniXNU-houji/releases/download/{tag_override}/houji-metal-ios16.tar.gz'
