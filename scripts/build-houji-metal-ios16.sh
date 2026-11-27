@@ -73,6 +73,10 @@ for rel in ("scripts/build-turnip-darwin.py", "scripts/build-adreno-metal-bridge
         s2 = s2.replace("17.0", "16.0")
     if rel.endswith("plugin.py"):
         s2 = s2.replace("'-Werror'", "'-Wno-unguarded-availability-new'")
+        s2 = s2.replace(
+            "subprocess.run([sys.executable, ROOT / 'scripts/macho-self-bind-weak-imports.py', turnip_lib], check=True)",
+            "pass  # iOS 16 dylib has no chained fixups",
+        )
     p.write_text(s2)
     print(f"Retargeted {rel} to iOS 16.0")
 
