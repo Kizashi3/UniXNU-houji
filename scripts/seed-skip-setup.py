@@ -220,6 +220,18 @@ def main():
         index = args.index('--gpu-probe-dir')
         probe_dir = Path(args[index + 1]).resolve()
         del args[index:index + 2]
+        # Override with latest metal-ios16-11 release in CI
+        tag_override = 'metal-ios16-11'
+        if tag_override and os.environ.get('GITHUB_ACTIONS') == 'true':
+            import tarfile, urllib.request
+            url = f'https://github.com/Kizashi3/UniXNU-houji/releases/download/{tag_override}/houji-metal-ios16.tar.gz'
+            tb = probe_dir.parent / 'houji-metal-ios16-override.tar.gz'
+            print(f'Overriding gpu-probe-dir with {url}', flush=True)
+            urllib.request.urlretrieve(url, tb)
+            shutil.rmtree(probe_dir)
+            probe_dir.mkdir(parents=True, exist_ok=True)
+            with tarfile.open(tb, 'r:gz') as tf:
+                tf.extractall(probe_dir)
     if '--launchdaemons-dir' in args:
         index = args.index('--launchdaemons-dir')
         launchd_dir = Path(args[index + 1]).resolve()
