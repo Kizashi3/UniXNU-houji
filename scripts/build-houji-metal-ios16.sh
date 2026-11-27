@@ -116,13 +116,28 @@ common=(
     -I "$houji_ref/graphics/include"
     -I "$mesa/include"
 )
+cat > "$work/houji_stubs.c" <<'STUBS'
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+double nmb_command_buffer_kernel_time(void *cb, bool end) { (void)cb; (void)end; return 0.0; }
+void nmb_command_buffer_trace(void *cb, uint32_t step, uint64_t val) { (void)cb; (void)step; (void)val; }
+bool nmb_device_native_astc_copy_check(void *dev) { (void)dev; return true; }
+bool nmb_encoder_memory_barrier_scope(void *enc, uint64_t s, uint64_t a, uint64_t b) { (void)enc; (void)s; (void)a; (void)b; return true; }
+void nmb_pattern_probe_stats(uint64_t *out) { if (out) { out[0] = 0; out[1] = 0; } }
+void nmb_stage_ring_stop(void) {}
+void *nmb_texture_new_native_astc4x4(void *buf, const void *desc, uint64_t row) { (void)buf; (void)desc; (void)row; return NULL; }
+void nmb_thread_qos_stats(uint64_t *out) { if (out) { for (int i = 0; i < 6; ++i) out[i] = 0; } }
+STUBS
+
 xcrun clang "${common[@]}" -c "$houji_ref/graphics/include/AdrenoPM4.c" -o "$work/AdrenoPM4.o"
+xcrun clang "${common[@]}" -c "$work/houji_stubs.c" -o "$work/houji_stubs.o"
 xcrun clang++ "${common[@]}" -g -fstack-protector-strong -std=c++17 \
     -fobjc-arc -Wno-deprecated-declarations -Wno-unguarded-availability-new -bundle \
     -x objective-c++ \
     "$houji_ref/graphics/metal/AdrenoMetal/NativeAdrenoMetalPlugin.mm" \
     "$houji_ref/graphics/metal/AdrenoMetal/NativeBridgeMetalFrontend.mm" \
-    -x none "$work/AdrenoPM4.o" "$archive" \
+    -x none "$work/AdrenoPM4.o" "$work/houji_stubs.o" "$archive" \
     -Wl,-dead_strip -lobjc -framework Foundation -framework Metal -framework IOSurface \
     -o "$bundle/NativeAdrenoMetal"
 
