@@ -9,7 +9,9 @@ mkdir -p "$out"
 
 core="$work/unixnu"
 mesa="$core/.cache/mesa-work"
-m2v="$core/.cache/gpu-reference/metal2vulkan"
+houji_ref="$work/houji-ref"
+m2v_raw="$work/m2v-raw"
+m2v_houji="$work/m2v-houji"
 
 checkout() {
     local path=$1 url=$2 revision=$3
@@ -20,17 +22,16 @@ checkout() {
     test "$(git -C "$path" rev-parse HEAD)" = "$revision"
 }
 
-echo "== [1/6] Checking out pinned 2026-11-25 upstream sources"
+echo "== [1/6] Checking out pinned sources (UniXNU Turnip v2 + Houji-ref iOS 16 Metal + m2v@219f0136)"
 checkout "$core" https://github.com/UniXNU/UniXNU.git e7bddb9a7eecdcf81f36da9fa38bd9d4d3f155c2
 checkout "$core/drivers/Adreno740" https://github.com/UniXNU/Adreno740.git 2962e289c9690aeb668072c170679e6fb28bf8de
-checkout "$core/drivers/AdrenoMetal" https://github.com/UniXNU/AdrenoMetal.git 0b7094bfdd221c210fb68b8927c3625d610df671
 checkout "$core/kits/AdrenoPM4" https://github.com/UniXNU/AdrenoPM4.git 445f8fe6d115738352b9d78dc70af6d61aa7f62f
-checkout "$core/drivers/GopFramebuffer" https://github.com/UniXNU/GopFramebuffer.git b0d812d578efa2acb005b66f73168891719af09a
-checkout "$m2v" https://github.com/UniXNU/metal2vulkan.git 87a869f7fc4b73265d4812c40d8cccb6a83c7b17
 checkout "$mesa" https://chromium.googlesource.com/external/gitlab.freedesktop.org/mesa/mesa \
     85fda3b36405bcaea8bffc64aa4f2651dc90770d
+git clone --depth=1 https://github.com/lonzzi/UniXNU-houji.git "$houji_ref"
+checkout "$m2v_raw" https://github.com/steelbrain/metal2vulkan.git 219f01365dc4c8eb346816c405b5b17403793764
 
-echo "== [2/6] Installing host tools & Rust iOS target"
+echo "== [2/6] Installing host tools & Rust 1.98.0 iOS target"
 brew install bison ninja glslang shaderc spirv-tools pkg-config llvm
 export PATH="$(brew --prefix bison)/bin:$(brew --prefix llvm)/bin:$PATH"
 
@@ -45,18 +46,15 @@ rustup target add aarch64-apple-ios --toolchain "$RUST_TC"
 rustup default "$RUST_TC"
 echo "Selected Rust toolchain: $(rustc +$RUST_TC --version)"
 
-echo "== [3/6] Patching Mesa (26 upstream Turnip patches) & adapting scripts for iOS 16.0"
+echo "== [3/6] Patching Mesa (26 upstream Turnip patches for ABI v2) & assembling Houji-ref m2v@219f0136"
 python3 -m venv "$core/.cache/mesa-venv"
 "$core/.cache/mesa-venv/bin/python" -m pip install 'meson==1.9.1' 'Mako==1.3.10' 'packaging==25.0' 'PyYAML==6.0.2'
 
-python3 - "$core" "$mesa" <<'PY'
-import json
+python3 - "$core" "$mesa" "$houji_ref" <<'PY'
+import json, re, subprocess, sys
 from pathlib import Path
-import re
-import subprocess
-import sys
 
-core, mesa = map(Path, sys.argv[1:])
+core, mesa, houji_ref = map(Path, sys.argv[1:])
 pins = json.loads((core / "scripts/data/adreno-compiler-inputs.json").read_text())
 assert subprocess.check_output(["git", "-C", str(mesa), "rev-parse", "HEAD^{tree}"], text=True).strip() == pins["mesa"]["tree"]
 abi = (core / "drivers/Adreno740/NativeAdrenoABI.h").read_text()
@@ -67,182 +65,53 @@ for path in pins["patches"]:
     subprocess.run(["git", "-C", str(mesa), "apply", str(patch)], check=True)
 print(f"Applied {len(pins['patches'])} Mesa/Turnip patches cleanly")
 
-# Retarget iOS deployment target 17.0 -> 16.0 across Turnip, bridge, and plugin builders
-for rel in ("scripts/build-turnip-darwin.py", "scripts/build-adreno-metal-bridge.py", "scripts/build-adreno-metal-plugin.py"):
-    p = core / rel
-    s = p.read_text()
-    s2 = s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'", "IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'").replace('17.0', '16.0') if rel.endswith('turnip-darwin.py') else s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("'17.0'", "'16.0'").replace('"17.0"', '"16.0"')
-    if rel.endswith("build-adreno-metal-plugin.py"):
-        s2 = s2.replace("'-Wno-deprecated-declarations'", "'-Wno-deprecated-declarations', '-Wno-unguarded-availability-new'")
-        s2 = s2.replace("macho-self-bind-weak-imports.py', turnip_lib], check=True)", "macho-self-bind-weak-imports.py', turnip_lib], check=False)")
-    if s2 != s:
-        p.write_text(s2)
-        print(f"Retargeted {rel} to iOS 16.0")
+# Retarget build-turnip-darwin.py to iOS 16.0
+p = core / "scripts/build-turnip-darwin.py"
+s = p.read_text().replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'", "IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'").replace("17.0", "16.0")
+p.write_text(s)
+print("Retargeted build-turnip-darwin.py to iOS 16.0")
 
-# Adapt AdrenoMetal for iOS 16.7:
-# 1) Accept _MTLDevice instance size 528 (iOS 16.7) in addition to 536 (iPadOS 17.7)
-fe = core / "drivers/AdrenoMetal/NativeBridgeMetalFrontend.mm"
-fes = fe.read_text()
-old_abi = "if(!base || class_getInstanceSize(base)!=536)"
-new_abi = "if(!base || (class_getInstanceSize(base)!=536 && class_getInstanceSize(base)!=528))"
-assert old_abi in fes, "expected _MTLDevice 536 check not found"
-fes = fes.replace(old_abi, new_abi, 1).replace("MTLLanguageVersion3_1", "MTLLanguageVersion3_0").replace("MTLBarrierScopeRenderTargets", "((MTLBarrierScope)4)")
-
-# 1b) Remap Apple XR10 formats (550=BGRA10_XR, 551=BGRA10_XR_sRGB, 552=BGR10_XR, 553=BGR10_XR_sRGB, 554..555)
-# consistently to RGBA16Float (115) across render pipelines, texture descriptors, and texture views, so iOS 16.7
-# CoreAnimation blended shaders (e.g. downsample_4_frag_lph with c0=550 blend=1) never hit metal2vulkan's
-# Unsupported::not_implemented(Feature::Format) at Color(0) and always match their target textures.
-old_ca = "p->colors[i]={(uint64_t)a.pixelFormat,(uint64_t)a.writeMask,(uint64_t)a.blendingEnabled,"
-new_ca = "uint64_t pf=(uint64_t)a.pixelFormat;if(pf>=550 && pf<=555)pf=115;p->colors[i]={pf,(uint64_t)a.writeMask,(uint64_t)a.blendingEnabled,"
-assert old_ca in fes, "expected colorAttachments assignment not found"
-fes = fes.replace(old_ca, new_ca, 1)
-
-old_td = "*out={(uint64_t)d.textureType,(uint64_t)d.pixelFormat,"
-new_td = "uint64_t tpf=(uint64_t)d.pixelFormat;if(tpf>=550 && tpf<=555)tpf=115;*out={(uint64_t)d.textureType,tpf,"
-assert old_td in fes, "expected textureDescriptor assignment not found"
-fes = fes.replace(old_td, new_td, 1)
-
-old_pv = "if(isPvrtc(format))format=(MTLPixelFormat)pvrtcCarrier(format);"
-new_pv = "if((uint64_t)format>=550 && (uint64_t)format<=555)format=(MTLPixelFormat)115;if(isPvrtc(format))format=(MTLPixelFormat)pvrtcCarrier(format);"
-assert old_pv in fes, "expected isPvrtc view format line not found"
-fes = fes.replace(old_pv, new_pv)
-
-# 1c) On render pipeline refusal, also log the exact reason + Color(0) format to /dev/console for instant diagnosis.
-old_ref = 'if(told.fetch_add(1)<64)NBLOG(@"native-metal: render pipeline refused: %@",why);'
-new_ref = r'if(told.fetch_add(1)<64){NBLOG(@"native-metal: render pipeline refused: %@",why);int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PIPE-FAIL[%s]: c0=%lu blend=%d %s\n",getprogname(),(unsigned long)d.colorAttachments[0].pixelFormat,(int)d.colorAttachments[0].blendingEnabled,why.UTF8String?:"?");close(cfd);}}'
-assert old_ref in fes, "expected render pipeline refused NBLOG not found"
-fes = fes.replace(old_ref, new_ref, 1)
-
-# 1d) Mirror first 64 NBLOG messages and first 32 refuseSurface calls per process to /dev/console
-old_nblog = r' if(logToStderr())fprintf(stderr,"%s: %.140s\n",getprogname(),nbText.UTF8String?:"?");}while(0)'
-new_nblog = r' if(logToStderr())fprintf(stderr,"%s: %.140s\n",getprogname(),nbText.UTF8String?:"?");static std::atomic<int> nbCon{0};if(nbCon.fetch_add(1)<64){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB[%s]: %.200s\n",getprogname(),nbText.UTF8String?:"?");close(cfd);}}}while(0)'
-assert old_nblog in fes, "expected NBLOG macro tail not found"
-fes = fes.replace(old_nblog, new_nblog, 1)
-
-old_sf = ' std::lock_guard<std::mutex> lock(gProblemLock);gSurfaceLastRefusal=r;'
-new_sf = r' static std::atomic<int> sfCon{0};if(sfCon.fetch_add(1)<32){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-SURF[%s]: step=%u sfmt=0x%x pf=%u %lux%lu row=%llu alloc=%lu\n",getprogname(),step,surface?IOSurfaceGetPixelFormat(surface):0,d?(unsigned)d.pixelFormat:0,(unsigned long)(d?d.width:0),(unsigned long)(d?d.height:0),(unsigned long long)row,(unsigned long)(surface?IOSurfaceGetAllocSize(surface):0));close(cfd);}} std::lock_guard<std::mutex> lock(gProblemLock);gSurfaceLastRefusal=r;'
-assert old_sf in fes, "expected refuseSurface lock line not found"
-fes = fes.replace(old_sf, new_sf, 1)
-
-old_prob = ' strlcpy(gLastProblems[0],what.UTF8String?:"?",sizeof gLastProblems[0]);'
-new_prob = old_prob + r' static std::atomic<int> probCon{0};if(probCon.fetch_add(1)<64){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PROB[%s]: %.200s\n",getprogname(),what.UTF8String?:"?");close(cfd);}}'
-assert old_prob in fes, "expected noteProblem strlcpy line not found"
-fes = fes.replace(old_prob, new_prob, 1)
-
-# 1e) Disable async encode thread in backboardd (matches iOS 16 working clients), add newCommandQueueWithDescriptor:,
-#     and log uncommitted commandBuffer creation/dealloc in backboardd to /dev/console.
-old_enc = 'static const bool gEncodeThread=access("/private/var/ngpu/debug/no-encode-thread",F_OK)!=0 &&\n                                (isRenderServer() || access("/private/var/ngpu/debug/encode-thread",F_OK)==0);'
-new_enc = 'static const bool gEncodeThread=false;'
-assert old_enc in fes, "expected gEncodeThread line not found"
-fes = fes.replace(old_enc, new_enc, 1)
-
-old_nq = '- (id<MTLCommandQueue>)newCommandQueue {'
-new_nq = '- (id<MTLCommandQueue>)newCommandQueueWithDescriptor:(id)d {(void)d;return [self newCommandQueue];}\n' + old_nq
-assert old_nq in fes, "expected newCommandQueue line not found"
-fes = fes.replace(old_nq, new_nq, 1)
-
-old_cb = ' NBCommandBuffer *commandBuffer=[NBCommandBuffer new];commandBuffer.handle=handle;commandBuffer.queue=self;return (id<MTLCommandBuffer>)commandBuffer;'
-new_cb = r' NBCommandBuffer *commandBuffer=[NBCommandBuffer new];commandBuffer.handle=handle;commandBuffer.queue=self;if(isRenderServer()){static std::atomic<int> cbN{0};int n=cbN.fetch_add(1);if(n<16){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-CB[bb]: new #%d ptr=%p\n",n,(__bridge void*)commandBuffer);close(cfd);}}}return (id<MTLCommandBuffer>)commandBuffer;'
-assert old_cb in fes, "expected commandBuffer creation line not found"
-fes = fes.replace(old_cb, new_cb, 1)
-
-# 1f) Match working iOS 16 Houji-ref device profile:
-#     - supportsFeatureSet: returns NO (upstream returns YES for Apple1..5, steering iOS 16 QuartzCore off its working path)
-#     - fillBaseLimits: only populate maxTextureWidth2D and maxTextureHeight2D (never overwrite other iOS 16 _limits fields)
-#     - respondsToSelector: do not hide targetDeviceInfo from iOS 16 callers
-#     - Log first render passes / iosurface textures / commits in backboardd to /dev/console
-old_fs = '- (BOOL)supportsFeatureSet:(MTLFeatureSet)set {\n static const uint8_t families[]={1,2,1,2,3,1,2,3,1,2,3,4,1,2,3,4,5};   // MTLFeatureSet_iOS_GPUFamily1_v1 (0) to iOS_GPUFamily5_v1 (16)\n if((NSUInteger)set>=sizeof families)return NO;\n return [(id<MTLDevice>)self supportsFamily:(MTLGPUFamily)(MTLGPUFamilyApple1+families[set]-1)];\n}'
-new_fs = '- (BOOL)supportsFeatureSet:(MTLFeatureSet)set {(void)set;return NO;}'
-assert old_fs in fes, "expected supportsFeatureSet not found"
-fes = fes.replace(old_fs, new_fs, 1)
-
-old_lim = '  if(strncmp(name,"max",3) && strncmp(name,"min",3))continue;'
-new_lim = '  if(strcmp(name,"maxTextureWidth2D") && strcmp(name,"maxTextureHeight2D"))continue;'
-assert old_lim in fes, "expected fillBaseLimits filter not found"
-fes = fes.replace(old_lim, new_lim, 1)
-
-old_rts = '- (BOOL)respondsToSelector:(SEL)selector {\n if(selector==sel_registerName("targetDeviceInfo"))return NO;   // the inherited _MTLDevice one, NULL without IOGPU\n return [super respondsToSelector:selector];\n}'
-new_rts = '- (BOOL)respondsToSelector:(SEL)selector {return [super respondsToSelector:selector];}'
-assert old_rts in fes, "expected respondsToSelector not found"
-fes = fes.replace(old_rts, new_rts, 1)
-
-old_rp = '   gPasses++;gPassPixels+=pixels;encodedWork.passes++;encodedWork.pixels+=pixels;'
-new_rp = r'   gPasses++;gPassPixels+=pixels;encodedWork.passes++;encodedWork.pixels+=pixels;if(isRenderServer()){static std::atomic<int> rpN{0};int n=rpN.fetch_add(1);if(n<12){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-RP[bb]: #%d %lux%lu fmt=%lu surf=%d\n",n,(unsigned long)first.width,(unsigned long)first.height,(unsigned long)first.pixelFormat,([(id)first isKindOfClass:[NBTexture class]] && [(NBTexture*)first surface])?1:0);close(cfd);}}}'
-assert old_rp in fes, "expected gPasses++ line not found"
-fes = fes.replace(old_rp, new_rp, 1)
-
-old_cm = '- (void)commit {\n if(self.committed){NBLOG(@"native-metal: commit twice");return;}'
-new_cm = r'- (void)commit {' + '\n' + r' if(isRenderServer()){static std::atomic<int> cmN{0};int n=cmN.fetch_add(1);if(n<8){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-CM[bb]: commit #%d ptr=%p passes=%u draws=%u\n",n,(__bridge void*)self,encodedWork.passes,encodedWork.draws);close(cfd);}}}' + '\n if(self.committed){NBLOG(@"native-metal: commit twice");return;}'
-assert old_cm in fes, "expected commit line not found"
-fes = fes.replace(old_cm, new_cm, 1)
-
-old_is = '- (id<MTLTexture>)newTextureWithDescriptor:(MTLTextureDescriptor *)d iosurface:(IOSurfaceRef)surface plane:(NSUInteger)plane {'
-new_is = old_is + '\n' + r' if(isRenderServer()){static std::atomic<int> isN{0};int n=isN.fetch_add(1);if(n<8){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-IS[bb]: #%d %lux%lu pf=%lu sid=%u\n",n,(unsigned long)(d?d.width:0),(unsigned long)(d?d.height:0),(unsigned long)(d?d.pixelFormat:0),surface?(unsigned)IOSurfaceGetID(surface):0);close(cfd);}}}'
-assert old_is in fes, "expected iosurface texture entry not found"
-fes = fes.replace(old_is, new_is, 1)
-
-# 1g) Log each MTLDevice capability query once in backboardd to /dev/console for exact diffing
-old_ans = 'static NSUInteger countAnswer(id,SEL cmd) {return (NSUInteger)gAnswers.at(cmd);}\nstatic BOOL flagAnswer(id,SEL cmd) {return gAnswers.at(cmd)!=0;}'
-new_ans = r'''static void logBbAns(SEL cmd,uint64_t val){
- if(!isRenderServer())return;
- static std::mutex m;static std::unordered_set<SEL> seen;
- {std::lock_guard<std::mutex> g(m);if(!seen.insert(cmd).second)return;}
- int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-ANS[bb]: %s -> %llu\n",sel_getName(cmd),(unsigned long long)val);close(cfd);}
-}
-static NSUInteger countAnswer(id,SEL cmd) {uint64_t v=gAnswers.at(cmd);logBbAns(cmd,v);return (NSUInteger)v;}
-static BOOL flagAnswer(id,SEL cmd) {uint64_t v=gAnswers.at(cmd);logBbAns(cmd,v);return v!=0;}'''
-assert old_ans in fes, "expected countAnswer/flagAnswer not found"
-fes = fes.replace(old_ans, new_ans, 1)
-
-fe.write_text(fes)
-print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, Houji-ref device profile, and console diag")
-
-# 1h) Enable supportsMemorylessRenderTargets => 1 in NativeMetalCapabilities.rs (matches working iOS 16 Houji-ref)
-cap = core / "drivers/AdrenoMetal/bridge/NativeMetalCapabilities.rs"
-caps = cap.read_text()
-old_mem = '        "isRGB10A2GammaSupported"\n        | "supportsMemorylessRenderTargets"'
-new_mem = '        "supportsMemorylessRenderTargets" => 1,\n        "isRGB10A2GammaSupported"'
-assert old_mem in caps, "expected supportsMemorylessRenderTargets in NativeMetalCapabilities.rs not found"
-caps = caps.replace(old_mem, new_mem, 1)
-cap.write_text(caps)
-print("Enabled supportsMemorylessRenderTargets => 1 in NativeMetalCapabilities.rs")
-
-# 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort;
-#    disable deep framebuffer, replace unused serveScanout with NMB-STAT console monitor, and disable boot shader primer.
-pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
+# Allow all processes when NativeAdrenoMetal.clients is absent (compatible with smooth10 unlimited SMMU)
+pl = houji_ref / "graphics/metal/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
-old_pub = "    if (publish::requested()) return publish::deviceForPort(port);"
-new_pub = '    setenv("TU_DEBUG", "nocb", 0); (void)publish::requested(); return publish::deviceForPort(port);'
-assert old_pub in pls, "expected publish::requested() line not found"
-pls = pls.replace(old_pub, new_pub, 1)
-
-old_fc = '        CFPreferencesSetAppValue(CFSTR("CAEnableFramebufferCompression"), kCFBooleanFalse, kCFPreferencesCurrentApplication);'
-new_fc = '        CFPreferencesSetAppValue(CFSTR("CAEnableDeepFramebuffer"), kCFBooleanFalse, kCFPreferencesCurrentApplication);\n' + old_fc
-assert old_fc in pls, "expected CAEnableFramebufferCompression line not found"
-pls = pls.replace(old_fc, new_fc, 1)
-
-old_sc = "                bridgephase::serveScanout(*g, device);"
-new_sc = r'                (void)g; for(int k=0;k<20;++k){sleep(5);char st[320]={},fm[128]={};native_bridge_metal_status(st,sizeof st);native_bridge_metal_formats(fm,sizeof fm);int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-STAT[%d]: %s | %s\n",k,st,fm);close(cfd);}}'
-assert old_sc in pls, "expected serveScanout line not found"
-pls = pls.replace(old_sc, new_sc, 1)
-
-old_pr = '        if (!bootArgSet("gpu-prime=0")) pthread_create(&primer,'
-new_pr = '        if (false && !bootArgSet("gpu-prime=0")) pthread_create(&primer,'
-assert old_pr in pls, "expected primer line not found"
-pls = pls.replace(old_pr, new_pr, 1)
+old_cl = '    if (!requestedPath("NativeAdrenoMetal.clients", path, sizeof path)) return false;'
+new_cl = '    if (!requestedPath("NativeAdrenoMetal.clients", path, sizeof path)) return true;'
+assert old_cl in pls, "expected listedClient fallback line not found"
+pls = pls.replace(old_cl, new_cl, 1)
 pl.write_text(pls)
-print("Adapted NativeAdrenoMetalPlugin.mm for iOS 16 houji")
+print("Patched Houji-ref NativeAdrenoMetalPlugin.mm listedClient fallback -> true")
 PY
 
-echo "== [4/6] Building iOS 16 Turnip (libvulkan_freedreno.dylib)"
-python3 "$core/scripts/build-turnip-darwin.py" --target ios
+python3 "$houji_ref/tools/prepare-sources.py" graphics/runtime --upstream "$m2v_raw" --output "$m2v_houji"
 
-echo "== [5/6] Building NativeAdrenoMetal.bundle (bridge + frontend + Turnip)"
-python3 "$core/scripts/build-adreno-metal-plugin.py" --target ios --no-replay --translator-source "$m2v"
+echo "== [4/6] Building iOS 16 Turnip (libvulkan_freedreno.dylib, ABI v2, 128-IB)"
+python3 "$core/scripts/build-turnip-darwin.py" --target ios
+turnip_dylib="$core/build/mesa-tu-ios/src/freedreno/vulkan/libvulkan_freedreno.dylib"
+test -f "$turnip_dylib"
+
+echo "== [5/6] Building Houji-ref iOS 16 NativeAdrenoMetal.bundle (m2v@219f0136 + sysmem,nocb)"
+cat > "$work/dummy.metal" <<'METAL'
+#include <metal_stdlib>
+using namespace metal;
+kernel void dummy_k(device uint *out [[buffer(0)]], uint id [[thread_position_in_grid]]) { out[id] = id; }
+METAL
+xcrun -sdk iphoneos metal -c "$work/dummy.metal" -o "$work/runtime_examples.air"
+cp "$work/runtime_examples.air" "$work/function_constant.air"
+
+python3 "$houji_ref/tools/build-metal.py" \
+    --runtime "$m2v_houji" \
+    --mesa-include "$mesa/include" \
+    --fixture-air "$work/runtime_examples.air" \
+    --function-constant-air "$work/function_constant.air" \
+    --turnip "$turnip_dylib" \
+    --turnip-render-mode sysmem \
+    --toolchain "$RUST_TC" \
+    --output "$work/metal-out"
 
 echo "== [6/6] Collecting outputs, CDHashes, and tarball"
-cp -R "$core/build/adreno-metal-plugin/NativeAdrenoMetal.bundle" "$out/"
-cp "$core/build/mesa-tu-ios/src/freedreno/vulkan/libvulkan_freedreno.dylib" "$out/"
+cp -R "$work/metal-out/NativeAdrenoMetal.bundle" "$out/"
+cp "$work/metal-out/NativeAdrenoMetal.clients" "$out/" || true
+cp "$turnip_dylib" "$out/"
 
 (cd "$out" && shasum -a 256 NativeAdrenoMetal.bundle/NativeAdrenoMetal NativeAdrenoMetal.bundle/libvulkan_freedreno.dylib libvulkan_freedreno.dylib > SHA256SUMS)
 {
@@ -257,5 +126,5 @@ cp "$core/build/mesa-tu-ios/src/freedreno/vulkan/libvulkan_freedreno.dylib" "$ou
 cat "$out/CDHashes.txt"
 
 tar -C "$out" -czf "$out/houji-metal-ios16.tar.gz" \
-    NativeAdrenoMetal.bundle libvulkan_freedreno.dylib SHA256SUMS CDHashes.txt
+    NativeAdrenoMetal.bundle NativeAdrenoMetal.clients libvulkan_freedreno.dylib SHA256SUMS CDHashes.txt
 ls -lh "$out"
