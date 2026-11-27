@@ -83,6 +83,7 @@ for rel in ("scripts/build-turnip-darwin.py", "scripts/build-adreno-metal-bridge
 # Patch upstream NativeBridgeMetalFrontend.mm:
 #   1) waitUntilScheduled -> waitUntilCompleted (eliminates flicker/tearing/black-flash while keeping commit async!)
 #   2) MTLBarrierScopeRenderTargets is macOS-only in iOS SDK 18.5 -> use literal (MTLBarrierScope)(1 << 2)
+#   3) _MTLDevice instance size is 536 on iPadOS 17 but different on iOS 16 -> accept any valid _MTLDevice class!
 fe = core / "drivers/AdrenoMetal/NativeBridgeMetalFrontend.mm"
 fes = fe.read_text()
 old_ws = "- (void)waitUntilScheduled {\n"
@@ -91,6 +92,10 @@ assert old_ws in fes, "expected waitUntilScheduled not found"
 fes = fes.replace(old_ws, new_ws, 1)
 assert "MTLBarrierScopeRenderTargets" in fes
 fes = fes.replace("MTLBarrierScopeRenderTargets", "((MTLBarrierScope)(1 << 2))")
+old_abi = 'if(!base || class_getInstanceSize(base)!=536){NBLOG(@"native-metal: unexpected _MTLDevice ABI");return nil;}'
+new_abi = 'if(!base){NBLOG(@"native-metal: no _MTLDevice");return nil;}'
+assert old_abi in fes, "expected _MTLDevice 536 check not found"
+fes = fes.replace(old_abi, new_abi, 1)
 fe.write_text(fes)
 
 # Patch upstream NativeAdrenoMetalPlugin.mm:
@@ -119,33 +124,62 @@ static double houji_volumeButtonsCenterY(id self, SEL _cmd) {
 
 static void (*gOrigVhudLayout1)(id, SEL) = nullptr;
 static void (*gOrigVhudLayout2)(id, SEL) = nullptr;
+static void (*gOrigSliderSetCenter)(id, SEL, HoujiCGPoint) = nullptr;
+static Class gHookedSliderCls = Nil;
+
+static void houji_slider_setCenter(id self, SEL _cmd, HoujiCGPoint pt) {
+    @try {
+        id sup = ((id (*)(id, SEL))objc_msgSend)(self, sel_registerName("superview"));
+        if (sup) {
+            HoujiCGRect b = ((HoujiCGRect (*)(id, SEL))objc_msgSend)(sup, sel_registerName("bounds"));
+            if (b.s.w > 200.0 && b.s.h > 400.0 && b.s.w < b.s.h) { // portrait
+                if (pt.x < b.s.w * 0.5) pt.x = b.s.w - pt.x;
+                pt.y = b.s.h / 3.0; // 2/3 up from bottom = 1/3 down from top
+            }
+        }
+    } @catch (NSException *e) {}
+    if (gOrigSliderSetCenter) gOrigSliderSetCenter(self, _cmd, pt);
+}
+
+static void houji_hook_slider_class(Class cls) {
+    if (!cls || cls == gHookedSliderCls) return;
+    const char *cname = class_getName(cls);
+    if (!cname || strcmp(cname, "UIView") == 0) return;
+    SEL s = sel_registerName("setCenter:");
+    if (Method m = class_getInstanceMethod(cls, s)) {
+        gOrigSliderSetCenter = (void (*)(id, SEL, HoujiCGPoint))method_getImplementation(m);
+        if (!class_addMethod(cls, s, (IMP)houji_slider_setCenter, method_getTypeEncoding(m))) {
+            method_setImplementation(m, (IMP)houji_slider_setCenter);
+        }
+        gHookedSliderCls = cls;
+        fprintf(stderr, "HOUJI-VHUD: hooked %s.setCenter: (right edge, y=h/3)\n", cname);
+    }
+}
+
+static void houji_walk_vhud(id view, HoujiCGRect rootB, int depth) {
+    if (!view || depth > 3) return;
+    NSArray *subs = ((NSArray *(*)(id, SEL))objc_msgSend)(view, sel_registerName("subviews"));
+    for (id sub in subs) {
+        HoujiCGRect f = ((HoujiCGRect (*)(id, SEL))objc_msgSend)(sub, sel_registerName("frame"));
+        if (f.s.w > 3.0 && f.s.w < rootB.s.w * 0.45 && f.s.h > 40.0 && f.s.h < rootB.s.h * 0.5) {
+            houji_hook_slider_class(object_getClass(sub));
+            HoujiCGPoint c = ((HoujiCGPoint (*)(id, SEL))objc_msgSend)(sub, sel_registerName("center"));
+            if (c.x < rootB.s.w * 0.5) c.x = rootB.s.w - c.x;
+            c.y = rootB.s.h / 3.0;
+            ((void (*)(id, SEL, HoujiCGPoint))objc_msgSend)(sub, sel_registerName("setCenter:"), c);
+        } else {
+            houji_walk_vhud(sub, rootB, depth + 1);
+        }
+    }
+}
 
 static void houji_mirror_vhud_view(id vc) {
     @try {
         id view = ((id (*)(id, SEL))objc_msgSend)(vc, sel_registerName("view"));
         if (!view) return;
         HoujiCGRect b = ((HoujiCGRect (*)(id, SEL))objc_msgSend)(view, sel_registerName("bounds"));
-        if (b.s.w <= 100.0 || b.s.h <= 100.0 || b.s.w >= b.s.h) return; // portrait only
-        NSArray *subs = ((NSArray *(*)(id, SEL))objc_msgSend)(view, sel_registerName("subviews"));
-        for (id sub in subs) {
-            HoujiCGRect f = ((HoujiCGRect (*)(id, SEL))objc_msgSend)(sub, sel_registerName("frame"));
-            if (f.s.w > 1.0 && f.s.w < b.s.w * 0.5 && f.s.h > 20.0 && f.s.h < b.s.h * 0.5) {
-                HoujiCGPoint c = ((HoujiCGPoint (*)(id, SEL))objc_msgSend)(sub, sel_registerName("center"));
-                bool changed = false;
-                if (c.x < b.s.w * 0.5) {
-                    c.x = b.s.w - c.x;
-                    changed = true;
-                }
-                double targetY = b.s.h / 3.0; // 2/3 up from bottom = 1/3 down from top
-                if (c.y < targetY - 1.0 || c.y > targetY + 1.0) {
-                    c.y = targetY;
-                    changed = true;
-                }
-                if (changed) {
-                    ((void (*)(id, SEL, HoujiCGPoint))objc_msgSend)(sub, sel_registerName("setCenter:"), c);
-                }
-            }
-        }
+        if (b.s.w <= 200.0 || b.s.h <= 400.0 || b.s.w >= b.s.h) return; // portrait only
+        houji_walk_vhud(view, b, 0);
     } @catch (NSException *e) {}
 }
 
@@ -163,12 +197,8 @@ static void houji_install_vhud_hook() {
     if (!getprogname() || strcmp(getprogname(), "SpringBoard") != 0) return;
     dispatch_async(dispatch_get_main_queue(), ^{
         @try {
-            if (Class c = objc_getClass("SBVolumeHUDSettings")) {
-                if (Method m = class_getInstanceMethod(c, sel_registerName("volumeButtonsCenterY"))) {
-                    method_setImplementation(m, (IMP)houji_volumeButtonsCenterY);
-                    fprintf(stderr, "HOUJI-VHUD: hooked SBVolumeHUDSettings.volumeButtonsCenterY -> 297.0\n");
-                }
-            }
+            if (Class c = objc_getClass("SBElasticSliderView")) houji_hook_slider_class(c);
+            else if (Class c2 = objc_getClass("SBVolumeHUDView")) houji_hook_slider_class(c2);
             const char *vcs[2] = {"SBElasticVolumeViewController", "SBVolumeHUDViewController"};
             for (int i = 0; i < 2; ++i) {
                 if (Class c = objc_getClass(vcs[i])) {
@@ -181,7 +211,7 @@ static void houji_install_vhud_hook() {
                         if (!class_addMethod(c, s, rep, method_getTypeEncoding(m))) {
                             method_setImplementation(m, rep);
                         }
-                        fprintf(stderr, "HOUJI-VHUD: hooked %s.viewDidLayoutSubviews (right edge)\n", vcs[i]);
+                        fprintf(stderr, "HOUJI-VHUD: hooked %s.viewDidLayoutSubviews\n", vcs[i]);
                     }
                 }
             }
