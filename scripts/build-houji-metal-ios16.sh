@@ -112,17 +112,40 @@ old_ref = 'if(told.fetch_add(1)<64)NBLOG(@"native-metal: render pipeline refused
 new_ref = r'if(told.fetch_add(1)<64){NBLOG(@"native-metal: render pipeline refused: %@",why);int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PIPE-FAIL[%s]: c0=%lu blend=%d %s\n",getprogname(),(unsigned long)d.colorAttachments[0].pixelFormat,(int)d.colorAttachments[0].blendingEnabled,why.UTF8String?:"?");close(cfd);}}'
 assert old_ref in fes, "expected render pipeline refused NBLOG not found"
 fes = fes.replace(old_ref, new_ref, 1)
-fe.write_text(fes)
-print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528 & MTLLanguageVersion3_0")
 
-# 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort
+# 1d) Mirror first 64 NBLOG messages and first 32 refuseSurface calls per process to /dev/console
+old_nblog = r' if(logToStderr())fprintf(stderr,"%s: %.140s\n",getprogname(),nbText.UTF8String?:"?");}while(0)'
+new_nblog = r' if(logToStderr())fprintf(stderr,"%s: %.140s\n",getprogname(),nbText.UTF8String?:"?");static std::atomic<int> nbCon{0};if(nbCon.fetch_add(1)<64){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB[%s]: %.200s\n",getprogname(),nbText.UTF8String?:"?");close(cfd);}}}while(0)'
+assert old_nblog in fes, "expected NBLOG macro tail not found"
+fes = fes.replace(old_nblog, new_nblog, 1)
+
+old_sf = ' std::lock_guard<std::mutex> lock(gProblemLock);gSurfaceLastRefusal=r;'
+new_sf = r' static std::atomic<int> sfCon{0};if(sfCon.fetch_add(1)<32){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-SURF[%s]: step=%u sfmt=0x%x pf=%u %lux%lu row=%llu alloc=%lu\n",getprogname(),step,surface?IOSurfaceGetPixelFormat(surface):0,d?(unsigned)d.pixelFormat:0,(unsigned long)(d?d.width:0),(unsigned long)(d?d.height:0),(unsigned long long)row,(unsigned long)(surface?IOSurfaceGetAllocSize(surface):0));close(cfd);}} std::lock_guard<std::mutex> lock(gProblemLock);gSurfaceLastRefusal=r;'
+assert old_sf in fes, "expected refuseSurface lock line not found"
+fes = fes.replace(old_sf, new_sf, 1)
+fe.write_text(fes)
+print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, and console diag")
+
+# 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort;
+#    disable deep framebuffer and skip unused iPadOS serveScanout on houji.
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_pub = "    if (publish::requested()) return publish::deviceForPort(port);"
 new_pub = "    (void)publish::requested(); return publish::deviceForPort(port);"
 assert old_pub in pls, "expected publish::requested() line not found"
-pl.write_text(pls.replace(old_pub, new_pub, 1))
-print("Adapted NativeAdrenoMetalPlugin.mm to always use publish::deviceForPort")
+pls = pls.replace(old_pub, new_pub, 1)
+
+old_fc = '        CFPreferencesSetAppValue(CFSTR("CAEnableFramebufferCompression"), kCFBooleanFalse, kCFPreferencesCurrentApplication);'
+new_fc = '        CFPreferencesSetAppValue(CFSTR("CAEnableDeepFramebuffer"), kCFBooleanFalse, kCFPreferencesCurrentApplication);\n' + old_fc
+assert old_fc in pls, "expected CAEnableFramebufferCompression line not found"
+pls = pls.replace(old_fc, new_fc, 1)
+
+old_sc = "                bridgephase::serveScanout(*g, device);"
+new_sc = "                (void)g; /* houji uses CPU scanout */"
+assert old_sc in pls, "expected serveScanout line not found"
+pls = pls.replace(old_sc, new_sc, 1)
+pl.write_text(pls)
+print("Adapted NativeAdrenoMetalPlugin.mm for iOS 16 houji")
 PY
 
 echo "== [4/6] Building iOS 16 Turnip (libvulkan_freedreno.dylib)"
