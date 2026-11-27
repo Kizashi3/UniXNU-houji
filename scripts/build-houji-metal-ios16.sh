@@ -100,7 +100,7 @@ codesign --force --sign - --timestamp=none "$turnip_dylib"
 
 echo "== [5/6] Building Upstream Rust Bridge (m2v@87a869f7 zero-copy) + Linking with Houji-ref iOS 16 Frontend"
 python3 "$core/scripts/build-adreno-metal-bridge.py" --target ios --source "$m2v"
-archive=$(find "$core/build" -name libnative_metal_bridge.a | head -n 1)
+archive=$(find "$core" -name libnative_metal_bridge.a | head -n 1)
 echo "Found bridge archive: $archive"
 test -f "$archive"
 
