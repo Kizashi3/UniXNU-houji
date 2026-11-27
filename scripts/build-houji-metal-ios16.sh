@@ -129,10 +129,19 @@ static void houji_mirror_vhud_view(id vc) {
         NSArray *subs = ((NSArray *(*)(id, SEL))objc_msgSend)(view, sel_registerName("subviews"));
         for (id sub in subs) {
             HoujiCGRect f = ((HoujiCGRect (*)(id, SEL))objc_msgSend)(sub, sel_registerName("frame"));
-            if (f.s.w > 1.0 && f.s.w < b.s.w * 0.5) {
+            if (f.s.w > 1.0 && f.s.w < b.s.w * 0.5 && f.s.h > 20.0 && f.s.h < b.s.h * 0.5) {
                 HoujiCGPoint c = ((HoujiCGPoint (*)(id, SEL))objc_msgSend)(sub, sel_registerName("center"));
+                bool changed = false;
                 if (c.x < b.s.w * 0.5) {
                     c.x = b.s.w - c.x;
+                    changed = true;
+                }
+                double targetY = b.s.h / 3.0; // 2/3 up from bottom = 1/3 down from top
+                if (c.y < targetY - 1.0 || c.y > targetY + 1.0) {
+                    c.y = targetY;
+                    changed = true;
+                }
+                if (changed) {
                     ((void (*)(id, SEL, HoujiCGPoint))objc_msgSend)(sub, sel_registerName("setCenter:"), c);
                 }
             }
