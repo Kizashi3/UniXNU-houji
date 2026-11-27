@@ -128,8 +128,25 @@ old_prob = ' strlcpy(gLastProblems[0],what.UTF8String?:"?",sizeof gLastProblems[
 new_prob = old_prob + r' static std::atomic<int> probCon{0};if(probCon.fetch_add(1)<64){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-PROB[%s]: %.200s\n",getprogname(),what.UTF8String?:"?");close(cfd);}}'
 assert old_prob in fes, "expected noteProblem strlcpy line not found"
 fes = fes.replace(old_prob, new_prob, 1)
+
+# 1e) Disable async encode thread in backboardd (matches iOS 16 working clients), add newCommandQueueWithDescriptor:,
+#     and log uncommitted commandBuffer creation/dealloc in backboardd to /dev/console.
+old_enc = 'static const bool gEncodeThread=access("/private/var/ngpu/debug/no-encode-thread",F_OK)!=0 &&\n                                (isRenderServer() || access("/private/var/ngpu/debug/encode-thread",F_OK)==0);'
+new_enc = 'static const bool gEncodeThread=false;'
+assert old_enc in fes, "expected gEncodeThread line not found"
+fes = fes.replace(old_enc, new_enc, 1)
+
+old_nq = '- (id<MTLCommandQueue>)newCommandQueue {'
+new_nq = '- (id<MTLCommandQueue>)newCommandQueueWithDescriptor:(id)d {(void)d;return [self newCommandQueue];}\n' + old_nq
+assert old_nq in fes, "expected newCommandQueue line not found"
+fes = fes.replace(old_nq, new_nq, 1)
+
+old_cb = ' NBCommandBuffer *commandBuffer=[NBCommandBuffer new];commandBuffer.handle=handle;commandBuffer.queue=self;return (id<MTLCommandBuffer>)commandBuffer;'
+new_cb = r' NBCommandBuffer *commandBuffer=[NBCommandBuffer new];commandBuffer.handle=handle;commandBuffer.queue=self;if(isRenderServer()){static std::atomic<int> cbN{0};int n=cbN.fetch_add(1);if(n<16){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-CB[bb]: new #%d ptr=%p\n",n,(__bridge void*)commandBuffer);close(cfd);}}}return (id<MTLCommandBuffer>)commandBuffer;'
+assert old_cb in fes, "expected commandBuffer creation line not found"
+fes = fes.replace(old_cb, new_cb, 1)
 fe.write_text(fes)
-print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, and console diag")
+print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, sync encode, and console diag")
 
 # 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort;
 #    disable deep framebuffer, replace unused serveScanout with NMB-STAT console monitor, and disable boot shader primer.
