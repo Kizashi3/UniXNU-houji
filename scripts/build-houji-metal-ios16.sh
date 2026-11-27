@@ -145,8 +145,44 @@ old_cb = ' NBCommandBuffer *commandBuffer=[NBCommandBuffer new];commandBuffer.ha
 new_cb = r' NBCommandBuffer *commandBuffer=[NBCommandBuffer new];commandBuffer.handle=handle;commandBuffer.queue=self;if(isRenderServer()){static std::atomic<int> cbN{0};int n=cbN.fetch_add(1);if(n<16){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-CB[bb]: new #%d ptr=%p\n",n,(__bridge void*)commandBuffer);close(cfd);}}}return (id<MTLCommandBuffer>)commandBuffer;'
 assert old_cb in fes, "expected commandBuffer creation line not found"
 fes = fes.replace(old_cb, new_cb, 1)
+
+# 1f) Match working iOS 16 Houji-ref device profile:
+#     - supportsFeatureSet: returns NO (upstream returns YES for Apple1..5, steering iOS 16 QuartzCore off its working path)
+#     - fillBaseLimits: only populate maxTextureWidth2D and maxTextureHeight2D (never overwrite other iOS 16 _limits fields)
+#     - respondsToSelector: do not hide targetDeviceInfo from iOS 16 callers
+#     - Log first render passes / iosurface textures / commits in backboardd to /dev/console
+old_fs = '- (BOOL)supportsFeatureSet:(MTLFeatureSet)set {\n static const uint8_t families[]={1,2,1,2,3,1,2,3,1,2,3,4,1,2,3,4,5};   // MTLFeatureSet_iOS_GPUFamily1_v1 (0) to iOS_GPUFamily5_v1 (16)\n if((NSUInteger)set>=sizeof families)return NO;\n return [(id<MTLDevice>)self supportsFamily:(MTLGPUFamily)(MTLGPUFamilyApple1+families[set]-1)];\n}'
+new_fs = '- (BOOL)supportsFeatureSet:(MTLFeatureSet)set {(void)set;return NO;}'
+assert old_fs in fes, "expected supportsFeatureSet not found"
+fes = fes.replace(old_fs, new_fs, 1)
+
+old_lim = '  if(strncmp(name,"max",3) && strncmp(name,"min",3))continue;'
+new_lim = '  if(strcmp(name,"maxTextureWidth2D") && strcmp(name,"maxTextureHeight2D"))continue;'
+assert old_lim in fes, "expected fillBaseLimits filter not found"
+fes = fes.replace(old_lim, new_lim, 1)
+
+old_rts = '- (BOOL)respondsToSelector:(SEL)selector {\n if(selector==sel_registerName("targetDeviceInfo"))return NO;   // the inherited _MTLDevice one, NULL without IOGPU\n return [super respondsToSelector:selector];\n}'
+new_rts = '- (BOOL)respondsToSelector:(SEL)selector {return [super respondsToSelector:selector];}'
+assert old_rts in fes, "expected respondsToSelector not found"
+fes = fes.replace(old_rts, new_rts, 1)
+
+old_rp = '   gPasses++;gPassPixels+=pixels;encodedWork.passes++;encodedWork.pixels+=pixels;'
+new_rp = r'   gPasses++;gPassPixels+=pixels;encodedWork.passes++;encodedWork.pixels+=pixels;if(isRenderServer()){static std::atomic<int> rpN{0};int n=rpN.fetch_add(1);if(n<12){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-RP[bb]: #%d %lux%lu fmt=%lu surf=%d\n",n,(unsigned long)first.width,(unsigned long)first.height,(unsigned long)first.pixelFormat,([(id)first isKindOfClass:[NBTexture class]] && [(NBTexture*)first surface])?1:0);close(cfd);}}}'
+assert old_rp in fes, "expected gPasses++ line not found"
+fes = fes.replace(old_rp, new_rp, 1)
+
+old_cm = '- (void)commit {\n if(self.committed){NBLOG(@"native-metal: commit twice");return;}'
+new_cm = r'- (void)commit {' + '\n' + r' if(isRenderServer()){static std::atomic<int> cmN{0};int n=cmN.fetch_add(1);if(n<8){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-CM[bb]: commit #%d ptr=%p passes=%u draws=%u\n",n,(__bridge void*)self,encodedWork.passes,encodedWork.draws);close(cfd);}}}' + '\n if(self.committed){NBLOG(@"native-metal: commit twice");return;}'
+assert old_cm in fes, "expected commit line not found"
+fes = fes.replace(old_cm, new_cm, 1)
+
+old_is = '- (id<MTLTexture>)newTextureWithDescriptor:(MTLTextureDescriptor *)d iosurface:(IOSurfaceRef)surface plane:(NSUInteger)plane {'
+new_is = old_is + '\n' + r' if(isRenderServer()){static std::atomic<int> isN{0};int n=isN.fetch_add(1);if(n<8){int cfd=open("/dev/console",O_WRONLY);if(cfd>=0){dprintf(cfd,"NMB-IS[bb]: #%d %lux%lu pf=%lu sid=%u\n",n,(unsigned long)(d?d.width:0),(unsigned long)(d?d.height:0),(unsigned long)(d?d.pixelFormat:0),surface?(unsigned)IOSurfaceGetID(surface):0);close(cfd);}}}'
+assert old_is in fes, "expected iosurface texture entry not found"
+fes = fes.replace(old_is, new_is, 1)
+
 fe.write_text(fes)
-print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, sync encode, and console diag")
+print("Adapted NativeBridgeMetalFrontend.mm for iOS 16 _MTLDevice size 528, XR10->RGBA16F, Houji-ref device profile, and console diag")
 
 # 2) Skip A740 stage-1 self-test when NativeAdrenoMetal.publish is absent; always use publish::deviceForPort;
 #    disable deep framebuffer, replace unused serveScanout with NMB-STAT console monitor, and disable boot shader primer.
