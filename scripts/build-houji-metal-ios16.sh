@@ -9,9 +9,8 @@ mkdir -p "$out"
 
 core="$work/unixnu"
 mesa="$core/.cache/mesa-work"
+m2v="$core/.cache/gpu-reference/metal2vulkan"
 houji_ref="$work/houji-ref"
-m2v_raw="$work/m2v-raw"
-m2v_houji="$work/m2v-houji"
 
 checkout() {
     local path=$1 url=$2 revision=$3
@@ -22,14 +21,15 @@ checkout() {
     test "$(git -C "$path" rev-parse HEAD)" = "$revision"
 }
 
-echo "== [1/6] Checking out pinned sources (UniXNU Turnip v2 + Houji-ref iOS 16 Metal + m2v@219f0136)"
+echo "== [1/6] Checking out sources (UniXNU Turnip v2 + m2v@87a869f7 zero-copy + Houji-ref iOS 16 frontend)"
 checkout "$core" https://github.com/UniXNU/UniXNU.git e7bddb9a7eecdcf81f36da9fa38bd9d4d3f155c2
 checkout "$core/drivers/Adreno740" https://github.com/UniXNU/Adreno740.git 2962e289c9690aeb668072c170679e6fb28bf8de
+checkout "$core/drivers/AdrenoMetal" https://github.com/UniXNU/AdrenoMetal.git 0b7094bfdd221c210fb68b8927c3625d610df671
 checkout "$core/kits/AdrenoPM4" https://github.com/UniXNU/AdrenoPM4.git 445f8fe6d115738352b9d78dc70af6d61aa7f62f
+checkout "$m2v" https://github.com/UniXNU/metal2vulkan.git 87a869f7fc4b73265d4812c40d8cccb6a83c7b17
 checkout "$mesa" https://chromium.googlesource.com/external/gitlab.freedesktop.org/mesa/mesa \
     85fda3b36405bcaea8bffc64aa4f2651dc90770d
 git clone --depth=1 https://github.com/lonzzi/UniXNU-houji.git "$houji_ref"
-checkout "$m2v_raw" https://github.com/steelbrain/metal2vulkan.git 219f01365dc4c8eb346816c405b5b17403793764
 
 echo "== [2/6] Installing host tools & Rust 1.98.0 iOS target"
 brew install bison ninja glslang shaderc spirv-tools pkg-config llvm
@@ -46,7 +46,7 @@ rustup target add aarch64-apple-ios --toolchain "$RUST_TC"
 rustup default "$RUST_TC"
 echo "Selected Rust toolchain: $(rustc +$RUST_TC --version)"
 
-echo "== [3/6] Patching Mesa (26 upstream Turnip patches for ABI v2) & assembling Houji-ref m2v@219f0136"
+echo "== [3/6] Patching Mesa (26 Turnip patches) & adapting build scripts for iOS 16.0"
 python3 -m venv "$core/.cache/mesa-venv"
 "$core/.cache/mesa-venv/bin/python" -m pip install 'meson==1.9.1' 'Mako==1.3.10' 'packaging==25.0' 'PyYAML==6.0.2'
 
@@ -65,52 +65,89 @@ for path in pins["patches"]:
     subprocess.run(["git", "-C", str(mesa), "apply", str(patch)], check=True)
 print(f"Applied {len(pins['patches'])} Mesa/Turnip patches cleanly")
 
-# Retarget build-turnip-darwin.py to iOS 16.0
-p = core / "scripts/build-turnip-darwin.py"
-s = p.read_text().replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'", "IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'").replace("17.0", "16.0")
-p.write_text(s)
-print("Retargeted build-turnip-darwin.py to iOS 16.0")
+# Retarget Turnip and bridge builders to iOS 16.0
+for rel in ("scripts/build-turnip-darwin.py", "scripts/build-adreno-metal-bridge.py"):
+    p = core / rel
+    s = p.read_text()
+    s2 = s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'", "IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'").replace("17.0", "16.0") if rel.endswith("turnip-darwin.py") else s.replace("arm64-apple-ios17.0", "arm64-apple-ios16.0").replace("'17.0'", "'16.0'").replace('"17.0"', '"16.0"')
+    p.write_text(s2)
+    print(f"Retargeted {rel} to iOS 16.0")
 
-# Allow all processes when NativeAdrenoMetal.clients is absent (compatible with smooth10 unlimited SMMU)
+# Patch Houji-ref iOS 16 NativeBridgeMetalFrontend.mm:
+#   waitUntilScheduled -> waitUntilCompleted (eliminates flicker/tearing/black-flash while keeping commit async!)
+fe = houji_ref / "graphics/metal/AdrenoMetal/NativeBridgeMetalFrontend.mm"
+fes = fe.read_text()
+old_ws = "- (void)waitUntilScheduled {\n"
+new_ws = "- (void)waitUntilScheduled {\n [self waitUntilCompleted]; return;\n"
+assert old_ws in fes, "expected waitUntilScheduled not found"
+fes = fes.replace(old_ws, new_ws, 1)
+fe.write_text(fes)
+
+# Patch Houji-ref NativeAdrenoMetalPlugin.mm: allow all if .clients absent
 pl = houji_ref / "graphics/metal/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_cl = '    if (!requestedPath("NativeAdrenoMetal.clients", path, sizeof path)) return false;'
 new_cl = '    if (!requestedPath("NativeAdrenoMetal.clients", path, sizeof path)) return true;'
-assert old_cl in pls, "expected listedClient fallback line not found"
-pls = pls.replace(old_cl, new_cl, 1)
-pl.write_text(pls)
-print("Patched Houji-ref NativeAdrenoMetalPlugin.mm listedClient fallback -> true")
+assert old_cl in pls
+pl.write_text(pls.replace(old_cl, new_cl, 1))
+print("Patched Houji-ref iOS 16 frontend (waitUntilScheduled->waitUntilCompleted + clients fallback)")
 PY
-
-python3 "$houji_ref/tools/prepare-sources.py" graphics/runtime --upstream "$m2v_raw" --output "$m2v_houji"
 
 echo "== [4/6] Building iOS 16 Turnip (libvulkan_freedreno.dylib, ABI v2, 128-IB)"
 python3 "$core/scripts/build-turnip-darwin.py" --target ios
 turnip_dylib="$core/build/mesa-tu-ios/src/freedreno/vulkan/libvulkan_freedreno.dylib"
-test -f "$turnip_dylib"
+codesign --force --sign - --timestamp=none "$turnip_dylib"
 
-echo "== [5/6] Building Houji-ref iOS 16 NativeAdrenoMetal.bundle (m2v@219f0136 + sysmem,nocb)"
-cat > "$work/dummy.metal" <<'METAL'
-#include <metal_stdlib>
-using namespace metal;
-kernel void dummy_k(device uint *out [[buffer(0)]], uint id [[thread_position_in_grid]]) { out[id] = id; }
-METAL
-xcrun -sdk iphoneos metal -c "$work/dummy.metal" -o "$work/runtime_examples.air"
-cp "$work/runtime_examples.air" "$work/function_constant.air"
+echo "== [5/6] Building Upstream Rust Bridge (m2v@87a869f7 zero-copy) + Linking with Houji-ref iOS 16 Frontend"
+python3 "$core/scripts/build-adreno-metal-bridge.py" --target ios --translator-source "$m2v"
+archive="$core/build/adreno-metal-bridge-ios/aarch64-apple-ios/release/libnative_metal_bridge.a"
+test -f "$archive"
 
-python3 "$houji_ref/tools/build-metal.py" \
-    --runtime "$m2v_houji" \
-    --mesa-include "$mesa/include" \
-    --fixture-air "$work/runtime_examples.air" \
-    --function-constant-air "$work/function_constant.air" \
-    --turnip "$turnip_dylib" \
-    --turnip-render-mode sysmem \
-    --toolchain "$RUST_TC" \
-    --output "$work/metal-out"
+sdk=$(xcrun --sdk iphoneos --show-sdk-path)
+bundle="$work/NativeAdrenoMetal.bundle"
+mkdir -p "$bundle"
+
+common=(
+    -target arm64-apple-ios16.0 -isysroot "$sdk" -O2
+    -DHOUJI_TURNIP_RENDER_AUTOTUNE=1
+    -DHOUJI_GPU_STAGE_TRACE=0
+    -DHOUJI_GPU_CPU_PROFILE=0
+    -I "$houji_ref/graphics/include"
+    -I "$mesa/include"
+)
+xcrun clang "${common[@]}" -c "$houji_ref/graphics/include/AdrenoPM4.c" -o "$work/AdrenoPM4.o"
+xcrun clang++ "${common[@]}" -g -fstack-protector-strong -std=c++17 \
+    -fobjc-arc -Wno-deprecated-declarations -Wno-unguarded-availability-new -bundle \
+    -x objective-c++ \
+    "$houji_ref/graphics/metal/AdrenoMetal/NativeAdrenoMetalPlugin.mm" \
+    "$houji_ref/graphics/metal/AdrenoMetal/NativeBridgeMetalFrontend.mm" \
+    -x none "$work/AdrenoPM4.o" "$archive" \
+    -Wl,-dead_strip -lobjc -framework Foundation -framework Metal -framework IOSurface \
+    -o "$bundle/NativeAdrenoMetal"
+
+python3 - "$bundle/Info.plist" <<'PY'
+import plistlib, sys
+from pathlib import Path
+info = dict(
+    CFBundleExecutable="NativeAdrenoMetal",
+    CFBundleIdentifier="org.blu-sharky.NativeAdrenoMetal",
+    CFBundlePackageType="BNDL",
+    CFBundleShortVersionString="1",
+    CFBundleVersion="1",
+    MinimumOSVersion="16.0",
+    NSPrincipalClass="NativeAdrenoMetalDevice",
+)
+Path(sys.argv[1]).write_bytes(plistlib.dumps(info))
+PY
+cp "$turnip_dylib" "$bundle/libvulkan_freedreno.dylib"
+strip -x "$bundle/NativeAdrenoMetal"
+codesign --force --sign - --timestamp=none "$bundle/libvulkan_freedreno.dylib"
+codesign --force --sign - --timestamp=none "$bundle"
+codesign --verify --strict "$bundle"
 
 echo "== [6/6] Collecting outputs, CDHashes, and tarball"
-cp -R "$work/metal-out/NativeAdrenoMetal.bundle" "$out/"
-cp "$work/metal-out/NativeAdrenoMetal.clients" "$out/" || true
+cp -R "$bundle" "$out/"
+cp "$houji_ref/graphics/metal/NativeAdrenoMetal.clients" "$out/"
 cp "$turnip_dylib" "$out/"
 
 (cd "$out" && shasum -a 256 NativeAdrenoMetal.bundle/NativeAdrenoMetal NativeAdrenoMetal.bundle/libvulkan_freedreno.dylib libvulkan_freedreno.dylib > SHA256SUMS)
