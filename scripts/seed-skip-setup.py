@@ -75,6 +75,16 @@ def mark_platform_binary(path):
             signature = unpack_from('<II', data, offset + 8)
         offset += size
     if signature is None:
+        subprocess.run(['codesign', '--force', '--sign', '-', '--timestamp=none', str(path)], check=True)
+        data = bytearray(path.read_bytes())
+        commands = unpack_from('<I', data, 16)[0]
+        offset = 32
+        for _ in range(commands):
+            command, size = unpack_from('<II', data, offset)
+            if command == 0x1d:
+                signature = unpack_from('<II', data, offset + 8)
+            offset += size
+    if signature is None:
         raise ValueError(f'{path}: no code signature')
     data_offset, _ = signature
     count = unpack_from('>I', data, data_offset + 8)[0]
@@ -154,7 +164,7 @@ def stage_gpu_probe(root, probe_dir, launchd_dir, extensions_dir=None, cdhash_ou
             os.chmod(info_p, 0o644)
             os.chown(info_p, 0, 0)
         clients = addons / 'NativeAdrenoMetal.clients'
-        clients.write_text('backboardd\nSpringBoard\nvktest\nmtltest\n', encoding='utf-8')
+        clients.write_text('backboardd\nSpringBoard\niconservicesagent\nPosterBoard\nSBRendererService\nAegirPoster\nCollectionsPoster\nPhotosPosterProvider\nGradientPosterExtension\nEmojiPosterExtension\nExtragalacticPoster\nPridePosterExtension\nMobileSlideShow\nPreferences\nvktest\nmtltest\n', encoding='utf-8')
         os.chmod(clients, 0o644)
         os.chown(clients, 0, 0)
         for d in (addons, bundle_dst):
@@ -221,7 +231,7 @@ def main():
         probe_dir = Path(args[index + 1]).resolve()
         del args[index:index + 2]
         # Override with latest metal-ios16-15 release (sudo strips GITHUB_ACTIONS)
-        tag_override = 'metal-ios16-15'
+        tag_override = 'metal-ios16-houji-ref'
         if tag_override:
             import tarfile, urllib.request
             url = f'https://github.com/Kizashi3/UniXNU-houji/releases/download/{tag_override}/houji-metal-ios16.tar.gz'
