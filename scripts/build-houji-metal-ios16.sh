@@ -24,6 +24,7 @@ echo "== [1/5] Checking out matched UniXNU + AdrenoMetal@0b7094bf + m2v@87a869f7
 checkout "$core" https://github.com/UniXNU/UniXNU.git e7bddb9a7eecdcf81f36da9fa38bd9d4d3f155c2
 checkout "$core/drivers/Adreno740" https://github.com/UniXNU/Adreno740.git 2962e289c9690aeb668072c170679e6fb28bf8de
 checkout "$core/drivers/AdrenoMetal" https://github.com/UniXNU/AdrenoMetal.git 0b7094bfdd221c210fb68b8927c3625d610df671
+checkout "$core/drivers/GopFramebuffer" https://github.com/UniXNU/GopFramebuffer.git b0d812d578efa2acb005b66f73168891719af09a
 checkout "$core/kits/AdrenoPM4" https://github.com/UniXNU/AdrenoPM4.git 445f8fe6d115738352b9d78dc70af6d61aa7f62f
 checkout "$m2v" https://github.com/UniXNU/metal2vulkan.git 87a869f7fc4b73265d4812c40d8cccb6a83c7b17
 checkout "$mesa" https://chromium.googlesource.com/external/gitlab.freedesktop.org/mesa/mesa \
@@ -76,13 +77,17 @@ for rel in ("scripts/build-turnip-darwin.py", "scripts/build-adreno-metal-bridge
     print(f"Retargeted {rel} to iOS 16.0")
 
 # Patch upstream NativeBridgeMetalFrontend.mm:
-#   waitUntilScheduled -> waitUntilCompleted (eliminates flicker/tearing/black-flash while keeping commit async!)
+#   1) waitUntilScheduled -> waitUntilCompleted (eliminates flicker/tearing/black-flash while keeping commit async!)
+#   2) MTLBarrierScopeRenderTargets is macOS-only in iOS SDK 18.5 -> use literal (MTLBarrierScope)(1 << 2)
 fe = core / "drivers/AdrenoMetal/NativeBridgeMetalFrontend.mm"
 fes = fe.read_text()
 old_ws = "- (void)waitUntilScheduled {\n"
 new_ws = "- (void)waitUntilScheduled {\n [self waitUntilCompleted]; return;\n"
 assert old_ws in fes, "expected waitUntilScheduled not found"
-fe.write_text(fes.replace(old_ws, new_ws, 1))
+fes = fes.replace(old_ws, new_ws, 1)
+assert "MTLBarrierScopeRenderTargets" in fes
+fes = fes.replace("MTLBarrierScopeRenderTargets", "((MTLBarrierScope)(1 << 2))")
+fe.write_text(fes)
 
 # Patch upstream NativeAdrenoMetalPlugin.mm: always publish (no separate .publish marker file needed)
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
