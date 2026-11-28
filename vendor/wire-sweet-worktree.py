@@ -20,6 +20,12 @@ if missing:
     print('work files.arm64: added', [e.split('/')[-1].split()[0] for e in missing])
 else:
     print('work files.arm64: already wired')
+of = WORK / 'osfmk/conf/files.arm64'
+ot = of.read_text()
+entry = 'osfmk/kern/HoujiCpuIdle.c standard'
+if 'HoujiCpuIdle.c' not in ot:
+    of.write_text(ot.rstrip('\n') + '\n' + entry + '\n')
+    print('work osfmk files.arm64: added HoujiCpuIdle.c')
 
 kc = WORK / 'iokit/KernelConfigTables.cpp'
 k = kc.read_text()
