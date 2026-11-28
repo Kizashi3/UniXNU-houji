@@ -2418,3 +2418,5 @@ houji_fb_bootstrap(void)
 		}
 	}
 }
+#include "HoujiThermal.inc"
+#include "HoujiCpuGovernor.inc"
