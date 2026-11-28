@@ -97,7 +97,7 @@ new_abi = 'if(!base){NBLOG(@"native-metal: no _MTLDevice");return nil;}'
 assert old_abi in fes, "expected _MTLDevice 536 check not found"
 fes = fes.replace(old_abi, new_abi, 1)
 old_nblog = 'if(logToStderr())fprintf(stderr,"%s: %.140s\\n",getprogname(),nbText.UTF8String?:"?");}while(0)'
-new_nblog = '{static std::atomic<int> nbStdCnt{0}; if(logToStderr() || nbStdCnt.fetch_add(1)<120) fprintf(stderr,"%s: %.220s\\n",getprogname(),nbText.UTF8String?:"?");}}while(0)'
+new_nblog = '{static std::atomic<int> nbLogCnt{0}; if(nbLogCnt.fetch_add(1)<80) NSLog(@"%@",nbText);}}while(0)'
 assert old_nblog in fes, "expected NBLOG stderr line not found"
 fes = fes.replace(old_nblog, new_nblog, 1)
 fe.write_text(fes)
