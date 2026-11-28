@@ -100,6 +100,14 @@ old_nblog = 'if(logToStderr())fprintf(stderr,"%s: %.140s\\n",getprogname(),nbTex
 new_nblog = '{static std::atomic<int> nbLogCnt{0}; if(nbLogCnt.fetch_add(1)<80) NSLog(@"%@",nbText);}}while(0)'
 assert old_nblog in fes, "expected NBLOG stderr line not found"
 fes = fes.replace(old_nblog, new_nblog, 1)
+old_nberr = 'static NSError *nbError(NSString *why) {\n return [NSError errorWithDomain:@"org.blu-sharky.native-metal" code:-1 userInfo:@{NSLocalizedDescriptionKey:why?:@"refused"}];\n}'
+new_nberr = 'static NSError *nbError(NSString *why) {\n static std::atomic<int> nbErrCnt{0}; if(nbErrCnt.fetch_add(1)<80) NSLog(@"native-metal-err: %@",why);\n return [NSError errorWithDomain:@"org.blu-sharky.native-metal" code:-1 userInfo:@{NSLocalizedDescriptionKey:why?:@"refused"}];\n}'
+assert old_nberr in fes, "expected nbError not found"
+fes = fes.replace(old_nberr, new_nberr, 1)
+old_np = 'static void noteProblem(NSString *what) {\n gProblems++;'
+new_np = 'static void noteProblem(NSString *what) {\n gProblems++;\n static std::atomic<int> nbProbCnt{0}; if(nbProbCnt.fetch_add(1)<80) NSLog(@"native-metal-prob: %@",what);'
+assert old_np in fes, "expected noteProblem not found"
+fes = fes.replace(old_np, new_np, 1)
 fe.write_text(fes)
 
 # Patch upstream NativeAdrenoMetalPlugin.mm:
