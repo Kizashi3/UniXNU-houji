@@ -108,18 +108,31 @@ old_np = 'static void noteProblem(NSString *what) {\n gProblems++;'
 new_np = 'static void noteProblem(NSString *what) {\n gProblems++;\n static std::atomic<int> nbProbCnt{0}; if(nbProbCnt.fetch_add(1)<80) NSLog(@"native-metal-prob: %@",what);'
 assert old_np in fes, "expected noteProblem not found"
 fes = fes.replace(old_np, new_np, 1)
+old_libf = 'if(!bytes){if(path)reportUnreadableLibrary(path);return nil;}'
+new_libf = 'if(!bytes){NSLog(@"HOUJI-DBG: newLibraryWithFile FAILED path=%@",path);if(path)reportUnreadableLibrary(path);return nil;}'
+assert old_libf in fes, "expected newLibraryWithFile check not found"
+fes = fes.replace(old_libf, new_libf, 1)
+old_fnfail = 'if(!handle){\n  NSString *detail=[NSString stringWithFormat:@"specialized function: %@",lastError()];'
+new_fnfail = 'if(!handle){\n  static std::atomic<int> fnFailCnt{0}; if(fnFailCnt.fetch_add(1)<40) NSLog(@"HOUJI-DBG: specFunc FAILED %@ err=%@",name,lastError());\n  NSString *detail=[NSString stringWithFormat:@"specialized function: %@",lastError()];'
+assert old_fnfail in fes, "expected specFunc fail not found"
+fes = fes.replace(old_fnfail, new_fnfail, 1)
 fe.write_text(fes)
 
 # Patch upstream NativeAdrenoMetalPlugin.mm:
 #   1) always publish (no separate .publish marker file needed)
 #   2) disable CAEnableDeepFramebuffer on iOS 16 & skip NativeGOP serveScanout (houji uses AppleCLCD dblbuf4)
-#   3) in SpringBoard only: reposition Volume HUD to right edge, 2/3 up from bottom (1/3 from top)
+#   3) log missing selectors + device open via NSLog in backboardd
+#   4) in SpringBoard only: reposition Volume HUD to right edge, 2/3 up from bottom (1/3 from top)
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_req = 'static bool requested() {\n    char path[1024];\n    return requestedPath("NativeAdrenoMetal.publish", path, sizeof path);\n}'
 new_req = 'static bool requested() {\n    return true;\n}'
 assert old_req in pls, "expected requested() not found"
 pls = pls.replace(old_req, new_req, 1)
+old_open = 'device = native_bridge_metal_open(turnip, candidates[i], registryID, nullptr);'
+new_open = 'device = native_bridge_metal_open(turnip, candidates[i], registryID, [](const char *c, const char *s){ static int mc=0; if(++mc<=60) NSLog(@"HOUJI-MISSING: %s.%s", c?:"?", s?:"?"); }); if (device) NSLog(@"HOUJI-DBG: opened Metal device for %s cache=%s", getprogname(), candidates[i]);'
+assert old_open in pls, "expected native_bridge_metal_open not found"
+pls = pls.replace(old_open, new_open, 1)
 old_fbc = 'CFPreferencesSetAppValue(CFSTR("CAEnableFramebufferCompression"), kCFBooleanFalse, kCFPreferencesCurrentApplication);'
 new_fbc = 'CFPreferencesSetAppValue(CFSTR("CAEnableDeepFramebuffer"), kCFBooleanFalse, kCFPreferencesCurrentApplication);\n        ' + old_fbc
 assert old_fbc in pls, "expected CAEnableFramebufferCompression not found"
