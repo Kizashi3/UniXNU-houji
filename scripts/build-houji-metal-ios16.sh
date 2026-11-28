@@ -96,17 +96,30 @@ old_abi = 'if(!base || class_getInstanceSize(base)!=536){NBLOG(@"native-metal: u
 new_abi = 'if(!base){NBLOG(@"native-metal: no _MTLDevice");return nil;}'
 assert old_abi in fes, "expected _MTLDevice 536 check not found"
 fes = fes.replace(old_abi, new_abi, 1)
+old_nblog = 'if(logToStderr())fprintf(stderr,"%s: %.140s\\n",getprogname(),nbText.UTF8String?:"?");}while(0)'
+new_nblog = '{static std::atomic<int> nbStdCnt{0}; if(logToStderr() || nbStdCnt.fetch_add(1)<120) fprintf(stderr,"%s: %.220s\\n",getprogname(),nbText.UTF8String?:"?");}}while(0)'
+assert old_nblog in fes, "expected NBLOG stderr line not found"
+fes = fes.replace(old_nblog, new_nblog, 1)
 fe.write_text(fes)
 
 # Patch upstream NativeAdrenoMetalPlugin.mm:
 #   1) always publish (no separate .publish marker file needed)
-#   2) in SpringBoard only: reposition Volume HUD to right edge, 2/3 up from bottom (1/3 from top = 297pt)
+#   2) disable CAEnableDeepFramebuffer on iOS 16 & skip NativeGOP serveScanout (houji uses AppleCLCD dblbuf4)
+#   3) in SpringBoard only: reposition Volume HUD to right edge, 2/3 up from bottom (1/3 from top)
 pl = core / "drivers/AdrenoMetal/NativeAdrenoMetalPlugin.mm"
 pls = pl.read_text()
 old_req = 'static bool requested() {\n    char path[1024];\n    return requestedPath("NativeAdrenoMetal.publish", path, sizeof path);\n}'
 new_req = 'static bool requested() {\n    return true;\n}'
 assert old_req in pls, "expected requested() not found"
 pls = pls.replace(old_req, new_req, 1)
+old_fbc = 'CFPreferencesSetAppValue(CFSTR("CAEnableFramebufferCompression"), kCFBooleanFalse, kCFPreferencesCurrentApplication);'
+new_fbc = 'CFPreferencesSetAppValue(CFSTR("CAEnableDeepFramebuffer"), kCFBooleanFalse, kCFPreferencesCurrentApplication);\n        ' + old_fbc
+assert old_fbc in pls, "expected CAEnableFramebufferCompression not found"
+pls = pls.replace(old_fbc, new_fbc, 1)
+old_scan = 'bridgephase::serveScanout(*g, device);'
+new_scan = '(void)g; /* houji uses AppleCLCD dblbuf4 scanout */'
+assert old_scan in pls, "expected serveScanout not found"
+pls = pls.replace(old_scan, new_scan, 1)
 
 vhud_hook = r'''
 #if !TARGET_OS_OSX
