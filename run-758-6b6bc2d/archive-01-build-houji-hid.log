@@ -1,0 +1,2 @@
+clang: warning: using sysroot for 'MacOSX' but targeting 'iPhone' [-Wincompatible-sysroot]
+built /Users/runner/work/UniXNU-houji/UniXNU-houji/unixnu/out/houji/tree/build/houji-hid/libHoujiHID.a
