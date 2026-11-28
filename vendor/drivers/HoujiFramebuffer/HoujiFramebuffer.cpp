@@ -2418,3 +2418,4 @@ houji_fb_bootstrap(void)
 		}
 	}
 }
+#include "HoujiThermal.inc"
