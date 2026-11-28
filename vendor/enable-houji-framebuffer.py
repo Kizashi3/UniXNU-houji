@@ -74,3 +74,5 @@ for script in (DEVICE.parent / "unixnu" / "scripts" / "build-xnu-4k-baseline.sh"
         raise SystemExit("archive anchor missing in %s" % script)
     script.write_text(t.replace(anchor, insert, 1))
     print(script, ": framebuffer archive linked")
+for name in ("HoujiThermalPolicy.h", "HoujiThermal.inc", "HoujiCpuGovernor.inc"):
+    shutil.copyfile(SRC / name, dst / name)
